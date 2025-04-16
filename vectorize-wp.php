@@ -216,7 +216,7 @@ class Vectorize_WP {
             VECTORIZE_WP_VERSION,
             true
         );
-        
+
         // Admin-AJAX-URL für JavaScript verfügbar machen
         wp_localize_script(
             'vectorize-wp-admin',
@@ -226,8 +226,8 @@ class Vectorize_WP {
                 'nonce' => wp_create_nonce('vectorize_wp_nonce'),
                 'maxUploadSize' => $this->get_max_upload_size(),
                 'adminUrl' => admin_url(),
-            )
-        );
+    )
+);
     }
 
     // Hauptadminseite rendern
@@ -479,14 +479,15 @@ class Vectorize_WP {
         );
         
         // AJAX-URL und Nonce für JavaScript verfügbar machen
+        // AJAX-URL und Nonce für JavaScript verfügbar machen
         wp_localize_script(
             'vectorize-wp-frontend',
             'vectorizeWpFrontend',
             array(
-                'ajaxUrl' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('vectorize_wp_frontend_nonce'),
-                'maxUploadSize' => $this->get_max_upload_size(),
-            )
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+               'nonce' => wp_create_nonce('vectorize_wp_frontend_nonce'),
+               'maxUploadSize' => $this->get_max_upload_size(),
+               )
         );
         
         // Template für den Canvas-Bereich einbinden
