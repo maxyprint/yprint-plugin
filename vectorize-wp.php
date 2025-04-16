@@ -268,6 +268,20 @@ class Vectorize_WP {
         wp_send_json_error('Nonce validation failed. Security check failed.');
         return;
     }
+
+    // Debugging-Ausgabe
+    error_log('AJAX vectorize_image called');
+    error_log('POST data: ' . print_r($_POST, true));
+    error_log('FILES data: ' . print_r($_FILES, true));
+    
+    // Nonce-Überprüfung mit Debugging
+    $nonce_check = check_ajax_referer('vectorize_wp_nonce', 'nonce', false);
+    error_log('Nonce check result: ' . ($nonce_check ? 'passed' : 'failed'));
+    
+    if (!$nonce_check) {
+        wp_send_json_error('Nonce validation failed. Security check failed.');
+        return;
+    }
     
     if (!current_user_can('upload_files')) {
         wp_send_json_error(__('Keine Berechtigung zum Hochladen von Dateien.', 'vectorize-wp'));
