@@ -36,6 +36,8 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     grid-template-rows: 100vh;
     width: 100%;
     height: 100vh;
+    overflow: hidden;
+    position: relative;
 }
 
 /* Allgemeine Stile für alle Bereiche */
@@ -46,6 +48,8 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 0; /* Wichtig für Firefox und einige andere Browser */
 }
 
 /* Linke Seitenleiste (Dateimanager) */
@@ -167,6 +171,8 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     position: relative;
     display: flex;
     flex-direction: column;
+    min-height: 0; /* Wichtig für Flexbox-Verhalten */
+    overflow: hidden;
 }
 
 /* Toolbar */
@@ -193,7 +199,7 @@ body.designtool-page .site-main > *:not(.designtool-container) {
 /* Canvas-Bereich */
 .designtool-canvas-container {
     flex: 1;
-    overflow: hidden;
+    overflow: auto;
     position: relative;
     display: flex;
     align-items: center;
@@ -205,6 +211,7 @@ body.designtool-page .site-main > *:not(.designtool-container) {
                       linear-gradient(-45deg, transparent 75%, #ddd 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    min-height: 0; /* Wichtig für Flexbox in Firefox */
 }
 
 .designtool-canvas {
@@ -587,7 +594,9 @@ body.designtool-page .site-main > *:not(.designtool-container) {
 @media (max-width: 768px) {
     .designtool-container {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: auto 1fr;
+        height: auto;
+        min-height: 600px;
     }
     
     .designtool-sidebar {
@@ -611,6 +620,10 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     
     .designtool-preview {
         grid-template-columns: 1fr;
+    }
+    
+    .designtool-main {
+        min-height: 500px;
     }
     
     /* Mobile-Menü für Datei und Eigenschaften */
