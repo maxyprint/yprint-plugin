@@ -17,5 +17,5 @@ jobs:
         username: a549875
         password: ${{ secrets.SFTP_PASSWORD }}
         local_path: ./
-        remote_path: /wordpress/.opcache/c901de2bbc014cfa9bd15b4b1d4534d4/homepages/31/d4298451771/htdocs/wordpress/wp-content/plugins/vectorize-wp
+        remote_path: /homepages/31/d4298451771/htdocs/wordpress/wp-content/plugins/vectorize-wp
         port: 22
