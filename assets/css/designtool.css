@@ -188,21 +188,30 @@ body.designtool-page .site-main > *:not(.designtool-container) {
 /* Hauptbereich mit Canvas */
 .designtool-main {
     background-color: #e9ecef;
-    flex: 1;
+    flex: 1 1 auto;
     position: relative;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
+    height: 100vh;
+    min-height: 500px;
 }
 
 /* Toolbar */
 .designtool-toolbar {
     height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    flex: 0 0 auto;
     background-color: #fff;
     border-bottom: 1px solid #e1e4e8;
     display: flex;
     align-items: center;
     padding: 0 15px;
     z-index: 5;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
 }
 
 .designtool-toolbar-group {
@@ -217,7 +226,7 @@ body.designtool-page .site-main > *:not(.designtool-container) {
 
 /* Canvas-Bereich */
 .designtool-canvas-container {
-    flex: 1;
+    flex: 1 1 auto;
     overflow: hidden;
     position: relative;
     display: flex;
@@ -230,6 +239,8 @@ body.designtool-page .site-main > *:not(.designtool-container) {
                       linear-gradient(-45deg, transparent 75%, #ddd 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    min-height: calc(100% - 48px);
+    width: 100%;
 }
 
 .designtool-canvas {
