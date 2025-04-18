@@ -581,7 +581,14 @@ function vectorize_wp_add_canvas_endpoint() {
         'top'
     );
     
+    add_rewrite_rule(
+        'designtool/?$',
+        'index.php?vectorize_designtool=1',
+        'top'
+    );
+    
     add_rewrite_tag('%vectorize_canvas%', '([^&]+)');
+    add_rewrite_tag('%vectorize_designtool%', '([^&]+)');
 }
 add_action('init', 'vectorize_wp_add_canvas_endpoint');
 
@@ -592,10 +599,13 @@ function vectorize_wp_activate() {
 }
 register_activation_hook(__FILE__, 'vectorize_wp_activate');
 
-// Template für den Canvas-Endpunkt
+// Template für die Endpunkte
 function vectorize_wp_template_include($template) {
     if (get_query_var('vectorize_canvas')) {
         return VECTORIZE_WP_PATH . 'templates/canvas-template.php';
+    }
+    if (get_query_var('vectorize_designtool')) {
+        return VECTORIZE_WP_PATH . 'templates/designtool-template.php';
     }
     return $template;
 }
