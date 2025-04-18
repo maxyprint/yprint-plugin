@@ -82,6 +82,9 @@ init: function() {
     this.initializeComponents();
 },
 
+// Flag hinzufügen, um unendlichen Loop zu verhindern
+isLayoutFixed: false,
+
 // Neue Methode für die eigentliche Initialisierung
 initializeComponents: function() {
     console.log('Initialisiere Design Tool Komponenten...');
@@ -110,15 +113,17 @@ initializeComponents: function() {
     $debugBtn.on('click', function() {
         var result = self.debugLayout();
         console.log(result);
+        // Layout-Flag zurücksetzen beim manuellen Debug
+        self.isLayoutFixed = false;
         self.fixLayout(); // Immer fixLayout ausführen, wenn Debug-Button geklickt wird
     });
     
     // Sofort Layout-Fix anwenden, nicht warten
     this.fixLayout();
     
-    // Nach kurzer Verzögerung nochmals prüfen
+    // Nach kurzer Verzögerung nochmals prüfen, aber nur wenn noch kein Fix erfolgt ist
     setTimeout(function() {
-        if ($('.designtool-canvas-container').height() < 50 || $('.designtool-sidebar').is(':hidden')) {
+        if (!self.isLayoutFixed && ($('.designtool-canvas-container').height() < 50 || $('.designtool-sidebar').is(':hidden'))) {
             console.warn('Layout-Problem nach Initialisierung erkannt, wende Fix erneut an...');
             self.fixLayout();
             self.hideIntrusiveElements();
@@ -1652,6 +1657,12 @@ debugLayout: function() {
 
 // Layout-Fix anwenden
 fixLayout: function() {
+    // Unendlichen Loop verhindern
+    if (this.isLayoutFixed) {
+        console.log('Layout wurde bereits repariert, keine erneute Anwendung.');
+        return;
+    }
+    
     console.log('Versuche Layout zu reparieren...');
     
     // Prüfen, ob der Haupt-Container überhaupt existiert
@@ -1753,10 +1764,17 @@ fixLayout: function() {
         'z-index': '1'
     });
     
+    // Flag setzen, dass Layout repariert wurde
+    this.isLayoutFixed = true;
+    
     console.log('Layout-Fix angewendet.');
     
-    // Neu initialisieren, nachdem die Struktur repariert wurde
-    this.initializeComponents();
+    // Hier wird kein rekursiver Aufruf von initializeComponents mehr gemacht
+    // this.initializeComponents(); // Diese Zeile wurde entfernt, um den unendlichen Loop zu beenden
+    
+    // Stattdessen werden nur die verbleibenden notwendigen Aktionen ausgeführt
+    this.cacheElements();
+    this.bindEvents();
 }
 };
 })(jQuery);
