@@ -81,44 +81,17 @@ init: function() {
                 return;
             }
             self.initializeComponents();
-            // Layoutfix wurde entfernt, um die unendliche Schleife zu vermeiden
         });
         return;
     }
     
     this.initializeComponents();
-    // Layoutfix wurde entfernt, um die unendliche Schleife zu vermeiden
 },
 
 // Flag für Initialisierungszustand
 _componentInitialized: false,
 
-// Neue Methode für die eigentliche Initialisierung
-initializeComponents: function() {
-    // Verhindern von mehrfacher Initialisierung
-    if (this._componentInitialized) {
-        console.log('Design Tool Komponenten wurden bereits initialisiert, Abbruch.');
-        return;
-    }
-    this._componentInitialized = true;
-    
-    console.log('Initialisiere Design Tool Komponenten...');
-    
-    // Gleich zu Beginn versuchen, störende Elemente zu entfernen oder zu verstecken
-    this.hideIntrusiveElements();
-    
-    this.cacheElements();
-    this.setupCanvas();
-    this.bindEvents();
-    this.setInitialState();
-    
-    // Prüfen, ob vorhandene SVG-Daten geladen werden sollen
-    this.loadExistingSvgIfAvailable();
-    
-    console.log('Design Tool wurde erfolgreich initialisiert');
-},
-
-// Neue Methode für die eigentliche Initialisierung
+// Methode für die eigentliche Initialisierung
 initializeComponents: function() {
     // Verhindern von mehrfacher Initialisierung
     if (this._componentInitialized) {
