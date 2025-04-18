@@ -58,36 +58,38 @@
         elements: {},
         
         // Initialisierung
-init: function() {
-    console.log('DesignTool.init() gestartet');
-    
-    // Schutz gegen mehrfache Initialisierung
-    if (window._designtoolInitialized) {
-        console.log('Design Tool wurde bereits global initialisiert.');
-        return;
-    }
-    window._designtoolInitialized = true;
-    
-    // Prüfen, ob Container existiert und DOM bereit ist
-    if ($('.designtool-container').length === 0) {
-        console.error('designtool-container nicht gefunden! DOM möglicherweise noch nicht bereit.');
-        var self = this;
-        // Nochmals versuchen, wenn das DOM vollständig geladen ist
-        $(document).ready(function() {
-            console.log('Document ready event - versuche erneut zu initialisieren');
-            if ($('.designtool-container').length === 0) {
-                console.error('designtool-container fehlt auch nach document.ready!');
-                // Trotzdem versuchen, Layout zu reparieren
-                self.fixLayout();
+        init: function() {
+            console.log('DesignTool.init() gestartet');
+            
+            // Schutz gegen mehrfache Initialisierung
+            if (window._designtoolInitialized) {
+                console.log('Design Tool wurde bereits global initialisiert.');
                 return;
             }
-            self.initializeComponents();
-        });
-        return;
-    }
-    
-    this.initializeComponents();
-},
+            window._designtoolInitialized = true;
+            
+            // Prüfen, ob Container existiert und DOM bereit ist
+            if ($('.designtool-container').length === 0) {
+                console.error('designtool-container nicht gefunden! DOM möglicherweise noch nicht bereit.');
+                var self = this;
+                // Nochmals versuchen, wenn das DOM vollständig geladen ist
+                $(document).ready(function() {
+                    console.log('Document ready event - versuche erneut zu initialisieren');
+                    if ($('.designtool-container').length === 0) {
+                        console.error('designtool-container fehlt auch nach document.ready!');
+                        return;
+                    }
+                    self.initializeComponents();
+                    // Layoutfix erst nach der Initialisierung anwenden
+                    self.fixLayout();
+                });
+                return;
+            }
+            
+            this.initializeComponents();
+            // Layoutfix erst nach der Initialisierung anwenden
+            this.fixLayout();
+        },
 
 // Flag für Initialisierungszustand
 _componentInitialized: false,
@@ -114,11 +116,6 @@ initializeComponents: function() {
     // Prüfen, ob vorhandene SVG-Daten geladen werden sollen
     this.loadExistingSvgIfAvailable();
     
-    // Der Debug-Button für Layout-Fixes wurde entfernt
-    
-    // Layout-Fix und dynamische Anpassung wurden entfernt
-this.hideIntrusiveElements();
-
     console.log('Design Tool wurde erfolgreich initialisiert');
 },
 
