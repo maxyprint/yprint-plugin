@@ -3,24 +3,13 @@
  * Ein vollwertiges browserbasiertes Design-Tool mit App-ähnlicher Oberfläche
  */
 
-/* =========== RESET & GRUNDSTRUKTUR =========== */
-html, body {
+/* Globales Reset und Vollbildmodus */
+html.designtool-html,
+body.designtool-page {
     margin: 0;
     padding: 0;
     height: 100%;
     width: 100%;
-    overflow: hidden;
-}
-
-.designtool-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: flex;
-    width: 100%;
-    height: 100%;
     overflow: hidden;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     color: #333;
@@ -28,114 +17,79 @@ html, body {
     line-height: 1.4;
 }
 
-.designtool-page {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-}
-
-/* WordPress Admin Bar und Theme-Elemente ausblenden */
-html.designtool-html { 
-    margin-top: 0 !important; 
-}
-
-.designtool-html #wpadminbar,
-.designtool-html header,
-.designtool-html footer,
-.designtool-html .site-header,
-.designtool-html .site-footer,
-.designtool-html #masthead,
-.designtool-html #colophon,
-.designtool-html #footer,
-.designtool-html aside,
-.designtool-html .widget-area,
-.designtool-html .sidebar {
+/* WordPress-Admin-Bar und Theme-Elemente ausblenden */
+html.designtool-html { margin-top: 0 !important; }
+body.designtool-page #wpadminbar,
+body.designtool-page #masthead,
+body.designtool-page #colophon,
+body.designtool-page #page > *:not(.designtool-container),
+body.designtool-page .site-content > *:not(.designtool-container),
+body.designtool-page .content-area > *:not(.designtool-container),
+body.designtool-page .site-main > *:not(.designtool-container) {
     display: none !important;
 }
 
-.designtool-html .site,
-.designtool-html #page,
-.designtool-html .site-content,
-.designtool-html .content-area,
-.designtool-html .site-main {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    height: 100vh !important;
-}
-
-/* =========== LAYOUT-STRUKTUR =========== */
+/* Hauptcontainer für die gesamte Anwendung */
 .designtool-container {
     display: grid;
-    grid-template-columns: 250px 1fr 280px;
+    grid-template-columns: 200px 1fr 280px;
     grid-template-rows: 100vh;
     width: 100%;
     height: 100vh;
 }
 
-/* Sidebar-Links (Dateimanager) */
-.designtool-sidebar {
-    grid-column: 1;
-    background-color: #f8f9fa;
-    border-right: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    z-index: 10;
-}
-
-/* Hauptbereich mit Canvas */
-.designtool-main {
-    grid-column: 2;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    background-color: #e9ecef;
-}
-
-/* Eigenschaften-Bereich rechts */
+/* Allgemeine Stile für alle Bereiche */
+.designtool-sidebar,
+.designtool-main,
 .designtool-properties {
-    grid-column: 3;
-    background-color: #f8f9fa;
-    border-left: 1px solid #ddd;
+    position: relative;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+}
+
+/* Linke Seitenleiste (Dateimanager) */
+.designtool-sidebar {
+    background-color: #f8f9fa;
+    border-right: 1px solid #e1e4e8;
     z-index: 10;
 }
 
-/* =========== SIDEBAR-LINKS STYLES =========== */
-.designtool-sidebar-header {
-    padding: 15px;
-    border-bottom: 1px solid #ddd;
+.designtool-sidebar-header,
+.designtool-properties-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e1e4e8;
     background-color: #fff;
 }
 
-.designtool-sidebar-header h3 {
+.designtool-sidebar-header h3,
+.designtool-properties-header h3 {
     margin: 0;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
 }
 
+/* Upload-Bereich */
 .designtool-upload {
     padding: 15px;
-    border-bottom: 1px solid #ddd;
+    text-align: center;
+    border-bottom: 1px solid #e1e4e8;
 }
 
+/* Dateiliste */
 .designtool-filelist {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    flex: 1;
     overflow: hidden;
 }
 
 .designtool-filelist-header {
-    padding: 10px 15px;
-    background-color: #f1f1f1;
+    padding: 8px 16px;
+    color: #555;
     font-size: 13px;
     font-weight: 500;
+    background-color: #f1f3f5;
 }
 
 .designtool-files {
@@ -148,16 +102,17 @@ html.designtool-html {
     padding: 20px;
     text-align: center;
     color: #888;
-    font-style: italic;
+    font-size: 13px;
 }
 
 .designtool-file-item {
     display: flex;
     align-items: center;
-    padding: 8px;
-    margin-bottom: 5px;
+    padding: 6px;
+    margin-bottom: 4px;
     border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.2s;
     position: relative;
 }
 
@@ -170,11 +125,11 @@ html.designtool-html {
 }
 
 .designtool-file-thumb {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
+    margin-right: 8px;
     background-color: #f1f1f1;
     border-radius: 3px;
-    margin-right: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -193,55 +148,32 @@ html.designtool-html {
 }
 
 .designtool-file-name {
-    font-size: 13px;
+    font-size: 12px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 3px;
+    margin-bottom: 2px;
 }
 
 .designtool-file-meta {
-    font-size: 11px;
+    font-size: 10px;
     color: #888;
 }
 
-.designtool-file-actions {
-    visibility: hidden;
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-}
-
-.designtool-file-item:hover .designtool-file-actions {
-    visibility: visible;
-}
-
-.designtool-file-delete {
-    background: none;
-    border: none;
-    color: #888;
-    font-size: 16px;
-    cursor: pointer;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
+/* Hauptbereich mit Canvas */
+.designtool-main {
+    background-color: #e9ecef;
+    flex: 1;
+    position: relative;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
+    flex-direction: column;
 }
 
-.designtool-file-delete:hover {
-    color: #ff4d4d;
-    background-color: rgba(255, 77, 77, 0.1);
-}
-
-/* =========== TOOLBAR STYLES =========== */
+/* Toolbar */
 .designtool-toolbar {
-    height: 50px;
+    height: 48px;
     background-color: #fff;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #e1e4e8;
     display: flex;
     align-items: center;
     padding: 0 15px;
@@ -252,28 +184,25 @@ html.designtool-html {
     display: flex;
     align-items: center;
     margin-right: 20px;
-    gap: 5px;
 }
 
 .designtool-toolbar-group:last-child {
     margin-right: 0;
-    margin-left: auto;
 }
 
-/* =========== CANVAS STYLES =========== */
+/* Canvas-Bereich */
 .designtool-canvas-container {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     background-color: #e9ecef;
-    background-image: 
-        linear-gradient(45deg, #ddd 25%, transparent 25%), 
-        linear-gradient(-45deg, #ddd 25%, transparent 25%), 
-        linear-gradient(45deg, transparent 75%, #ddd 75%), 
-        linear-gradient(-45deg, transparent 75%, #ddd 75%);
+    background-image: linear-gradient(45deg, #ddd 25%, transparent 25%),
+                      linear-gradient(-45deg, #ddd 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, #ddd 75%),
+                      linear-gradient(-45deg, transparent 75%, #ddd 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 }
@@ -286,81 +215,47 @@ html.designtool-html {
     position: relative;
     transform-origin: center;
     user-select: none;
+    overflow: hidden;
 }
 
-/* =========== CANVAS ELEMENTS =========== */
+/* Canvas-Element Styles */
 .designtool-element {
     position: absolute;
     cursor: move;
-    user-select: none;
+    transform-origin: center;
 }
 
 .designtool-element.selected {
-    outline: 2px solid #2196F3;
+    outline: 2px solid #4285f4;
 }
 
 .designtool-element-controls {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
     pointer-events: none;
 }
 
 .designtool-element-control {
     position: absolute;
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     background-color: #fff;
-    border: 2px solid #2196F3;
+    border: 1px solid #4285f4;
     border-radius: 50%;
     pointer-events: auto;
-    z-index: 2;
 }
 
-.designtool-element-control.tl {
-    top: -6px;
-    left: -6px;
-    cursor: nw-resize;
-}
+.designtool-element-control.tl { top: -5px; left: -5px; cursor: nw-resize; }
+.designtool-element-control.tr { top: -5px; right: -5px; cursor: ne-resize; }
+.designtool-element-control.br { bottom: -5px; right: -5px; cursor: se-resize; }
+.designtool-element-control.bl { bottom: -5px; left: -5px; cursor: sw-resize; }
 
-.designtool-element-control.tr {
-    top: -6px;
-    right: -6px;
-    cursor: ne-resize;
-}
-
-.designtool-element-control.br {
-    bottom: -6px;
-    right: -6px;
-    cursor: se-resize;
-}
-
-.designtool-element-control.bl {
-    bottom: -6px;
-    left: -6px;
-    cursor: sw-resize;
-}
-
-.designtool-element img,
-.designtool-element svg {
-    width: 100%;
-    height: 100%;
-    pointer-events: none;
-}
-
-/* =========== PROPERTIES PANEL =========== */
-.designtool-properties-header {
-    padding: 15px;
-    border-bottom: 1px solid #ddd;
-    background-color: #fff;
-}
-
-.designtool-properties-header h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
+/* Eigenschaften-Bereich rechts */
+.designtool-properties {
+    background-color: #f8f9fa;
+    border-left: 1px solid #e1e4e8;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
 }
 
 .designtool-properties-content {
@@ -369,24 +264,15 @@ html.designtool-html {
     padding: 15px;
 }
 
-#designtool-no-selection {
-    color: #888;
-    font-style: italic;
-    text-align: center;
-    padding: 20px 0;
-}
-
 .designtool-property-group {
     margin-bottom: 20px;
 }
 
 .designtool-property-group h4 {
-    margin: 0 0 12px 0;
+    margin: 0 0 15px 0;
     font-size: 14px;
     font-weight: 600;
     color: #333;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #eee;
 }
 
 .designtool-property {
@@ -400,25 +286,27 @@ html.designtool-html {
     color: #555;
 }
 
+/* Export-Bereich */
 .designtool-export {
     padding: 15px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #e1e4e8;
     background-color: #f8f9fa;
 }
 
 .designtool-export h4 {
-    margin: 0 0 12px 0;
+    margin: 0 0 15px 0;
     font-size: 14px;
     font-weight: 600;
+    color: #333;
 }
 
 .designtool-export-options {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
-/* =========== FORM ELEMENTS =========== */
+/* Form-Elemente */
 .designtool-btn {
     display: inline-flex;
     align-items: center;
@@ -428,68 +316,62 @@ html.designtool-html {
     border: 1px solid #d1d5db;
     border-radius: 4px;
     font-size: 14px;
-    font-weight: normal;
     color: #333;
     cursor: pointer;
     transition: all 0.2s;
-    text-decoration: none;
 }
 
 .designtool-btn svg {
     margin-right: 6px;
-    width: 16px;
-    height: 16px;
 }
 
 .designtool-btn:hover {
     background-color: #f8f9fa;
-    border-color: #c1c7cf;
 }
 
 .designtool-btn:active {
     background-color: #e9ecef;
-    border-color: #a0a8b5;
 }
 
 .designtool-btn-primary {
-    background-color: #2196F3;
-    border-color: #2196F3;
+    background-color: #4285f4;
+    border-color: #4285f4;
     color: #fff;
 }
 
 .designtool-btn-primary:hover {
-    background-color: #1e88e5;
-    border-color: #1e88e5;
+    background-color: #3367d6;
+    border-color: #3367d6;
+    color: #fff;
 }
 
 .designtool-btn-primary:active {
-    background-color: #1976d2;
-    border-color: #1976d2;
+    background-color: #2a56c6;
+    border-color: #2a56c6;
+    color: #fff;
 }
 
 .designtool-btn:disabled,
 .designtool-btn.disabled {
-    opacity: 0.5;
+    opacity: 0.6;
     cursor: not-allowed;
-    pointer-events: none;
+}
+
+.designtool-tool {
+    padding: 6px;
+    border-radius: 4px;
 }
 
 .designtool-input {
     display: block;
     width: 100%;
-    padding: 6px 10px;
+    padding: 6px 8px;
     font-size: 14px;
     line-height: 1.5;
     color: #333;
     background-color: #fff;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    transition: border-color 0.2s;
-}
-
-.designtool-input:focus {
-    border-color: #2196F3;
-    outline: none;
 }
 
 .designtool-input-group {
@@ -504,7 +386,7 @@ html.designtool-html {
 }
 
 .designtool-input-suffix {
-    padding: 6px 10px;
+    padding: 6px 8px;
     background-color: #f1f3f5;
     border: 1px solid #d1d5db;
     border-left: none;
@@ -518,106 +400,81 @@ html.designtool-html {
     margin-left: 10px;
     font-size: 14px;
     color: #555;
-    min-width: 42px;
+    min-width: 40px;
     text-align: right;
 }
 
 .designtool-range {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 6px;
-    border-radius: 3px;
-    background-color: #d1d5db;
-    outline: none;
-    margin-top: 6px;
-    margin-bottom: 6px;
-}
-
-.designtool-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background-color: #2196F3;
-    cursor: pointer;
-    border: none;
-}
-
-.designtool-range::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background-color: #2196F3;
-    cursor: pointer;
-    border: none;
+    flex: 1;
+    margin: 0;
+    padding: 0;
 }
 
 .designtool-select {
     display: block;
     width: 100%;
-    padding: 6px 10px;
+    padding: 6px 8px;
     font-size: 14px;
     line-height: 1.5;
     color: #333;
     background-color: #fff;
     border: 1px solid #d1d5db;
     border-radius: 4px;
-    -webkit-appearance: none;
-    -moz-appearance: none;
     appearance: none;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%23333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>');
+    background-image: url('data:image/svg+xml;utf8,<svg fill="%23333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
     background-repeat: no-repeat;
-    background-position: right 10px center;
+    background-position: right 8px center;
+    background-size: 16px;
     padding-right: 30px;
 }
 
 .designtool-color-picker {
     width: 100%;
-    height: 36px;
     padding: 2px;
     border: 1px solid #d1d5db;
     border-radius: 4px;
+    height: 32px;
     cursor: pointer;
 }
 
-/* =========== PROGRESS BAR =========== */
+/* Progress-Bar */
 .designtool-progress {
     margin: 15px 0;
 }
 
 .designtool-progress-bar {
     height: 8px;
-    background-color: #e9ecef;
+    background-color: #f1f3f5;
     border-radius: 4px;
     overflow: hidden;
 }
 
 .designtool-progress-bar-inner {
     height: 100%;
-    background-color: #2196F3;
+    background-color: #4285f4;
     width: 0;
     transition: width 0.3s ease;
 }
 
 .designtool-progress-text {
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 13px;
     color: #555;
     text-align: center;
 }
 
-/* =========== VECTORIZE MODAL =========== */
+/* Modal für Vektorisierung */
 .designtool-modal {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(0, 0, 0, 0.4);
     display: none;
     align-items: center;
     justify-content: center;
-    z-index: 100;
+    z-index: 1000;
 }
 
 .designtool-modal.active {
@@ -627,18 +484,17 @@ html.designtool-html {
 .designtool-modal-content {
     background-color: #fff;
     border-radius: 6px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
     width: 90%;
     max-width: 800px;
     max-height: 90vh;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .designtool-modal-header {
     padding: 15px 20px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid #e1e4e8;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -646,7 +502,7 @@ html.designtool-html {
 
 .designtool-modal-header h3 {
     margin: 0;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 600;
 }
 
@@ -667,13 +523,13 @@ html.designtool-html {
 
 .designtool-modal-footer {
     padding: 15px 20px;
-    border-top: 1px solid #ddd;
+    border-top: 1px solid #e1e4e8;
     display: flex;
     justify-content: flex-end;
     gap: 10px;
 }
 
-/* Preview Areas in Vectorize Modal */
+/* Vorschaubereiche im Vektorisierungsmodal */
 .designtool-preview {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -689,21 +545,21 @@ html.designtool-html {
 
 .designtool-preview h4 {
     margin: 0 0 10px 0;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 600;
 }
 
 #designtool-preview-original-img,
 #designtool-preview-result-img {
+    flex: 1;
     min-height: 200px;
     background-color: #f8f9fa;
-    border: 1px solid #ddd;
+    border: 1px solid #e1e4e8;
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    padding: 10px;
 }
 
 #designtool-preview-original-img img,
@@ -721,139 +577,117 @@ html.designtool-html {
     padding: 20px;
 }
 
-/* =========== RESPONSIVE DESIGN =========== */
-@media (max-width: 1200px) {
+/* Responsive Anpassungen */
+@media (max-width: 1024px) {
     .designtool-container {
-        grid-template-columns: 220px 1fr 250px;
-    }
-}
-
-@media (max-width: 992px) {
-    .designtool-container {
-        grid-template-columns: 180px 1fr 220px;
+        grid-template-columns: 200px 1fr 240px;
     }
 }
 
 @media (max-width: 768px) {
     .designtool-container {
         grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr;
-    }
-    
-    .designtool-sidebar,
-    .designtool-properties {
-        position: absolute;
-        top: 50px;
-        bottom: 0;
-        z-index: 20;
-        background-color: #fff;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        width: 280px;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
+        grid-template-rows: auto 1fr auto;
     }
     
     .designtool-sidebar {
-        left: 0;
+        display: none;
     }
     
     .designtool-properties {
-        right: 0;
-        transform: translateX(100%);
-    }
-    
-    .designtool-sidebar.active,
-    .designtool-properties.active {
-        transform: translateX(0);
+        display: none;
     }
     
     .designtool-toolbar {
-        display: flex;
-        justify-content: space-between;
-        padding: 0 10px;
+        height: auto;
+        padding: 8px;
+        flex-wrap: wrap;
     }
     
-    .designtool-mobile-toggle {
-        display: block;
+    .designtool-toolbar-group {
+        margin-right: 10px;
+        margin-bottom: 5px;
     }
     
     .designtool-preview {
         grid-template-columns: 1fr;
     }
+    
+    /* Mobile-Menü für Datei und Eigenschaften */
+    .designtool-mobile-tabs {
+        display: flex;
+        border-bottom: 1px solid #e1e4e8;
+    }
+    
+    .designtool-mobile-tab {
+        flex: 1;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+    }
+    
+    .designtool-mobile-tab.active {
+        border-bottom-color: #4285f4;
+        color: #4285f4;
+    }
+    
+    .designtool-mobile-panel {
+        display: none;
+        position: absolute;
+        top: 40px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #fff;
+        z-index: 100;
+    }
+    
+    .designtool-mobile-panel.active {
+        display: block;
+    }
 }
 
-/* Extra-Styles für Embedded-Modus */
-.vectorize-wp-designtool-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-}
-
-/* Hilfsstyles für drag & drop */
-.drag-over {
-    border: 2px dashed #2196F3 !important;
-    background-color: rgba(33, 150, 243, 0.05) !important;
-}
-
-/* Animation für Ladezeiten */
-@keyframes loadingPulse {
-    0% { opacity: 0.6; }
-    50% { opacity: 1; }
-    100% { opacity: 0.6; }
-}
-
-.designtool-loading {
-    animation: loadingPulse 1.5s infinite;
-}
-
-/* Zusätzliche Fixes für WordPress-Themes */
-.designtool-container * {
-    box-sizing: border-box;
-}
-
-.designtool-container img {
-    max-width: none;
-}
-
-/* Verstecke den Download-Link */
-#designtool-download-link {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-}
-
-/* Zusätzliche mobile-spezifische Styles */
-.designtool-mobile-toggle {
+.designtool-file-actions {
     display: none;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.designtool-file-item:hover .designtool-file-actions {
+    display: block;
+}
+
+.designtool-file-delete {
     background: none;
     border: none;
-    font-size: 20px;
-    color: #555;
+    color: #999;
     cursor: pointer;
-    padding: 8px;
+    padding: 2px;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
 }
 
-@media (max-width: 768px) {
-    .designtool-mobile-toggle {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .designtool-toolbar-group {
-        margin-right: 8px;
-    }
-    
-    .designtool-btn {
-        padding: 5px 8px;
-        font-size: 13px;
-    }
-    
-    .designtool-toolbar-group svg {
-        width: 14px;
-        height: 14px;
-    }
+.designtool-file-delete:hover {
+    color: #ff4d4d;
+    background-color: rgba(255, 77, 77, 0.1);
+}
+
+.designtool-canvas,
+.designtool-element,
+.designtool-element img,
+.designtool-element svg {
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
 }
