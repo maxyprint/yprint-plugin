@@ -59,6 +59,32 @@
         
         // Initialisierung
 init: function() {
+    console.log('DesignTool.init() gestartet');
+    
+    // Prüfen, ob Container existiert und DOM bereit ist
+    if ($('.designtool-container').length === 0) {
+        console.error('designtool-container nicht gefunden! DOM möglicherweise noch nicht bereit.');
+        var self = this;
+        // Nochmals versuchen, wenn das DOM vollständig geladen ist
+        $(document).ready(function() {
+            console.log('Document ready event - versuche erneut zu initialisieren');
+            if ($('.designtool-container').length === 0) {
+                console.error('designtool-container fehlt auch nach document.ready!');
+                // Trotzdem versuchen, Layout zu reparieren
+                self.fixLayout();
+                return;
+            }
+            self.initializeComponents();
+        });
+        return;
+    }
+    
+    this.initializeComponents();
+},
+
+// Neue Methode für die eigentliche Initialisierung
+initializeComponents: function() {
+    console.log('Initialisiere Design Tool Komponenten...');
     this.cacheElements();
     this.setupCanvas();
     this.bindEvents();
@@ -1588,6 +1614,39 @@ debugLayout: function() {
 
 // Versucht, Layout-Probleme zu beheben
 fixLayout: function() {
+    console.log('Versuche Layout zu reparieren...');
+    
+    // Prüfen, ob der Haupt-Container überhaupt existiert
+    if ($('.designtool-container').length === 0) {
+        console.log('Haupt-Container fehlt, versuche ihn zu erstellen...');
+        
+        // Versuche, die Hauptstruktur zu erstellen, falls sie fehlt
+        var $container = $('<div class="designtool-container"></div>');
+        var $sidebar = $('<div class="designtool-sidebar"></div>');
+        var $main = $('<div class="designtool-main"></div>');
+        var $properties = $('<div class="designtool-properties"></div>');
+        
+        // Bestehende Inhalte finden und umstrukturieren
+        var $existingToolbar = $('.designtool-toolbar');
+        if ($existingToolbar.length > 0) {
+            // Toolbar wurde gefunden, versuche den Rest zu rekonstruieren
+            $main.append($existingToolbar);
+            $main.append('<div class="designtool-canvas-container"><div id="designtool-canvas" class="designtool-canvas"></div></div>');
+            
+            // Wrap in den Body oder einen existierenden Container einfügen
+            var $parent = $existingToolbar.parent();
+            $existingToolbar.remove();
+            
+            $container.append($sidebar).append($main).append($properties);
+            $parent.append($container);
+            
+            console.log('Fehlende Container-Struktur wurde erstellt');
+        } else {
+            console.error('Konnte Toolbar nicht finden, kann Layout nicht reparieren');
+            return;
+        }
+    }
+    
     // Container-Fix
     $('.designtool-container').css({
         'display': 'grid',
@@ -1619,7 +1678,35 @@ fixLayout: function() {
         'overflow': 'hidden'
     });
     
+    // Sidebar und Properties-Panel mit Basis-Struktur füllen, falls leer
+    if ($('.designtool-sidebar').children().length === 0) {
+        $('.designtool-sidebar').html(
+            '<div class="designtool-sidebar-header"><h3>Dateien</h3></div>' +
+            '<div class="designtool-upload">' +
+            '<button id="designtool-upload-btn" class="designtool-btn designtool-btn-primary">Bild hinzufügen</button>' +
+            '<input type="file" id="designtool-file-input" accept="image/*" style="display: none;">' +
+            '</div>' +
+            '<div class="designtool-filelist">' +
+            '<div class="designtool-filelist-header">Dateiliste</div>' +
+            '<div id="designtool-files" class="designtool-files">' +
+            '<div class="designtool-empty-notice">Keine Dateien vorhanden. Lade ein Bild hoch, um zu starten.</div>' +
+            '</div></div>'
+        );
+    }
+    
+    if ($('.designtool-properties').children().length === 0) {
+        $('.designtool-properties').html(
+            '<div class="designtool-properties-header"><h3>Eigenschaften</h3></div>' +
+            '<div class="designtool-properties-content">' +
+            '<div id="designtool-no-selection"><p>Kein Element ausgewählt.</p></div>' +
+            '</div>'
+        );
+    }
+    
     console.log('Layout-Fix angewendet.');
+    
+    // Neu initialisieren, nachdem die Struktur repariert wurde
+    this.initializeComponents();
 }
 };
 })(jQuery);

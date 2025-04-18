@@ -104,30 +104,46 @@ function vectorize_wp_designtool_shortcode($atts) {
     );
     
     // Direktes Rendering für alle Modi
-    ob_start();
-    
-    if ($atts['mode'] === 'embedded') {
-        // Embedded Modus: Canvas in Container anzeigen
-        ?>
-        <div class="vectorize-wp-designtool-container" style="width: <?php echo esc_attr($atts['width']); ?>; height: <?php echo esc_attr($atts['height']); ?>;">
-            <div class="designtool-container">
-                <!-- Hier direktes Rendering des Design Tools statt iFrame -->
-                <?php include VECTORIZE_WP_PATH . 'templates/designtool-canvas-content.php'; ?>
-            </div>
+ob_start();
+
+if ($atts['mode'] === 'embedded') {
+    // Embedded Modus: Canvas in Container anzeigen
+    ?>
+    <div class="vectorize-wp-designtool-container" style="width: <?php echo esc_attr($atts['width']); ?>; height: <?php echo esc_attr($atts['height']); ?>;">
+        <div class="designtool-container">
+            <?php include VECTORIZE_WP_PATH . 'templates/designtool-canvas-content.php'; ?>
         </div>
-        <?php
-    } else {
-        // Vollbild-Modus: Canvas in voller Größe anzeigen
-        ?>
-        <div class="vectorize-wp-designtool-fullscreen">
-            <div class="designtool-container">
-                <?php include VECTORIZE_WP_PATH . 'templates/designtool-canvas-content.php'; ?>
-            </div>
+    </div>
+    <?php
+} else {
+    // Vollbild-Modus: Canvas in voller Größe anzeigen
+    ?>
+    <div class="vectorize-wp-designtool-fullscreen">
+        <div class="designtool-container">
+            <?php include VECTORIZE_WP_PATH . 'templates/designtool-canvas-content.php'; ?>
         </div>
-        <?php
-    }
-    
-    return ob_get_clean();
+    </div>
+    <?php
+}
+
+// Stelle sicher, dass die Skripte und Styles eingebunden sind
+wp_enqueue_style('vectorize-wp-designtool');
+wp_enqueue_script('vectorize-wp-designtool');
+
+// Wichtig: AJAX-URL und andere Daten für das JavaScript verfügbar machen
+wp_localize_script(
+    'vectorize-wp-designtool',
+    'vectorizeWpFrontend',
+    array(
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('vectorize_wp_frontend_nonce'),
+        'maxUploadSize' => vectorize_wp_get_max_upload_size(),
+        'siteUrl' => site_url(),
+        'pluginUrl' => VECTORIZE_WP_URL,
+    )
+);
+
+return ob_get_clean();
 }
 add_shortcode('vectorize_designtool', 'vectorize_wp_designtool_shortcode');
 
@@ -273,22 +289,25 @@ function vectorize_wp_designtool_save_svg_ajax() {
 add_action('wp_ajax_vectorize_designtool_save_svg', 'vectorize_wp_designtool_save_svg_ajax');
 add_action('wp_ajax_nopriv_vectorize_designtool_save_svg', 'vectorize_wp_designtool_save_svg_ajax');
 
-/**
- * Hilfsfunktion zum Abrufen der maximalen Upload-Größe
- */
+// Hilfsfunktion zum Abrufen der maximalen Upload-Größe
 function vectorize_wp_get_max_upload_size() {
-    // Vectorize WP Hauptinstanz abrufen
-    $vectorize_wp = vectorize_wp();
+    // Prüfen, ob Vectorize WP Hauptinstanz existiert
+    if (function_exists('vectorize_wp')) {
+        $vectorize_wp = vectorize_wp();
+        
+        // Max Upload Size aus den Optionen abrufen
+        $options = get_option('vectorize_wp_options', array());
+        $max_size_mb = isset($options['max_upload_size']) ? (int) $options['max_upload_size'] : 5;
+        
+        // Sicherstellen, dass die Größe zwischen 1 und 20 MB liegt
+        $max_size_mb = max(1, min(20, $max_size_mb));
+        
+        // In Bytes umrechnen
+        return $max_size_mb * 1024 * 1024;
+    }
     
-    // Max Upload Size aus den Optionen abrufen
-    $options = get_option('vectorize_wp_options', array());
-    $max_size_mb = isset($options['max_upload_size']) ? (int) $options['max_upload_size'] : 5;
-    
-    // Sicherstellen, dass die Größe zwischen 1 und 20 MB liegt
-    $max_size_mb = max(1, min(20, $max_size_mb));
-    
-    // In Bytes umrechnen
-    return $max_size_mb * 1024 * 1024;
+    // Fallback, wenn die Hauptinstanz nicht verfügbar ist
+    return 5 * 1024 * 1024; // 5 MB Standard
 }
 
 /**
