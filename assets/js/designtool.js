@@ -102,8 +102,7 @@ initializeComponents: function() {
     
     console.log('Initialisiere Design Tool Komponenten...');
     
-    // Gleich zu Beginn versuchen, störende Elemente zu entfernen oder zu verstecken
-    this.hideIntrusiveElements();
+    // Die Funktion hideIntrusiveElements wurde entfernt, da sie nicht implementiert ist
     
     this.cacheElements();
     this.setupCanvas();

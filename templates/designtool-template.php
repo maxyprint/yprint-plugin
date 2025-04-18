@@ -73,5 +73,17 @@ if (isset($_GET['svg_id'])) {
 ?>
 
 <?php wp_footer(); ?>
+
+<script type="text/javascript">
+// Sicherheitscheck für reset-form
+document.addEventListener('DOMContentLoaded', function() {
+    var resetForm = document.getElementById('reset-form');
+    if (resetForm) {
+        resetForm.addEventListener('submit', function(e) {
+            // Event-Handler-Logik hier
+        });
+    }
+});
+</script>
 </body>
 </html>
