@@ -61,6 +61,13 @@
 init: function() {
     console.log('DesignTool.init() gestartet');
     
+    // Schutz gegen mehrfache Initialisierung
+    if (window._designtoolInitialized) {
+        console.log('Design Tool wurde bereits global initialisiert.');
+        return;
+    }
+    window._designtoolInitialized = true;
+    
     // Prüfen, ob Container existiert und DOM bereit ist
     if ($('.designtool-container').length === 0) {
         console.error('designtool-container nicht gefunden! DOM möglicherweise noch nicht bereit.');
@@ -82,11 +89,19 @@ init: function() {
     this.initializeComponents();
 },
 
-// Flag hinzufügen, um unendlichen Loop zu verhindern
+// Flags für Initialisierungszustände
 isLayoutFixed: false,
+_componentInitialized: false,
 
 // Neue Methode für die eigentliche Initialisierung
 initializeComponents: function() {
+    // Verhindern von mehrfacher Initialisierung
+    if (this._componentInitialized) {
+        console.log('Design Tool Komponenten wurden bereits initialisiert, Abbruch.');
+        return;
+    }
+    this._componentInitialized = true;
+    
     console.log('Initialisiere Design Tool Komponenten...');
     
     // Gleich zu Beginn versuchen, störende Elemente zu entfernen oder zu verstecken
@@ -1769,12 +1784,13 @@ fixLayout: function() {
     
     console.log('Layout-Fix angewendet.');
     
-    // Hier wird kein rekursiver Aufruf von initializeComponents mehr gemacht
-    // this.initializeComponents(); // Diese Zeile wurde entfernt, um den unendlichen Loop zu beenden
-    
-    // Stattdessen werden nur die verbleibenden notwendigen Aktionen ausgeführt
-    this.cacheElements();
-    this.bindEvents();
+    // Aktualisiere möglicherweise fehlende Element-Referenzen
+    // Aber KEIN AUFRUF von initializeComponents, um unendliche Rekursion zu vermeiden
+    if (!this._componentInitialized) {
+        // Nur die notwendigen Komponenten aktualisieren
+        this.cacheElements();
+        this.bindEvents();
+    }
 }
 };
 })(jQuery);
