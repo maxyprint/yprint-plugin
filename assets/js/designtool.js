@@ -89,8 +89,7 @@ init: function() {
     this.initializeComponents();
 },
 
-// Flags für Initialisierungszustände
-isLayoutFixed: false,
+// Flag für Initialisierungszustand
 _componentInitialized: false,
 
 // Neue Methode für die eigentliche Initialisierung
@@ -115,36 +114,11 @@ initializeComponents: function() {
     // Prüfen, ob vorhandene SVG-Daten geladen werden sollen
     this.loadExistingSvgIfAvailable();
     
-    // Debug-Button zur Toolbar hinzufügen
-    var self = this;
-    var $debugBtn = $('<button id="designtool-debug-btn" class="designtool-btn" title="Layout debuggen">' + 
-                     '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z" fill="currentColor"/></svg>' +
-                     ' Debug</button>');
+    // Der Debug-Button für Layout-Fixes wurde entfernt
     
-    $('.designtool-toolbar-group:last').after(
-        $('<div class="designtool-toolbar-group"></div>').append($debugBtn)
-    );
-    
-    $debugBtn.on('click', function() {
-        var result = self.debugLayout();
-        console.log(result);
-        // Layout-Flag zurücksetzen beim manuellen Debug
-        self.isLayoutFixed = false;
-        self.fixLayout(); // Immer fixLayout ausführen, wenn Debug-Button geklickt wird
-    });
-    
-    // Sofort Layout-Fix anwenden, nicht warten
-    this.fixLayout();
-    
-    // Nach kurzer Verzögerung nochmals prüfen, aber nur wenn noch kein Fix erfolgt ist
-    setTimeout(function() {
-        if (!self.isLayoutFixed && ($('.designtool-canvas-container').height() < 50 || $('.designtool-sidebar').is(':hidden'))) {
-            console.warn('Layout-Problem nach Initialisierung erkannt, wende Fix erneut an...');
-            self.fixLayout();
-            self.hideIntrusiveElements();
-        }
-    }, 500);
-    
+    // Layout-Fix und dynamische Anpassung wurden entfernt
+this.hideIntrusiveElements();
+
     console.log('Design Tool wurde erfolgreich initialisiert');
 },
 
@@ -1631,166 +1605,6 @@ downloadFile: function(content, filename, mime) {
     URL.revokeObjectURL(url);
 },
 
-// Debug-Funktionen für Layout-Probleme
-debugLayout: function() {
-    var self = this;
-    console.log('=== Design Tool Layout Debug ===');
-    
-    // Container-Informationen ausgeben
-    var $container = $('.designtool-container');
-    console.log('Container:', {
-        width: $container.width(),
-        height: $container.height(),
-        visible: $container.is(':visible'),
-        display: $container.css('display'),
-        position: $container.css('position')
-    });
-    
-    // Alle drei Hauptbereiche überprüfen
-    ['sidebar', 'main', 'properties'].forEach(function(area) {
-        var $element = $('.designtool-' + area);
-        console.log(area + ':', {
-            width: $element.width(),
-            height: $element.height(),
-            visible: $element.is(':visible'),
-            display: $element.css('display'),
-            overflow: $element.css('overflow')
-        });
-    });
-    
-    // Debugging-Klasse zum Container hinzufügen/entfernen
-    $container.toggleClass('debug-mode');
-    
-    // Wenn die Bereiche nicht richtig angezeigt werden, Try-Fix anwenden
-    if ($('.designtool-main').height() < 100 || $('.designtool-sidebar').height() < 100) {
-        console.log('Layout-Problem erkannt, versuche zu beheben...');
-        this.fixLayout();
-    }
-    
-    return 'Debug-Modus ' + ($container.hasClass('debug-mode') ? 'aktiviert' : 'deaktiviert');
-},
-
-// Layout-Fix anwenden
-fixLayout: function() {
-    // Unendlichen Loop verhindern
-    if (this.isLayoutFixed) {
-        console.log('Layout wurde bereits repariert, keine erneute Anwendung.');
-        return;
-    }
-    
-    console.log('Versuche Layout zu reparieren...');
-    
-    // Prüfen, ob der Haupt-Container überhaupt existiert
-    if ($('.designtool-container').length === 0) {
-        console.log('Haupt-Container fehlt, versuche ihn zu erstellen...');
-        
-        // Versuche, die Hauptstruktur zu erstellen, falls sie fehlt
-        var $container = $('<div class="designtool-container"></div>');
-        var $sidebar = $('<div class="designtool-sidebar"></div>');
-        var $main = $('<div class="designtool-main"></div>');
-        var $properties = $('<div class="designtool-properties"></div>');
-        
-        // Bestehende Inhalte finden und umstrukturieren
-        var $existingToolbar = $('.designtool-toolbar');
-        if ($existingToolbar.length > 0) {
-            // Toolbar wurde gefunden, versuche den Rest zu rekonstruieren
-            $main.append($existingToolbar);
-            $main.append('<div class="designtool-canvas-container"><div id="designtool-canvas" class="designtool-canvas"></div></div>');
-            
-            // Wrap in den Body oder einen existierenden Container einfügen
-            var $parent = $existingToolbar.parent();
-            $existingToolbar.remove();
-            
-            $container.append($sidebar).append($main).append($properties);
-            $parent.append($container);
-            
-            console.log('Fehlende Container-Struktur wurde erstellt');
-        } else {
-            console.error('Konnte Toolbar nicht finden, kann Layout nicht reparieren');
-            return;
-        }
-    }
-    
-    // Container-Fix
-    $('.designtool-container').css({
-        'display': 'grid',
-        'grid-template-columns': '200px 1fr 280px',
-        'grid-template-rows': '100vh',
-        'height': '100vh',
-        'position': 'relative',
-        'z-index': '999999' // Erhöht für bessere Sichtbarkeit
-    });
-    
-    // Hauptbereiche fixen
-    $('.designtool-sidebar, .designtool-main, .designtool-properties').css({
-        'position': 'relative',
-        'overflow': 'hidden',
-        'display': 'flex',
-        'flex-direction': 'column',
-        'height': '100vh',
-        'z-index': '999999' // Erhöht für bessere Sichtbarkeit
-    });
-    
-    // Toolbar fixen
-    $('.designtool-toolbar').css({
-        'height': '48px',
-        'flex-shrink': '0',
-        'z-index': '999999' // Erhöht für bessere Sichtbarkeit
-    });
-    
-    // Canvas-Container fixen
-    $('.designtool-canvas-container').css({
-        'flex': '1',
-        'overflow': 'hidden',
-        'z-index': '999998' // Erhöht für bessere Sichtbarkeit
-    });
-    
-    // Verhindern, dass andere Elemente das Tool überdecken
-    $('body > *:not(.designtool-container)').css('z-index', '1');
-    
-    // Sidebar und Properties-Panel mit Basis-Struktur füllen, falls leer
-    if ($('.designtool-sidebar').children().length === 0) {
-        $('.designtool-sidebar').html(
-            '<div class="designtool-sidebar-header"><h3>Dateien</h3></div>' +
-            '<div class="designtool-upload">' +
-            '<button id="designtool-upload-btn" class="designtool-btn designtool-btn-primary">Bild hinzufügen</button>' +
-            '<input type="file" id="designtool-file-input" accept="image/*" style="display: none;">' +
-            '</div>' +
-            '<div class="designtool-filelist">' +
-            '<div class="designtool-filelist-header">Dateiliste</div>' +
-            '<div id="designtool-files" class="designtool-files">' +
-            '<div class="designtool-empty-notice">Keine Dateien vorhanden. Lade ein Bild hoch, um zu starten.</div>' +
-            '</div></div>'
-        );
-    }
-    
-    if ($('.designtool-properties').children().length === 0) {
-        $('.designtool-properties').html(
-            '<div class="designtool-properties-header"><h3>Eigenschaften</h3></div>' +
-            '<div class="designtool-properties-content">' +
-            '<div id="designtool-no-selection"><p>Kein Element ausgewählt.</p></div>' +
-            '</div>'
-        );
-    }
-    
-    // Cookie-Banner ausblenden (falls vorhanden)
-    $('.cky-consent-container, .cky-modal, .cky-preference-center').css({
-        'display': 'none',
-        'z-index': '1'
-    });
-    
-    // Flag setzen, dass Layout repariert wurde
-    this.isLayoutFixed = true;
-    
-    console.log('Layout-Fix angewendet.');
-    
-    // Aktualisiere möglicherweise fehlende Element-Referenzen
-    // Aber KEIN AUFRUF von initializeComponents, um unendliche Rekursion zu vermeiden
-    if (!this._componentInitialized) {
-        // Nur die notwendigen Komponenten aktualisieren
-        this.cacheElements();
-        this.bindEvents();
-    }
-}
+// Die Debug- und Layout-Fix-Funktionen wurden entfernt
 };
 })(jQuery);
