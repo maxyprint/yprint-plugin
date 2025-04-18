@@ -342,6 +342,87 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     gap: 10px;
 }
 
+/* Canvas Template Spezifische Stile */
+.vectorize-wp-editor-container {
+    width: 100%;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+.vectorize-wp-editor-wrapper {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.vectorize-wp-toolbar {
+    width: 70px;
+    flex: 0 0 70px;
+    background-color: #f8f9fa;
+    border-right: 1px solid #e1e4e8;
+    padding: 15px 10px;
+    overflow-y: auto;
+    height: 100vh;
+}
+
+.vectorize-wp-tool-group {
+    margin-bottom: 20px;
+}
+
+.vectorize-wp-tool-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.vectorize-wp-tool {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px auto;
+    background-color: #fff;
+    border: 1px solid #e1e4e8;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #555;
+}
+
+.vectorize-wp-tool:hover {
+    background-color: #f1f3f5;
+    color: #4285f4;
+}
+
+.vectorize-wp-canvas-area {
+    flex: 1;
+    background-color: #e9ecef;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-image: linear-gradient(45deg, #ddd 25%, transparent 25%),
+                      linear-gradient(-45deg, #ddd 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, #ddd 75%),
+                      linear-gradient(-45deg, transparent 75%, #ddd 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+}
+
+.vectorize-wp-canvas {
+    width: 800px;
+    height: 600px;
+    background-color: #fff;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.1);
+}
+
 /* Form-Elemente */
 .designtool-btn {
     display: inline-flex;
