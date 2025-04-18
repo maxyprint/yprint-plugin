@@ -6,15 +6,26 @@
 /* Globales Reset und Vollbildmodus */
 html.designtool-html,
 body.designtool-page {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    overflow: hidden;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 100% !important;
+    width: 100% !important;
+    overflow: hidden !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
     color: #333;
     background-color: #f0f0f0;
     line-height: 1.4;
+}
+
+/* Sicherstellen, dass alle Elternelemente des Containers auch volle Höhe haben */
+body.designtool-page #page,
+body.designtool-page .site,
+body.designtool-page .site-content,
+body.designtool-page .content-area,
+body.designtool-page .site-main {
+    min-height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 /* WordPress-Admin-Bar und Theme-Elemente ausblenden */
@@ -36,6 +47,20 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     grid-template-rows: 100vh;
     width: 100%;
     height: 100vh;
+    position: relative;
+    z-index: 10; /* Höherer z-index um sicherzustellen, dass es über Theme-Elementen liegt */
+    min-height: 500px; /* Minimale Höhe festlegen */
+}
+
+/* Debug-Rahmen für die Entwicklung */
+.designtool-container.debug-mode .designtool-sidebar {
+    border: 2px solid red;
+}
+.designtool-container.debug-mode .designtool-main {
+    border: 2px solid green;
+}
+.designtool-container.debug-mode .designtool-properties {
+    border: 2px solid blue;
 }
 
 /* Allgemeine Stile für alle Bereiche */

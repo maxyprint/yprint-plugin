@@ -58,17 +58,41 @@
         elements: {},
         
         // Initialisierung
-        init: function() {
-            this.cacheElements();
-            this.setupCanvas();
-            this.bindEvents();
-            this.setInitialState();
-            
-            // Prüfen, ob vorhandene SVG-Daten geladen werden sollen
-            this.loadExistingSvgIfAvailable();
-            
-            console.log('Design Tool wurde erfolgreich initialisiert');
-        },
+init: function() {
+    this.cacheElements();
+    this.setupCanvas();
+    this.bindEvents();
+    this.setInitialState();
+    
+    // Prüfen, ob vorhandene SVG-Daten geladen werden sollen
+    this.loadExistingSvgIfAvailable();
+    
+    // Debug-Button zur Toolbar hinzufügen
+    var self = this;
+    var $debugBtn = $('<button id="designtool-debug-btn" class="designtool-btn" title="Layout debuggen">' + 
+                     '<svg viewBox="0 0 24 24" width="16" height="16"><path d="M20 8h-2.81c-.45-.78-1.07-1.45-1.82-1.96L17 4.41 15.59 3l-2.17 2.17C12.96 5.06 12.49 5 12 5s-.96.06-1.41.17L8.41 3 7 4.41l1.62 1.63C7.88 6.55 7.26 7.22 6.81 8H4v2h2.09c-.05.33-.09.66-.09 1v1H4v2h2v1c0 .34.04.67.09 1H4v2h2.81c1.04 1.79 2.97 3 5.19 3s4.15-1.21 5.19-3H20v-2h-2.09c.05-.33.09-.66.09-1v-1h2v-2h-2v-1c0-.34-.04-.67-.09-1H20V8z" fill="currentColor"/></svg>' +
+                     ' Debug</button>');
+    
+    $('.designtool-toolbar-group:last').after(
+        $('<div class="designtool-toolbar-group"></div>').append($debugBtn)
+    );
+    
+    $debugBtn.on('click', function() {
+        var result = self.debugLayout();
+        console.log(result);
+    });
+    
+    // Nach kurzer Verzögerung automatisch das Layout überprüfen
+    setTimeout(function() {
+        // Wenn nur die Toolbar sichtbar ist, Fix versuchen
+        if ($('.designtool-canvas-container').height() < 50) {
+            console.warn('Layout-Problem automatisch erkannt, wende Fix an...');
+            self.fixLayout();
+        }
+    }, 500);
+    
+    console.log('Design Tool wurde erfolgreich initialisiert');
+},
         
         // DOM-Elemente zwischenspeichern
         cacheElements: function() {
@@ -1521,6 +1545,81 @@ downloadFile: function(content, filename, mime) {
     this.elements.downloadLink.attr('download', filename);
     this.elements.downloadLink[0].click();
     URL.revokeObjectURL(url);
+},
+
+// Debug-Funktionen für Layout-Probleme
+debugLayout: function() {
+    var self = this;
+    console.log('=== Design Tool Layout Debug ===');
+    
+    // Container-Informationen ausgeben
+    var $container = $('.designtool-container');
+    console.log('Container:', {
+        width: $container.width(),
+        height: $container.height(),
+        visible: $container.is(':visible'),
+        display: $container.css('display'),
+        position: $container.css('position')
+    });
+    
+    // Alle drei Hauptbereiche überprüfen
+    ['sidebar', 'main', 'properties'].forEach(function(area) {
+        var $element = $('.designtool-' + area);
+        console.log(area + ':', {
+            width: $element.width(),
+            height: $element.height(),
+            visible: $element.is(':visible'),
+            display: $element.css('display'),
+            overflow: $element.css('overflow')
+        });
+    });
+    
+    // Debugging-Klasse zum Container hinzufügen/entfernen
+    $container.toggleClass('debug-mode');
+    
+    // Wenn die Bereiche nicht richtig angezeigt werden, Try-Fix anwenden
+    if ($('.designtool-main').height() < 100 || $('.designtool-sidebar').height() < 100) {
+        console.log('Layout-Problem erkannt, versuche zu beheben...');
+        this.fixLayout();
+    }
+    
+    return 'Debug-Modus ' + ($container.hasClass('debug-mode') ? 'aktiviert' : 'deaktiviert');
+},
+
+// Versucht, Layout-Probleme zu beheben
+fixLayout: function() {
+    // Container-Fix
+    $('.designtool-container').css({
+        'display': 'grid',
+        'grid-template-columns': '200px 1fr 280px',
+        'grid-template-rows': '100vh',
+        'height': '100vh',
+        'position': 'relative',
+        'z-index': '10'
+    });
+    
+    // Hauptbereiche fixen
+    $('.designtool-sidebar, .designtool-main, .designtool-properties').css({
+        'position': 'relative',
+        'overflow': 'hidden',
+        'display': 'flex',
+        'flex-direction': 'column',
+        'height': '100vh'
+    });
+    
+    // Toolbar fixen
+    $('.designtool-toolbar').css({
+        'height': '48px',
+        'flex-shrink': '0'
+    });
+    
+    // Canvas-Container fixen
+    $('.designtool-canvas-container').css({
+        'flex': '1',
+        'overflow': 'hidden'
+    });
+    
+    console.log('Layout-Fix angewendet.');
 }
 };
 })(jQuery);
