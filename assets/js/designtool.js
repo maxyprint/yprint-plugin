@@ -58,38 +58,37 @@
         elements: {},
         
         // Initialisierung
-        init: function() {
-            console.log('DesignTool.init() gestartet');
-            
-            // Schutz gegen mehrfache Initialisierung
-            if (window._designtoolInitialized) {
-                console.log('Design Tool wurde bereits global initialisiert.');
-                return;
-            }
-            window._designtoolInitialized = true;
-            
-            // Prüfen, ob Container existiert und DOM bereit ist
+        // Hauptinitialisierungsmethode
+init: function() {
+    console.log('DesignTool.init() gestartet');
+    
+    // Schutz gegen mehrfache Initialisierung
+    if (window._designtoolInitialized) {
+        console.log('Design Tool wurde bereits global initialisiert.');
+        return;
+    }
+    window._designtoolInitialized = true;
+    
+    // Prüfen, ob Container existiert und DOM bereit ist
+    if ($('.designtool-container').length === 0) {
+        console.error('designtool-container nicht gefunden! DOM möglicherweise noch nicht bereit.');
+        var self = this;
+        // Nochmals versuchen, wenn das DOM vollständig geladen ist
+        $(document).ready(function() {
+            console.log('Document ready event - versuche erneut zu initialisieren');
             if ($('.designtool-container').length === 0) {
-                console.error('designtool-container nicht gefunden! DOM möglicherweise noch nicht bereit.');
-                var self = this;
-                // Nochmals versuchen, wenn das DOM vollständig geladen ist
-                $(document).ready(function() {
-                    console.log('Document ready event - versuche erneut zu initialisieren');
-                    if ($('.designtool-container').length === 0) {
-                        console.error('designtool-container fehlt auch nach document.ready!');
-                        return;
-                    }
-                    self.initializeComponents();
-                    // Layoutfix erst nach der Initialisierung anwenden
-                    self.fixLayout();
-                });
+                console.error('designtool-container fehlt auch nach document.ready!');
                 return;
             }
-            
-            this.initializeComponents();
-            // Layoutfix erst nach der Initialisierung anwenden
-            this.fixLayout();
-        },
+            self.initializeComponents();
+            // Layoutfix wurde entfernt, um die unendliche Schleife zu vermeiden
+        });
+        return;
+    }
+    
+    this.initializeComponents();
+    // Layoutfix wurde entfernt, um die unendliche Schleife zu vermeiden
+},
 
 // Flag für Initialisierungszustand
 _componentInitialized: false,
@@ -119,29 +118,29 @@ initializeComponents: function() {
     console.log('Design Tool wurde erfolgreich initialisiert');
 },
 
-// Neue Methode zum Ausblenden störender Elemente
-hideIntrusiveElements: function() {
-    // Cookie-Banner und andere Overlay-Elemente ausblenden
-    $('.cky-consent-container, .cky-modal, .cky-preference-center').css({
-        'display': 'none !important',
-        'z-index': '-1 !important'
-    });
+// Neue Methode für die eigentliche Initialisierung
+initializeComponents: function() {
+    // Verhindern von mehrfacher Initialisierung
+    if (this._componentInitialized) {
+        console.log('Design Tool Komponenten wurden bereits initialisiert, Abbruch.');
+        return;
+    }
+    this._componentInitialized = true;
     
-    // Versuche, die Schließen-Buttons zu finden und zu klicken
-    $('.cky-btn-close, .cky-btn-reject, [class*="cookie-close"], [id*="cookie-close"]').each(function() {
-        try {
-            $(this).trigger('click');
-        } catch(e) {
-            console.log('Konnte Cookie-Button nicht klicken:', e);
-        }
-    });
+    console.log('Initialisiere Design Tool Komponenten...');
     
-    // Setze den Z-Index aller anderen Body-Kinder zurück
-    $('body > *:not(.designtool-container):not(script):not(style)').css({
-        'z-index': '1'
-    });
+    // Gleich zu Beginn versuchen, störende Elemente zu entfernen oder zu verstecken
+    this.hideIntrusiveElements();
     
-    console.log('Potenziell störende Elemente wurden ausgeblendet');
+    this.cacheElements();
+    this.setupCanvas();
+    this.bindEvents();
+    this.setInitialState();
+    
+    // Prüfen, ob vorhandene SVG-Daten geladen werden sollen
+    this.loadExistingSvgIfAvailable();
+    
+    console.log('Design Tool wurde erfolgreich initialisiert');
 },
         
         // DOM-Elemente zwischenspeichern
