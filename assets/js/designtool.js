@@ -85,6 +85,10 @@ init: function() {
 // Neue Methode für die eigentliche Initialisierung
 initializeComponents: function() {
     console.log('Initialisiere Design Tool Komponenten...');
+    
+    // Gleich zu Beginn versuchen, störende Elemente zu entfernen oder zu verstecken
+    this.hideIntrusiveElements();
+    
     this.cacheElements();
     this.setupCanvas();
     this.bindEvents();
@@ -106,18 +110,47 @@ initializeComponents: function() {
     $debugBtn.on('click', function() {
         var result = self.debugLayout();
         console.log(result);
+        self.fixLayout(); // Immer fixLayout ausführen, wenn Debug-Button geklickt wird
     });
     
-    // Nach kurzer Verzögerung automatisch das Layout überprüfen
+    // Sofort Layout-Fix anwenden, nicht warten
+    this.fixLayout();
+    
+    // Nach kurzer Verzögerung nochmals prüfen
     setTimeout(function() {
-        // Wenn nur die Toolbar sichtbar ist, Fix versuchen
-        if ($('.designtool-canvas-container').height() < 50) {
-            console.warn('Layout-Problem automatisch erkannt, wende Fix an...');
+        if ($('.designtool-canvas-container').height() < 50 || $('.designtool-sidebar').is(':hidden')) {
+            console.warn('Layout-Problem nach Initialisierung erkannt, wende Fix erneut an...');
             self.fixLayout();
+            self.hideIntrusiveElements();
         }
     }, 500);
     
     console.log('Design Tool wurde erfolgreich initialisiert');
+},
+
+// Neue Methode zum Ausblenden störender Elemente
+hideIntrusiveElements: function() {
+    // Cookie-Banner und andere Overlay-Elemente ausblenden
+    $('.cky-consent-container, .cky-modal, .cky-preference-center').css({
+        'display': 'none !important',
+        'z-index': '-1 !important'
+    });
+    
+    // Versuche, die Schließen-Buttons zu finden und zu klicken
+    $('.cky-btn-close, .cky-btn-reject, [class*="cookie-close"], [id*="cookie-close"]').each(function() {
+        try {
+            $(this).trigger('click');
+        } catch(e) {
+            console.log('Konnte Cookie-Button nicht klicken:', e);
+        }
+    });
+    
+    // Setze den Z-Index aller anderen Body-Kinder zurück
+    $('body > *:not(.designtool-container):not(script):not(style)').css({
+        'z-index': '1'
+    });
+    
+    console.log('Potenziell störende Elemente wurden ausgeblendet');
 },
         
         // DOM-Elemente zwischenspeichern
@@ -1137,6 +1170,11 @@ initializeComponents: function() {
         // Stellt einen Zustand aus dem Verlauf wieder her
 // Stellt einen Zustand aus dem Verlauf wieder her
 restoreFromHistory: function() {
+    if (!this.state.history[this.state.historyIndex]) {
+        console.error('Kein gültiger Verlauf für Index:', this.state.historyIndex);
+        return;
+    }
+
     var elements = JSON.parse(this.state.history[this.state.historyIndex]);
     
     // Canvas leeren
@@ -1612,7 +1650,7 @@ debugLayout: function() {
     return 'Debug-Modus ' + ($container.hasClass('debug-mode') ? 'aktiviert' : 'deaktiviert');
 },
 
-// Versucht, Layout-Probleme zu beheben
+// Layout-Fix anwenden
 fixLayout: function() {
     console.log('Versuche Layout zu reparieren...');
     
@@ -1654,7 +1692,7 @@ fixLayout: function() {
         'grid-template-rows': '100vh',
         'height': '100vh',
         'position': 'relative',
-        'z-index': '10'
+        'z-index': '999999' // Erhöht für bessere Sichtbarkeit
     });
     
     // Hauptbereiche fixen
@@ -1663,20 +1701,26 @@ fixLayout: function() {
         'overflow': 'hidden',
         'display': 'flex',
         'flex-direction': 'column',
-        'height': '100vh'
+        'height': '100vh',
+        'z-index': '999999' // Erhöht für bessere Sichtbarkeit
     });
     
     // Toolbar fixen
     $('.designtool-toolbar').css({
         'height': '48px',
-        'flex-shrink': '0'
+        'flex-shrink': '0',
+        'z-index': '999999' // Erhöht für bessere Sichtbarkeit
     });
     
     // Canvas-Container fixen
     $('.designtool-canvas-container').css({
         'flex': '1',
-        'overflow': 'hidden'
+        'overflow': 'hidden',
+        'z-index': '999998' // Erhöht für bessere Sichtbarkeit
     });
+    
+    // Verhindern, dass andere Elemente das Tool überdecken
+    $('body > *:not(.designtool-container)').css('z-index', '1');
     
     // Sidebar und Properties-Panel mit Basis-Struktur füllen, falls leer
     if ($('.designtool-sidebar').children().length === 0) {
@@ -1702,6 +1746,12 @@ fixLayout: function() {
             '</div>'
         );
     }
+    
+    // Cookie-Banner ausblenden (falls vorhanden)
+    $('.cky-consent-container, .cky-modal, .cky-preference-center').css({
+        'display': 'none',
+        'z-index': '1'
+    });
     
     console.log('Layout-Fix angewendet.');
     
