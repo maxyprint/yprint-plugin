@@ -9,7 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
+      - name: Remove unwanted folders before deploy
+        run: |
+          rm -rf .git .github node_modules *.log
+
       - name: SFTP Deploy
         uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
@@ -19,9 +23,4 @@ jobs:
           local_path: ./
           remote_path: wordpress/wp-content/plugins/vectorize-wp
           port: 22
-          exclude: |
-            .git*
-            .github
-            node_modules
-            *.log
           delete_remote_files: true
