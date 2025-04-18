@@ -8,14 +8,20 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
       
-    - name: SFTP Deploy
-      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
-      with:
-        server: access-5016253559.webspace-host.com
-        username: a549875
-        password: ${{ secrets.SFTP_PASSWORD }}
-        local_path: ./
-        remote_path: wordpress/wp-content/plugins/vectorize-wp
-        port: 22
+      - name: SFTP Deploy
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        with:
+          server: access-5016253559.webspace-host.com
+          username: a549875
+          password: ${{ secrets.SFTP_PASSWORD }}
+          local_path: ./
+          remote_path: wordpress/wp-content/plugins/vectorize-wp
+          port: 22
+          exclude: |
+            .git*
+            .github
+            node_modules
+            *.log
+          delete_remote_files: true
