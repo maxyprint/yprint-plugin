@@ -339,14 +339,24 @@ function vectorize_wp_render_designtool_page() {
                 
                 <p><?php _e('Das Design Tool ist ein leistungsstarkes Werkzeug zur Erstellung und Bearbeitung von Designs direkt im Browser.', 'vectorize-wp'); ?></p>
                 
+                <div class="vectorize-wp-preview-section">
+                    <h3><?php _e('Design Tool Vorschau', 'vectorize-wp'); ?></h3>
+                    <div class="vectorize-wp-preview-container">
+                        <img src="<?php echo esc_url(VECTORIZE_WP_URL . 'assets/images/designtool-preview.png'); ?>" alt="Design Tool Vorschau" class="vectorize-wp-preview-image">
+                        <div class="vectorize-wp-preview-overlay">
+                            <a href="https://yprint.de/designtool" target="_blank" class="button button-primary"><?php _e('Design Tool öffnen', 'vectorize-wp'); ?></a>
+                        </div>
+                    </div>
+                </div>
+                
                 <h3><?php _e('Verwendung', 'vectorize-wp'); ?></h3>
                 
                 <p><?php _e('Du kannst das Design Tool auf zwei Arten verwenden:', 'vectorize-wp'); ?></p>
                 
                 <ol>
                     <li>
-                        <strong><?php _e('Als Seitenvorlage:', 'vectorize-wp'); ?></strong><br>
-                        <?php _e('Erstelle eine neue Seite und wähle "Design Tool" als Seitenvorlage aus.', 'vectorize-wp'); ?>
+                        <strong><?php _e('Als dedizierte Seite:', 'vectorize-wp'); ?></strong><br>
+                        <?php _e('Nutze den direkten Link <a href="https://yprint.de/designtool" target="_blank">yprint.de/designtool</a> für den Zugriff auf das vollständige Design Tool.', 'vectorize-wp'); ?>
                     </li>
                     <li>
                         <strong><?php _e('Als Shortcode:', 'vectorize-wp'); ?></strong><br>
@@ -365,16 +375,55 @@ function vectorize_wp_render_designtool_page() {
                 <h4><?php _e('Beispiel:', 'vectorize-wp'); ?></h4>
                 <pre>[vectorize_designtool width="800px" height="500px" mode="embedded"]</pre>
             </div>
-            
-            <div class="vectorize-wp-admin-section">
-                <h2><?php _e('Design Tool ausprobieren', 'vectorize-wp'); ?></h2>
-                
-                <p><?php _e('Klicke auf den Button unten, um das Design Tool in einer neuen Seite zu öffnen:', 'vectorize-wp'); ?></p>
-                
-                <a href="<?php echo esc_url(admin_url('post-new.php?post_type=page')); ?>" class="button button-primary"><?php _e('Neue Seite mit Design Tool erstellen', 'vectorize-wp'); ?></a>
-            </div>
         </div>
     </div>
+    
+    <style>
+    .vectorize-wp-preview-section {
+        margin: 20px 0 30px;
+    }
+    
+    .vectorize-wp-preview-container {
+        position: relative;
+        max-width: 800px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    .vectorize-wp-preview-image {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+    
+    .vectorize-wp-preview-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .vectorize-wp-preview-container:hover .vectorize-wp-preview-overlay {
+        opacity: 1;
+    }
+    
+    .vectorize-wp-admin-section {
+        margin-bottom: 30px;
+        background: #fff;
+        padding: 20px;
+        border-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    </style>
     <?php
 }
 
