@@ -30,7 +30,7 @@ require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
 // SVG-Editor wurde entfernt
 // require_once VECTORIZE_WP_PATH . 'includes/class-svg-editor.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
-require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/class-inkscape-cli.php';
+require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/inkscape-cli.php';
 
 // Hauptklasse des Plugins
 class Vectorize_WP {
@@ -363,7 +363,7 @@ try {
 }
         
         // Vektorisierungs-Engine bestimmen
-$vectorization_engine = isset($api_options['vectorization_engine']) ? $api_options['vectorization_engine'] : 'inkscape';
+$vectorization_engine = isset($options['vectorization_engine']) ? $options['vectorization_engine'] : 'inkscape';
 
 try {
     // Je nach Engine unterschiedlich vorgehen

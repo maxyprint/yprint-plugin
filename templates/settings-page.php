@@ -10,6 +10,7 @@ $options = get_option('vectorize_wp_options', array(
     'max_upload_size' => 5,
     'default_output_format' => 'svg',
     'test_mode' => 'off',
+    'vectorization_engine' => 'inkscape',
 ));
 
 // API-Status
@@ -22,10 +23,11 @@ if (isset($_POST['vectorize_wp_save_settings']) && check_admin_referer('vectoriz
     $old_api_key = $options['api_key'];
     
     // Neue Einstellungen speichern
-    $options['api_key'] = sanitize_text_field($_POST['api_key']);
-    $options['max_upload_size'] = absint($_POST['max_upload_size']);
-    $options['default_output_format'] = sanitize_text_field($_POST['default_output_format']);
-    $options['test_mode'] = sanitize_text_field($_POST['test_mode']);
+$options['api_key'] = sanitize_text_field($_POST['api_key']);
+$options['max_upload_size'] = absint($_POST['max_upload_size']);
+$options['default_output_format'] = sanitize_text_field($_POST['default_output_format']);
+$options['test_mode'] = sanitize_text_field($_POST['test_mode']);
+$options['vectorization_engine'] = sanitize_text_field($_POST['vectorization_engine']);
 
     update_option('vectorize_wp_options', $options);
     
@@ -135,29 +137,57 @@ if (isset($_POST['vectorize_wp_test_api_key']) && check_admin_referer('vectorize
                         </p>
                     </td>
                 </tr>
-                
                 <tr>
-                    <th scope="row">
-                        <label for="test_mode"><?php _e('API-Testmodus', 'vectorize-wp'); ?></label>
-                    </th>
-                    <td>
-                        <select id="test_mode" name="test_mode">
-                            <option value="off" <?php selected($options['test_mode'], 'off'); ?>>
-                                <?php _e('Aus (Produktionsmodus)', 'vectorize-wp'); ?>
-                            </option>
-                            <option value="test" <?php selected($options['test_mode'], 'test'); ?>>
-                                <?php _e('Test (kostenloser Testmodus)', 'vectorize-wp'); ?>
-                            </option>
-                            <option value="test_preview" <?php selected($options['test_mode'], 'test_preview'); ?>>
-                                <?php _e('Test mit Vorschau', 'vectorize-wp'); ?>
-                            </option>
-                        </select>
-                        <p class="description">
-                            <?php _e('Wähle "Test" für kostenloses Testen während der Entwicklung.', 'vectorize-wp'); ?>
-                            <br>
-                            <?php _e('"Test mit Vorschau" bietet zusätzlich eine Vorschau des Ergebnisses.', 'vectorize-wp'); ?>
-                        </p>
-                    </td>
+    <th scope="row">
+        <label for="test_mode"><?php _e('API-Testmodus', 'vectorize-wp'); ?></label>
+    </th>
+    <td>
+        <select id="test_mode" name="test_mode">
+            <option value="off" <?php selected($options['test_mode'], 'off'); ?>>
+                <?php _e('Aus (Produktionsmodus)', 'vectorize-wp'); ?>
+            </option>
+            <option value="test" <?php selected($options['test_mode'], 'test'); ?>>
+                <?php _e('Test (kostenloser Testmodus)', 'vectorize-wp'); ?>
+            </option>
+            <option value="test_preview" <?php selected($options['test_mode'], 'test_preview'); ?>>
+                <?php _e('Test mit Vorschau', 'vectorize-wp'); ?>
+            </option>
+        </select>
+        <p class="description">
+            <?php _e('Wähle "Test" für kostenloses Testen während der Entwicklung.', 'vectorize-wp'); ?>
+            <br>
+            <?php _e('"Test mit Vorschau" bietet zusätzlich eine Vorschau des Ergebnisses.', 'vectorize-wp'); ?>
+        </p>
+    </td>
+</tr>
+
+<tr>
+    <th scope="row">
+        <label for="vectorization_engine"><?php _e('Vektorisierungs-Engine', 'vectorize-wp'); ?></label>
+    </th>
+    <td>
+        <select id="vectorization_engine" name="vectorization_engine">
+            <option value="api" <?php selected($options['vectorization_engine'], 'api'); ?>>
+                <?php _e('Vectorize.ai API (online, kostenpflichtig)', 'vectorize-wp'); ?>
+            </option>
+            <option value="inkscape" <?php selected($options['vectorization_engine'], 'inkscape'); ?>>
+                <?php _e('Inkscape CLI (lokal, kostenlos)', 'vectorize-wp'); ?>
+            </option>
+        </select>
+        <p class="description">
+            <?php _e('Wähle zwischen der Online-API oder der lokalen Inkscape-Installation.', 'vectorize-wp'); ?>
+            <br>
+            <?php 
+            $inkscape_cli = new Vectorize_WP_Inkscape_CLI();
+            if ($inkscape_cli->is_available()) {
+                echo '<span style="color:green;">' . __('Inkscape wurde gefunden und ist einsatzbereit.', 'vectorize-wp') . '</span>';
+            } else {
+                echo '<span style="color:red;">' . __('Inkscape wurde nicht gefunden. Bitte installiere Inkscape, falls du es verwenden möchtest.', 'vectorize-wp') . '</span>';
+            }
+            ?>
+        </p>
+    </td>
+</tr>
                 </tr>
             </tbody>
         </table>
