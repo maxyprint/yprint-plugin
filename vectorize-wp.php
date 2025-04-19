@@ -73,6 +73,9 @@ private function init_classes() {
     // SVG-Handler erstellen
     $this->svg_handler = new Vectorize_WP_SVG_Handler();
     
+    // Inkscape CLI-Instanz erstellen
+    $this->inkscape_cli = new Vectorize_WP_Inkscape_CLI();
+    
     // SVG-Editor entfernt
     
     // Aufräumen-Aktion für temporäre Dateien registrieren
