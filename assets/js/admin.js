@@ -329,21 +329,13 @@ $.ajax({
         });
     }
     
-    // SVG bearbeiten
-    function editSvg() {
-        if (!currentSvg) {
-            alert('Kein SVG vorhanden zum Bearbeiten.');
-            return;
-        }
-        
-        // URL zum SVG-Editor mit dem aktuellen SVG-Inhalt erstellen
-        var editorUrl = vectorizeWP.adminUrl + 'admin.php?page=vectorize-wp-svg-editor';
-        editorUrl += '&svg_content=' + encodeURIComponent(currentSvg);
-        editorUrl += '&return_url=' + encodeURIComponent(window.location.href);
-        
-        // Zum SVG-Editor navigieren
-        window.location.href = editorUrl;
-    }
+    // SVG bearbeiten - Funktion entfernt, da SVG-Editor nicht mehr verfügbar
+function editSvg() {
+    alert('Die SVG-Bearbeitungsfunktion ist nicht mehr verfügbar. Bitte nutze das Design Tool zur Bearbeitung von SVG-Dateien.');
+    
+    // Alternativ zur Design-Tool-Seite navigieren
+    // window.location.href = vectorizeWP.adminUrl + 'admin.php?page=vectorize-wp-designtool';
+}
     
     // Initialisierung
     function init() {

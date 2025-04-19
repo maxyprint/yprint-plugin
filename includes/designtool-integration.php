@@ -314,6 +314,8 @@ function vectorize_wp_get_max_upload_size() {
  * Fügt einen Menüpunkt für das Design-Tool hinzu
  */
 function vectorize_wp_add_designtool_menu() {
+    // Auskommentiert, um doppelten Eintrag zu vermeiden
+    /*
     add_submenu_page(
         'vectorize-wp', // Parent slug
         __('Design Tool', 'vectorize-wp'), // Page title
@@ -322,8 +324,10 @@ function vectorize_wp_add_designtool_menu() {
         'vectorize-wp-designtool', // Menu slug
         'vectorize_wp_render_designtool_page' // Callback function
     );
+    */
 }
-add_action('admin_menu', 'vectorize_wp_add_designtool_menu');
+// Action auskommentiert
+// add_action('admin_menu', 'vectorize_wp_add_designtool_menu');
 
 /**
  * Rendert die Design-Tool Admin-Seite
