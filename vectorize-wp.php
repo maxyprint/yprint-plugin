@@ -127,11 +127,12 @@ private function init_classes() {
         
         // Initialisierungsoptionen in der Datenbank speichern
         $default_options = array(
-            'api_key' => '',
-            'max_upload_size' => 5, // in MB
-            'default_output_format' => 'svg',
-            'test_mode' => 'test', // Standard: Testmodus aktiviert für einfache Entwicklung
-        );
+        'api_key' => '',
+    'max_upload_size' => 5, // in MB
+    'default_output_format' => 'svg',
+    'test_mode' => 'test', // Standard: Testmodus aktiviert für einfache Entwicklung
+    'vectorization_engine' => 'inkscape', // Standard: Inkscape statt Vectorize.ai
+);
         
         // Bestehende Optionen abrufen, falls vorhanden
         $existing_options = get_option('vectorize_wp_options', array());
@@ -315,59 +316,87 @@ private function init_classes() {
         move_uploaded_file($file['tmp_name'], $temp_file);
         
         // Vektorisierungsoptionen
-        $options = array(
-            'detail' => isset($_POST['detail_level']) ? sanitize_text_field($_POST['detail_level']) : 'medium',
-            'format' => 'svg'
-        );
+$options = array(
+    'detail' => isset($_POST['detail_level']) ? sanitize_text_field($_POST['detail_level']) : 'medium',
+    'format' => 'svg'
+);
+
+// Vectorize WP Hauptinstanz abrufen
+$vectorize_wp = vectorize_wp();
+
+// Engine-Einstellung abrufen
+$plugin_options = get_option('vectorize_wp_options', array());
+$vectorization_engine = isset($plugin_options['vectorization_engine']) ? $plugin_options['vectorization_engine'] : 'inkscape';
+
+// Bild vektorisieren
+try {
+    // Je nach Engine unterschiedlich vorgehen
+    if ($vectorization_engine === 'api') {
+        // API-Instanz verwenden
+        $result = $vectorize_wp->api->vectorize_image($temp_file, $options);
+    } else {
+        // Inkscape CLI verwenden
+        $result = $vectorize_wp->inkscape_cli->vectorize_image($temp_file, $options);
+    }
+    
+    // Temporäre Datei löschen
+    @unlink($temp_file);
+    
+    if (is_wp_error($result)) {
+        wp_send_json_error($result->get_error_message());
+        return;
+    }
+    
+    // Erfolgreiche Antwort senden
+    wp_send_json_success(array(
+        'svg' => $result['content'],
+        'file_url' => $result['file_url'],
+        'is_demo' => false,
+        'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
+        'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
+        'engine' => $vectorization_engine
+    ));
+} catch (Exception $e) {
+    // Fehlerbehandlung
+    @unlink($temp_file); // Temporäre Datei löschen
+    wp_send_json_error(__('Fehler: ' . $e->getMessage(), 'vectorize-wp'));
+}
         
-        // API-Schlüssel überprüfen
-        $api_options = get_option('vectorize_wp_options', array());
-        $api_key = isset($api_options['api_key']) ? $api_options['api_key'] : '';
-        
-        if (empty($api_key)) {
-            // Kein API-Schlüssel - Demo-SVG zurückgeben
-            @unlink($temp_file); // Temporäre Datei löschen
-            
-            // Demo-SVG erstellen (basierend auf dem Dateinamen)
-            $filename = pathinfo($file['name'], PATHINFO_FILENAME);
-            $demo_svg = $this->create_demo_svg($filename);
-            
-            // Erfolgreiche Antwort senden
-            wp_send_json_success(array(
-                'svg' => $demo_svg,
-                'file_url' => '',
-                'is_demo' => true,
-                'message' => __('Demo-Modus: Bitte konfiguriere einen API-Schlüssel für echte Vektorisierung.', 'vectorize-wp')
-            ));
-            return;
-        }
-        
-        // Echte API-Anfrage senden
-        try {
-            // Bild vektorisieren
-            $result = $this->api->vectorize_image($temp_file, $options);
-            
-            // Temporäre Datei löschen
-            @unlink($temp_file);
-            
-            if (is_wp_error($result)) {
-                wp_send_json_error($result->get_error_message());
-                return;
-            }
-            
-            // Erfolgreiche Antwort senden
-            wp_send_json_success(array(
-                'svg' => $result['content'],
-                'file_url' => $result['file_url'],
-                'is_demo' => false,
-                'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
-                'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off'
-            ));
-        } catch (Exception $e) {
-            // Fehlerbehandlung
-            @unlink($temp_file); // Temporäre Datei löschen
-            wp_send_json_error(__('API-Fehler: ' . $e->getMessage(), 'vectorize-wp'));
-        }
+        // Vektorisierungs-Engine bestimmen
+$vectorization_engine = isset($api_options['vectorization_engine']) ? $api_options['vectorization_engine'] : 'inkscape';
+
+try {
+    // Je nach Engine unterschiedlich vorgehen
+    if ($vectorization_engine === 'api') {
+        // API-Anfrage senden
+        $result = $this->api->vectorize_image($temp_file, $options);
+    } else {
+        // Inkscape CLI verwenden
+        $result = $this->inkscape_cli->vectorize_image($temp_file, $options);
+    }
+    
+    // Temporäre Datei löschen
+    @unlink($temp_file);
+    
+    if (is_wp_error($result)) {
+        wp_send_json_error($result->get_error_message());
+        return;
+    }
+    
+    // Erfolgreiche Antwort senden
+    wp_send_json_success(array(
+        'svg' => $result['content'],
+        'file_url' => $result['file_url'],
+        'is_demo' => false,
+        'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
+        'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
+        'engine' => $vectorization_engine
+    ));
+} catch (Exception $e) {
+    // Fehlerbehandlung
+    @unlink($temp_file); // Temporäre Datei löschen
+    wp_send_json_error(__('Fehler: ' . $e->getMessage(), 'vectorize-wp'));
+}
     }
     
     // AJAX-Handler zum Speichern des SVG in der Mediathek
