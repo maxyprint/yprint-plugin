@@ -27,8 +27,10 @@ define('VECTORIZE_WP_BASENAME', plugin_basename(__FILE__));
 require_once VECTORIZE_WP_PATH . 'includes/class-api.php';
 require_once VECTORIZE_WP_PATH . 'includes/class-vectorize-api.php';
 require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
-require_once VECTORIZE_WP_PATH . 'includes/class-svg-editor.php';
+// SVG-Editor wurde entfernt
+// require_once VECTORIZE_WP_PATH . 'includes/class-svg-editor.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
+require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/class-inkscape-cli.php';
 
 // Hauptklasse des Plugins
 class Vectorize_WP {
@@ -40,6 +42,9 @@ class Vectorize_WP {
     
     // SVG-Handler-Instanz
     public $svg_handler = null;
+    
+    // Inkscape-CLI-Instanz
+    public $inkscape_cli = null;
 
     // Konstruktor
     private function __construct() {
@@ -59,24 +64,23 @@ class Vectorize_WP {
     }
     
     // Klassen initialisieren
-    private function init_classes() {
-        // API-Instanz erstellen
-        $options = get_option('vectorize_wp_options', array());
-        $api_key = isset($options['api_key']) ? $options['api_key'] : '';
-        $this->api = new Vectorize_WP_Vectorize_API($api_key);
-        
-        // SVG-Handler erstellen
-        $this->svg_handler = new Vectorize_WP_SVG_Handler();
-        
-        // SVG-Editor erstellen
-        new Vectorize_WP_SVG_Editor();
-        
-        // Aufräumen-Aktion für temporäre Dateien registrieren
-        add_action('vectorize_wp_cleanup_temp_files', array($this->svg_handler, 'cleanup_temp_files'));
-        
-        // Design-Tool Assets registrieren
-        $this->register_designtool_assets();
-    }
+private function init_classes() {
+    // API-Instanz erstellen
+    $options = get_option('vectorize_wp_options', array());
+    $api_key = isset($options['api_key']) ? $options['api_key'] : '';
+    $this->api = new Vectorize_WP_Vectorize_API($api_key);
+    
+    // SVG-Handler erstellen
+    $this->svg_handler = new Vectorize_WP_SVG_Handler();
+    
+    // SVG-Editor entfernt
+    
+    // Aufräumen-Aktion für temporäre Dateien registrieren
+    add_action('vectorize_wp_cleanup_temp_files', array($this->svg_handler, 'cleanup_temp_files'));
+    
+    // Design-Tool Assets registrieren
+    $this->register_designtool_assets();
+}
 
     // Initialisierung der Hooks
     private function init_hooks() {
@@ -175,16 +179,6 @@ class Vectorize_WP {
             'manage_options',
             'vectorize-wp-settings',
             array($this, 'render_settings_page')
-        );
-        
-        // Untermenü für Design-Tool
-        add_submenu_page(
-            'vectorize-wp',
-            __('Design Tool', 'vectorize-wp'),
-            __('Design Tool', 'vectorize-wp'),
-            'manage_options',
-            'vectorize-wp-designtool',
-            'vectorize_wp_render_designtool_page'
         );
     }
 

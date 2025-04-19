@@ -111,7 +111,8 @@ if (!defined('ABSPATH')) {
 
 <!-- Dann im JavaScript-Bereich der admin-page.php folgendes hinzufügen: -->
 
-// SVG bearbeiten
+// SVG bearbeiten Funktion entfernt
+/*
 $('#vectorize-edit-svg').on('click', function() {
     var svgContent = $('#svg-editor-container').html();
     if (!svgContent) {
@@ -127,6 +128,7 @@ $('#vectorize-edit-svg').on('click', function() {
     // Zum SVG-Editor navigieren
     window.location.href = editorUrl;
 });
+*/
             </div>
         </div>
     </div>
