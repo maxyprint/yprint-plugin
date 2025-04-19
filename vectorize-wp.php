@@ -30,7 +30,7 @@ require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
 // SVG-Editor wurde entfernt
 // require_once VECTORIZE_WP_PATH . 'includes/class-svg-editor.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
-require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/inkscape-cli.php';
+require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/class-inkscape-cli.php';
 
 // Hauptklasse des Plugins
 class Vectorize_WP {
