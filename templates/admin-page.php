@@ -135,18 +135,25 @@ $('#vectorize-edit-svg').on('click', function() {
     
     <!-- Minimales JavaScript -->
     <script type="text/javascript">
-    jQuery(document).ready(function($) {
-        // File-Input-Änderung
-        $('#vectorize-file-input').on('change', function() {
-            if (this.files && this.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    $('#vectorize-preview-image').attr('src', e.target.result);
-                    $('#vectorize-image-preview').show();
-                };
-                reader.readAsDataURL(this.files[0]);
-            }
+// Sicherheitscheck für reset-form (mit verbesserter Fehlerbehandlung)
+document.addEventListener('DOMContentLoaded', function() {
+    var resetForm = document.getElementById('reset-form');
+    // Nur wenn das Element existiert, einen Event-Listener hinzufügen
+    if (resetForm) {
+        console.log('Reset-Form gefunden, füge Event-Listener hinzu');
+        resetForm.addEventListener('submit', function(e) {
+            // Event-Handler-Logik hier
         });
+    } else {
+        console.log('Reset-Form nicht gefunden, überspringe Event-Listener');
+    }
+    
+    // Design Tool Initialisierung ausführen, falls noch nicht geschehen
+    if (typeof DesignTool !== 'undefined' && !window._designtoolInitialized) {
+        console.log('Manuell Design Tool initialisieren');
+        DesignTool.init();
+    }
+});
         
         // Vektorisieren-Button
         $('#vectorize-start-conversion').on('click', function() {

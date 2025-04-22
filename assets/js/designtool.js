@@ -1246,31 +1246,38 @@ startVectorization: function() {
                         setTimeout(function() {
                             $('.designtool-progress-bar-inner').css('width', '100%');
                             
-                            // SVG in der Vorschau anzeigen
-                            if (response.data && response.data.svg) {
-                                self.elements.previewResult.html(response.data.svg);
-                                
-                                // SVG zum Canvas hinzufügen
-                                self.addSVGToCanvas(response.data.svg);
-                                
-                                // Hinweis zeigen, wenn Testmodus aktiv
-                                if (response.data.is_test_mode) {
-                                    var testModeMsg = 'Testmodus aktiv: ';
-                                    if (response.data.test_mode === 'test') {
-                                        testModeMsg += 'Kostenloser Test ohne Kontingentverbrauch.';
-                                    } else if (response.data.test_mode === 'test_preview') {
-                                        testModeMsg += 'Test mit Vorschau ohne Kontingentverbrauch.';
-                                    }
-                                    alert(testModeMsg);
-                                }
-                                
-                                // Modal schließen
-                                setTimeout(function() {
-                                    self.closeVectorizeModal();
-                                }, 1000);
-                            } else {
-                                self.elements.previewResult.html('<div class="designtool-placeholder">Fehler: Keine SVG-Daten erhalten</div>');
-                            }
+                            // SVG-Daten überprüfen und anzeigen
+if (response.data && response.data.svg && response.data.svg !== 'Keine SVG-Daten erhalten' && response.data.svg !== false) {
+    self.elements.previewResult.html(response.data.svg);
+    
+    // SVG zum Canvas hinzufügen
+    self.addSVGToCanvas(response.data.svg);
+    
+    // Hinweis zeigen, wenn Testmodus aktiv
+    if (response.data.is_test_mode) {
+        var testModeMsg = 'Testmodus aktiv: ';
+        if (response.data.test_mode === 'test') {
+            testModeMsg += 'Kostenloser Test ohne Kontingentverbrauch.';
+        } else if (response.data.test_mode === 'test_preview') {
+            testModeMsg += 'Test mit Vorschau ohne Kontingentverbrauch.';
+        }
+        alert(testModeMsg);
+    }
+    
+    // Modal schließen
+    setTimeout(function() {
+        self.closeVectorizeModal();
+    }, 1000);
+} else {
+    console.error('SVG Daten unvollständig:', response.data);
+    var errorMsg = 'Fehler: Keine SVG-Daten erhalten. Bitte prüfe, ob die Vektorisierungs-Engine korrekt konfiguriert ist.';
+    self.elements.previewResult.html('<div class="designtool-placeholder">' + errorMsg + '</div>');
+    
+    // Ausführlichere Fehlermeldung in der Konsole für Debugging
+    if (response.data && response.data.svg === false) {
+        console.log('SVG-Inhalt ist "false" - Überprüfe die Vektorisierungs-Engine!');
+    }
+}
                         }, 500);
                     } else {
                         // Fehler anzeigen
