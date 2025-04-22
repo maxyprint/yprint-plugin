@@ -259,21 +259,7 @@ private function init_classes() {
     }
 
     // AJAX-Handler für die Bildvektorisierung
-    public function ajax_vectorize_image() {
-    // Debugging-Ausgabe
-    error_log('AJAX vectorize_image called');
-    error_log('POST data: ' . print_r($_POST, true));
-    error_log('FILES data: ' . print_r($_FILES, true));
-    
-    // Nonce-Überprüfung mit Debugging
-    $nonce_check = check_ajax_referer('vectorize_wp_nonce', 'nonce', false);
-    error_log('Nonce check result: ' . ($nonce_check ? 'passed' : 'failed'));
-    
-    if (!$nonce_check) {
-        wp_send_json_error('Nonce validation failed. Security check failed.');
-        return;
-    }
-
+public function ajax_vectorize_image() {
     // Debugging-Ausgabe
     error_log('AJAX vectorize_image called');
     error_log('POST data: ' . print_r($_POST, true));
@@ -299,93 +285,102 @@ private function init_classes() {
         return;
     }
         
-        $file = $_FILES['vectorize_image'];
-        
-        // Überprüfen, ob die Datei gültig ist
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            wp_send_json_error(__('Fehler beim Hochladen der Datei: ' . $file['error'], 'vectorize-wp'));
-            return;
-        }
-        
-        // Überprüfen, ob der Dateityp akzeptiert wird
-        $allowed_types = array('image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp');
-        if (!in_array($file['type'], $allowed_types)) {
-            wp_send_json_error(__('Ungültiger Dateityp. Bitte lade ein JPEG-, PNG-, GIF-, BMP- oder WebP-Bild hoch.', 'vectorize-wp'));
-            return;
-        }
-        
-        // Datei temporär speichern
-        $upload_dir = wp_upload_dir();
-        $temp_dir = $upload_dir['basedir'] . '/vectorize-wp/temp';
-        
-        if (!file_exists($temp_dir)) {
-            wp_mkdir_p($temp_dir);
-        }
-        
-        $temp_file = $temp_dir . '/' . sanitize_file_name($file['name']);
-        move_uploaded_file($file['tmp_name'], $temp_file);
-        
-        // Vektorisierungsoptionen
-$options = array(
-    'detail' => isset($_POST['detail_level']) ? sanitize_text_field($_POST['detail_level']) : 'medium',
-    'format' => 'svg'
-);
-
-// Vectorize WP Hauptinstanz abrufen
-$vectorize_wp = vectorize_wp();
-
-// Engine-Einstellung abrufen
-$plugin_options = get_option('vectorize_wp_options', array());
-$vectorization_engine = isset($plugin_options['vectorization_engine']) ? $plugin_options['vectorization_engine'] : 'inkscape';
-
-// Bild vektorisieren
-try {
-    // Je nach Engine unterschiedlich vorgehen
-    if ($vectorization_engine === 'api') {
-        // API-Instanz verwenden
-        $result = $vectorize_wp->api->vectorize_image($temp_file, $options);
-    } elseif ($vectorization_engine === 'inkscape') {
-        // Inkscape CLI verwenden
-        $result = $vectorize_wp->inkscape_cli->vectorize_image($temp_file, $options);
-    } else {
-        // YPrint Vectorizer verwenden (Standard)
-        $yprint_result = $vectorize_wp->yprint_vectorizer->vectorize_image($temp_file, $options);
-        
-        // Ergebnisse ins gemeinsame Format umwandeln
-        $result = array(
-            'content' => $yprint_result,
-            'file_path' => $temp_file . '.svg',
-            'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
-            'format' => 'svg',
-            'is_test_mode' => false
-        );
-    }
+    $file = $_FILES['vectorize_image'];
     
-    // Temporäre Datei löschen
-    @unlink($temp_file);
-    
-    if (is_wp_error($result)) {
-        wp_send_json_error($result->get_error_message());
+    // Überprüfen, ob die Datei gültig ist
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        wp_send_json_error(__('Fehler beim Hochladen der Datei: ' . $file['error'], 'vectorize-wp'));
         return;
     }
     
-    // Erfolgreiche Antwort senden
-    wp_send_json_success(array(
-        'svg' => $result['content'],
-        'file_url' => $result['file_url'],
-        'is_demo' => false,
-        'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
-        'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
-        'engine' => $vectorization_engine
-    ));
-} catch (Exception $e) {
-    // Fehlerbehandlung
-    @unlink($temp_file); // Temporäre Datei löschen
-    wp_send_json_error(__('Fehler: ' . $e->getMessage(), 'vectorize-wp'));
-}
+    // Überprüfen, ob der Dateityp akzeptiert wird
+    $allowed_types = array('image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp');
+    if (!in_array($file['type'], $allowed_types)) {
+        wp_send_json_error(__('Ungültiger Dateityp. Bitte lade ein JPEG-, PNG-, GIF-, BMP- oder WebP-Bild hoch.', 'vectorize-wp'));
+        return;
+    }
+    
+    // Datei temporär speichern
+    $upload_dir = wp_upload_dir();
+    $temp_dir = $upload_dir['basedir'] . '/vectorize-wp/temp';
+    
+    if (!file_exists($temp_dir)) {
+        wp_mkdir_p($temp_dir);
+    }
+    
+    $temp_file = $temp_dir . '/' . sanitize_file_name($file['name']);
+    move_uploaded_file($file['tmp_name'], $temp_file);
+    
+    // Vektorisierungsoptionen
+    $options = array(
+        'detail' => isset($_POST['detail_level']) ? sanitize_text_field($_POST['detail_level']) : 'medium',
+        'format' => 'svg'
+    );
+    
+    error_log('Vectorization options: ' . print_r($options, true));
+    
+    // Plugin-Einstellungen abrufen
+    $plugin_options = get_option('vectorize_wp_options', array());
+    $vectorization_engine = isset($plugin_options['vectorization_engine']) ? $plugin_options['vectorization_engine'] : 'yprint';
+    
+    error_log('Selected vectorization engine: ' . $vectorization_engine);
+
+    try {
+        // Je nach Engine unterschiedlich vorgehen
+        if ($vectorization_engine === 'api') {
+            // API-Anfrage senden
+            error_log('Using API engine for vectorization');
+            $result = $this->api->vectorize_image($temp_file, $options);
+        } elseif ($vectorization_engine === 'inkscape') {
+            // Inkscape CLI verwenden
+            error_log('Using Inkscape CLI for vectorization');
+            $result = $this->inkscape_cli->vectorize_image($temp_file, $options);
+        } else {
+            // YPrint Vectorizer verwenden
+            error_log('Using YPrint Vectorizer for vectorization');
+            if (!isset($this->yprint_vectorizer) || !$this->yprint_vectorizer) {
+                throw new Exception('YPrint Vectorizer nicht verfügbar');
+            }
+            
+            $yprint_result = $this->yprint_vectorizer->vectorize_image($temp_file, $options);
+            
+            // Ergebnisse ins gemeinsame Format umwandeln
+            $result = array(
+                'content' => $yprint_result,
+                'file_path' => $temp_file . '.svg',
+                'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
+                'format' => 'svg',
+                'is_test_mode' => false
+            );
+        }
+        
+        // Temporäre Datei löschen
+        @unlink($temp_file);
+        
+        if (is_wp_error($result)) {
+            error_log('Vectorization error: ' . $result->get_error_message());
+            wp_send_json_error($result->get_error_message());
+            return;
+        }
+        
+        // Erfolgreiche Antwort senden
+        wp_send_json_success(array(
+            'svg' => $result['content'],
+            'file_url' => $result['file_url'],
+            'is_demo' => false,
+            'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
+            'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
+            'engine' => $vectorization_engine // Engine-Info für Debugging
+        ));
+    } catch (Exception $e) {
+        // Fehlerbehandlung
+        error_log('Exception in vectorization: ' . $e->getMessage());
+        @unlink($temp_file); // Temporäre Datei löschen
+        wp_send_json_error(__('Fehler bei der Vektorisierung: ', 'vectorize-wp') . $e->getMessage());
+    }
         
         // Vektorisierungs-Engine bestimmen
-$vectorization_engine = isset($options['vectorization_engine']) ? $options['vectorization_engine'] : 'inkscape';
+        $vectorization_engine = isset($options['vectorization_engine']) ? $options['vectorization_engine'] : 'inkscape';
 
 try {
     // Je nach Engine unterschiedlich vorgehen
