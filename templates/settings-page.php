@@ -56,21 +56,50 @@ $options['vectorization_engine'] = sanitize_text_field($_POST['vectorization_eng
 
 // API-Schlüssel testen Button
 if (isset($_POST['vectorize_wp_test_api_key']) && check_admin_referer('vectorize_wp_settings', 'vectorize_wp_settings_nonce')) {
-    if (empty($options['api_key'])) {
-        $api_status = __('Bitte gib einen API-Schlüssel ein, um ihn zu testen.', 'vectorize-wp');
+    if (empty($options['api_key']) && $options['vectorization_engine'] === 'api') {
+        $api_status = __('Bitte gib einen API-Schlüssel ein, um die API zu testen.', 'vectorize-wp');
         $api_status_class = 'notice-warning';
     } else {
-        // API-Instanz erstellen
-        $api = new Vectorize_WP_Vectorize_API($options['api_key']);
-        $api_result = $api->validate_api_key();
-        
-        if ($api_result === true) {
-            $api_status = __('API-Schlüssel ist gültig! Die Verbindung zur Vectorize.ai API funktioniert.', 'vectorize-wp');
-            $api_status_class = 'notice-success';
+        // Je nach ausgewählter Engine testen
+        if ($options['vectorization_engine'] === 'api') {
+            // API-Instanz erstellen
+            $api = new Vectorize_WP_Vectorize_API($options['api_key']);
+            $api_result = $api->validate_api_key();
+            
+            if ($api_result === true) {
+                $api_status = __('API-Schlüssel ist gültig! Die Verbindung zur Vectorize.ai API funktioniert.', 'vectorize-wp');
+                $api_status_class = 'notice-success';
+            } else {
+                $error_message = is_wp_error($api_result) ? $api_result->get_error_message() : __('API-Schlüssel konnte nicht validiert werden.', 'vectorize-wp');
+                $api_status = __('API-Test fehlgeschlagen: ', 'vectorize-wp') . '<pre style="max-height: 300px; overflow: auto; background: #f7f7f7; padding: 10px; border: 1px solid #ddd;">' . $error_message . '</pre>';
+                $api_status_class = 'notice-error';
+            }
+        } elseif ($options['vectorization_engine'] === 'inkscape') {
+            // Inkscape CLI testen
+            $inkscape_cli = new Vectorize_WP_Inkscape_CLI();
+            if ($inkscape_cli->is_available()) {
+                $api_status = __('Inkscape CLI ist verfügbar und betriebsbereit!', 'vectorize-wp');
+                $api_status_class = 'notice-success';
+            } else {
+                $api_status = __('Inkscape CLI ist nicht verfügbar. Bitte stelle sicher, dass Inkscape installiert ist und im Systempfad liegt.', 'vectorize-wp');
+                $api_status_class = 'notice-error';
+            }
         } else {
-            $error_message = is_wp_error($api_result) ? $api_result->get_error_message() : __('API-Schlüssel konnte nicht validiert werden.', 'vectorize-wp');
-            $api_status = __('API-Test fehlgeschlagen: ', 'vectorize-wp') . '<pre style="max-height: 300px; overflow: auto; background: #f7f7f7; padding: 10px; border: 1px solid #ddd;">' . $error_message . '</pre>';
-            $api_status_class = 'notice-error';
+            // YPrint Vectorizer testen
+            if (class_exists('YPrint_Vectorizer')) {
+                $yprint_vectorizer = YPrint_Vectorizer::get_instance();
+                $potrace_available = $yprint_vectorizer->check_potrace_exists();
+                if ($potrace_available) {
+                    $api_status = __('YPrint Vectorizer ist verfügbar und potrace wurde gefunden. Bereit für die Vektorisierung!', 'vectorize-wp');
+                    $api_status_class = 'notice-success';
+                } else {
+                    $api_status = __('YPrint Vectorizer ist verfügbar, aber potrace wurde nicht gefunden. Die Funktionalität könnte eingeschränkt sein.', 'vectorize-wp');
+                    $api_status_class = 'notice-warning';
+                }
+            } else {
+                $api_status = __('YPrint Vectorizer ist nicht verfügbar. Bitte stelle sicher, dass die Klasse korrekt installiert ist.', 'vectorize-wp');
+                $api_status_class = 'notice-error';
+            }
         }
     }
     
@@ -202,7 +231,11 @@ if (isset($_POST['vectorize_wp_test_api_key']) && check_admin_referer('vectorize
         echo '<span style="color:red;">' . __('YPrint Vectorizer ist nicht verfügbar.', 'vectorize-wp') . '</span>';
     }
     ?>
-</p>
+    </p>
+    <p>
+        <input type="submit" name="vectorize_wp_test_api_key" class="button button-secondary" 
+               value="<?php _e('Ausgewählte Engine testen', 'vectorize-wp'); ?>" />
+    </p>
     </td>
 </tr>
                 </tr>
