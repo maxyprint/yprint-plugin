@@ -31,6 +31,7 @@ require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
 // require_once VECTORIZE_WP_PATH . 'includes/class-svg-editor.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
 require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/class-inkscape-cli.php';
+require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
 
 // Hauptklasse des Plugins
 class Vectorize_WP {
@@ -45,6 +46,9 @@ class Vectorize_WP {
     
     // Inkscape-CLI-Instanz
     public $inkscape_cli = null;
+    
+    // YPrint Vectorizer-Instanz
+    public $yprint_vectorizer = null;
 
     // Konstruktor
     private function __construct() {
@@ -75,6 +79,9 @@ private function init_classes() {
     
     // Inkscape CLI-Instanz erstellen
     $this->inkscape_cli = new Vectorize_WP_Inkscape_CLI();
+    
+    // YPrint Vectorizer-Instanz erstellen
+    $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
     
     // SVG-Editor entfernt
     
@@ -129,13 +136,13 @@ private function init_classes() {
         }
         
         // Initialisierungsoptionen in der Datenbank speichern
-        $default_options = array(
-        'api_key' => '',
+    $default_options = array(
+    'api_key' => '',
     'max_upload_size' => 5, // in MB
     'default_output_format' => 'svg',
     'test_mode' => 'test', // Standard: Testmodus aktiviert für einfache Entwicklung
-    'vectorization_engine' => 'inkscape', // Standard: Inkscape statt Vectorize.ai
-);
+    'vectorization_engine' => 'yprint', // Standard: YPrint Vectorizer als primäre Engine
+    );
         
         // Bestehende Optionen abrufen, falls vorhanden
         $existing_options = get_option('vectorize_wp_options', array());
@@ -337,9 +344,21 @@ try {
     if ($vectorization_engine === 'api') {
         // API-Instanz verwenden
         $result = $vectorize_wp->api->vectorize_image($temp_file, $options);
-    } else {
+    } elseif ($vectorization_engine === 'inkscape') {
         // Inkscape CLI verwenden
         $result = $vectorize_wp->inkscape_cli->vectorize_image($temp_file, $options);
+    } else {
+        // YPrint Vectorizer verwenden (Standard)
+        $yprint_result = $vectorize_wp->yprint_vectorizer->vectorize_image($temp_file, $options);
+        
+        // Ergebnisse ins gemeinsame Format umwandeln
+        $result = array(
+            'content' => $yprint_result,
+            'file_path' => $temp_file . '.svg',
+            'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
+            'format' => 'svg',
+            'is_test_mode' => false
+        );
     }
     
     // Temporäre Datei löschen

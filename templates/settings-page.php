@@ -166,26 +166,43 @@ if (isset($_POST['vectorize_wp_test_api_key']) && check_admin_referer('vectorize
         <label for="vectorization_engine"><?php _e('Vektorisierungs-Engine', 'vectorize-wp'); ?></label>
     </th>
     <td>
-        <select id="vectorization_engine" name="vectorization_engine">
-            <option value="api" <?php selected($options['vectorization_engine'], 'api'); ?>>
-                <?php _e('Vectorize.ai API (online, kostenpflichtig)', 'vectorize-wp'); ?>
-            </option>
-            <option value="inkscape" <?php selected($options['vectorization_engine'], 'inkscape'); ?>>
-                <?php _e('Inkscape CLI (lokal, kostenlos)', 'vectorize-wp'); ?>
-            </option>
-        </select>
-        <p class="description">
-            <?php _e('Wähle zwischen der Online-API oder der lokalen Inkscape-Installation.', 'vectorize-wp'); ?>
-            <br>
-            <?php 
-            $inkscape_cli = new Vectorize_WP_Inkscape_CLI();
-            if ($inkscape_cli->is_available()) {
-                echo '<span style="color:green;">' . __('Inkscape wurde gefunden und ist einsatzbereit.', 'vectorize-wp') . '</span>';
-            } else {
-                echo '<span style="color:red;">' . __('Inkscape wurde nicht gefunden. Bitte installiere Inkscape, falls du es verwenden möchtest.', 'vectorize-wp') . '</span>';
-            }
-            ?>
-        </p>
+    <select id="vectorization_engine" name="vectorization_engine">
+    <option value="api" <?php selected($options['vectorization_engine'], 'api'); ?>>
+        <?php _e('Vectorize.ai API (online, kostenpflichtig)', 'vectorize-wp'); ?>
+    </option>
+    <option value="inkscape" <?php selected($options['vectorization_engine'], 'inkscape'); ?>>
+        <?php _e('Inkscape CLI (lokal, kostenlos)', 'vectorize-wp'); ?>
+    </option>
+    <option value="yprint" <?php selected($options['vectorization_engine'], 'yprint'); ?>>
+        <?php _e('YPrint Vectorizer (lokal, optimiert)', 'vectorize-wp'); ?>
+    </option>
+    </select>
+    <p class="description">
+    <?php _e('Wähle zwischen der Online-API, der lokalen Inkscape-Installation oder dem YPrint Vectorizer.', 'vectorize-wp'); ?>
+    <br>
+    <?php 
+    $inkscape_cli = new Vectorize_WP_Inkscape_CLI();
+    if ($inkscape_cli->is_available()) {
+        echo '<span style="color:green;">' . __('Inkscape wurde gefunden und ist einsatzbereit.', 'vectorize-wp') . '</span>';
+    } else {
+        echo '<span style="color:red;">' . __('Inkscape wurde nicht gefunden. Bitte installiere Inkscape, falls du es verwenden möchtest.', 'vectorize-wp') . '</span>';
+    }
+    ?>
+    <br>
+    <?php
+    if (class_exists('YPrint_Vectorizer')) {
+        echo '<span style="color:green;">' . __('YPrint Vectorizer ist aktiv und einsatzbereit.', 'vectorize-wp') . '</span>';
+        
+        // Prüfen, ob Potrace verfügbar ist
+        $potrace_available = YPrint_Vectorizer::get_instance()->check_potrace_exists();
+        if (!$potrace_available) {
+            echo '<br><span style="color:orange;">' . __('Hinweis: Potrace wurde nicht gefunden, was die Funktionalität des YPrint Vectorizers einschränken könnte.', 'vectorize-wp') . '</span>';
+        }
+    } else {
+        echo '<span style="color:red;">' . __('YPrint Vectorizer ist nicht verfügbar.', 'vectorize-wp') . '</span>';
+    }
+    ?>
+</p>
     </td>
 </tr>
                 </tr>
