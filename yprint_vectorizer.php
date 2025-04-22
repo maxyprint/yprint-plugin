@@ -130,7 +130,25 @@ class YPrint_Vectorizer {
             return true;
         }
         
-        // Check if it's available in the system
+        // Check specific IONOS path
+        $ionos_potrace = '/homepages/31/d4298451771/htdocs/.local/bin/potrace';
+        if (file_exists($ionos_potrace) && is_executable($ionos_potrace)) {
+            // Optional: Create a symlink or script in the bin directory for easier access
+            if (!file_exists(dirname($plugin_potrace))) {
+                @mkdir(dirname($plugin_potrace), 0755, true);
+            }
+            
+            if (!file_exists($plugin_potrace)) {
+                // Create a wrapper script that points to the IONOS Potrace
+                $script_content = "#!/bin/sh\n$ionos_potrace \"\$@\"\n";
+                @file_put_contents($plugin_potrace, $script_content);
+                @chmod($plugin_potrace, 0755);
+            }
+            
+            return true;
+        }
+        
+        // Standard system check
         $output = array();
         $return_val = 0;
         exec('which potrace 2>&1', $output, $return_val);
@@ -651,7 +669,18 @@ class YPrint_Vectorizer {
             return $plugin_potrace;
         }
         
-        // Fall back to system potrace
+        // Check specific IONOS path
+        $ionos_potrace = '/homepages/31/d4298451771/htdocs/.local/bin/potrace';
+        if (file_exists($ionos_potrace) && is_executable($ionos_potrace)) {
+            return $ionos_potrace;
+        }
+        
+        // Fall back to system potrace with full path for IONOS servers
+        if (file_exists('/homepages/31/d4298451771/htdocs/.local/bin/potrace')) {
+            return '/homepages/31/d4298451771/htdocs/.local/bin/potrace';
+        }
+        
+        // Fall back to system potrace (might work if in PATH)
         return 'potrace';
     }
 
