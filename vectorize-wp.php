@@ -24,13 +24,8 @@ define('VECTORIZE_WP_URL', plugin_dir_url(__FILE__));
 define('VECTORIZE_WP_BASENAME', plugin_basename(__FILE__));
 
 // Erforderliche Dateien einbinden
-require_once VECTORIZE_WP_PATH . 'includes/class-api.php';
-require_once VECTORIZE_WP_PATH . 'includes/class-vectorize-api.php';
 require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
-// SVG-Editor wurde entfernt
-// require_once VECTORIZE_WP_PATH . 'includes/class-svg-editor.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
-require_once VECTORIZE_WP_PATH . 'includes/inkscape-cli/class-inkscape-cli.php';
 require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
 
 // Hauptklasse des Plugins
@@ -319,40 +314,22 @@ public function ajax_vectorize_image() {
     
     error_log('Vectorization options: ' . print_r($options, true));
     
-    // Plugin-Einstellungen abrufen
-    $plugin_options = get_option('vectorize_wp_options', array());
-    $vectorization_engine = isset($plugin_options['vectorization_engine']) ? $plugin_options['vectorization_engine'] : 'yprint';
+    error_log('Using YPrint Vectorizer for vectorization');
+try {
+    if (!isset($this->yprint_vectorizer) || !$this->yprint_vectorizer) {
+        throw new Exception('YPrint Vectorizer nicht verfügbar');
+    }
     
-    error_log('Selected vectorization engine: ' . $vectorization_engine);
-
-    try {
-        // Je nach Engine unterschiedlich vorgehen
-        if ($vectorization_engine === 'api') {
-            // API-Anfrage senden
-            error_log('Using API engine for vectorization');
-            $result = $this->api->vectorize_image($temp_file, $options);
-        } elseif ($vectorization_engine === 'inkscape') {
-            // Inkscape CLI verwenden
-            error_log('Using Inkscape CLI for vectorization');
-            $result = $this->inkscape_cli->vectorize_image($temp_file, $options);
-        } else {
-            // YPrint Vectorizer verwenden
-            error_log('Using YPrint Vectorizer for vectorization');
-            if (!isset($this->yprint_vectorizer) || !$this->yprint_vectorizer) {
-                throw new Exception('YPrint Vectorizer nicht verfügbar');
-            }
-            
-            $yprint_result = $this->yprint_vectorizer->vectorize_image($temp_file, $options);
-            
-            // Ergebnisse ins gemeinsame Format umwandeln
-            $result = array(
-                'content' => $yprint_result,
-                'file_path' => $temp_file . '.svg',
-                'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
-                'format' => 'svg',
-                'is_test_mode' => false
-            );
-        }
+    $yprint_result = $this->yprint_vectorizer->vectorize_image($temp_file, $options);
+    
+    // Ergebnisse ins gemeinsame Format umwandeln
+    $result = array(
+        'content' => $yprint_result,
+        'file_path' => $temp_file . '.svg',
+        'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
+        'format' => 'svg',
+        'is_test_mode' => false
+    );
         
         // Temporäre Datei löschen
         @unlink($temp_file);

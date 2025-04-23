@@ -170,23 +170,6 @@ class YPrint_Vectorizer {
     }
 
     /**
-     * Add admin menu page
-     *
-     * @since 1.0.0
-     */
-    public function add_admin_menu() {
-        add_menu_page(
-            __('YPrint Vectorizer', 'yprint-vectorizer'),
-            __('Vectorizer', 'yprint-vectorizer'),
-            'manage_options',
-            'yprint-vectorizer',
-            array($this, 'admin_page'),
-            'dashicons-art',
-            30
-        );
-    }
-
-    /**
      * Enqueue required scripts and styles
      *
      * @since 1.0.0
