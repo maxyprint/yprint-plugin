@@ -926,8 +926,7 @@ resizeElement: function(e) {
     var newLeft = this.state.originalPos.x;
     var newTop = this.state.originalPos.y;
     
-    // Proportional-Modus erkennen (Shift-Taste)
-    // WICHTIG: Hier ändern wir die Logik - proportionalMode = true NUR wenn Shift gedrückt ist
+    // Proportional-Modus nur aktivieren, wenn Shift gedrückt ist
     var proportionalMode = e.shiftKey;
     var aspectRatio = this.state.currentElement.originalWidth / this.state.currentElement.originalHeight;
     
@@ -1485,13 +1484,17 @@ addSVGToCanvas: function(svgContent) {
     var originalId = originalElement.id;
     var originalFileRef = originalElement.fileReference;
     
-    // Original-Position und -Größe speichern
-    var originalLeft = originalElement.left;
-    var originalTop = originalElement.top;
-    var originalWidth = originalElement.width;
-    var originalHeight = originalElement.height;
-    var originalOpacity = originalElement.opacity;
-    var originalRotation = originalElement.rotation;
+    // Exakt alle Eigenschaften des Original-Elements speichern
+    var originalBounds = {
+        left: originalElement.left,
+        top: originalElement.top,
+        width: originalElement.width,
+        height: originalElement.height,
+        opacity: originalElement.opacity,
+        rotation: originalElement.rotation
+    };
+    
+    console.log('Speichere Original-Bounds:', originalBounds);
     
     // SVG zur Dateiliste hinzufügen
     this.addFileToList({
@@ -1522,19 +1525,21 @@ addSVGToCanvas: function(svgContent) {
     // Deselektieren
     this.deselectAllElements();
     
-    // Element zum Canvas hinzufügen - explizit mit Original-Eigenschaften
+    // Element zum Canvas hinzufügen - explizit mit Original-Eigenschaften und originalWidth/height korrekt setzen
     var newSvgElement = {
         id: 'element-' + this.state.elementCounter,
         type: 'svg',
         src: url,
-        left: originalLeft,
-        top: originalTop,
-        width: originalWidth,
-        height: originalHeight,
-        originalWidth: originalWidth,
-        originalHeight: originalHeight,
-        opacity: originalOpacity,
-        rotation: originalRotation,
+        left: originalBounds.left,
+        top: originalBounds.top,
+        width: originalBounds.width,
+        height: originalBounds.height,
+        // Wir speichern die Originalbreite/-höhe identisch zur aktuellen Größe,
+        // damit das SVG nicht versucht, sein Originalseitenverhältnis wiederherzustellen
+        originalWidth: originalBounds.width,
+        originalHeight: originalBounds.height,
+        opacity: originalBounds.opacity,
+        rotation: originalBounds.rotation,
         fileReference: 'file-' + this.state.elementCounter
     };
     
@@ -1547,7 +1552,7 @@ addSVGToCanvas: function(svgContent) {
     // Im Verlauf speichern
     this.addHistoryStep();
     
-    console.log('SVG erfolgreich hinzugefügt und ersetzt mit Position:', originalLeft, originalTop, 'und Größe:', originalWidth, originalHeight);
+    console.log('SVG erfolgreich hinzugefügt und ersetzt mit exakten Bounds:', originalBounds);
 },
 
 // Exportiert den Canvas
