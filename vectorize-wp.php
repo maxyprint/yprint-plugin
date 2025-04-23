@@ -69,12 +69,14 @@ class Vectorize_WP {
         }
         return self::$instance;
     }
-    
-// Erforderliche Dateien einbinden
-require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
-require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
-require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
-
+    // Klassen initialisieren
+    private function init_classes() {
+        // SVG Handler initialisieren
+        $this->svg_handler = new SVG_Handler();
+        
+        // YPrint Vectorizer initialisieren 
+        $this->yprint_vectorizer = new YPrint_Vectorizer();
+    }
 
     // Initialisierung der Hooks
     private function init_hooks() {
