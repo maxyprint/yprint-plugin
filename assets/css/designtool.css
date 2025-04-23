@@ -292,12 +292,17 @@ body.designtool-page .site-main > *:not(.designtool-container) {
     border: 1px solid #4285f4;
     border-radius: 50%;
     pointer-events: auto;
+    z-index: 10;
 }
 
 .designtool-element-control.tl { top: -5px; left: -5px; cursor: nw-resize; }
+.designtool-element-control.tc { top: -5px; left: 50%; transform: translateX(-50%); cursor: n-resize; }
 .designtool-element-control.tr { top: -5px; right: -5px; cursor: ne-resize; }
-.designtool-element-control.br { bottom: -5px; right: -5px; cursor: se-resize; }
+.designtool-element-control.ml { top: 50%; left: -5px; transform: translateY(-50%); cursor: w-resize; }
+.designtool-element-control.mr { top: 50%; right: -5px; transform: translateY(-50%); cursor: e-resize; }
 .designtool-element-control.bl { bottom: -5px; left: -5px; cursor: sw-resize; }
+.designtool-element-control.bc { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: s-resize; }
+.designtool-element-control.br { bottom: -5px; right: -5px; cursor: se-resize; }
 
 /* Eigenschaften-Bereich rechts */
 .designtool-properties {

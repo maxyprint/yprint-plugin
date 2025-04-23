@@ -92,33 +92,39 @@ if (!defined('ABSPATH')) {
         
         <!-- Bild-Eigenschaften -->
         <div id="designtool-image-properties" style="display: none;">
-            <div class="designtool-property-group">
-                <h4><?php _e('Größe & Position', 'vectorize-wp'); ?></h4>
-                
-                <div class="designtool-property">
-                    <label for="designtool-image-width"><?php _e('Breite', 'vectorize-wp'); ?></label>
-                    <div class="designtool-input-group">
-                        <input type="number" id="designtool-image-width" class="designtool-input" min="10" step="1">
-                        <span class="designtool-input-suffix">px</span>
-                    </div>
-                </div>
-                
-                <div class="designtool-property">
-                    <label for="designtool-image-height"><?php _e('Höhe', 'vectorize-wp'); ?></label>
-                    <div class="designtool-input-group">
-                        <input type="number" id="designtool-image-height" class="designtool-input" min="10" step="1">
-                        <span class="designtool-input-suffix">px</span>
-                    </div>
-                </div>
-                
-                <div class="designtool-property">
-                    <label for="designtool-image-opacity"><?php _e('Deckkraft', 'vectorize-wp'); ?></label>
-                    <div class="designtool-input-group" style="display: flex; align-items: center;">
-                        <input type="range" id="designtool-image-opacity" class="designtool-range" min="0" max="1" step="0.01" value="1">
-                        <span id="designtool-opacity-value" class="designtool-input-display">100%</span>
-                    </div>
-                </div>
-            </div>
+        <div class="designtool-property-group">
+    <h4><?php _e('Größe & Position', 'vectorize-wp'); ?></h4>
+    
+    <div class="designtool-property">
+        <label for="designtool-image-width"><?php _e('Breite', 'vectorize-wp'); ?></label>
+        <div class="designtool-input-group">
+            <input type="number" id="designtool-image-width" class="designtool-input" min="10" step="1">
+            <span class="designtool-input-suffix">px</span>
+        </div>
+    </div>
+    
+    <div class="designtool-property">
+        <label for="designtool-image-height"><?php _e('Höhe', 'vectorize-wp'); ?></label>
+        <div class="designtool-input-group">
+            <input type="number" id="designtool-image-height" class="designtool-input" min="10" step="1">
+            <span class="designtool-input-suffix">px</span>
+        </div>
+    </div>
+    
+    <div class="designtool-property">
+        <button id="designtool-reset-aspect" class="designtool-btn">
+            <?php _e('Seitenverhältnis zurücksetzen', 'vectorize-wp'); ?>
+        </button>
+    </div>
+    
+    <div class="designtool-property">
+        <label for="designtool-image-opacity"><?php _e('Deckkraft', 'vectorize-wp'); ?></label>
+        <div class="designtool-input-group" style="display: flex; align-items: center;">
+            <input type="range" id="designtool-image-opacity" class="designtool-range" min="0" max="1" step="0.01" value="1">
+            <span id="designtool-opacity-value" class="designtool-input-display">100%</span>
+        </div>
+    </div>
+</div>
         </div>
         
         <!-- SVG-Eigenschaften -->

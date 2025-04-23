@@ -292,6 +292,11 @@ initializeComponents: function() {
                 if (files && files.length > 0) {
                     self.processFiles(files);
                 }
+                // Aspektverhältnis zurücksetzen
+this.elements.resetAspectBtn = $('#designtool-reset-aspect');
+this.elements.resetAspectBtn.on('click', function() {
+    self.resetAspectRatio();
+});
             });
         },
         
@@ -301,6 +306,33 @@ initializeComponents: function() {
             this.updateUndoRedoUI();
             this.updatePropertiesPanel();
         },
+        
+        // Setzt das Seitenverhältnis auf das Original zurück und behält aktuelle Größe bei
+resetAspectRatio: function() {
+    if (!this.state.currentElement) return;
+    
+    // Originales Seitenverhältnis berechnen
+    var originalRatio = this.state.currentElement.originalWidth / this.state.currentElement.originalHeight;
+    var currentWidth = this.state.currentElement.width;
+    var currentHeight = this.state.currentElement.height;
+    
+    // Neue Höhe basierend auf aktueller Breite berechnen
+    var newHeight = currentWidth / originalRatio;
+    
+    // Element aktualisieren
+    this.state.currentElement.$element.css({
+        'height': newHeight + 'px'
+    });
+    
+    // Element-Daten aktualisieren
+    this.state.currentElement.height = newHeight;
+    
+    // UI aktualisieren
+    this.elements.imageHeight.val(Math.round(newHeight));
+    
+    // Im Verlauf speichern
+    this.addHistoryStep();
+},
         
         // Existierendes SVG laden, falls verfügbar
         loadExistingSvgIfAvailable: function() {
@@ -715,14 +747,18 @@ initializeComponents: function() {
             this.state.currentElement = this.findElementById($element.attr('id'));
             
             // Vorhandene Controls entfernen und neue hinzufügen
-            $element.find('.designtool-element-controls').remove();
-            var $controls = $('<div class="designtool-element-controls"></div>');
-            $controls.append('<div class="designtool-element-control tl"></div>');
-            $controls.append('<div class="designtool-element-control tr"></div>');
-            $controls.append('<div class="designtool-element-control br"></div>');
-            $controls.append('<div class="designtool-element-control bl"></div>');
+$element.find('.designtool-element-controls').remove();
+var $controls = $('<div class="designtool-element-controls"></div>');
+$controls.append('<div class="designtool-element-control tl" data-handle="tl"></div>');
+$controls.append('<div class="designtool-element-control tc" data-handle="tc"></div>');
+$controls.append('<div class="designtool-element-control tr" data-handle="tr"></div>');
+$controls.append('<div class="designtool-element-control ml" data-handle="ml"></div>');
+$controls.append('<div class="designtool-element-control mr" data-handle="mr"></div>');
+$controls.append('<div class="designtool-element-control bl" data-handle="bl"></div>');
+$controls.append('<div class="designtool-element-control bc" data-handle="bc"></div>');
+$controls.append('<div class="designtool-element-control br" data-handle="br"></div>');
 
-            $element.append($controls);
+$element.append($controls);
             
             // Vektorisieren-Button aktivieren, wenn es ein Bild ist
             this.elements.vectorizeButton.prop('disabled', this.state.currentElement.type !== 'image');
@@ -840,68 +876,154 @@ initializeComponents: function() {
             };
         },
         
+
         // Skaliert ein Element
-        // Skaliert ein Element
-        resizeElement: function(e) {
-            var dx = (e.clientX - this.state.dragStartX) / this.state.zoom;
-            var dy = (e.clientY - this.state.dragStartY) / this.state.zoom;
+resizeElement: function(e) {
+    var dx = (e.clientX - this.state.dragStartX) / this.state.zoom;
+    var dy = (e.clientY - this.state.dragStartY) / this.state.zoom;
+    
+    var newWidth = this.state.originalSize.width;
+    var newHeight = this.state.originalSize.height;
+    var newLeft = this.state.originalPos.x;
+    var newTop = this.state.originalPos.y;
+    
+    // Proportional-Modus erkennen (Shift-Taste)
+    var proportionalMode = e.shiftKey;
+    var aspectRatio = this.state.currentElement.originalWidth / this.state.currentElement.originalHeight;
+    
+    // Je nach Resize-Handle die Größe und Position anpassen
+    switch (this.state.currentResizeHandle) {
+        case 'tl': // Top-Left
+            newWidth = this.state.originalSize.width - dx;
+            newHeight = this.state.originalSize.height - dy;
+            newLeft = this.state.originalPos.x + dx;
+            newTop = this.state.originalPos.y + dy;
             
-            var newWidth = this.state.originalSize.width;
-            var newHeight = this.state.originalSize.height;
-            var newLeft = this.state.originalPos.x;
-            var newTop = this.state.originalPos.y;
-            
-            // Je nach Resize-Handle die Größe und Position anpassen
-            switch (this.state.currentResizeHandle) {
-                case 'tl': // Top-Left
-                    newWidth = this.state.originalSize.width - dx;
-                    newHeight = this.state.originalSize.height - dy;
-                    newLeft = this.state.originalPos.x + dx;
-                    newTop = this.state.originalPos.y + dy;
-                    break;
-                case 'tr': // Top-Right
-                    newWidth = this.state.originalSize.width + dx;
-                    newHeight = this.state.originalSize.height - dy;
-                    newTop = this.state.originalPos.y + dy;
-                    break;
-                case 'bl': // Bottom-Left
-                    newWidth = this.state.originalSize.width - dx;
-                    newHeight = this.state.originalSize.height + dy;
-                    newLeft = this.state.originalPos.x + dx;
-                    break;
-                case 'br': // Bottom-Right
-                    newWidth = this.state.originalSize.width + dx;
-                    newHeight = this.state.originalSize.height + dy;
-                    break;
+            if (proportionalMode) {
+                // Wenn Shift gedrückt, proportionale Anpassung
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontale Bewegung dominiert
+                    newHeight = newWidth / aspectRatio;
+                    newTop = this.state.originalPos.y + (this.state.originalSize.width - newWidth) / aspectRatio;
+                } else {
+                    // Vertikale Bewegung dominiert
+                    newWidth = newHeight * aspectRatio;
+                    newLeft = this.state.originalPos.x + (this.state.originalSize.height - newHeight) * aspectRatio;
+                }
             }
+            break;
+        case 'tc': // Top-Center
+            newHeight = this.state.originalSize.height - dy;
+            newTop = this.state.originalPos.y + dy;
             
-            // Mindestgröße sicherstellen
-            if (newWidth < 10) newWidth = 10;
-            if (newHeight < 10) newHeight = 10;
-            
-            // Element aktualisieren
-            this.state.currentElement.$element.css({
-                'width': newWidth + 'px',
-                'height': newHeight + 'px',
-                'left': newLeft + 'px',
-                'top': newTop + 'px'
-            });
-            
-            // Element-Daten aktualisieren
-            this.state.currentElement.width = newWidth;
-            this.state.currentElement.height = newHeight;
-            this.state.currentElement.left = newLeft;
-            this.state.currentElement.top = newTop;
-            
-            // Eigenschaften-Panel aktualisieren
-            if (this.elements.imageWidth.is(':focus') || this.elements.imageHeight.is(':focus')) {
-                // Wenn der Nutzer gerade die Werte eingibt, nicht aktualisieren
-                return;
+            if (proportionalMode) {
+                newWidth = newHeight * aspectRatio;
+                newLeft = this.state.originalPos.x + (this.state.originalSize.height - newHeight) * aspectRatio / 2;
             }
+            break;
+        case 'tr': // Top-Right
+            newWidth = this.state.originalSize.width + dx;
+            newHeight = this.state.originalSize.height - dy;
+            newTop = this.state.originalPos.y + dy;
             
-            this.elements.imageWidth.val(Math.round(newWidth));
-            this.elements.imageHeight.val(Math.round(newHeight));
-        },
+            if (proportionalMode) {
+                // Wenn Shift gedrückt, proportionale Anpassung
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontale Bewegung dominiert
+                    newHeight = newWidth / aspectRatio;
+                    newTop = this.state.originalPos.y + (this.state.originalSize.width - newWidth) / aspectRatio;
+                } else {
+                    // Vertikale Bewegung dominiert
+                    newWidth = newHeight * aspectRatio;
+                }
+            }
+            break;
+        case 'ml': // Middle-Left
+            newWidth = this.state.originalSize.width - dx;
+            newLeft = this.state.originalPos.x + dx;
+            
+            if (proportionalMode) {
+                newHeight = newWidth / aspectRatio;
+                newTop = this.state.originalPos.y + (this.state.originalSize.width - newWidth) / aspectRatio / 2;
+            }
+            break;
+        case 'mr': // Middle-Right
+            newWidth = this.state.originalSize.width + dx;
+            
+            if (proportionalMode) {
+                newHeight = newWidth / aspectRatio;
+                newTop = this.state.originalPos.y + (this.state.originalSize.width - newWidth) / aspectRatio / 2;
+            }
+            break;
+        case 'bl': // Bottom-Left
+            newWidth = this.state.originalSize.width - dx;
+            newHeight = this.state.originalSize.height + dy;
+            newLeft = this.state.originalPos.x + dx;
+            
+            if (proportionalMode) {
+                // Wenn Shift gedrückt, proportionale Anpassung
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontale Bewegung dominiert
+                    newHeight = newWidth / aspectRatio;
+                } else {
+                    // Vertikale Bewegung dominiert
+                    newWidth = newHeight * aspectRatio;
+                    newLeft = this.state.originalPos.x + (this.state.originalSize.width - newWidth);
+                }
+            }
+            break;
+        case 'bc': // Bottom-Center
+            newHeight = this.state.originalSize.height + dy;
+            
+            if (proportionalMode) {
+                newWidth = newHeight * aspectRatio;
+                newLeft = this.state.originalPos.x + (this.state.originalSize.height - newHeight) * aspectRatio / 2;
+            }
+            break;
+        case 'br': // Bottom-Right
+            newWidth = this.state.originalSize.width + dx;
+            newHeight = this.state.originalSize.height + dy;
+            
+            if (proportionalMode) {
+                // Wenn Shift gedrückt, proportionale Anpassung
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    // Horizontale Bewegung dominiert
+                    newHeight = newWidth / aspectRatio;
+                } else {
+                    // Vertikale Bewegung dominiert
+                    newWidth = newHeight * aspectRatio;
+                }
+            }
+            break;
+    }
+    
+    // Mindestgröße sicherstellen
+    if (newWidth < 10) newWidth = 10;
+    if (newHeight < 10) newHeight = 10;
+    
+    // Element aktualisieren
+    this.state.currentElement.$element.css({
+        'width': newWidth + 'px',
+        'height': newHeight + 'px',
+        'left': newLeft + 'px',
+        'top': newTop + 'px'
+    });
+    
+    // Element-Daten aktualisieren
+    this.state.currentElement.width = newWidth;
+    this.state.currentElement.height = newHeight;
+    this.state.currentElement.left = newLeft;
+    this.state.currentElement.top = newTop;
+    
+    // Eigenschaften-Panel aktualisieren
+    if (this.elements.imageWidth.is(':focus') || this.elements.imageHeight.is(':focus')) {
+        // Wenn der Nutzer gerade die Werte eingibt, nicht aktualisieren
+        return;
+    }
+    
+    this.elements.imageWidth.val(Math.round(newWidth));
+    this.elements.imageHeight.val(Math.round(newHeight));
+},
         
         // Sucht ein Element anhand seiner ID
         findElementById: function(id) {
@@ -1306,7 +1428,7 @@ if (response.data && response.data.svg && response.data.svg !== 'Keine SVG-Daten
     img.src = this.state.currentElement.src;
 },
 
-// Fügt ein SVG zum Canvas hinzu (nach der Vektorisierung)
+// Fügt ein SVG zum Canvas hinzu und ersetzt das ursprüngliche Bild
 addSVGToCanvas: function(svgContent) {
     var blob = new Blob([svgContent], {type: 'image/svg+xml'});
     var url = URL.createObjectURL(blob);
@@ -1314,21 +1436,14 @@ addSVGToCanvas: function(svgContent) {
     // Ursprüngliche Position und Größe übernehmen
     var originalElement = this.state.currentElement;
     
-    // Element zum Canvas hinzufügen
-    this.addElementToCanvas({
-        id: 'element-' + this.state.elementCounter,
-        type: 'svg',
-        src: url,
-        left: originalElement.left,
-        top: originalElement.top,
-        width: originalElement.width,
-        height: originalElement.height,
-        originalWidth: originalElement.width,
-        originalHeight: originalElement.height,
-        opacity: 1,
-        rotation: 0,
-        fileReference: 'file-' + this.state.elementCounter
-    });
+    if (!originalElement) {
+        console.error('Kein aktuelles Element zum Ersetzen gefunden');
+        return;
+    }
+    
+    // Original-ID und Dateireferenz speichern
+    var originalId = originalElement.id;
+    var originalFileRef = originalElement.fileReference;
     
     // SVG zur Dateiliste hinzufügen
     this.addFileToList({
@@ -1340,6 +1455,45 @@ addSVGToCanvas: function(svgContent) {
         isSVG: true
     });
     
+    // Element zum Canvas hinzufügen
+    var newSvgElement = {
+        id: 'element-' + this.state.elementCounter,
+        type: 'svg',
+        src: url,
+        left: originalElement.left,
+        top: originalElement.top,
+        width: originalElement.width,
+        height: originalElement.height,
+        originalWidth: originalElement.width,
+        originalHeight: originalElement.height,
+        opacity: originalElement.opacity,
+        rotation: originalElement.rotation,
+        fileReference: 'file-' + this.state.elementCounter
+    };
+    
+    // Bevor wir das neue Element hinzufügen, das alte entfernen
+    originalElement.$element.remove();
+    
+    // Element aus der Liste entfernen
+    var index = -1;
+    for (var i = 0; i < this.state.elements.length; i++) {
+        if (this.state.elements[i].id === originalId) {
+            index = i;
+            break;
+        }
+    }
+    
+    if (index > -1) {
+        this.state.elements.splice(index, 1);
+    }
+    
+    // Deselektieren
+    this.deselectAllElements();
+    
+    // Neues Element hinzufügen
+    this.addElementToCanvas(newSvgElement);
+    
+    // Element-Counter erhöhen
     this.state.elementCounter++;
     
     // Im Verlauf speichern
