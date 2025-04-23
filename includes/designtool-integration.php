@@ -218,58 +218,45 @@ function vectorize_wp_designtool_vectorize_ajax() {
     // Vectorize WP Hauptinstanz abrufen
     $vectorize_wp = vectorize_wp();
     
-    // Plugin-Einstellungen abrufen
-    $plugin_options = get_option('vectorize_wp_options', array());
-    $vectorization_engine = isset($plugin_options['vectorization_engine']) ? $plugin_options['vectorization_engine'] : 'api';
-    
     // Debugging-Info hinzufügen
-    error_log('Designtool Vektorisierung: Engine = ' . $vectorization_engine);
+error_log('Designtool Vektorisierung: Engine = YPrint Vectorizer (fest eingestellt)');
+
+// Bild vektorisieren
+try {
+    // Immer YPrint Vectorizer verwenden
+    $yprint_result = $vectorize_wp->yprint_vectorizer->vectorize_image($temp_file, $options);
     
-    // Bild vektorisieren
-    try {
-        // Je nach Engine unterschiedlich vorgehen
-        if ($vectorization_engine === 'api') {
-            // API-Instanz verwenden
-            $result = $vectorize_wp->api->vectorize_image($temp_file, $options);
-        } elseif ($vectorization_engine === 'inkscape') {
-            // Inkscape CLI verwenden
-            $result = $vectorize_wp->inkscape_cli->vectorize_image($temp_file, $options);
-        } else {
-            // YPrint Vectorizer verwenden (Standard-Fallback)
-            $yprint_result = $vectorize_wp->yprint_vectorizer->vectorize_image($temp_file, $options);
-            
-            // Ergebnisse ins gemeinsame Format umwandeln
-            $result = array(
-                'content' => $yprint_result,
-                'file_path' => $temp_file . '.svg',
-                'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
-                'format' => 'svg',
-                'is_test_mode' => false
-            );
-        }
-        
-        // Temporäre Datei löschen
-        @unlink($temp_file);
-        
-        if (is_wp_error($result)) {
-            wp_send_json_error($result->get_error_message());
-            return;
-        }
-        
-        // Erfolgreiche Antwort senden
-        wp_send_json_success(array(
-            'svg' => $result['content'],
-            'file_url' => $result['file_url'],
-            'is_demo' => false,
-            'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
-            'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
-            'engine' => $vectorization_engine // Engine-Info für Debugging
-        ));
-    } catch (Exception $e) {
-        // Fehlerbehandlung
-        @unlink($temp_file); // Temporäre Datei löschen
-        wp_send_json_error(__('Vektorisierungsfehler: ' . $e->getMessage(), 'vectorize-wp'));
+    // Ergebnisse ins gemeinsame Format umwandeln
+    $result = array(
+        'content' => $yprint_result,
+        'file_path' => $temp_file . '.svg',
+        'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
+        'format' => 'svg',
+        'is_test_mode' => false
+    );
+    
+    // Temporäre Datei löschen
+    @unlink($temp_file);
+    
+    if (is_wp_error($result)) {
+        wp_send_json_error($result->get_error_message());
+        return;
     }
+    
+    // Erfolgreiche Antwort senden
+    wp_send_json_success(array(
+        'svg' => $result['content'],
+        'file_url' => $result['file_url'],
+        'is_demo' => false,
+        'is_test_mode' => false,
+        'test_mode' => 'off',
+        'engine' => 'yprint' // Engine-Info für Debugging
+    ));
+} catch (Exception $e) {
+    // Fehlerbehandlung
+    @unlink($temp_file); // Temporäre Datei löschen
+    wp_send_json_error(__('Vektorisierungsfehler: ' . $e->getMessage(), 'vectorize-wp'));
+}
 }
 add_action('wp_ajax_vectorize_designtool_vectorize', 'vectorize_wp_designtool_vectorize_ajax');
 add_action('wp_ajax_nopriv_vectorize_designtool_vectorize', 'vectorize_wp_designtool_vectorize_ajax');
