@@ -70,24 +70,10 @@ class Vectorize_WP {
         return self::$instance;
     }
     
-// Klassen initialisieren
-private function init_classes() {
-    // SVG-Handler erstellen (nur wenn diese Klasse noch da ist)
-    if (class_exists('Vectorize_WP_SVG_Handler')) {
-        $this->svg_handler = new Vectorize_WP_SVG_Handler();
-
-        // Aufräumen-Aktion für temporäre Dateien registrieren
-        add_action('vectorize_wp_cleanup_temp_files', array($this->svg_handler, 'cleanup_temp_files'));
-    }
-
-    // YPrint Vectorizer (nur wenn vorhanden)
-    if (class_exists('YPrint_Vectorizer')) {
-        $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
-    }
-
-    // Design-Tool Assets registrieren
-    $this->register_designtool_assets();
-}
+// Erforderliche Dateien einbinden
+require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
+require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
+require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
 
 
     // Initialisierung der Hooks
