@@ -927,6 +927,7 @@ resizeElement: function(e) {
     var newTop = this.state.originalPos.y;
     
     // Proportional-Modus erkennen (Shift-Taste)
+    // WICHTIG: Hier ändern wir die Logik - proportionalMode = true NUR wenn Shift gedrückt ist
     var proportionalMode = e.shiftKey;
     var aspectRatio = this.state.currentElement.originalWidth / this.state.currentElement.originalHeight;
     
