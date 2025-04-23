@@ -28,14 +28,6 @@ require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
 require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
 
-// Stellt sicher, dass veraltete Klassen als nicht existent markiert werden
-if (!class_exists('Vectorize_WP_Vectorize_API')) {
-    class_alias('stdClass', 'Vectorize_WP_Vectorize_API');
-}
-if (!class_exists('Vectorize_WP_Inkscape_CLI')) {
-    class_alias('stdClass', 'Vectorize_WP_Inkscape_CLI');
-}
-
 // Hauptklasse des Plugins
 class Vectorize_WP {
     // Singleton-Instanz
