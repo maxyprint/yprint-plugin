@@ -34,7 +34,10 @@ $options['vectorization_engine'] = sanitize_text_field($_POST['vectorization_eng
     echo '<div class="notice notice-success is-dismissible"><p>' . __('Einstellungen gespeichert.', 'vectorize-wp') . '</p></div>';
     
     // API-Schlüssel testen, wenn er sich geändert hat
-    if ($old_api_key !== $options['api_key'] && !empty($options['api_key'])) {
+if ($old_api_key !== $options['api_key'] && !empty($options['api_key'])) {
+
+    // Prüfen, ob die Klasse noch vorhanden ist, bevor sie verwendet wird
+    if (class_exists('Vectorize_WP_Vectorize_API')) {
         // API-Instanz erstellen
         $api = new Vectorize_WP_Vectorize_API($options['api_key']);
         $api_result = $api->validate_api_key();
@@ -51,7 +54,11 @@ $options['vectorization_engine'] = sanitize_text_field($_POST['vectorization_eng
         if (!empty($api_status)) {
             echo '<div class="notice ' . $api_status_class . ' is-dismissible"><p>' . $api_status . '</p></div>';
         }
+    } else {
+        // Optional: fallback-Nachricht anzeigen, dass die API-Klasse fehlt
+        echo '<div class="notice notice-warning is-dismissible"><p>' . __('API-Überprüfung konnte nicht durchgeführt werden – API-Klasse fehlt.', 'vectorize-wp') . '</p></div>';
     }
+}
 }
 
 // API-Schlüssel testen Button
@@ -61,19 +68,33 @@ if (isset($_POST['vectorize_wp_test_api_key']) && check_admin_referer('vectorize
         $api_status_class = 'notice-warning';
     } else {
         // Je nach ausgewählter Engine testen
-        if ($options['vectorization_engine'] === 'api') {
-            // API-Instanz erstellen
-            $api = new Vectorize_WP_Vectorize_API($options['api_key']);
-            $api_result = $api->validate_api_key();
-            
-            if ($api_result === true) {
-                $api_status = __('API-Schlüssel ist gültig! Die Verbindung zur Vectorize.ai API funktioniert.', 'vectorize-wp');
-                $api_status_class = 'notice-success';
-            } else {
-                $error_message = is_wp_error($api_result) ? $api_result->get_error_message() : __('API-Schlüssel konnte nicht validiert werden.', 'vectorize-wp');
-                $api_status = __('API-Test fehlgeschlagen: ', 'vectorize-wp') . '<pre style="max-height: 300px; overflow: auto; background: #f7f7f7; padding: 10px; border: 1px solid #ddd;">' . $error_message . '</pre>';
-                $api_status_class = 'notice-error';
-            }
+if ($options['vectorization_engine'] === 'api') {
+
+    // Prüfen, ob die API-Klasse noch verfügbar ist
+    if (class_exists('Vectorize_WP_Vectorize_API')) {
+        // API-Instanz erstellen
+        $api = new Vectorize_WP_Vectorize_API($options['api_key']);
+        $api_result = $api->validate_api_key();
+
+        if ($api_result === true) {
+            $api_status = __('API-Schlüssel ist gültig! Die Verbindung zur Vectorize.ai API funktioniert.', 'vectorize-wp');
+            $api_status_class = 'notice-success';
+        } else {
+            $error_message = is_wp_error($api_result) ? $api_result->get_error_message() : __('API-Schlüssel konnte nicht validiert werden.', 'vectorize-wp');
+            $api_status = __('API-Test fehlgeschlagen: ', 'vectorize-wp') . '<pre style="max-height: 300px; overflow: auto; background: #f7f7f7; padding: 10px; border: 1px solid #ddd;">' . $error_message . '</pre>';
+            $api_status_class = 'notice-error';
+        }
+    } else {
+        // Optional: Nutzer-Hinweis, dass die API-Engine nicht verfügbar ist
+        $api_status = __('API-Test konnte nicht durchgeführt werden – API-Komponente fehlt.', 'vectorize-wp');
+        $api_status_class = 'notice-warning';
+    }
+
+    // Hinweis ausgeben, wenn gesetzt
+    if (!empty($api_status)) {
+        echo '<div class="notice ' . $api_status_class . ' is-dismissible"><p>' . $api_status . '</p></div>';
+    }
+
         } elseif ($options['vectorization_engine'] === 'inkscape') {
             // Inkscape CLI testen
             $inkscape_cli = new Vectorize_WP_Inkscape_CLI();

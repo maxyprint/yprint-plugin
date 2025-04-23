@@ -64,28 +64,32 @@ class Vectorize_WP {
     
     // Klassen initialisieren
 private function init_classes() {
-    // API-Instanz erstellen
-    $options = get_option('vectorize_wp_options', array());
-    $api_key = isset($options['api_key']) ? $options['api_key'] : '';
-    $this->api = new Vectorize_WP_Vectorize_API($api_key);
-    
-    // SVG-Handler erstellen
+    // Plugin-Optionen laden
+$options = get_option('vectorize_wp_options', array());
+$api_key = isset($options['api_key']) ? $options['api_key'] : '';
+
+// SVG-Handler erstellen (nur wenn diese Klasse noch da ist)
+if (class_exists('Vectorize_WP_SVG_Handler')) {
     $this->svg_handler = new Vectorize_WP_SVG_Handler();
-    
-    // Inkscape CLI-Instanz erstellen
-    $this->inkscape_cli = new Vectorize_WP_Inkscape_CLI();
-    
-    // YPrint Vectorizer-Instanz erstellen
-    $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
-    
-    // SVG-Editor entfernt
-    
+
     // Aufräumen-Aktion für temporäre Dateien registrieren
     add_action('vectorize_wp_cleanup_temp_files', array($this->svg_handler, 'cleanup_temp_files'));
-    
-    // Design-Tool Assets registrieren
-    $this->register_designtool_assets();
 }
+
+// Inkscape CLI (nur wenn noch vorhanden)
+if (class_exists('Vectorize_WP_Inkscape_CLI')) {
+    $this->inkscape_cli = new Vectorize_WP_Inkscape_CLI();
+}
+
+// YPrint Vectorizer (nur wenn vorhanden)
+if (class_exists('YPrint_Vectorizer')) {
+    $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
+}
+
+// Design-Tool Assets registrieren
+$this->register_designtool_assets();
+}
+
 
     // Initialisierung der Hooks
     private function init_hooks() {
