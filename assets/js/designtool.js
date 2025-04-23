@@ -292,12 +292,15 @@ initializeComponents: function() {
                 if (files && files.length > 0) {
                     self.processFiles(files);
                 }
-                // Aspektverhältnis zurücksetzen
-this.elements.resetAspectBtn = $('#designtool-reset-aspect');
-this.elements.resetAspectBtn.on('click', function() {
-    self.resetAspectRatio();
-});
             });
+            
+            // Aspektverhältnis zurücksetzen - außerhalb des Drop-Event-Handlers
+            this.elements.resetAspectBtn = $('#designtool-reset-aspect');
+            if (this.elements.resetAspectBtn.length > 0) {
+                this.elements.resetAspectBtn.on('click', function() {
+                    self.resetAspectRatio();
+                });
+            }
         },
         
         // Initialen Status setzen
@@ -314,7 +317,6 @@ resetAspectRatio: function() {
     // Originales Seitenverhältnis berechnen
     var originalRatio = this.state.currentElement.originalWidth / this.state.currentElement.originalHeight;
     var currentWidth = this.state.currentElement.width;
-    var currentHeight = this.state.currentElement.height;
     
     // Neue Höhe basierend auf aktueller Breite berechnen
     var newHeight = currentWidth / originalRatio;
@@ -627,113 +629,128 @@ resetAspectRatio: function() {
         },
         
         // Fügt ein Element zum Canvas hinzu
-        addElementToCanvas: function(element) {
-            var self = this;
-            var $element = $('<div class="designtool-element" id="' + element.id + '" data-type="' + element.type + '" data-file-reference="' + element.fileReference + '"></div>');
+addElementToCanvas: function(element) {
+    var self = this;
+    var $element = $('<div class="designtool-element" id="' + element.id + '" data-type="' + element.type + '" data-file-reference="' + element.fileReference + '"></div>');
+    
+    console.log('Element wird hinzugefügt:', element);
+    
+    // Bild oder SVG einfügen
+    if (element.type === 'image') {
+        var img = new Image();
+        img.onload = function() {
+            // Natürliche Bildgröße speichern, falls nicht bereits gesetzt
+            if (!element.originalWidth) element.originalWidth = img.naturalWidth;
+            if (!element.originalHeight) element.originalHeight = img.naturalHeight;
             
-            // Bild oder SVG einfügen
-            if (element.type === 'image') {
-                var img = new Image();
-                img.onload = function() {
-                    // Natürliche Bildgröße speichern
-                    element.originalWidth = img.naturalWidth;
-                    element.originalHeight = img.naturalHeight;
-                    
-                    // Wenn keine Größe angegeben wurde, Bildgröße verwenden
-                    if (!element.width || !element.height) {
-                        // Größe auf maximal 400px begrenzen, Proportionen beibehalten
-                        var maxDimension = 400;
-                        if (img.naturalWidth > maxDimension || img.naturalHeight > maxDimension) {
-                            if (img.naturalWidth > img.naturalHeight) {
-                                element.width = maxDimension;
-                                element.height = (img.naturalHeight / img.naturalWidth) * maxDimension;
-                            } else {
-                                element.height = maxDimension;
-                                element.width = (img.naturalWidth / img.naturalHeight) * maxDimension;
-                            }
-                        } else {
-                            element.width = img.naturalWidth;
-                            element.height = img.naturalHeight;
-                        }
+            // Wenn keine Größe angegeben wurde, Bildgröße verwenden
+            if (!element.width || !element.height) {
+                // Größe auf maximal 400px begrenzen, Proportionen beibehalten
+                var maxDimension = 400;
+                if (img.naturalWidth > maxDimension || img.naturalHeight > maxDimension) {
+                    if (img.naturalWidth > img.naturalHeight) {
+                        element.width = maxDimension;
+                        element.height = (img.naturalHeight / img.naturalWidth) * maxDimension;
+                    } else {
+                        element.height = maxDimension;
+                        element.width = (img.naturalWidth / img.naturalHeight) * maxDimension;
                     }
-                    
-                    // Element positionieren und Größe setzen
-                    $element.css({
-                        'left': element.left + 'px',
-                        'top': element.top + 'px',
-                        'width': element.width + 'px',
-                        'height': element.height + 'px',
-                        'opacity': element.opacity
-                    });
-                    
-                    // Element in die Liste aufnehmen
-                    self.state.elements.push({
-                        id: element.id,
-                        $element: $element,
-                        type: element.type,
-                        src: element.src,
-                        left: element.left,
-                        top: element.top,
-                        width: element.width,
-                        height: element.height,
-                        originalWidth: element.originalWidth,
-                        originalHeight: element.originalHeight,
-                        opacity: element.opacity,
-                        rotation: element.rotation,
-                        fileReference: element.fileReference
-                    });
-                    
-                    // Element auswählen
-                    self.selectElement($element);
-                };
-                img.src = element.src;
-                $element.append(img);
-            } else if (element.type === 'svg') {
-                // SVG direkt einbinden
-                $element.css({
-                    'left': element.left + 'px',
-                    'top': element.top + 'px',
-                    'width': element.width + 'px',
-                    'height': element.height + 'px',
-                    'opacity': element.opacity
-                });
-                
-                // SVG laden und einfügen
-                $.get(element.src, function(data) {
-                    var $svg = $(data).find('svg');
-                    if ($svg.length === 0) {
-                        $svg = $(data);
-                    }
-                    $element.append($svg);
-                    
-                    // Element in die Liste aufnehmen
-                    self.state.elements.push({
-                        id: element.id,
-                        $element: $element,
-                        type: element.type,
-                        src: element.src,
-                        left: element.left,
-                        top: element.top,
-                        width: element.width,
-                        height: element.height,
-                        originalWidth: element.width,
-                        originalHeight: element.height,
-                        opacity: element.opacity,
-                        rotation: element.rotation,
-                        fileReference: element.fileReference
-                    });
-                    
-                    // Element auswählen
-                    self.selectElement($element);
-                }).fail(function(error) {
-                    console.error('Fehler beim Laden des SVG:', error);
-                    alert('Fehler beim Laden des SVG. Bitte versuche es erneut.');
-                });
+                } else {
+                    element.width = img.naturalWidth;
+                    element.height = img.naturalHeight;
+                }
             }
             
-            // Zum Canvas hinzufügen
-            this.elements.canvas.append($element);
-        },
+            console.log('Bild geladen, Position:', element.left, element.top, 'Größe:', element.width, element.height);
+            
+            // Element positionieren und Größe setzen
+            $element.css({
+                'position': 'absolute',
+                'left': element.left + 'px',
+                'top': element.top + 'px',
+                'width': element.width + 'px',
+                'height': element.height + 'px',
+                'opacity': element.opacity
+            });
+            
+            // Element in die Liste aufnehmen
+            self.state.elements.push({
+                id: element.id,
+                $element: $element,
+                type: element.type,
+                src: element.src,
+                left: element.left,
+                top: element.top,
+                width: element.width,
+                height: element.height,
+                originalWidth: element.originalWidth,
+                originalHeight: element.originalHeight,
+                opacity: element.opacity,
+                rotation: element.rotation,
+                fileReference: element.fileReference
+            });
+            
+            // Element auswählen
+            self.selectElement($element);
+        };
+        img.src = element.src;
+        $element.append(img);
+    } else if (element.type === 'svg') {
+        // SVG direkt einbinden
+        $element.css({
+            'position': 'absolute',
+            'left': element.left + 'px',
+            'top': element.top + 'px',
+            'width': element.width + 'px',
+            'height': element.height + 'px',
+            'opacity': element.opacity
+        });
+        
+        console.log('SVG wird geladen, Position:', element.left, element.top, 'Größe:', element.width, element.height);
+        
+        // SVG laden und einfügen
+        $.get(element.src, function(data) {
+            var $svg = $(data).find('svg');
+            if ($svg.length === 0) {
+                $svg = $(data);
+            }
+            // SVG-Größe anpassen, damit es den Container ausfüllt
+            $svg.attr({
+                'width': '100%',
+                'height': '100%',
+                'preserveAspectRatio': 'none'
+            });
+            
+            $element.append($svg);
+            
+            // Element in die Liste aufnehmen
+            self.state.elements.push({
+                id: element.id,
+                $element: $element,
+                type: element.type,
+                src: element.src,
+                left: element.left,
+                top: element.top,
+                width: element.width,
+                height: element.height,
+                originalWidth: element.originalWidth || element.width,
+                originalHeight: element.originalHeight || element.height,
+                opacity: element.opacity,
+                rotation: element.rotation,
+                fileReference: element.fileReference
+            });
+            
+            // Element auswählen
+            self.selectElement($element);
+        }).fail(function(error) {
+            console.error('Fehler beim Laden des SVG:', error);
+            alert('Fehler beim Laden des SVG. Bitte versuche es erneut.');
+        });
+    }
+    
+    // Zum Canvas hinzufügen
+    this.elements.canvas.append($element);
+},
         
         // Wählt ein Element aus
         selectElement: function($element) {
@@ -759,6 +776,28 @@ $controls.append('<div class="designtool-element-control bc" data-handle="bc"></
 $controls.append('<div class="designtool-element-control br" data-handle="br"></div>');
 
 $element.append($controls);
+
+// Sicherstellen, dass die Controls sichtbar sind und korrekt positioniert werden
+$controls.css({
+    'position': 'absolute',
+    'top': '0',
+    'left': '0', 
+    'width': '100%',
+    'height': '100%',
+    'pointer-events': 'none'
+});
+
+// Korrekte Positionierung der einzelnen Controls
+$controls.find('.designtool-element-control').css({
+    'position': 'absolute',
+    'width': '8px',
+    'height': '8px',
+    'background-color': '#fff',
+    'border': '1px solid #4285f4',
+    'border-radius': '50%',
+    'pointer-events': 'auto',
+    'z-index': '10'
+});
             
             // Vektorisieren-Button aktivieren, wenn es ein Bild ist
             this.elements.vectorizeButton.prop('disabled', this.state.currentElement.type !== 'image');
@@ -1445,6 +1484,14 @@ addSVGToCanvas: function(svgContent) {
     var originalId = originalElement.id;
     var originalFileRef = originalElement.fileReference;
     
+    // Original-Position und -Größe speichern
+    var originalLeft = originalElement.left;
+    var originalTop = originalElement.top;
+    var originalWidth = originalElement.width;
+    var originalHeight = originalElement.height;
+    var originalOpacity = originalElement.opacity;
+    var originalRotation = originalElement.rotation;
+    
     // SVG zur Dateiliste hinzufügen
     this.addFileToList({
         id: 'file-' + this.state.elementCounter,
@@ -1454,22 +1501,6 @@ addSVGToCanvas: function(svgContent) {
         url: url,
         isSVG: true
     });
-    
-    // Element zum Canvas hinzufügen
-    var newSvgElement = {
-        id: 'element-' + this.state.elementCounter,
-        type: 'svg',
-        src: url,
-        left: originalElement.left,
-        top: originalElement.top,
-        width: originalElement.width,
-        height: originalElement.height,
-        originalWidth: originalElement.width,
-        originalHeight: originalElement.height,
-        opacity: originalElement.opacity,
-        rotation: originalElement.rotation,
-        fileReference: 'file-' + this.state.elementCounter
-    };
     
     // Bevor wir das neue Element hinzufügen, das alte entfernen
     originalElement.$element.remove();
@@ -1490,6 +1521,22 @@ addSVGToCanvas: function(svgContent) {
     // Deselektieren
     this.deselectAllElements();
     
+    // Element zum Canvas hinzufügen - explizit mit Original-Eigenschaften
+    var newSvgElement = {
+        id: 'element-' + this.state.elementCounter,
+        type: 'svg',
+        src: url,
+        left: originalLeft,
+        top: originalTop,
+        width: originalWidth,
+        height: originalHeight,
+        originalWidth: originalWidth,
+        originalHeight: originalHeight,
+        opacity: originalOpacity,
+        rotation: originalRotation,
+        fileReference: 'file-' + this.state.elementCounter
+    };
+    
     // Neues Element hinzufügen
     this.addElementToCanvas(newSvgElement);
     
@@ -1498,6 +1545,8 @@ addSVGToCanvas: function(svgContent) {
     
     // Im Verlauf speichern
     this.addHistoryStep();
+    
+    console.log('SVG erfolgreich hinzugefügt und ersetzt mit Position:', originalLeft, originalTop, 'und Größe:', originalWidth, originalHeight);
 },
 
 // Exportiert den Canvas
