@@ -70,7 +70,7 @@ class Vectorize_WP {
         return self::$instance;
     }
     
-    // Klassen initialisieren
+// Klassen initialisieren
 private function init_classes() {
     // SVG-Handler erstellen (nur wenn diese Klasse noch da ist)
     if (class_exists('Vectorize_WP_SVG_Handler')) {
