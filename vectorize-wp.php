@@ -109,28 +109,37 @@ class Vectorize_WP {
         require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
         
         // YPrint Vectorizer einbinden
-        if (file_exists(VECTORIZE_WP_PATH . 'yprint_vectorizer.php')) {
-            require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
-            
-            // Sicherstellen, dass die Klasse existiert, bevor wir sie initialisieren
-            if (class_exists('YPrint_Vectorizer')) {
-                $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
-            } else {
-                // Fehlermeldung im Admin-Bereich anzeigen
-                add_action('admin_notices', function() {
-                    echo '<div class="notice notice-error"><p>' . 
-                         __('YPrint Vectorizer konnte nicht geladen werden. Vectorize WP funktioniert möglicherweise nicht korrekt.', 'vectorize-wp') .
-                         '</p></div>';
-                });
-            }
-        } else {
+if (file_exists(VECTORIZE_WP_PATH . 'yprint_vectorizer.php')) {
+    require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
+    
+    // Sicherstellen, dass die Klasse existiert, bevor wir sie initialisieren
+    if (class_exists('YPrint_Vectorizer')) {
+        try {
+            $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
+        } catch (Exception $e) {
             // Fehlermeldung im Admin-Bereich anzeigen
-            add_action('admin_notices', function() {
+            add_action('admin_notices', function() use ($e) {
                 echo '<div class="notice notice-error"><p>' . 
-                     __('YPrint Vectorizer wurde nicht gefunden. Vectorize WP funktioniert möglicherweise nicht korrekt.', 'vectorize-wp') .
+                     __('YPrint Vectorizer konnte nicht initialisiert werden: ', 'vectorize-wp') . esc_html($e->getMessage()) .
                      '</p></div>';
             });
         }
+    } else {
+        // Fehlermeldung im Admin-Bereich anzeigen
+        add_action('admin_notices', function() {
+            echo '<div class="notice notice-error"><p>' . 
+                 __('YPrint Vectorizer konnte nicht geladen werden. Vectorize WP funktioniert möglicherweise nicht korrekt.', 'vectorize-wp') .
+                 '</p></div>';
+        });
+    }
+} else {
+    // Fehlermeldung im Admin-Bereich anzeigen
+    add_action('admin_notices', function() {
+        echo '<div class="notice notice-error"><p>' . 
+             __('YPrint Vectorizer wurde nicht gefunden. Vectorize WP funktioniert möglicherweise nicht korrekt.', 'vectorize-wp') .
+             '</p></div>';
+    });
+}
     }
 
     /**

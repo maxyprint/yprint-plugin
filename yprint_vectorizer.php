@@ -411,6 +411,12 @@ class YPrint_Vectorizer {
      * @return string|false SVG content or false on failure
      */
     public function vectorize_image($image_path, $options = array()) {
+        // Überprüfen, ob die Datei existiert
+        if (!file_exists($image_path)) {
+            error_log('Vectorize error: Image file does not exist: ' . $image_path);
+            return false;
+        }
+        
         $options = wp_parse_args($options, $this->default_options);
         
         // Create temporary directory for processing
@@ -418,9 +424,17 @@ class YPrint_Vectorizer {
         $temp_dir = $upload_dir['basedir'] . '/vectorizer-tmp';
         
         if (!file_exists($temp_dir)) {
-            wp_mkdir_p($temp_dir);
+            if (!wp_mkdir_p($temp_dir)) {
+                error_log('Vectorize error: Failed to create temporary directory: ' . $temp_dir);
+                return false;
+            }
             // Create .htaccess to protect temp files
-            file_put_contents($temp_dir . '/.htaccess', 'deny from all');
+            @file_put_contents($temp_dir . '/.htaccess', 'deny from all');
+        }
+        
+        if (!is_writable($temp_dir)) {
+            error_log('Vectorize error: Temporary directory is not writable: ' . $temp_dir);
+            return false;
         }
         
         $temp_base = $temp_dir . '/' . uniqid('vector_');
@@ -430,46 +444,94 @@ class YPrint_Vectorizer {
         
         // Check which vectorizing engine to use
         if ($this->engine_type === 'potrace') {
-            // For color tracing, we need to prepare multiple files
-            if ($options['color_type'] === 'color' || $options['color_type'] === 'gray') {
-                return $this->vectorize_color_image($image_path, $temp_dir, $options);
-            }
-            
-            // Prepare image - convert to 1-bit BMP for Potrace
-            $this->prepare_image_for_potrace($image_path, $temp_bmp, $options);
-            
-            // Build potrace command
-            $potrace_bin = $this->get_potrace_binary();
-            
-            $cmd = sprintf(
-                '%s %s -s -o %s',
-                escapeshellcmd($potrace_bin),
-                $this->build_potrace_options($options),
-                escapeshellarg($temp_svg)
-            );
-            
-            // Add input file
-            $cmd .= ' ' . escapeshellarg($temp_bmp);
-            
-            // Execute command
-            exec($cmd, $output, $return_var);
-            
-            if ($return_var !== 0) {
+            try {
+                // For color tracing, we need to prepare multiple files
+                if ($options['color_type'] === 'color' || $options['color_type'] === 'gray') {
+                    $result = $this->vectorize_color_image($image_path, $temp_dir, $options);
+                    return $result;
+                }
+                
+                // Prepare image - convert to 1-bit BMP for Potrace
+                if (!$this->prepare_image_for_potrace($image_path, $temp_bmp, $options)) {
+                    error_log('Vectorize error: Failed to prepare image for potrace');
+                    return false;
+                }
+                
+                // Check if potrace is available
+                if (!$this->check_potrace_exists()) {
+                    error_log('Vectorize error: Potrace binary not found');
+                    
+                    // Return fallback SVG
+                    return $this->create_fallback_svg();
+                }
+                
+                // Build potrace command
+                $potrace_bin = $this->get_potrace_binary();
+                
+                $cmd = sprintf(
+                    '%s %s -s -o %s',
+                    escapeshellcmd($potrace_bin),
+                    $this->build_potrace_options($options),
+                    escapeshellarg($temp_svg)
+                );
+                
+                // Add input file
+                $cmd .= ' ' . escapeshellarg($temp_bmp);
+                
+                // Execute command
+                exec($cmd, $output, $return_var);
+                
+                if ($return_var !== 0) {
+                    error_log('Vectorize error: Potrace command failed with code ' . $return_var . ': ' . implode("\n", $output));
+                    $this->cleanup_temp_files(array($temp_bmp, $temp_svg));
+                    return false;
+                }
+                
+                // Read SVG output
+                if (!file_exists($temp_svg)) {
+                    error_log('Vectorize error: Output SVG file not created');
+                    $this->cleanup_temp_files(array($temp_bmp));
+                    return false;
+                }
+                
+                $svg_content = @file_get_contents($temp_svg);
+                
+                if ($svg_content === false) {
+                    error_log('Vectorize error: Failed to read SVG content');
+                    $this->cleanup_temp_files(array($temp_bmp, $temp_svg));
+                    return false;
+                }
+                
+                // Clean up temp files
                 $this->cleanup_temp_files(array($temp_bmp, $temp_svg));
-                return false;
+                
+                return $svg_content;
+            } catch (Exception $e) {
+                error_log('Vectorize exception: ' . $e->getMessage());
+                $this->cleanup_temp_files(array($temp_bmp, $temp_svg));
+                
+                // Return fallback SVG in case of exception
+                return $this->create_fallback_svg();
             }
-            
-            // Read SVG output
-            $svg_content = file_get_contents($temp_svg);
-            
-            // Clean up temp files
-            $this->cleanup_temp_files(array($temp_bmp, $temp_svg));
-            
-            return $svg_content;
         }
         
-        // Fallback to other methods or external API if needed
-        return false;
+        // Fallback für den Fall, dass keine Engine verfügbar ist
+        return $this->create_fallback_svg();
+    }
+    
+    /**
+     * Creates a fallback SVG when vectorization fails
+     *
+     * @since 1.0.0
+     * @return string A simple SVG content
+     */
+    protected function create_fallback_svg() {
+        return '<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100" height="100" fill="#f0f0f0"/>
+  <text x="50" y="50" font-family="sans-serif" font-size="12" text-anchor="middle">Vector failed</text>
+</svg>';
     }
 
     /**
@@ -762,18 +824,22 @@ class YPrint_Vectorizer {
     }
 
     /**
-     * Clean up temporary files
-     *
-     * @since 1.0.0
-     * @param array $files Array of file paths to remove
-     */
-    protected function cleanup_temp_files($files) {
-        foreach ($files as $file) {
-            if (file_exists($file)) {
-                unlink($file);
-            }
+ * Clean up temporary files
+ *
+ * @since 1.0.0
+ * @param array $files Array of file paths to remove
+ */
+protected function cleanup_temp_files($files) {
+    if (!is_array($files)) {
+        return;
+    }
+    
+    foreach ($files as $file) {
+        if (file_exists($file)) {
+            @unlink($file);
         }
     }
+}
 
     /**
      * AJAX handler for saving SVG to media library
