@@ -28,6 +28,14 @@ require_once VECTORIZE_WP_PATH . 'includes/class-svg-handler.php';
 require_once VECTORIZE_WP_PATH . 'includes/designtool-integration.php';
 require_once VECTORIZE_WP_PATH . 'yprint_vectorizer.php';
 
+// Stellt sicher, dass veraltete Klassen als nicht existent markiert werden
+if (!class_exists('Vectorize_WP_Vectorize_API')) {
+    class_alias('stdClass', 'Vectorize_WP_Vectorize_API');
+}
+if (!class_exists('Vectorize_WP_Inkscape_CLI')) {
+    class_alias('stdClass', 'Vectorize_WP_Inkscape_CLI');
+}
+
 // Hauptklasse des Plugins
 class Vectorize_WP {
     // Singleton-Instanz
@@ -64,30 +72,21 @@ class Vectorize_WP {
     
     // Klassen initialisieren
 private function init_classes() {
-    // Plugin-Optionen laden
-$options = get_option('vectorize_wp_options', array());
-$api_key = isset($options['api_key']) ? $options['api_key'] : '';
+    // SVG-Handler erstellen (nur wenn diese Klasse noch da ist)
+    if (class_exists('Vectorize_WP_SVG_Handler')) {
+        $this->svg_handler = new Vectorize_WP_SVG_Handler();
 
-// SVG-Handler erstellen (nur wenn diese Klasse noch da ist)
-if (class_exists('Vectorize_WP_SVG_Handler')) {
-    $this->svg_handler = new Vectorize_WP_SVG_Handler();
+        // Aufräumen-Aktion für temporäre Dateien registrieren
+        add_action('vectorize_wp_cleanup_temp_files', array($this->svg_handler, 'cleanup_temp_files'));
+    }
 
-    // Aufräumen-Aktion für temporäre Dateien registrieren
-    add_action('vectorize_wp_cleanup_temp_files', array($this->svg_handler, 'cleanup_temp_files'));
-}
+    // YPrint Vectorizer (nur wenn vorhanden)
+    if (class_exists('YPrint_Vectorizer')) {
+        $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
+    }
 
-// Inkscape CLI (nur wenn noch vorhanden)
-if (class_exists('Vectorize_WP_Inkscape_CLI')) {
-    $this->inkscape_cli = new Vectorize_WP_Inkscape_CLI();
-}
-
-// YPrint Vectorizer (nur wenn vorhanden)
-if (class_exists('YPrint_Vectorizer')) {
-    $this->yprint_vectorizer = YPrint_Vectorizer::get_instance();
-}
-
-// Design-Tool Assets registrieren
-$this->register_designtool_assets();
+    // Design-Tool Assets registrieren
+    $this->register_designtool_assets();
 }
 
 
@@ -136,11 +135,9 @@ $this->register_designtool_assets();
         
         // Initialisierungsoptionen in der Datenbank speichern
     $default_options = array(
-    'api_key' => '',
     'max_upload_size' => 5, // in MB
     'default_output_format' => 'svg',
-    'test_mode' => 'test', // Standard: Testmodus aktiviert für einfache Entwicklung
-    'vectorization_engine' => 'yprint', // Standard: YPrint Vectorizer als primäre Engine
+    'vectorization_engine' => 'yprint', // Standard: YPrint Vectorizer als einzige Engine
     );
         
         // Bestehende Optionen abrufen, falls vorhanden
@@ -319,22 +316,22 @@ public function ajax_vectorize_image() {
     error_log('Vectorization options: ' . print_r($options, true));
     
     error_log('Using YPrint Vectorizer for vectorization');
-try {
-    if (!isset($this->yprint_vectorizer) || !$this->yprint_vectorizer) {
-        throw new Exception('YPrint Vectorizer nicht verfügbar');
-    }
-    
-    $yprint_result = $this->yprint_vectorizer->vectorize_image($temp_file, $options);
-    
-    // Ergebnisse ins gemeinsame Format umwandeln
-    $result = array(
-        'content' => $yprint_result,
-        'file_path' => $temp_file . '.svg',
-        'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
-        'format' => 'svg',
-        'is_test_mode' => false
-    );
+    try {
+        if (!isset($this->yprint_vectorizer) || !$this->yprint_vectorizer) {
+            throw new Exception('YPrint Vectorizer nicht verfügbar');
+        }
         
+        $yprint_result = $this->yprint_vectorizer->vectorize_image($temp_file, $options);
+        
+        // Ergebnisse ins gemeinsame Format umwandeln
+        $result = array(
+            'content' => $yprint_result,
+            'file_path' => $temp_file . '.svg',
+            'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
+            'format' => 'svg',
+            'is_test_mode' => false
+        );
+            
         // Temporäre Datei löschen
         @unlink($temp_file);
         
@@ -351,7 +348,7 @@ try {
             'is_demo' => false,
             'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
             'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
-            'engine' => $vectorization_engine // Engine-Info für Debugging
+            'engine' => 'yprint' // Engine-Info für Debugging
         ));
     } catch (Exception $e) {
         // Fehlerbehandlung
@@ -359,43 +356,7 @@ try {
         @unlink($temp_file); // Temporäre Datei löschen
         wp_send_json_error(__('Fehler bei der Vektorisierung: ', 'vectorize-wp') . $e->getMessage());
     }
-        
-        // Vektorisierungs-Engine bestimmen
-        $vectorization_engine = isset($options['vectorization_engine']) ? $options['vectorization_engine'] : 'inkscape';
-
-try {
-    // Je nach Engine unterschiedlich vorgehen
-    if ($vectorization_engine === 'api') {
-        // API-Anfrage senden
-        $result = $this->api->vectorize_image($temp_file, $options);
-    } else {
-        // Inkscape CLI verwenden
-        $result = $this->inkscape_cli->vectorize_image($temp_file, $options);
-    }
-    
-    // Temporäre Datei löschen
-    @unlink($temp_file);
-    
-    if (is_wp_error($result)) {
-        wp_send_json_error($result->get_error_message());
-        return;
-    }
-    
-    // Erfolgreiche Antwort senden
-    wp_send_json_success(array(
-        'svg' => $result['content'],
-        'file_url' => $result['file_url'],
-        'is_demo' => false,
-        'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
-        'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
-        'engine' => $vectorization_engine
-    ));
-} catch (Exception $e) {
-    // Fehlerbehandlung
-    @unlink($temp_file); // Temporäre Datei löschen
-    wp_send_json_error(__('Fehler: ' . $e->getMessage(), 'vectorize-wp'));
 }
-    }
     
     // AJAX-Handler zum Speichern des SVG in der Mediathek
     public function ajax_save_svg_to_media() {
@@ -550,7 +511,6 @@ try {
     
     // AJAX-Handler für die Design-Tool Vektorisierung
 public function ajax_designtool_vectorize() {
-    // Direkt hier implementieren, statt auf die ausgelagerte Funktion zu verweisen
     // Sicherheitsüberprüfung
     check_ajax_referer('vectorize_wp_frontend_nonce', 'nonce');
     
@@ -592,44 +552,29 @@ public function ajax_designtool_vectorize() {
         'format' => 'svg'
     );
     
-    // Plugin-Einstellungen abrufen
-    $plugin_options = get_option('vectorize_wp_options', array());
-    $vectorization_engine = isset($plugin_options['vectorization_engine']) ? $plugin_options['vectorization_engine'] : 'api';
-    
     // Debugging-Info hinzufügen
-    error_log('Designtool Vektorisierung: Engine = ' . $vectorization_engine);
+    error_log('Designtool Vektorisierung: Engine = YPrint Vectorizer (fest eingestellt)');
     
     // Bild vektorisieren
     try {
-        // Je nach Engine unterschiedlich vorgehen
-        if ($vectorization_engine === 'api') {
-            // API-Instanz verwenden
-            $result = $this->api->vectorize_image($temp_file, $options);
-        } elseif ($vectorization_engine === 'inkscape') {
-            // Inkscape CLI verwenden
-            $result = $this->inkscape_cli->vectorize_image($temp_file, $options);
+        // YPrint Vectorizer verwenden
+        if (!isset($this->yprint_vectorizer) || !$this->yprint_vectorizer) {
+            throw new Exception('YPrint Vectorizer nicht verfügbar');
+        }
+        
+        $yprint_result = $this->yprint_vectorizer->vectorize_image($temp_file, $options);
+        
+        if ($yprint_result) {
+            // Ergebnisse ins gemeinsame Format umwandeln
+            $result = array(
+                'content' => $yprint_result,
+                'file_path' => $temp_file . '.svg',
+                'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
+                'format' => 'svg',
+                'is_test_mode' => false
+            );
         } else {
-            // YPrint Vectorizer verwenden (Standard-Fallback)
-            // Prüfen, ob der YPrint Vectorizer verfügbar ist
-            if (class_exists('YPrint_Vectorizer')) {
-                $yprint_vectorizer = YPrint_Vectorizer::get_instance();
-                $yprint_result = $yprint_vectorizer->vectorize_image($temp_file, $options);
-                
-                if ($yprint_result) {
-                    // Ergebnisse ins gemeinsame Format umwandeln
-                    $result = array(
-                        'content' => $yprint_result,
-                        'file_path' => $temp_file . '.svg',
-                        'file_url' => site_url('wp-content/uploads/vectorize-wp/' . basename($temp_file) . '.svg'),
-                        'format' => 'svg',
-                        'is_test_mode' => false
-                    );
-                } else {
-                    throw new Exception('YPrint Vectorizer konnte das Bild nicht vektorisieren');
-                }
-            } else {
-                throw new Exception('YPrint Vectorizer ist nicht verfügbar');
-            }
+            throw new Exception('YPrint Vectorizer konnte das Bild nicht vektorisieren');
         }
         
         // Temporäre Datei löschen
@@ -645,9 +590,9 @@ public function ajax_designtool_vectorize() {
             'svg' => isset($result['content']) ? $result['content'] : 'Keine SVG-Daten erhalten',
             'file_url' => $result['file_url'],
             'is_demo' => false,
-            'is_test_mode' => isset($result['is_test_mode']) ? $result['is_test_mode'] : false,
-            'test_mode' => isset($result['test_mode']) ? $result['test_mode'] : 'off',
-            'engine' => $vectorization_engine // Engine-Info für Debugging
+            'is_test_mode' => false,
+            'test_mode' => 'off',
+            'engine' => 'yprint' // Engine-Info für Debugging
         ));
     } catch (Exception $e) {
         // Fehlerbehandlung
