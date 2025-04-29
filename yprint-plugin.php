@@ -22,6 +22,7 @@ define('YPRINT_PLUGIN_VERSION', '1.0.0');
 // Include required files
 require_once YPRINT_PLUGIN_DIR . 'includes/registration.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/email.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/rest-registration.php';
 
 /**
  * Enqueue scripts and styles
@@ -45,8 +46,41 @@ add_action('wp_enqueue_scripts', 'yprint_enqueue_scripts');
  * Plugin activation
  */
 function yprint_plugin_activation() {
-    // Create required pages
-    // Add any initial settings
+    global $wpdb;
+    
+    // Erstelle die Tabelle für E-Mail-Verifikationen, falls sie nicht existiert
+    $table_name = $wpdb->prefix . 'email_verifications';
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL,
+        verification_code varchar(255) NOT NULL,
+        email_verified tinyint(1) NOT NULL DEFAULT 0,
+        created_at datetime NOT NULL,
+        updated_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY verification_code (verification_code)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    // Erstellen der erforderlichen Seiten, falls sie nicht existieren
+    
+    // Verifizierungsseite
+    $verify_page = get_page_by_path('verify-email');
+    if (!$verify_page) {
+        wp_insert_post(array(
+            'post_title' => 'E-Mail-Bestätigung',
+            'post_name' => 'verify-email',
+            'post_status' => 'publish',
+            'post_type' => 'page',
+            'post_content' => '[verify_email]',
+            'comment_status' => 'closed'
+        ));
+    }
 }
 register_activation_hook(__FILE__, 'yprint_plugin_activation');
 
@@ -55,5 +89,6 @@ register_activation_hook(__FILE__, 'yprint_plugin_activation');
  */
 function yprint_plugin_deactivation() {
     // Cleanup if needed
+    // Note: We do not delete the verification table to prevent data loss
 }
 register_deactivation_hook(__FILE__, 'yprint_plugin_deactivation');
