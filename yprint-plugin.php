@@ -19,10 +19,11 @@ define('YPRINT_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('YPRINT_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('YPRINT_PLUGIN_VERSION', '1.0.0');
 
-// Include required files
+ // Include required files
 require_once YPRINT_PLUGIN_DIR . 'includes/registration.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/email.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/rest-registration.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/login.php';
 
 /**
  * Enqueue scripts and styles
