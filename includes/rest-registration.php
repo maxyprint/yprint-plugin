@@ -158,36 +158,15 @@ function send_verification_email($email, $username, $verification_link) {
     // Debug-Information in das Log schreiben
     error_log("Sending verification email to: {$email} with link: {$verification_link}");
     
-    // Versuche die HTML-Vorlage zu laden
-    $template_url = 'https://yprint.de/wp-content/uploads/2025/02/yprint-email-vorlage.html';
-    $template = @file_get_contents($template_url);
-    
-    // Prüfen, ob die Vorlage geladen werden konnte
-    if (!$template) {
-        error_log("Email template could not be loaded from: {$template_url}");
-        // Fallback zu einer einfachen HTML-Nachricht
-        $template = '
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>E-Mail-Verifizierung</title>
-        </head>
-        <body>
-            <h1>{{headline}}</h1>
-            <p>Hallo {{first_name}},</p>
-            <p>{{message}}</p>
-            <p>Dein YPrint-Team</p>
-        </body>
-        </html>';
-    }
-    
-    // Ersetze die Platzhalter mit den tatsächlichen Werten
+    // Nutze unsere eigene E-Mail-Template-Funktion
     $headline = 'Verifiziere deine E-Mail-Adresse';
     $first_name = $username;
-    $message = "Bitte klicke auf den folgenden Link, um deine E-Mail-Adresse zu verifizieren: <br><br> <a href='{$verification_link}'>E-Mail verifizieren</a>";
+    $message_content = "Bitte klicke auf den folgenden Link, um deine E-Mail-Adresse zu verifizieren:<br><br>";
+    $message_content .= "<a href='" . esc_url($verification_link) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>E-Mail verifizieren</a><br><br>";
+    $message_content .= "Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
     
-    // Nutze unsere neue Funktionalität für E-Mail-Vorlagen
-    $template = yprint_get_email_template($headline, $first_name, $message);
+    // Nutze die yprint_get_email_template-Funktion
+    $message = yprint_get_email_template($headline, $first_name, $message_content);
 
     // Betreff und Header für die E-Mail
     $subject = 'Bitte verifiziere deine E-Mail-Adresse';
@@ -197,7 +176,7 @@ function send_verification_email($email, $username, $verification_link) {
     );
 
     // E-Mail senden und Ergebnis prüfen
-    $mail_sent = wp_mail($email, $subject, $template, $headers);
+    $mail_sent = wp_mail($email, $subject, $message, $headers);
     
     // Wenn die E-Mail nicht gesendet werden konnte, dies in das Fehlerlog schreiben
     if (!$mail_sent) {
@@ -215,7 +194,7 @@ function send_verification_email($email, $username, $verification_link) {
         error_log("Verification email sent successfully to: {$email}");
     }
 
-    // Nur den Sende-Status zurückgeben, keine REST Response
+    // Nur den Sende-Status zurückgeben
     return $mail_sent;
 }
 
@@ -263,7 +242,11 @@ function verify_email_shortcode() {
         if ($user) {
             // Überprüfen, ob die E-Mail bereits verifiziert wurde
             if ($user->email_verified == 1) {
-                echo '<p>Die E-Mail-Adresse wurde bereits bestätigt.</p>';
+                echo '<div class="yprint-message success">
+                    <h2>E-Mail-Adresse bereits bestätigt</h2>
+                    <p>Die E-Mail-Adresse wurde bereits bestätigt. Du kannst dich nun einloggen.</p>
+                    <p><a href="' . wp_login_url() . '" class="button">Zum Login</a></p>
+                </div>';
             } else {
                 $verification_request_time = strtotime($user->created_at);
                 $expiry_time = 24 * 60 * 60; // 24 Stunden
@@ -275,24 +258,43 @@ function verify_email_shortcode() {
                     $verified = verify_user_email($user_id, $verification_code);
 
                     if ($verified) {
-                        echo '<p>Die E-Mail-Adresse wurde erfolgreich bestätigt! Du wirst nun zum Login weitergeleitet.</p>';
+                        echo '<div class="yprint-message success">
+                            <h2>E-Mail-Adresse bestätigt!</h2>
+                            <p>Die E-Mail-Adresse wurde erfolgreich bestätigt! Du wirst nun zum Login weitergeleitet.</p>
+                        </div>';
                         echo '<script>
                             setTimeout(function() {
                                 window.location.href = "' . home_url('/login/') . '";
                             }, 3000);
                         </script>';
                     } else {
-                        echo '<p>Es gab ein Problem bei der Verifizierung des Codes.</p>';
+                        echo '<div class="yprint-message error">
+                            <h2>Verifizierung fehlgeschlagen</h2>
+                            <p>Es gab ein Problem bei der Verifizierung des Codes.</p>
+                            <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+                        </div>';
                     }
                 } else {
-                    echo '<p>Der Verifizierungscode ist abgelaufen. Bitte fordere einen neuen an.</p>';
+                    echo '<div class="yprint-message error">
+                        <h2>Verifizierungscode abgelaufen</h2>
+                        <p>Der Verifizierungscode ist abgelaufen. Bitte fordere einen neuen an.</p>
+                        <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+                    </div>';
                 }
             }
         } else {
-            echo '<p>Der Verifizierungscode ist ungültig oder abgelaufen.</p>';
+            echo '<div class="yprint-message error">
+                <h2>Ungültiger Verifizierungscode</h2>
+                <p>Der Verifizierungscode ist ungültig oder abgelaufen.</p>
+                <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+            </div>';
         }
     } else {
-        echo '<p>Kein Verifizierungscode gefunden. Bitte überprüfe deinen E-Mail-Link.</p>';
+        echo '<div class="yprint-message info">
+            <h2>Verifizierung nicht möglich</h2>
+            <p>Kein Verifizierungscode gefunden. Bitte überprüfe deinen E-Mail-Link.</p>
+            <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+        </div>';
     }
 
     return ob_get_clean();
