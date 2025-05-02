@@ -134,64 +134,144 @@ class YPrint_Password_Recovery {
     }
     
     /**
-     * Generate the request form HTML
-     */
-    public function display_request_form($content) {
-        ob_start();
-        ?>
-        <div class="yprint-recover-container">
-            <div class="yprint-logo">
-                <div></div>
+ * Generate the request form HTML
+ */
+public function display_request_form($content) {
+    ob_start();
+    ?>
+    <div class="yprint-recover-container">
+        <div class="yprint-logo">
+            <div></div>
+        </div>
+        
+        <form method="post" id="recover-form" style="text-align: center;">
+            <div class="yprint-form-group" style="position: relative; margin-bottom: 20px;">
+                <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 40%; transform: translateY(-50%); color: #999;"></span>
+                <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required style="width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #ddd; border-radius: 30px; background-color: #F6F7FA; text-align: center;">
             </div>
-            
-            <form method="post" id="recover-form" style="text-align: center;">
-                <div class="yprint-form-group" style="position: relative; margin-bottom: 20px;">
-                    <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 40%; transform: translateY(-50%); color: #999;"></span>
-                    <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required style="width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #ddd; border-radius: 30px; background-color: #F6F7FA; text-align: center;">
-                </div>
-                <div class="yprint-form-group" style="text-align: center; margin-bottom: 20px;">
-                    <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary" style="width: 100%; padding: 10px; background-color: #007aff; border: none; color: #fff; border-radius: 5px;">
-                </div>
-                <div class="yprint-links" style="text-align: center;">
-                    <a href="<?php echo esc_url(home_url('/login/')); ?>" style="color: #007aff;">Back to Login</a>
-                </div>
-            </form>
+            <div class="yprint-form-group" style="text-align: center; margin-bottom: 20px;">
+                <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary" style="width: 100%; padding: 10px; background-color: #007aff; border: none; color: #fff; border-radius: 5px;">
+            </div>
+            <div class="yprint-links" style="text-align: center;">
+                <a href="<?php echo esc_url(home_url('/login/')); ?>" style="color: #007aff;">Back to Login</a>
+            </div>
+        </form>
 
-            <!-- Loading animation -->
-            <div id="loading" style="display: none; text-align: center;">
-                <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #007aff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
-                <p style="color: #007aff;">Processing...</p>
-            </div>
-
-            <!-- Success message -->
-            <div id="success-message" style="display: none; text-align: center; color: #007aff; margin-top: 20px;">
-                <p>If an account exists with that email, you will receive recovery instructions.</p>
-                <button id="back-to-login" class="button button-primary" style="background-color: #007aff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Back to Login</button>
-            </div>
+        <!-- Loading animation -->
+        <div id="loading" style="display: none; text-align: center;">
+            <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #007aff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+            <p style="color: #007aff;">Processing...</p>
         </div>
 
-        <script type="text/javascript">
+        <!-- Success message -->
+        <div id="success-message" style="display: none; text-align: center; color: #007aff; margin-top: 20px;">
+            <p>If an account exists with that email, you will receive recovery instructions.</p>
+            <button id="back-to-login" class="button button-primary" style="background-color: #007aff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Back to Login</button>
+        </div>
+        
+        <!-- Debug panel (initially hidden) -->
+        <div id="debug-info" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin: 20px 0; font-family: monospace;">
+            <h4>Debug-Informationen:</h4>
+            <div id="debug-content"></div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM geladen - Passwortwiederherstellungsformular initialisiert');
+            
+            // Debugging-Funktionen
+            function showDebugPanel() {
+                document.getElementById('debug-info').style.display = 'block';
+            }
+            
+            function addDebugMessage(message, isError = false) {
+                showDebugPanel();
+                var p = document.createElement('p');
+                p.style.margin = '5px 0';
+                p.style.color = isError ? '#dc3545' : '#000';
+                p.textContent = message;
+                document.getElementById('debug-content').appendChild(p);
+                console.log(isError ? 'ERROR: ' + message : message);
+            }
+            
             document.getElementById('recover-form').addEventListener('submit', function(event) {
                 event.preventDefault(); // Prevent immediate form submission
+                console.log('Formular wurde abgesendet');
+                addDebugMessage('Formular wurde abgesendet');
 
                 // Show loading animation
                 document.getElementById('recover-form').style.display = 'none';
                 document.getElementById('loading').style.display = 'block';
 
                 var email = document.getElementById('user_email').value;
+                addDebugMessage('Anfrage für E-Mail: ' + email);
+                
+                var ajaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
+                var securityToken = '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>';
+                
+                addDebugMessage('AJAX-URL: ' + ajaxUrl);
+                addDebugMessage('Security Token: ' + securityToken);
 
-                // Send AJAX request to server
-                jQuery.post('<?php echo admin_url('admin-ajax.php'); ?>', {
-                    action: 'yprint_recover_account',
-                    user_email: email,
-                    security: '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>'
-                }, function(response) {
-                    document.getElementById('loading').style.display = 'none';
-                    if (response.success) {
-                        document.getElementById('success-message').style.display = 'block';
-                    } else {
-                        alert(response.data.message);
+                // Send AJAX request with enhanced error handling
+                jQuery.ajax({
+                    type: 'POST',
+                    url: ajaxUrl,
+                    data: {
+                        action: 'yprint_recover_account',
+                        user_email: email,
+                        security: securityToken
+                    },
+                    success: function(response) {
+                        addDebugMessage('AJAX-Antwort erhalten');
+                        addDebugMessage('Antwort-Typ: ' + typeof response);
+                        
+                        try {
+                            // Wenn response noch kein Objekt ist, versuchen zu parsen
+                            if (typeof response === 'string') {
+                                addDebugMessage('Versuche String-Response zu parsen');
+                                response = JSON.parse(response);
+                                addDebugMessage('Parsen erfolgreich');
+                            }
+                            
+                            addDebugMessage('Response-Inhalt: ' + JSON.stringify(response).substring(0, 200));
+                            
+                            document.getElementById('loading').style.display = 'none';
+                            
+                            if (response.success) {
+                                addDebugMessage('Anfrage erfolgreich verarbeitet');
+                                document.getElementById('success-message').style.display = 'block';
+                            } else {
+                                addDebugMessage('Fehler bei der Verarbeitung der Anfrage', true);
+                                if (response.data && response.data.message) {
+                                    addDebugMessage('Fehlermeldung: ' + response.data.message, true);
+                                } else {
+                                    addDebugMessage('Keine detaillierte Fehlermeldung verfügbar', true);
+                                }
+                                document.getElementById('recover-form').style.display = 'block';
+                            }
+                        } catch (e) {
+                            addDebugMessage('Fehler beim Verarbeiten der Response: ' + e.message, true);
+                            document.getElementById('loading').style.display = 'none';
+                            document.getElementById('recover-form').style.display = 'block';
+                        }
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
+                        document.getElementById('loading').style.display = 'none';
                         document.getElementById('recover-form').style.display = 'block';
+                        
+                        addDebugMessage('AJAX-Fehler aufgetreten', true);
+                        addDebugMessage('Status: ' + textStatus, true);
+                        addDebugMessage('Fehler: ' + errorThrown, true);
+                        
+                        if (jqXHR.responseText) {
+                            try {
+                                var responseObj = JSON.parse(jqXHR.responseText);
+                                addDebugMessage('Server-Antwort: ' + JSON.stringify(responseObj), true);
+                            } catch (e) {
+                                addDebugMessage('Server-Antwort (Text): ' + jqXHR.responseText.substring(0, 200) + '...', true);
+                            }
+                        }
                     }
                 });
             });
@@ -200,12 +280,13 @@ class YPrint_Password_Recovery {
             document.getElementById('back-to-login').addEventListener('click', function() {
                 window.location.href = '<?php echo esc_url(home_url('/login/')); ?>'; // Redirect to login page
             });
-        </script>
-        <?php
-        
-        return ob_get_clean();
-    }
+        });
+    </script>
+    <?php
     
+    return ob_get_clean();
+}
+
     /**
      * Generate the reset form HTML
      */
@@ -446,20 +527,36 @@ class YPrint_Password_Recovery {
         }
     }
     
-    /**
-     * Handle AJAX password recovery request
-     */
     public function ajax_process_recovery_request() {
+        // Debug-Information
+        error_log("ajax_process_recovery_request aufgerufen");
+        error_log("POST-Daten: " . print_r($_POST, true));
+        
         // Verify nonce
-        if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'yprint_recovery_nonce')) {
-            wp_send_json_error(array('message' => 'Security check failed.'));
+        if (!isset($_POST['security'])) {
+            error_log("Fehler: Kein Security-Parameter gefunden");
+            wp_send_json_error(array('message' => 'Security parameter fehlt.'));
+            return;
+        }
+        
+        if (!wp_verify_nonce($_POST['security'], 'yprint_recovery_nonce')) {
+            error_log("Fehler: Nonce-Überprüfung fehlgeschlagen. Erhaltener Wert: " . $_POST['security']);
+            wp_send_json_error(array('message' => 'Security check failed. Ungültiger Nonce.'));
+            return;
         }
         
         try {
+            error_log("Versuche process_recovery_request auszuführen");
             $this->process_recovery_request();
         } catch (Exception $e) {
             error_log("Exception in recovery process: " . $e->getMessage());
-            wp_send_json_error(array('message' => 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es später erneut.'));
+            error_log("Stacktrace: " . $e->getTraceAsString());
+            wp_send_json_error(array(
+                'message' => 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es später erneut.',
+                'details' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ));
         }
     }
     
@@ -681,7 +778,18 @@ class YPrint_Password_Recovery {
                 'From: YPrint <do-not-reply@yprint.de>'
             );
             
-            $mail_sent = wp_mail($to, $subject, $message, $headers);
+            $mail_sent = $mail_sent = wp_mail($to, $subject, $message, $headers);
+if (!$mail_sent) {
+    error_log("Failed to send recovery email to: {$to}");
+    // Überprüfen der wp_mail Fehler
+    global $phpmailer;
+    if (isset($GLOBALS['phpmailer'])) {
+        $phpmailer = $GLOBALS['phpmailer'];
+        if ($phpmailer->ErrorInfo != '') {
+            error_log('PHPMailer error: ' . $phpmailer->ErrorInfo);
+        }
+    }
+}
 if (!$mail_sent) {
     error_log("Failed to send recovery email to: {$to}");
     // Überprüfen der wp_mail Fehler
@@ -717,7 +825,18 @@ if (!$mail_sent) {
                 'From: YPrint <do-not-reply@yprint.de>'
             );
             
-            wp_mail($to, $subject, $message, $headers);
+            $mail_sent = wp_mail($to, $subject, $message, $headers);
+if (!$mail_sent) {
+    error_log("Failed to send recovery email to: {$to}");
+    // Überprüfen der wp_mail Fehler
+    global $phpmailer;
+    if (isset($GLOBALS['phpmailer'])) {
+        $phpmailer = $GLOBALS['phpmailer'];
+        if ($phpmailer->ErrorInfo != '') {
+            error_log('PHPMailer error: ' . $phpmailer->ErrorInfo);
+        }
+    }
+}
         }
     }
     
