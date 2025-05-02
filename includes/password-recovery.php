@@ -177,111 +177,149 @@ public function display_request_form($content) {
     </div>
 
     <script type="text/javascript">
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM geladen - Passwortwiederherstellungsformular initialisiert');
-            
-            // Debugging-Funktionen
-            function showDebugPanel() {
-                document.getElementById('debug-info').style.display = 'block';
-            }
-            
-            function addDebugMessage(message, isError = false) {
-                showDebugPanel();
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM geladen - Passwortwiederherstellungsformular initialisiert');
+        
+        // Prüfen, ob wir auf der richtigen Seite sind
+        var recoverForm = document.getElementById('recover-form');
+        if (!recoverForm) {
+            console.log('Recover-Form nicht gefunden, überspringe Formularinitialisierung');
+            return; // Nicht weiter ausführen, wenn das Formular nicht existiert
+        }
+
+        // Debug-Panel als erstes Element erstellen und anzeigen
+        var debugDiv = document.createElement('div');
+        debugDiv.id = 'debug-info';
+        debugDiv.style.display = 'block'; // Sofort anzeigen
+        debugDiv.style.backgroundColor = '#f8f9fa';
+        debugDiv.style.border = '1px solid #ddd';
+        debugDiv.style.borderRadius = '5px';
+        debugDiv.style.padding = '10px';
+        debugDiv.style.margin = '20px 0';
+        debugDiv.style.fontFamily = 'monospace';
+        debugDiv.innerHTML = '<h4>Debug-Informationen:</h4><div id="debug-content"></div>';
+        
+        // Panel an den Anfang der Seite einfügen, damit es immer sichtbar ist
+        var container = document.querySelector('.yprint-recover-container');
+        if (container) {
+            container.insertBefore(debugDiv, container.firstChild);
+        }
+        
+        function addDebugMessage(message, isError = false) {
+            var debugContent = document.getElementById('debug-content');
+            if (debugContent) {
                 var p = document.createElement('p');
                 p.style.margin = '5px 0';
                 p.style.color = isError ? '#dc3545' : '#000';
                 p.textContent = message;
-                document.getElementById('debug-content').appendChild(p);
-                console.log(isError ? 'ERROR: ' + message : message);
+                debugContent.appendChild(p);
             }
+            console.log(isError ? 'ERROR: ' + message : message);
+        }
+        
+        addDebugMessage('Seite geladen, Formular gefunden');
+        addDebugMessage('AJAX-URL: ' + '<?php echo admin_url('admin-ajax.php'); ?>');
+        addDebugMessage('Security-Token wird generiert');
+        
+        // Form-Submission
+        recoverForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            addDebugMessage('Formular wurde abgesendet');
+
+            // Show loading animation
+            recoverForm.style.display = 'none';
+            var loadingElem = document.getElementById('loading');
+            if (loadingElem) loadingElem.style.display = 'block';
+
+            var email = document.getElementById('user_email').value;
+            addDebugMessage('Anfrage für E-Mail: ' + email);
             
-            document.getElementById('recover-form').addEventListener('submit', function(event) {
-                event.preventDefault(); // Prevent immediate form submission
-                console.log('Formular wurde abgesendet');
-                addDebugMessage('Formular wurde abgesendet');
+            var ajaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
+            var securityToken = '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>';
+            
+            addDebugMessage('AJAX-URL: ' + ajaxUrl);
+            addDebugMessage('Security Token: ' + securityToken);
 
-                // Show loading animation
-                document.getElementById('recover-form').style.display = 'none';
-                document.getElementById('loading').style.display = 'block';
+            // Direktes Debugging der POST-Parameter
+            addDebugMessage('POST-Parameter: ' + JSON.stringify({
+                action: 'yprint_recover_account',
+                user_email: email,
+                security: securityToken
+            }));
 
-                var email = document.getElementById('user_email').value;
-                addDebugMessage('Anfrage für E-Mail: ' + email);
-                
-                var ajaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
-                var securityToken = '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>';
-                
-                addDebugMessage('AJAX-URL: ' + ajaxUrl);
-                addDebugMessage('Security Token: ' + securityToken);
-
-                // Send AJAX request with enhanced error handling
-                jQuery.ajax({
-                    type: 'POST',
-                    url: ajaxUrl,
-                    data: {
-                        action: 'yprint_recover_account',
-                        user_email: email,
-                        security: securityToken
-                    },
-                    success: function(response) {
-                        addDebugMessage('AJAX-Antwort erhalten');
-                        addDebugMessage('Antwort-Typ: ' + typeof response);
-                        
-                        try {
-                            // Wenn response noch kein Objekt ist, versuchen zu parsen
-                            if (typeof response === 'string') {
-                                addDebugMessage('Versuche String-Response zu parsen');
-                                response = JSON.parse(response);
-                                addDebugMessage('Parsen erfolgreich');
-                            }
-                            
-                            addDebugMessage('Response-Inhalt: ' + JSON.stringify(response).substring(0, 200));
-                            
-                            document.getElementById('loading').style.display = 'none';
-                            
-                            if (response.success) {
-                                addDebugMessage('Anfrage erfolgreich verarbeitet');
-                                document.getElementById('success-message').style.display = 'block';
-                            } else {
-                                addDebugMessage('Fehler bei der Verarbeitung der Anfrage', true);
-                                if (response.data && response.data.message) {
-                                    addDebugMessage('Fehlermeldung: ' + response.data.message, true);
-                                } else {
-                                    addDebugMessage('Keine detaillierte Fehlermeldung verfügbar', true);
-                                }
-                                document.getElementById('recover-form').style.display = 'block';
-                            }
-                        } catch (e) {
-                            addDebugMessage('Fehler beim Verarbeiten der Response: ' + e.message, true);
-                            document.getElementById('loading').style.display = 'none';
-                            document.getElementById('recover-form').style.display = 'block';
+            // Send AJAX request with enhanced error handling
+            jQuery.ajax({
+                type: 'POST',
+                url: ajaxUrl,
+                data: {
+                    action: 'yprint_recover_account',
+                    user_email: email,
+                    security: securityToken
+                },
+                success: function(response) {
+                    addDebugMessage('AJAX-Antwort erhalten');
+                    addDebugMessage('Antwort-Typ: ' + typeof response);
+                    
+                    try {
+                        // Wenn response noch kein Objekt ist, versuchen zu parsen
+                        if (typeof response === 'string') {
+                            addDebugMessage('Versuche String-Response zu parsen');
+                            response = JSON.parse(response);
+                            addDebugMessage('Parsen erfolgreich');
                         }
-                    },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('recover-form').style.display = 'block';
                         
-                        addDebugMessage('AJAX-Fehler aufgetreten', true);
-                        addDebugMessage('Status: ' + textStatus, true);
-                        addDebugMessage('Fehler: ' + errorThrown, true);
+                        addDebugMessage('Response-Inhalt: ' + JSON.stringify(response).substring(0, 200));
                         
-                        if (jqXHR.responseText) {
-                            try {
-                                var responseObj = JSON.parse(jqXHR.responseText);
-                                addDebugMessage('Server-Antwort: ' + JSON.stringify(responseObj), true);
-                            } catch (e) {
-                                addDebugMessage('Server-Antwort (Text): ' + jqXHR.responseText.substring(0, 200) + '...', true);
+                        if (loadingElem) loadingElem.style.display = 'none';
+                        
+                        if (response.success) {
+                            addDebugMessage('Anfrage erfolgreich verarbeitet');
+                            var successElem = document.getElementById('success-message');
+                            if (successElem) successElem.style.display = 'block';
+                        } else {
+                            addDebugMessage('Fehler bei der Verarbeitung der Anfrage', true);
+                            if (response.data && response.data.message) {
+                                addDebugMessage('Fehlermeldung: ' + response.data.message, true);
+                            } else {
+                                addDebugMessage('Keine detaillierte Fehlermeldung verfügbar', true);
                             }
+                            recoverForm.style.display = 'block';
+                        }
+                    } catch (e) {
+                        addDebugMessage('Fehler beim Verarbeiten der Response: ' + e.message, true);
+                        if (loadingElem) loadingElem.style.display = 'none';
+                        recoverForm.style.display = 'block';
+                    }
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    if (loadingElem) loadingElem.style.display = 'none';
+                    recoverForm.style.display = 'block';
+                    
+                    addDebugMessage('AJAX-Fehler aufgetreten', true);
+                    addDebugMessage('Status: ' + textStatus, true);
+                    addDebugMessage('Fehler: ' + errorThrown, true);
+                    
+                    if (jqXHR.responseText) {
+                        try {
+                            var responseObj = JSON.parse(jqXHR.responseText);
+                            addDebugMessage('Server-Antwort: ' + JSON.stringify(responseObj), true);
+                        } catch (e) {
+                            addDebugMessage('Server-Antwort (Text): ' + jqXHR.responseText.substring(0, 200) + '...', true);
                         }
                     }
-                });
-            });
-
-            // Back to login button
-            document.getElementById('back-to-login').addEventListener('click', function() {
-                window.location.href = '<?php echo esc_url(home_url('/login/')); ?>'; // Redirect to login page
+                }
             });
         });
-    </script>
+
+        // Back to login button
+        var backToLoginBtn = document.getElementById('back-to-login');
+        if (backToLoginBtn) {
+            backToLoginBtn.addEventListener('click', function() {
+                window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
+            });
+        }
+    });
+</script>
     <?php
     
     return ob_get_clean();
@@ -594,34 +632,76 @@ public function display_request_form($content) {
         $user_login = $user->user_login;
         
         // Store token in database
-        $table_name = $wpdb->prefix . 'password_reset_tokens';
-        
-        // Delete any existing tokens for this user
-        $wpdb->delete(
-            $table_name,
-            array('user_id' => $user->ID),
-            array('%d')
-        );
-        
-        // Set expiry time (1 hour from now)
-        $expires = date('Y-m-d H:i:s', time() + 3600);
-        
-        // Insert new token
-        $wpdb->insert(
-            $table_name,
-            array(
-                'user_id' => $user->ID,
-                'token_hash' => wp_hash_password($token),
-                'created_at' => current_time('mysql'),
-                'expires_at' => $expires
-            ),
-            array('%d', '%s', '%s', '%s')
-        );
-        
-        if ($wpdb->last_error) {
-            error_log('DB Error: ' . $wpdb->last_error);
-            wp_send_json_error(array('message' => 'An error occurred. Please try again later.'));
-        }
+$table_name = $wpdb->prefix . 'password_reset_tokens';
+
+// Debug: Log table name and user ID
+error_log('Using table: ' . $table_name . ' for user ID: ' . $user->ID);
+
+// Check if table exists
+$table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
+if (!$table_exists) {
+    error_log('ERROR: Table ' . $table_name . ' does not exist!');
+    
+    // Try to create the table on the fly
+    $charset_collate = $wpdb->get_charset_collate();
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL,
+        token_hash varchar(255) NOT NULL,
+        created_at datetime NOT NULL,
+        expires_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        KEY user_id (user_id)
+    ) $charset_collate;";
+    
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
+    
+    error_log('Attempted to create the table. Checking again...');
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
+    if (!$table_exists) {
+        error_log('ERROR: Failed to create table ' . $table_name);
+        wp_send_json_error(array('message' => 'Database setup error. Please contact support.'));
+        return;
+    }
+}
+
+// Delete any existing tokens for this user
+$delete_result = $wpdb->delete(
+    $table_name,
+    array('user_id' => $user->ID),
+    array('%d')
+);
+error_log('Delete result: ' . ($delete_result !== false ? 'Success' : 'Failed') . 
+          ($wpdb->last_error ? ' - Error: ' . $wpdb->last_error : ''));
+
+// Set expiry time (1 hour from now)
+$expires = date('Y-m-d H:i:s', time() + 3600);
+
+// Insert new token
+$insert_result = $wpdb->insert(
+    $table_name,
+    array(
+        'user_id' => $user->ID,
+        'token_hash' => wp_hash_password($token),
+        'created_at' => current_time('mysql'),
+        'expires_at' => $expires
+    ),
+    array('%d', '%s', '%s', '%s')
+);
+
+if ($insert_result === false) {
+    error_log('DB Insert Error: ' . $wpdb->last_error);
+    // Dump the data we tried to insert (sanitize sensitive info)
+    error_log('Insert data: ' . json_encode(array(
+        'user_id' => $user->ID,
+        'token_hash' => '[REDACTED]',
+        'created_at' => current_time('mysql'),
+        'expires_at' => $expires
+    )));
+    wp_send_json_error(array('message' => 'Database error. Please try again later.'));
+    return;
+}
         
         // Build reset URL
         $reset_url = home_url("/recover-account/reset/{$user_login}/{$token}/");
