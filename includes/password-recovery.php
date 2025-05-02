@@ -455,7 +455,12 @@ class YPrint_Password_Recovery {
             wp_send_json_error(array('message' => 'Security check failed.'));
         }
         
-        $this->process_recovery_request();
+        try {
+            $this->process_recovery_request();
+        } catch (Exception $e) {
+            error_log("Exception in recovery process: " . $e->getMessage());
+            wp_send_json_error(array('message' => 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es später erneut.'));
+        }
     }
     
     /**
@@ -492,7 +497,7 @@ class YPrint_Password_Recovery {
         $user_login = $user->user_login;
         
         // Store token in database
-        $table_name = $wpdb->prefix . 'yprint_recovery_tokens';
+        $table_name = $wpdb->prefix . 'password_reset_tokens';
         
         // Delete any existing tokens for this user
         $wpdb->delete(
@@ -598,7 +603,7 @@ class YPrint_Password_Recovery {
         reset_password($user, $password);
         
         // Delete token
-        $table_name = $wpdb->prefix . 'yprint_recovery_tokens';
+        $table_name = $wpdb->prefix . 'password_reset_tokens';
         $wpdb->delete(
             $table_name,
             array('user_id' => $user->ID),
@@ -635,7 +640,7 @@ class YPrint_Password_Recovery {
         }
         
         // Get token from database
-        $table_name = $wpdb->prefix . 'yprint_recovery_tokens';
+        $table_name = $wpdb->prefix . 'password_reset_tokens';
         $stored_token = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_name WHERE user_id = %d AND expires_at > %s",
             $user->ID,
@@ -676,7 +681,18 @@ class YPrint_Password_Recovery {
                 'From: YPrint <do-not-reply@yprint.de>'
             );
             
-            wp_mail($to, $subject, $message, $headers);
+            $mail_sent = wp_mail($to, $subject, $message, $headers);
+if (!$mail_sent) {
+    error_log("Failed to send recovery email to: {$to}");
+    // Überprüfen der wp_mail Fehler
+    global $phpmailer;
+    if (isset($GLOBALS['phpmailer'])) {
+        $phpmailer = $GLOBALS['phpmailer'];
+        if ($phpmailer->ErrorInfo != '') {
+            error_log('PHPMailer error: ' . $phpmailer->ErrorInfo);
+        }
+    }
+}
         }
     }
     
@@ -728,7 +744,7 @@ class YPrint_Password_Recovery {
     public static function cleanup_expired_tokens() {
         global $wpdb;
         
-        $table_name = $wpdb->prefix . 'yprint_recovery_tokens';
+        $table_name = $wpdb->prefix . 'password_reset_tokens';
         
         $wpdb->query($wpdb->prepare(
             "DELETE FROM $table_name WHERE expires_at < %s",
@@ -744,8 +760,9 @@ function yprint_init_password_recovery() {
     // Create a new instance
     $password_recovery = new YPrint_Password_Recovery();
     
-    // Register activation hook to set up the tokens table
-    register_activation_hook(__FILE__, 'yprint_recovery_activation');
+// Korrekter Plugin-Hauptdatei-Verweis für Activation/Deactivation Hooks
+register_activation_hook(YPRINT_PLUGIN_DIR . 'yprint-plugin.php', 'yprint_recovery_activation');
+register_deactivation_hook(YPRINT_PLUGIN_DIR . 'yprint-plugin.php', 'yprint_recovery_deactivation');
     
     // Register cron job for cleanup
     if (!wp_next_scheduled('yprint_cleanup_recovery_tokens')) {
@@ -763,7 +780,7 @@ add_action('init', 'yprint_init_password_recovery', 5);
 function yprint_recovery_activation() {
     global $wpdb;
     
-    $table_name = $wpdb->prefix . 'yprint_recovery_tokens';
+    $table_name = $wpdb->prefix . 'password_reset_tokens';
     $charset_collate = $wpdb->get_charset_collate();
     
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -791,3 +808,5 @@ function yprint_recovery_deactivation() {
     wp_clear_scheduled_hook('yprint_cleanup_recovery_tokens');
 }
 register_deactivation_hook(__FILE__, 'yprint_recovery_deactivation');
+
+yprint_recovery_activation();
