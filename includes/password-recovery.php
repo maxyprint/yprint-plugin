@@ -133,24 +133,121 @@ class YPrint_Password_Recovery {
         return $template;
     }
     
-    /**
+/**
  * Generate the request form HTML
  */
 public function display_request_form($content) {
     ob_start();
     ?>
+    <style>
+        /* Zentrale Positionierung des Containers */
+        .page-content {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 70vh; /* Anpassbare Höhe */
+        }
+        
+        /* Container-Styling */
+        .yprint-recover-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border: 1px solid #d3d3d3;
+            border-radius: 10px;
+            box-shadow: none;
+        }
+        
+        /* Logo-Styling */
+        .yprint-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .yprint-logo div {
+            width: 200px;
+            height: 100px;
+            background-image: url("https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        /* Formular-Styling */
+        .yprint-form-group {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .yprint-form-group input[type="email"] {
+            width: 100%;
+            padding: 10px 10px 10px 35px;
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            background-color: #F6F7FA;
+            text-align: center;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .yprint-form-group input[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #007aff;
+            border: none;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        /* Ladeanimation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #loading .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007aff;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        /* Responsive Anpassungen */
+        @media (max-width: 480px) {
+            .yprint-recover-container {
+                padding: 20px;
+                width: 90%;
+            }
+            
+            .yprint-logo div {
+                width: 150px;
+                height: 75px;
+            }
+        }
+    </style>
+    
     <div class="yprint-recover-container">
         <div class="yprint-logo">
             <div></div>
         </div>
         
         <form method="post" id="recover-form" style="text-align: center;">
-            <div class="yprint-form-group" style="position: relative; margin-bottom: 20px;">
-                <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 40%; transform: translateY(-50%); color: #999;"></span>
-                <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required style="width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #ddd; border-radius: 30px; background-color: #F6F7FA; text-align: center;">
+            <div class="yprint-form-group">
+                <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
+                <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required>
             </div>
-            <div class="yprint-form-group" style="text-align: center; margin-bottom: 20px;">
-                <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary" style="width: 100%; padding: 10px; background-color: #007aff; border: none; color: #fff; border-radius: 5px;">
+            <div class="yprint-form-group">
+                <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary">
             </div>
             <div class="yprint-links" style="text-align: center;">
                 <a href="<?php echo esc_url(home_url('/login/')); ?>" style="color: #007aff;">Back to Login</a>
@@ -159,7 +256,7 @@ public function display_request_form($content) {
 
         <!-- Loading animation -->
         <div id="loading" style="display: none; text-align: center;">
-            <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #007aff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+            <div class="spinner"></div>
             <p style="color: #007aff;">Processing...</p>
         </div>
 
@@ -168,158 +265,64 @@ public function display_request_form($content) {
             <p>If an account exists with that email, you will receive recovery instructions.</p>
             <button id="back-to-login" class="button button-primary" style="background-color: #007aff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Back to Login</button>
         </div>
-        
-        <!-- Debug panel (initially hidden) -->
-        <div id="debug-info" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 10px; margin: 20px 0; font-family: monospace;">
-            <h4>Debug-Informationen:</h4>
-            <div id="debug-content"></div>
-        </div>
     </div>
 
     <script type="text/javascript">
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM geladen - Passwortwiederherstellungsformular initialisiert');
-        
-        // Prüfen, ob wir auf der richtigen Seite sind
-        var recoverForm = document.getElementById('recover-form');
-        if (!recoverForm) {
-            console.log('Recover-Form nicht gefunden, überspringe Formularinitialisierung');
-            return; // Nicht weiter ausführen, wenn das Formular nicht existiert
-        }
-
-        // Debug-Panel als erstes Element erstellen und anzeigen
-        var debugDiv = document.createElement('div');
-        debugDiv.id = 'debug-info';
-        debugDiv.style.display = 'block'; // Sofort anzeigen
-        debugDiv.style.backgroundColor = '#f8f9fa';
-        debugDiv.style.border = '1px solid #ddd';
-        debugDiv.style.borderRadius = '5px';
-        debugDiv.style.padding = '10px';
-        debugDiv.style.margin = '20px 0';
-        debugDiv.style.fontFamily = 'monospace';
-        debugDiv.innerHTML = '<h4>Debug-Informationen:</h4><div id="debug-content"></div>';
-        
-        // Panel an den Anfang der Seite einfügen, damit es immer sichtbar ist
-        var container = document.querySelector('.yprint-recover-container');
-        if (container) {
-            container.insertBefore(debugDiv, container.firstChild);
-        }
-        
-        function addDebugMessage(message, isError = false) {
-            var debugContent = document.getElementById('debug-content');
-            if (debugContent) {
-                var p = document.createElement('p');
-                p.style.margin = '5px 0';
-                p.style.color = isError ? '#dc3545' : '#000';
-                p.textContent = message;
-                debugContent.appendChild(p);
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prüfen, ob wir auf der richtigen Seite sind
+            var recoverForm = document.getElementById('recover-form');
+            if (!recoverForm) {
+                return; // Nicht weiter ausführen, wenn das Formular nicht existiert
             }
-            console.log(isError ? 'ERROR: ' + message : message);
-        }
-        
-        addDebugMessage('Seite geladen, Formular gefunden');
-        addDebugMessage('AJAX-URL: ' + '<?php echo admin_url('admin-ajax.php'); ?>');
-        addDebugMessage('Security-Token wird generiert');
-        
-        // Form-Submission
-        recoverForm.addEventListener('submit', function(event) {
-            event.preventDefault();
-            addDebugMessage('Formular wurde abgesendet');
-
-            // Show loading animation
-            recoverForm.style.display = 'none';
-            var loadingElem = document.getElementById('loading');
-            if (loadingElem) loadingElem.style.display = 'block';
-
-            var email = document.getElementById('user_email').value;
-            addDebugMessage('Anfrage für E-Mail: ' + email);
             
-            var ajaxUrl = '<?php echo admin_url('admin-ajax.php'); ?>';
-            var securityToken = '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>';
-            
-            addDebugMessage('AJAX-URL: ' + ajaxUrl);
-            addDebugMessage('Security Token: ' + securityToken);
+            // Form-Submission
+            recoverForm.addEventListener('submit', function(event) {
+                event.preventDefault();
 
-            // Direktes Debugging der POST-Parameter
-            addDebugMessage('POST-Parameter: ' + JSON.stringify({
-                action: 'yprint_recover_account',
-                user_email: email,
-                security: securityToken
-            }));
+                // Show loading animation
+                recoverForm.style.display = 'none';
+                var loadingElem = document.getElementById('loading');
+                if (loadingElem) loadingElem.style.display = 'block';
 
-            // Send AJAX request with enhanced error handling
-            jQuery.ajax({
-                type: 'POST',
-                url: ajaxUrl,
-                data: {
-                    action: 'yprint_recover_account',
-                    user_email: email,
-                    security: securityToken
-                },
-                success: function(response) {
-                    addDebugMessage('AJAX-Antwort erhalten');
-                    addDebugMessage('Antwort-Typ: ' + typeof response);
-                    
-                    try {
-                        // Wenn response noch kein Objekt ist, versuchen zu parsen
-                        if (typeof response === 'string') {
-                            addDebugMessage('Versuche String-Response zu parsen');
-                            response = JSON.parse(response);
-                            addDebugMessage('Parsen erfolgreich');
-                        }
-                        
-                        addDebugMessage('Response-Inhalt: ' + JSON.stringify(response).substring(0, 200));
-                        
+                var email = document.getElementById('user_email').value;
+                
+                // Send AJAX request
+                jQuery.ajax({
+                    type: 'POST',
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    data: {
+                        action: 'yprint_recover_account',
+                        user_email: email,
+                        security: '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>'
+                    },
+                    success: function(response) {
                         if (loadingElem) loadingElem.style.display = 'none';
                         
                         if (response.success) {
-                            addDebugMessage('Anfrage erfolgreich verarbeitet');
                             var successElem = document.getElementById('success-message');
                             if (successElem) successElem.style.display = 'block';
                         } else {
-                            addDebugMessage('Fehler bei der Verarbeitung der Anfrage', true);
-                            if (response.data && response.data.message) {
-                                addDebugMessage('Fehlermeldung: ' + response.data.message, true);
-                            } else {
-                                addDebugMessage('Keine detaillierte Fehlermeldung verfügbar', true);
-                            }
+                            alert(response.data && response.data.message ? response.data.message : 'An error occurred. Please try again.');
                             recoverForm.style.display = 'block';
                         }
-                    } catch (e) {
-                        addDebugMessage('Fehler beim Verarbeiten der Response: ' + e.message, true);
+                    },
+                    error: function(jqXHR, textStatus, errorThrown) {
                         if (loadingElem) loadingElem.style.display = 'none';
                         recoverForm.style.display = 'block';
+                        alert('An error occurred. Please try again later.');
                     }
-                },
-                error: function(jqXHR, textStatus, errorThrown) {
-                    if (loadingElem) loadingElem.style.display = 'none';
-                    recoverForm.style.display = 'block';
-                    
-                    addDebugMessage('AJAX-Fehler aufgetreten', true);
-                    addDebugMessage('Status: ' + textStatus, true);
-                    addDebugMessage('Fehler: ' + errorThrown, true);
-                    
-                    if (jqXHR.responseText) {
-                        try {
-                            var responseObj = JSON.parse(jqXHR.responseText);
-                            addDebugMessage('Server-Antwort: ' + JSON.stringify(responseObj), true);
-                        } catch (e) {
-                            addDebugMessage('Server-Antwort (Text): ' + jqXHR.responseText.substring(0, 200) + '...', true);
-                        }
-                    }
-                }
+                });
             });
-        });
 
-        // Back to login button
-        var backToLoginBtn = document.getElementById('back-to-login');
-        if (backToLoginBtn) {
-            backToLoginBtn.addEventListener('click', function() {
-                window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
-            });
-        }
-    });
-</script>
+            // Back to login button
+            var backToLoginBtn = document.getElementById('back-to-login');
+            if (backToLoginBtn) {
+                backToLoginBtn.addEventListener('click', function() {
+                    window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
+                });
+            }
+        });
+    </script>
     <?php
     
     return ob_get_clean();
