@@ -808,5 +808,3 @@ function yprint_recovery_deactivation() {
     wp_clear_scheduled_hook('yprint_cleanup_recovery_tokens');
 }
 register_deactivation_hook(__FILE__, 'yprint_recovery_deactivation');
-
-yprint_recovery_activation();

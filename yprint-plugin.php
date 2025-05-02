@@ -70,7 +70,7 @@ function yprint_plugin_activation() {
     dbDelta($sql);
     
     // Erstelle die Tabelle für Passwortwiederherstellungs-Tokens
-    $recovery_table = $wpdb->prefix . 'yprint_recovery_tokens';
+    $recovery_table = $wpdb->prefix . 'password_reset_tokens';
     
     $sql_recovery = "CREATE TABLE IF NOT EXISTS $recovery_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
