@@ -140,19 +140,17 @@ public function display_request_form($content) {
     ob_start();
     ?>
     <style>
-        /* Zentrale Positionierung des Containers */
-        .page-content {
+        .page-wrapper {
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 70vh; /* Anpassbare Höhe */
+            min-height: 70vh;
+            padding: 20px;
         }
         
-        /* Container-Styling */
         .yprint-recover-container {
             width: 100%;
             max-width: 400px;
-            margin: 0 auto;
             padding: 30px;
             background-color: #ffffff;
             border: 1px solid #d3d3d3;
@@ -160,7 +158,6 @@ public function display_request_form($content) {
             box-shadow: none;
         }
         
-        /* Logo-Styling */
         .yprint-logo {
             display: flex;
             justify-content: center;
@@ -177,7 +174,6 @@ public function display_request_form($content) {
             background-position: center;
         }
         
-        /* Formular-Styling */
         .yprint-form-group {
             position: relative;
             margin-bottom: 20px;
@@ -206,7 +202,6 @@ public function display_request_form($content) {
             box-sizing: border-box;
         }
         
-        /* Ladeanimation */
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -222,71 +217,57 @@ public function display_request_form($content) {
             margin: 20px auto;
         }
         
-        /* Responsive Anpassungen */
         @media (max-width: 480px) {
             .yprint-recover-container {
                 padding: 20px;
                 width: 90%;
             }
-            
-            .yprint-logo div {
-                width: 150px;
-                height: 75px;
-            }
         }
     </style>
     
-    <div class="yprint-recover-container">
-        <div class="yprint-logo">
-            <div></div>
-        </div>
-        
-        <form method="post" id="recover-form" style="text-align: center;">
-            <div class="yprint-form-group">
-                <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
-                <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required>
+    <div class="page-wrapper">
+        <div class="yprint-recover-container">
+            <div class="yprint-logo">
+                <div></div>
             </div>
-            <div class="yprint-form-group">
-                <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary">
-            </div>
-            <div class="yprint-links" style="text-align: center;">
-                <a href="<?php echo esc_url(home_url('/login/')); ?>" style="color: #007aff;">Back to Login</a>
-            </div>
-        </form>
+            
+            <form method="post" id="recover-form" style="text-align: center;">
+                <div class="yprint-form-group">
+                    <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
+                    <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required>
+                </div>
+                <div class="yprint-form-group">
+                    <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary">
+                </div>
+                <div class="yprint-links" style="text-align: center;">
+                    <a href="<?php echo esc_url(home_url('/login/')); ?>" style="color: #007aff;">Back to Login</a>
+                </div>
+            </form>
 
-        <!-- Loading animation -->
-        <div id="loading" style="display: none; text-align: center;">
-            <div class="spinner"></div>
-            <p style="color: #007aff;">Processing...</p>
-        </div>
+            <div id="loading" style="display: none; text-align: center;">
+                <div class="spinner"></div>
+                <p style="color: #007aff;">Processing...</p>
+            </div>
 
-        <!-- Success message -->
-        <div id="success-message" style="display: none; text-align: center; color: #007aff; margin-top: 20px;">
-            <p>If an account exists with that email, you will receive recovery instructions.</p>
-            <button id="back-to-login" class="button button-primary" style="background-color: #007aff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Back to Login</button>
+            <div id="success-message" style="display: none; text-align: center; color: #007aff; margin-top: 20px;">
+                <p>If an account exists with that email, you will receive recovery instructions.</p>
+                <button id="back-to-login" class="button button-primary" style="background-color: #007aff; color: #fff; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Back to Login</button>
+            </div>
         </div>
     </div>
 
     <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function() {
-            // Prüfen, ob wir auf der richtigen Seite sind
             var recoverForm = document.getElementById('recover-form');
-            if (!recoverForm) {
-                return; // Nicht weiter ausführen, wenn das Formular nicht existiert
-            }
+            if (!recoverForm) return;
             
-            // Form-Submission
             recoverForm.addEventListener('submit', function(event) {
                 event.preventDefault();
-
-                // Show loading animation
                 recoverForm.style.display = 'none';
-                var loadingElem = document.getElementById('loading');
-                if (loadingElem) loadingElem.style.display = 'block';
+                document.getElementById('loading').style.display = 'block';
 
                 var email = document.getElementById('user_email').value;
                 
-                // Send AJAX request
                 jQuery.ajax({
                     type: 'POST',
                     url: '<?php echo admin_url('admin-ajax.php'); ?>',
@@ -296,25 +277,23 @@ public function display_request_form($content) {
                         security: '<?php echo wp_create_nonce('yprint_recovery_nonce'); ?>'
                     },
                     success: function(response) {
-                        if (loadingElem) loadingElem.style.display = 'none';
+                        document.getElementById('loading').style.display = 'none';
                         
                         if (response.success) {
-                            var successElem = document.getElementById('success-message');
-                            if (successElem) successElem.style.display = 'block';
+                            document.getElementById('success-message').style.display = 'block';
                         } else {
                             alert(response.data && response.data.message ? response.data.message : 'An error occurred. Please try again.');
                             recoverForm.style.display = 'block';
                         }
                     },
-                    error: function(jqXHR, textStatus, errorThrown) {
-                        if (loadingElem) loadingElem.style.display = 'none';
+                    error: function() {
+                        document.getElementById('loading').style.display = 'none';
                         recoverForm.style.display = 'block';
                         alert('An error occurred. Please try again later.');
                     }
                 });
             });
 
-            // Back to login button
             var backToLoginBtn = document.getElementById('back-to-login');
             if (backToLoginBtn) {
                 backToLoginBtn.addEventListener('click', function() {
@@ -328,18 +307,58 @@ public function display_request_form($content) {
     return ob_get_clean();
 }
 
-    /**
-     * Generate the reset form HTML
-     */
-    public function display_reset_form($content) {
-        $login = get_query_var('login', '');
-        $key = get_query_var('key', '');
+public function display_reset_form($content) {
+    $login = get_query_var('login', '');
+    $key = get_query_var('key', '');
+    
+    // Verify token before showing form
+    $token_valid = $this->verify_token($login, $key);
+    
+    ob_start();
+    ?>
+    <style>
+        .page-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 70vh;
+            padding: 20px;
+        }
         
-        // Verify token before showing form
-        $token_valid = $this->verify_token($login, $key);
+        .yprint-recover-container {
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            background-color: #ffffff;
+            border: 1px solid #d3d3d3;
+            border-radius: 10px;
+            box-shadow: none;
+        }
         
-        ob_start();
-        ?>
+        .yprint-logo {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .yprint-logo div {
+            width: 200px;
+            height: 100px;
+            background-image: url("https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg");
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        @media (max-width: 480px) {
+            .yprint-recover-container {
+                padding: 20px;
+                width: 90%;
+            }
+        }
+    </style>
+    <div class="page-wrapper">
         <div class="yprint-recover-container">
             <div class="yprint-logo">
                 <div></div>
@@ -474,22 +493,63 @@ public function display_request_form($content) {
         return ob_get_clean();
     }
     
-    /**
-     * Generate the success page HTML
-     */
     public function display_success_page($content) {
         ob_start();
         ?>
-        <div class="yprint-recover-container">
-            <div class="yprint-logo">
-                <div></div>
-            </div>
+        <style>
+            .page-wrapper {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 70vh;
+                padding: 20px;
+            }
             
-            <div style="text-align: center; color: #28a745;">
-                <h2>Password Reset Successful!</h2>
-                <p>Your password has been reset successfully.</p>
-                <p>You can now log in with your new password.</p>
-                <a href="<?php echo esc_url(home_url('/login/')); ?>" class="button button-primary" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #007aff; color: #fff; border: none; border-radius: 5px; text-decoration: none;">Go to Login</a>
+            .yprint-recover-container {
+                width: 100%;
+                max-width: 400px;
+                padding: 30px;
+                background-color: #ffffff;
+                border: 1px solid #d3d3d3;
+                border-radius: 10px;
+                box-shadow: none;
+            }
+            
+            .yprint-logo {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 30px;
+            }
+            
+            .yprint-logo div {
+                width: 200px;
+                height: 100px;
+                background-image: url("https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg");
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-position: center;
+            }
+            
+            @media (max-width: 480px) {
+                .yprint-recover-container {
+                    padding: 20px;
+                    width: 90%;
+                }
+            }
+        </style>
+        <div class="page-wrapper">
+            <div class="yprint-recover-container">
+                <div class="yprint-logo">
+                    <div></div>
+                </div>
+                
+                <div style="text-align: center; color: #28a745;">
+                    <h2>Password Reset Successful!</h2>
+                    <p>Your password has been reset successfully.</p>
+                    <p>You can now log in with your new password.</p>
+                    <a href="<?php echo esc_url(home_url('/login/')); ?>" class="button button-primary" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background-color: #007aff; color: #fff; border: none; border-radius: 5px; text-decoration: none;">Go to Login</a>
+                </div>
             </div>
         </div>
         <?php
@@ -568,35 +628,23 @@ public function display_request_form($content) {
         }
     }
     
-    public function ajax_process_recovery_request() {
-        // Debug-Information
-        error_log("ajax_process_recovery_request aufgerufen");
-        error_log("POST-Daten: " . print_r($_POST, true));
-        
+    public function ajax_process_recovery_request() {    
         // Verify nonce
         if (!isset($_POST['security'])) {
-            error_log("Fehler: Kein Security-Parameter gefunden");
-            wp_send_json_error(array('message' => 'Security parameter fehlt.'));
+            wp_send_json_error(array('message' => 'Security parameter missing.'));
             return;
         }
         
         if (!wp_verify_nonce($_POST['security'], 'yprint_recovery_nonce')) {
-            error_log("Fehler: Nonce-Überprüfung fehlgeschlagen. Erhaltener Wert: " . $_POST['security']);
-            wp_send_json_error(array('message' => 'Security check failed. Ungültiger Nonce.'));
+            wp_send_json_error(array('message' => 'Security check failed.'));
             return;
         }
         
         try {
-            error_log("Versuche process_recovery_request auszuführen");
             $this->process_recovery_request();
         } catch (Exception $e) {
-            error_log("Exception in recovery process: " . $e->getMessage());
-            error_log("Stacktrace: " . $e->getTraceAsString());
             wp_send_json_error(array(
-                'message' => 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es später erneut.',
-                'details' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'message' => 'An unexpected error occurred. Please try again later.'
             ));
         }
     }
@@ -637,14 +685,9 @@ public function display_request_form($content) {
         // Store token in database
 $table_name = $wpdb->prefix . 'password_reset_tokens';
 
-// Debug: Log table name and user ID
-error_log('Using table: ' . $table_name . ' for user ID: ' . $user->ID);
-
 // Check if table exists
 $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
 if (!$table_exists) {
-    error_log('ERROR: Table ' . $table_name . ' does not exist!');
-    
     // Try to create the table on the fly
     $charset_collate = $wpdb->get_charset_collate();
     $sql = "CREATE TABLE IF NOT EXISTS $table_name (
@@ -660,23 +703,19 @@ if (!$table_exists) {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
     
-    error_log('Attempted to create the table. Checking again...');
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
     if (!$table_exists) {
-        error_log('ERROR: Failed to create table ' . $table_name);
         wp_send_json_error(array('message' => 'Database setup error. Please contact support.'));
         return;
     }
 }
 
 // Delete any existing tokens for this user
-$delete_result = $wpdb->delete(
+$wpdb->delete(
     $table_name,
     array('user_id' => $user->ID),
     array('%d')
 );
-error_log('Delete result: ' . ($delete_result !== false ? 'Success' : 'Failed') . 
-          ($wpdb->last_error ? ' - Error: ' . $wpdb->last_error : ''));
 
 // Set expiry time (1 hour from now)
 $expires = date('Y-m-d H:i:s', time() + 3600);
@@ -694,14 +733,6 @@ $insert_result = $wpdb->insert(
 );
 
 if ($insert_result === false) {
-    error_log('DB Insert Error: ' . $wpdb->last_error);
-    // Dump the data we tried to insert (sanitize sensitive info)
-    error_log('Insert data: ' . json_encode(array(
-        'user_id' => $user->ID,
-        'token_hash' => '[REDACTED]',
-        'created_at' => current_time('mysql'),
-        'expires_at' => $expires
-    )));
     wp_send_json_error(array('message' => 'Database error. Please try again later.'));
     return;
 }
@@ -861,29 +892,7 @@ if ($insert_result === false) {
                 'From: YPrint <do-not-reply@yprint.de>'
             );
             
-            $mail_sent = $mail_sent = wp_mail($to, $subject, $message, $headers);
-if (!$mail_sent) {
-    error_log("Failed to send recovery email to: {$to}");
-    // Überprüfen der wp_mail Fehler
-    global $phpmailer;
-    if (isset($GLOBALS['phpmailer'])) {
-        $phpmailer = $GLOBALS['phpmailer'];
-        if ($phpmailer->ErrorInfo != '') {
-            error_log('PHPMailer error: ' . $phpmailer->ErrorInfo);
-        }
-    }
-}
-if (!$mail_sent) {
-    error_log("Failed to send recovery email to: {$to}");
-    // Überprüfen der wp_mail Fehler
-    global $phpmailer;
-    if (isset($GLOBALS['phpmailer'])) {
-        $phpmailer = $GLOBALS['phpmailer'];
-        if ($phpmailer->ErrorInfo != '') {
-            error_log('PHPMailer error: ' . $phpmailer->ErrorInfo);
-        }
-    }
-}
+            wp_mail($to, $subject, $message, $headers);
         }
     }
     
