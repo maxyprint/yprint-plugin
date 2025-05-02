@@ -397,6 +397,8 @@ function verify_email_shortcode() {
     return ob_get_clean();
 }
 
+add_shortcode('verify_email', 'verify_email_shortcode');
+
 /**
  * Mobile registration form shortcode
  */
