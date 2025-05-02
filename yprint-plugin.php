@@ -82,6 +82,27 @@ function yprint_plugin_activation() {
             'comment_status' => 'closed'
         ));
     }
+
+    // Erstelle die Tabelle für E-Mail-Verifikationen, falls sie nicht existiert
+    // Hinweis: Hier wird bewusst der direkte Tabellenname 'wp_email_verifications' verwendet
+    // um mit dem Code in rest-registration.php konsistent zu sein
+    $table_name = 'wp_email_verifications';
+    $charset_collate = $wpdb->get_charset_collate();
+
+    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL,
+        verification_code varchar(255) NOT NULL,
+        email_verified tinyint(1) NOT NULL DEFAULT 0,
+        created_at datetime NOT NULL,
+        updated_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        KEY user_id (user_id),
+        KEY verification_code (verification_code)
+    ) $charset_collate;";
+
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+    dbDelta($sql);
 }
 register_activation_hook(__FILE__, 'yprint_plugin_activation');
 
