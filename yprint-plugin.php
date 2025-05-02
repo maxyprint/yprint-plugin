@@ -24,6 +24,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/registration.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/email.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/rest-registration.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/login.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/password-recovery.php';
 
 /**
  * Enqueue scripts and styles
@@ -68,6 +69,21 @@ function yprint_plugin_activation() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
     
+    // Erstelle die Tabelle für Passwortwiederherstellungs-Tokens
+    $recovery_table = $wpdb->prefix . 'yprint_recovery_tokens';
+    
+    $sql_recovery = "CREATE TABLE IF NOT EXISTS $recovery_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL,
+        token_hash varchar(255) NOT NULL,
+        created_at datetime NOT NULL,
+        expires_at datetime NOT NULL,
+        PRIMARY KEY (id),
+        KEY user_id (user_id)
+    ) $charset_collate;";
+    
+    dbDelta($sql_recovery);
+    
     // Erstellen der erforderlichen Seiten, falls sie nicht existieren
     
     // Verifizierungsseite
@@ -79,6 +95,30 @@ function yprint_plugin_activation() {
             'post_status' => 'publish',
             'post_type' => 'page',
             'post_content' => '[verify_email]',
+            'comment_status' => 'closed'
+        ));
+    }
+    
+    // Account-Wiederherstellungsseite
+    $recovery_page = get_page_by_path('recover-account');
+    if (!$recovery_page) {
+        wp_insert_post(array(
+            'post_title' => 'Konto wiederherstellen',
+            'post_name' => 'recover-account',
+            'post_status' => 'publish',
+            'post_type' => 'page',
+            'comment_status' => 'closed'
+        ));
+    }
+    
+    // Erfolgsseite für Passwortänderung
+    $success_page = get_page_by_path('password-reset-success');
+    if (!$success_page) {
+        wp_insert_post(array(
+            'post_title' => 'Passwort zurückgesetzt',
+            'post_name' => 'password-reset-success',
+            'post_status' => 'publish',
+            'post_type' => 'page',
             'comment_status' => 'closed'
         ));
     }
@@ -103,6 +143,9 @@ function yprint_plugin_activation() {
 
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
+    
+    // Flag setzen, um Rewrite Rules zu aktualisieren
+    update_option('yprint_recovery_flush_rules', true);
 }
 register_activation_hook(__FILE__, 'yprint_plugin_activation');
 
@@ -112,5 +155,7 @@ register_activation_hook(__FILE__, 'yprint_plugin_activation');
 function yprint_plugin_deactivation() {
     // Cleanup if needed
     // Note: We do not delete the verification table to prevent data loss
+    
+    // Clear scheduled event for password recovery token cleanup
+    wp_clear_scheduled_hook('yprint_cleanup_recovery_tokens');
 }
-register_deactivation_hook(__FILE__, 'yprint_plugin_deactivation');
