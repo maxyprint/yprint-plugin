@@ -219,11 +219,88 @@ function verify_user_email($user_id, $verification_code) {
     return ($updated !== false); // Wenn das Update erfolgreich war
 }
 
-/**
- * Shortcode for verification page
- */
 function verify_email_shortcode() {
     ob_start();
+    
+    // Modern styling for verification page
+    echo '<style>
+        .verify-container {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            font-family: "Roboto", sans-serif;
+        }
+        .verify-icon {
+            margin-bottom: 20px;
+            font-size: 48px;
+        }
+        .verify-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333333;
+        }
+        .verify-message {
+            font-size: 16px;
+            color: #666666;
+            line-height: 1.5;
+            margin-bottom: 25px;
+        }
+        .verify-button {
+            display: inline-block;
+            background-color: #0079FF;
+            color: white;
+            font-weight: bold;
+            padding: 12px 30px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .verify-button:hover {
+            background-color: #0056b3;
+        }
+        .verify-container.success .verify-icon {
+            color: #28a745;
+        }
+        .verify-container.error .verify-icon {
+            color: #dc3545;
+        }
+        .verify-container.info .verify-icon {
+            color: #17a2b8;
+        }
+        .verify-resend {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666666;
+        }
+        .verify-resend a {
+            color: #0079FF;
+            text-decoration: none;
+        }
+        .verify-resend a:hover {
+            text-decoration: underline;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #0079FF;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>';
 
     if (isset($_GET['verification_code']) && isset($_GET['user_id'])) {
         global $wpdb;
@@ -242,10 +319,11 @@ function verify_email_shortcode() {
         if ($user) {
             // Überprüfen, ob die E-Mail bereits verifiziert wurde
             if ($user->email_verified == 1) {
-                echo '<div class="yprint-message success">
-                    <h2>E-Mail-Adresse bereits bestätigt</h2>
-                    <p>Die E-Mail-Adresse wurde bereits bestätigt. Du kannst dich nun einloggen.</p>
-                    <p><a href="' . wp_login_url() . '" class="button">Zum Login</a></p>
+                echo '<div class="verify-container success">
+                    <div class="verify-icon">✓</div>
+                    <div class="verify-title">E-Mail-Adresse bereits bestätigt</div>
+                    <div class="verify-message">Deine E-Mail-Adresse wurde bereits erfolgreich bestätigt. Du kannst dich jetzt mit deinen Zugangsdaten einloggen.</div>
+                    <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
                 </div>';
             } else {
                 $verification_request_time = strtotime($user->created_at);
@@ -258,9 +336,11 @@ function verify_email_shortcode() {
                     $verified = verify_user_email($user_id, $verification_code);
 
                     if ($verified) {
-                        echo '<div class="yprint-message success">
-                            <h2>E-Mail-Adresse bestätigt!</h2>
-                            <p>Die E-Mail-Adresse wurde erfolgreich bestätigt! Du wirst nun zum Login weitergeleitet.</p>
+                        echo '<div class="verify-container success">
+                            <div class="verify-icon">✓</div>
+                            <div class="verify-title">E-Mail-Adresse bestätigt!</div>
+                            <div class="verify-message">Deine E-Mail-Adresse wurde erfolgreich bestätigt! Du wirst in Kürze zum Login weitergeleitet...</div>
+                            <div class="loading-spinner"></div>
                         </div>';
                         echo '<script>
                             setTimeout(function() {
@@ -268,38 +348,54 @@ function verify_email_shortcode() {
                             }, 3000);
                         </script>';
                     } else {
-                        echo '<div class="yprint-message error">
-                            <h2>Verifizierung fehlgeschlagen</h2>
-                            <p>Es gab ein Problem bei der Verifizierung des Codes.</p>
-                            <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+                        echo '<div class="verify-container error">
+                            <div class="verify-icon">✗</div>
+                            <div class="verify-title">Verifizierung fehlgeschlagen</div>
+                            <div class="verify-message">Es gab ein technisches Problem bei der Verifizierung deines Codes. Bitte versuche es später erneut oder wende dich an unseren Support.</div>
+                            <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
+                            <div class="verify-resend">
+                                <p>Probleme mit der Verifizierung? <a href="mailto:support@yprint.de">Kontaktiere unseren Support</a></p>
+                            </div>
                         </div>';
                     }
                 } else {
-                    echo '<div class="yprint-message error">
-                        <h2>Verifizierungscode abgelaufen</h2>
-                        <p>Der Verifizierungscode ist abgelaufen. Bitte fordere einen neuen an.</p>
-                        <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+                    // Verifizierungscode ist abgelaufen
+                    $user_data = get_userdata($user_id);
+                    $username = $user_data ? $user_data->user_login : '';
+                    
+                    echo '<div class="verify-container error">
+                        <div class="verify-icon">⏱</div>
+                        <div class="verify-title">Verifizierungscode abgelaufen</div>
+                        <div class="verify-message">Dein Verifizierungscode ist abgelaufen. Du kannst einen neuen Code anfordern, indem du dich mit deinen Zugangsdaten anmeldest.</div>
+                        <a href="' . home_url('/login/') . '?user_id=' . $user_id . '" class="verify-button">Zum Login</a>
+                        <div class="verify-resend">
+                            <p>Nach dem Login hast du die Möglichkeit, einen neuen Verifizierungscode anzufordern.</p>
+                        </div>
                     </div>';
                 }
             }
         } else {
-            echo '<div class="yprint-message error">
-                <h2>Ungültiger Verifizierungscode</h2>
-                <p>Der Verifizierungscode ist ungültig oder abgelaufen.</p>
-                <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+            echo '<div class="verify-container error">
+                <div class="verify-icon">⚠</div>
+                <div class="verify-title">Ungültiger Verifizierungscode</div>
+                <div class="verify-message">Der angegebene Verifizierungscode konnte nicht gefunden werden. Möglicherweise wurde er bereits verwendet oder ist nicht mehr gültig.</div>
+                <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
+                <div class="verify-resend">
+                    <p>Falls du Probleme bei der Verifizierung hast, melde dich bitte mit deinen Zugangsdaten an, um einen neuen Code anzufordern.</p>
+                </div>
             </div>';
         }
     } else {
-        echo '<div class="yprint-message info">
-            <h2>Verifizierung nicht möglich</h2>
-            <p>Kein Verifizierungscode gefunden. Bitte überprüfe deinen E-Mail-Link.</p>
-            <p><a href="' . home_url('/login/') . '" class="button">Zum Login</a></p>
+        echo '<div class="verify-container info">
+            <div class="verify-icon">ℹ</div>
+            <div class="verify-title">Verifizierung nicht möglich</div>
+            <div class="verify-message">Es wurde kein Verifizierungscode gefunden. Bitte überprüfe den Link in deiner E-Mail oder melde dich an, um einen neuen Verifizierungslink anzufordern.</div>
+            <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
         </div>';
     }
 
     return ob_get_clean();
 }
-add_shortcode('verify_email', 'verify_email_shortcode');
 
 /**
  * Mobile registration form shortcode
