@@ -81,16 +81,16 @@ private function send_username_hint_email($user) {
         $expires = date('Y-m-d H:i:s', time() + 3600);
         
         // Insert new token
-        $wpdb->insert(
-            $table_name,
-            array(
-                'user_id' => $user->ID,
-                'token_hash' => wp_hash_password($token),
-                'created_at' => current_time('mysql'),
-                'expires_at' => $expires
-            ),
-            array('%d', '%s', '%s', '%s')
-        );
+$wpdb->insert(
+    $table_name,
+    array(
+        'user_id' => $user->ID,
+        'token_hash' => md5($token),
+        'created_at' => current_time('mysql'),
+        'expires_at' => $expires
+    ),
+    array('%d', '%s', '%s', '%s')
+);
         
         $message_content .= "<a href='" . esc_url($reset_url) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Passwort zurücksetzen</a><br><br>";
         $message_content .= "Falls du dein Passwort kennst, kannst du einfach <a href='" . esc_url(home_url('/login/')) . "'>hier</a> mit deinem Benutzernamen und deinem Passwort anmelden.<br><br>";
@@ -859,8 +859,8 @@ $wpdb->delete(
 // Set expiry time (1 hour from now)
 $expires = date('Y-m-d H:i:s', time() + 3600);
 
-// Insert new token with proper hash
-$token_hash = wp_hash_password($token);
+// Insert new token with proper hash - use md5 for consistent format instead of wp_hash_password
+$token_hash = md5($token);
 $insert_result = $wpdb->insert(
     $table_name,
     array(
@@ -1042,10 +1042,10 @@ if ($insert_result === false) {
         // For debugging, log all relevant data
         error_log("YPrint: Verifying token - User ID: " . $user->ID . ", Token: " . substr($token, 0, 5) . "..., Hash: " . substr($stored_token->token_hash, 0, 10) . "...");
         
-        // Use WordPress's native password checking function
-        $result = wp_check_password($token, $stored_token->token_hash);
-        error_log("YPrint: Token verification result using wp_check_password: " . ($result ? 'success' : 'failure'));
-        
+        // Compare using md5 hash instead of wp_check_password
+$result = (md5($token) === $stored_token->token_hash);
+error_log("YPrint: Token verification result using md5 comparison: " . ($result ? 'success' : 'failure'));
+
         return $result;
     }
     
