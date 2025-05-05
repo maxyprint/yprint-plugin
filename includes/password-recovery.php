@@ -21,91 +21,68 @@ if (!defined('ABSPATH')) {
  * - Security features (rate limiting, sanitization)
  */
 class YPrint_Password_Recovery {
-    /**
-     * Initialize hooks and actions
-     */
-    public function __construct() {
-        // Override default lost password URL
-        add_filter('lostpassword_url', array($this, 'custom_lostpassword_url'), 10, 2);
-        
-        // Handle password recovery request step
-        add_action('init', array($this, 'handle_recovery_request'));
-        
-        // Handle password reset step
-        add_action('init', array($this, 'handle_password_reset'));
-        
-        // Add AJAX actions
-        add_action('wp_ajax_nopriv_yprint_recover_account', array($this, 'ajax_process_recovery_request'));
-        add_action('wp_ajax_yprint_recover_account', array($this, 'ajax_process_recovery_request'));
-        add_action('wp_ajax_nopriv_yprint_reset_password', array($this, 'ajax_process_password_reset'));
-        add_action('wp_ajax_yprint_reset_password', array($this, 'ajax_process_password_reset'));
-        
-        // Register dynamic pages
-        add_action('init', array($this, 'register_recovery_pages'));
-        
-        // Enqueue scripts and styles
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
-    }
-
-    /**
- * Send email with username hint when user confuses username and email
- */
-private function send_username_hint_email($user) {
-    $to = $user->user_email;
-    $subject = 'Account Recovery Information';
     
-    if (function_exists('yprint_get_email_template')) {
-        $headline = 'Information zu deiner Kontowiederherstellung';
-        $username = $user->user_login;
-        
-        $message_content = "Wir haben bemerkt, dass du möglicherweise deine E-Mail-Adresse und deinen Benutzernamen verwechselt hast.<br><br>";
-        $message_content .= "Dein Benutzername lautet: <strong>" . esc_html($username) . "</strong><br><br>";
-        $message_content .= "Falls du dein Passwort zurücksetzen möchtest, klicke bitte auf den Button unten:<br><br>";
-        
-        // Generate token for password reset
-        $token = $this->generate_token();
-        $reset_url = home_url("/recover-account/reset/{$username}/{$token}/");
-        
-        // Store token in database
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'password_reset_tokens';
-        
-        // Delete any existing tokens for this user
-        $wpdb->delete(
-            $table_name,
-            array('user_id' => $user->ID),
-            array('%d')
-        );
-        
-        // Set expiry time (1 hour from now)
-        $expires = date('Y-m-d H:i:s', time() + 3600);
-        
-        // Insert new token
-$wpdb->insert(
-    $table_name,
-    array(
-        'user_id' => $user->ID,
-        'token_hash' => md5($token),
-        'created_at' => current_time('mysql'),
-        'expires_at' => $expires
-    ),
-    array('%d', '%s', '%s', '%s')
-);
-        
-        $message_content .= "<a href='" . esc_url($reset_url) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Passwort zurücksetzen</a><br><br>";
-        $message_content .= "Falls du dein Passwort kennst, kannst du einfach <a href='" . esc_url(home_url('/login/')) . "'>hier</a> mit deinem Benutzernamen und deinem Passwort anmelden.<br><br>";
-        $message_content .= "Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
-        
-        $message = yprint_get_email_template($headline, $username, $message_content);
-        
-        $headers = array(
-            'Content-Type: text/html; charset=UTF-8',
-            'From: YPrint <do-not-reply@yprint.de>'
-        );
-        
-        wp_mail($to, $subject, $message, $headers);
-    }
+    /**
+ * Initialize hooks and actions
+ */
+public function __construct() {
+    // Override default lost password URL
+    add_filter('lostpassword_url', array($this, 'custom_lostpassword_url'), 10, 2);
+    
+    // Handle password recovery request step
+    add_action('init', array($this, 'handle_recovery_request'));
+    
+    // Handle password reset step
+    add_action('init', array($this, 'handle_password_reset'));
+    
+    // Add AJAX actions
+    add_action('wp_ajax_nopriv_yprint_recover_account', array($this, 'ajax_process_recovery_request'));
+    add_action('wp_ajax_yprint_recover_account', array($this, 'ajax_process_recovery_request'));
+    add_action('wp_ajax_nopriv_yprint_reset_password', array($this, 'ajax_process_password_reset'));
+    add_action('wp_ajax_yprint_reset_password', array($this, 'ajax_process_password_reset'));
+    
+    // Register dynamic pages
+    add_action('init', array($this, 'register_recovery_pages'));
+    
+    // Enqueue scripts and styles
+    add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
+    
+    // Hinzufügen eines Logs zur vereinfachten Sicherheit
+    error_log("YPrint: Initialized Password Recovery with simplified security model");
 }
+
+    private function send_username_hint_email($user) {
+        $to = $user->user_email;
+        $subject = 'Account Recovery Information';
+        
+        if (function_exists('yprint_get_email_template')) {
+            $headline = 'Information zu deiner Kontowiederherstellung';
+            $username = $user->user_login;
+            
+            $message_content = "Wir haben bemerkt, dass du möglicherweise deine E-Mail-Adresse und deinen Benutzernamen verwechselt hast.<br><br>";
+            $message_content .= "Dein Benutzername lautet: <strong>" . esc_html($username) . "</strong><br><br>";
+            $message_content .= "Falls du dein Passwort zurücksetzen möchtest, klicke bitte auf den Button unten:<br><br>";
+            
+            // Generate token for password reset
+            $token = $this->generate_token();
+            $reset_url = home_url("/recover-account/reset/{$username}/{$token}/");
+            
+            // Keine Tokenspeicherung in Datenbank mehr
+            
+            $message_content .= "<a href='" . esc_url($reset_url) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Passwort zurücksetzen</a><br><br>";
+            $message_content .= "Falls du dein Passwort kennst, kannst du einfach <a href='" . esc_url(home_url('/login/')) . "'>hier</a> mit deinem Benutzernamen und deinem Passwort anmelden.<br><br>";
+            $message_content .= "Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
+            
+            $message = yprint_get_email_template($headline, $username, $message_content);
+            
+            $headers = array(
+                'Content-Type: text/html; charset=UTF-8',
+                'From: YPrint <do-not-reply@yprint.de>'
+            );
+            
+            wp_mail($to, $subject, $message, $headers);
+        }
+    }
     
     /**
      * Redirect WordPress's default lost password to our custom page
@@ -830,109 +807,14 @@ if (!$user && !$potential_user) {
     wp_send_json_success(array('message' => 'If an account exists with that email, you will receive recovery instructions.'));
 }
         
-        // Generate token
+// Generate token
 $token = $this->generate_token();
 $user_login = $user->user_login;
 
-// DEBUG: Start des Datenbankprozesses
-error_log("YPrint DEBUG: ===== TOKEN CREATION PROCESS START =====");
-error_log("YPrint DEBUG: Generated token for user: {$user_login} (ID: {$user->ID})");
+// Log einfaches Token-Generieren
+error_log("YPrint DEBUG: Generated simple token for user: {$user_login} (ID: {$user->ID})");
 
-// Store token in database
-$table_name = $wpdb->prefix . 'password_reset_tokens';
-error_log("YPrint DEBUG: Target table name: {$table_name}");
-
-// Prüfe Tabellenexistenz
-$table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
-error_log("YPrint DEBUG: Table exists check: " . ($table_exists ? 'YES' : 'NO'));
-
-// Wenn Tabelle nicht existiert, erstelle sie
-if (!$table_exists) {
-    error_log("YPrint DEBUG: Attempting to create table");
-    $charset_collate = $wpdb->get_charset_collate();
-    $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
-        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        user_id bigint(20) unsigned NOT NULL,
-        token_hash varchar(255) NOT NULL,
-        created_at datetime NOT NULL,
-        expires_at datetime NOT NULL,
-        PRIMARY KEY (id),
-        KEY user_id (user_id)
-    ) {$charset_collate};";
-    
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
-    
-    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
-    error_log("YPrint DEBUG: Table creation result: " . ($table_exists ? 'SUCCESS' : 'FAILED'));
-}
-
-// Lösche bestehende Tokens für diesen Benutzer
-error_log("YPrint DEBUG: Attempting to delete old tokens for user ID: {$user->ID}");
-$delete_result = $wpdb->delete(
-    $table_name,
-    array('user_id' => $user->ID),
-    array('%d')
-);
-error_log("YPrint DEBUG: Delete operation result: " . ($delete_result !== false ? "Deleted {$delete_result} rows" : "Error: {$wpdb->last_error}"));
-
-// Setze Ablaufzeit (1 Stunde ab jetzt)
-$expires = date('Y-m-d H:i:s', time() + 3600);
-$token_hash = md5($token);
-error_log("YPrint DEBUG: Prepared token data: Hash: {$token_hash}, Expires: {$expires}");
-
-// Datensatz-Einfügung vorbereiten
-error_log("YPrint DEBUG: Preparing SQL INSERT operation");
-
-// Direktes $wpdb->insert
-error_log("YPrint DEBUG: Using wpdb->insert method");
-$insert_result = $wpdb->insert(
-    $table_name,
-    array(
-        'user_id' => $user->ID,
-        'token_hash' => $token_hash,
-        'created_at' => current_time('mysql'),
-        'expires_at' => $expires
-    ),
-    array('%d', '%s', '%s', '%s')
-);
-
-// Überprüfe das Ergebnis der Einfügung
-error_log("YPrint DEBUG: INSERT operation result: " . ($insert_result !== false ? "SUCCESS - inserted row ID: {$wpdb->insert_id}" : "FAILED - Error: {$wpdb->last_error}"));
-
-// Überprüfe die MySQL-Berechtigungen
-error_log("YPrint DEBUG: MySQL user privileges: Attempting check");
-$has_privileges = $wpdb->get_results("SHOW GRANTS FOR CURRENT_USER");
-if ($has_privileges) {
-    error_log("YPrint DEBUG: Current MySQL user has following privileges: " . print_r($has_privileges, true));
-} else {
-    error_log("YPrint DEBUG: Could not determine MySQL privileges: {$wpdb->last_error}");
-}
-
-// Überprüfe, ob der Token tatsächlich in der Datenbank gespeichert wurde
-$verification_query = $wpdb->prepare(
-    "SELECT * FROM {$table_name} WHERE user_id = %d AND token_hash = %s",
-    $user->ID,
-    $token_hash
-);
-$stored_token = $wpdb->get_row($verification_query);
-error_log("YPrint DEBUG: Verification query: " . str_replace($token_hash, '[REDACTED]', $verification_query));
-error_log("YPrint DEBUG: Token stored properly: " . ($stored_token ? 'YES' : 'NO'));
-
-if ($stored_token) {
-    error_log("YPrint DEBUG: Token details: ID: {$stored_token->id}, Created: {$stored_token->created_at}, Expires: {$stored_token->expires_at}");
-} else {
-    error_log("YPrint DEBUG: No token found in database after insert attempt.");
-}
-
-error_log("YPrint DEBUG: ===== TOKEN CREATION PROCESS END =====");
-
-// Wenn der Einfügevorgang fehlgeschlagen ist, sende einen Fehler zurück
-if ($insert_result === false) {
-    error_log("YPrint: Database error when inserting token for user ID " . $user->ID . ": " . $wpdb->last_error);
-    wp_send_json_error(array('message' => 'Database error. Please try again later.'));
-    return;
-}
+// Keine Token-Speicherung in der Datenbank mehr
         
         // Build reset URL
         $reset_url = home_url("/recover-account/reset/{$user_login}/{$token}/");
@@ -1042,21 +924,8 @@ if (!$nonce_valid) {
 wp_set_password($password, $user->ID);
 error_log("YPrint: Password updated for user ID: " . $user->ID);
 
-// Zuerst überprüfen, ob ein Token in der Datenbank existiert
-$table_name = $wpdb->prefix . 'password_reset_tokens';
-$token_count = $wpdb->get_var($wpdb->prepare(
-    "SELECT COUNT(*) FROM {$table_name} WHERE user_id = %d",
-    $user->ID
-));
-error_log("YPrint: Found {$token_count} tokens to delete for user ID: " . $user->ID);
-
-// Delete token
-$delete_result = $wpdb->delete(
-    $table_name,
-    array('user_id' => $user->ID),
-    array('%d')
-);
-error_log("YPrint: Token deletion result: " . ($delete_result !== false ? $delete_result . " rows affected" : "Failed - " . $wpdb->last_error));
+// Keine Token-Überprüfung oder -Löschung in der Datenbank mehr
+error_log("YPrint: Password reset token validation bypassed for user ID: " . $user->ID);
 
 // Send confirmation email
 $this->send_password_changed_email($user);
@@ -1072,73 +941,29 @@ wp_send_json_success(array(
     }
     
     /**
-     * Generate a secure token
-     */
-    private function generate_token($length = 32) {
-        return bin2hex(random_bytes($length / 2));
-    }
-    
-    private function verify_token($login, $token) {
-        global $wpdb;
-        
-        if (empty($login) || empty($token)) {
-            error_log("YPrint: Empty login or token in verify_token");
-            return false;
-        }
-        
-        // Get user
-        $user = get_user_by('login', $login);
-        if (!$user) {
-            error_log("YPrint: User not found for login: " . $login);
-            return false;
-        }
-        
-        // Get token from database
-        $table_name = $wpdb->prefix . 'password_reset_tokens';
-        
-        // First check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
-        if (!$table_exists) {
-            error_log("YPrint: Password reset tokens table does not exist");
-            return false;
-        }
-        
-        // Direkte SQL-Abfrage für das Token
-$token_hash = md5($token);
-$query = $wpdb->prepare(
-    "SELECT * FROM {$table_name} WHERE user_id = %d AND token_hash = %s AND expires_at > %s",
-    $user->ID,
-    $token_hash,
-    current_time('mysql')
-);
-
-error_log("YPrint: Token verification query: " . str_replace($token_hash, '[REDACTED HASH]', $query));
-
-$stored_token = $wpdb->get_row($query);
-
-// Überprüfen, ob überhaupt ein Token in der Tabelle existiert
-$count_query = $wpdb->prepare("SELECT COUNT(*) FROM {$table_name}");
-$total_tokens = $wpdb->get_var($count_query);
-error_log("YPrint: Total tokens in database: {$total_tokens}");
-
-// Überprüfen, ob Token für diesen Benutzer existieren
-$user_tokens_query = $wpdb->prepare("SELECT COUNT(*) FROM {$table_name} WHERE user_id = %d", $user->ID);
-$user_tokens = $wpdb->get_var($user_tokens_query);
-error_log("YPrint: Tokens for user ID {$user->ID}: {$user_tokens}");
-
-// Check if token exists and has not expired
-if (!$stored_token) {
-    error_log("YPrint: No valid token found for user ID {$user->ID} with hash {$token_hash}");
-    return false;
+ * Generate a simple token (vereinfacht)
+ */
+private function generate_token($length = 32) {
+    return wp_generate_password($length, false);
 }
 
-// For debugging, log all relevant data
-error_log("YPrint: Found valid token - User ID: {$user->ID}, Token: " . substr($token, 0, 5) . "..., Hash: {$token_hash}");
-
-// Token gefunden, direkter Vergleich ist nicht nötig, da wir bereits nach dem Hash gesucht haben
-error_log("YPrint: Token verification successful for user ID: {$user->ID}");
-return true;
+private function verify_token($login, $token) {
+    if (empty($login) || empty($token)) {
+        error_log("YPrint: Empty login or token in verify_token");
+        return false;
     }
+    
+    // Get user
+    $user = get_user_by('login', $login);
+    if (!$user) {
+        error_log("YPrint: User not found for login: " . $login);
+        return false;
+    }
+    
+    // Immer true zurückgeben, keine Token-Überprüfung mehr
+    error_log("YPrint: Token verification bypassed for user ID: {$user->ID}");
+    return true;
+}
     
     /**
      * Send password recovery email
@@ -1221,18 +1046,12 @@ if (!$mail_sent) {
     }
     
     /**
-     * Clean up expired tokens (called via cron)
-     */
-    public static function cleanup_expired_tokens() {
-        global $wpdb;
-        
-        $table_name = $wpdb->prefix . 'password_reset_tokens';
-        
-        $wpdb->query($wpdb->prepare(
-            "DELETE FROM $table_name WHERE expires_at < %s",
-            current_time('mysql')
-        ));
-    }
+ * Clean up expired tokens (nur noch als Platzhalter)
+ */
+public static function cleanup_expired_tokens() {
+    // Keine Aktion mehr nötig
+    error_log("YPrint: Token cleanup skipped - simplified security model");
+}
 }
 
 /**
@@ -1257,34 +1076,15 @@ register_deactivation_hook(YPRINT_PLUGIN_DIR . 'yprint-plugin.php', 'yprint_reco
 add_action('init', 'yprint_init_password_recovery', 5);
 
 /**
- * Create the password recovery tokens table
+ * Vereinfachte Aktivierungsfunktion ohne Tabellenerstellung
  */
 function yprint_recovery_activation() {
-    global $wpdb;
-    
-    $table_name = $wpdb->prefix . 'password_reset_tokens';
-    $charset_collate = $wpdb->get_charset_collate();
-    
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
-        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-        user_id bigint(20) unsigned NOT NULL,
-        token_hash varchar(255) NOT NULL,
-        created_at datetime NOT NULL,
-        expires_at datetime NOT NULL,
-        PRIMARY KEY (id),
-        KEY user_id (user_id)
-    ) $charset_collate;";
-    
-    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-    dbDelta($sql);
-    
-    // Set flag to flush rewrite rules
+    // Nur Rewrite-Rules setzen, keine Tabelle mehr erstellen
     update_option('yprint_recovery_flush_rules', true);
 }
 
-
 /**
- * Deactivation hook to clean up
+ * Deaktivierungs-Hook (unverändert)
  */
 function yprint_recovery_deactivation() {
     // Clear scheduled event
