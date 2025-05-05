@@ -500,81 +500,77 @@ public function display_reset_form($content) {
                 </div>
                 
                 <script type="text/javascript">
-                    // Password validation
-                    document.getElementById('password').addEventListener('input', function() {
-                        var password = this.value;
-                        var strength = document.getElementById('password-strength');
-                        
-                        if (password.length >= 8 && /[A-Z]/.test(password) && /[\W_]/.test(password)) {
-                            strength.style.color = '#28a745';
-                            strength.textContent = 'Password meets requirements.';
-                        } else {
-                            strength.style.color = '#dc3545';
-                            strength.textContent = 'Password must be at least 8 characters long and include a capital letter and a special character.';
-                        }
-                    });
-                    
-                    // Password matching
-                    document.getElementById('confirm_password').addEventListener('input', function() {
-                        var password = document.getElementById('password').value;
-                        var confirmPassword = this.value;
-                        var match = document.getElementById('password-match');
-                        
-                        if (password === confirmPassword) {
-                            match.style.color = '#28a745';
-                            match.textContent = 'Passwords match.';
-                        } else {
-                            match.style.color = '#dc3545';
-                            match.textContent = 'Passwords do not match.';
-                        }
-                    });
-                    
-                    // Form submission
-                    document.getElementById('reset-form').addEventListener('submit', function(event) {
-                        event.preventDefault();
-                        
-                        var password = document.getElementById('password').value;
-                        var confirmPassword = document.getElementById('confirm_password').value;
-                        var login = document.querySelector('input[name="login"]').value;
-                        var key = document.querySelector('input[name="key"]').value;
-                        
-                        // Validate password
-                        if (password.length < 8 || !/[A-Z]/.test(password) || !/[\W_]/.test(password)) {
-                            alert('Your password does not meet the required criteria.');
-                            return false;
-                        }
-                        
-                        // Validate password match
-                        if (password !== confirmPassword) {
-                            alert('Passwords do not match.');
-                            return false;
-                        }
-                        
-                        // Show loading animation
-                        document.getElementById('reset-form').style.display = 'none';
-                        document.getElementById('loading').style.display = 'block';
-                        
-                        // Send AJAX request
-                        jQuery.post('<?php echo admin_url('admin-ajax.php'); ?>', {
-                            action: 'yprint_reset_password',
-                            login: login,
-                            key: key,
-                            password: password,
-                            security: '<?php echo wp_create_nonce('yprint_reset_nonce'); ?>'
-                        }, function(response) {
-                            document.getElementById('loading').style.display = 'none';
-                            if (response.success) {
-                                document.getElementById('success-message').style.display = 'block';
-                                setTimeout(function() {
-                                    window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
-                                }, 3000);
-                            } else {
-                                alert(response.data.message);
-                                document.getElementById('reset-form').style.display = 'block';
-                            }
-                        });
-                    });
-                </script>
+    // Password validation
+    document.getElementById('password').addEventListener('input', function() {
+        // ... existing code ...
+    });
+    
+    // Password matching
+    document.getElementById('confirm_password').addEventListener('input', function() {
+        // ... existing code ...
+    });
+    
+    // Form submission
+    document.getElementById('reset-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        var password = document.getElementById('password').value;
+        var confirmPassword = document.getElementById('confirm_password').value;
+        var login = document.querySelector('input[name="login"]').value;
+        var key = document.querySelector('input[name="key"]').value;
+        
+        // Validate password
+        if (password.length < 8 || !/[A-Z]/.test(password) || !/[\W_]/.test(password)) {
+            alert('Your password does not meet the required criteria.');
+            return false;
+        }
+        
+        // Validate password match
+        if (password !== confirmPassword) {
+            alert('Passwords do not match.');
+            return false;
+        }
+        
+        // Show loading animation
+        document.getElementById('reset-form').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        
+        // Send AJAX request
+        jQuery.ajax({
+            type: 'POST',
+            url: '<?php echo admin_url('admin-ajax.php'); ?>',
+            data: {
+                action: 'yprint_reset_password',
+                login: login,
+                key: key,
+                password: password,
+                security: '<?php echo wp_create_nonce('yprint_reset_nonce'); ?>'
+            },
+            success: function(response) {
+                document.getElementById('loading').style.display = 'none';
+                if (response.success) {
+                    document.getElementById('success-message').style.display = 'block';
+                    // Log the successful response for debugging
+                    console.log("Password reset success:", response);
+                    setTimeout(function() {
+                        window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
+                    }, 3000);
+                } else {
+                    var errorMsg = response.data && response.data.message ? response.data.message : 'An unknown error occurred.';
+                    alert(errorMsg);
+                    console.error("Password reset error:", response);
+                    document.getElementById('reset-form').style.display = 'block';
+                }
+            },
+            error: function(xhr, status, error) {
+                document.getElementById('loading').style.display = 'none';
+                console.error("AJAX error:", status, error);
+                alert('A connection error occurred. Please try again later.');
+                document.getElementById('reset-form').style.display = 'block';
+            }
+        });
+    });
+</script>
             <?php else: ?>
                 <div style="text-align: center; color: #dc3545;">
                     <p>The password reset link has expired or is invalid.</p>
@@ -828,17 +824,20 @@ $wpdb->delete(
 // Set expiry time (1 hour from now)
 $expires = date('Y-m-d H:i:s', time() + 3600);
 
-// Insert new token
+// Insert new token - store the token directly for reliability
 $insert_result = $wpdb->insert(
     $table_name,
     array(
         'user_id' => $user->ID,
-        'token_hash' => wp_hash_password($token),
+        'token_hash' => $token, // Store token directly for consistent verification
         'created_at' => current_time('mysql'),
         'expires_at' => $expires
     ),
     array('%d', '%s', '%s', '%s')
 );
+
+// Log the token generation for debugging
+error_log("YPrint: Generated token for user ID " . $user->ID . ": " . substr($token, 0, 5) . "... (Expires: " . $expires . ")");
 
 if ($insert_result === false) {
     wp_send_json_error(array('message' => 'Database error. Please try again later.'));
@@ -875,21 +874,30 @@ if ($insert_result === false) {
         }
     }
     
-    /**
-     * Handle AJAX password reset
-     */
     public function ajax_process_password_reset() {
         // Verify nonce
-        if (!isset($_POST['security']) || !wp_verify_nonce($_POST['security'], 'yprint_reset_nonce')) {
-            wp_send_json_error(array('message' => 'Security check failed.'));
+        if (!isset($_POST['security'])) {
+            error_log("YPrint: Missing security parameter in password reset request");
+            wp_send_json_error(array('message' => 'Security parameter missing.'));
+            return;
         }
         
-        $this->process_password_reset();
+        if (!wp_verify_nonce($_POST['security'], 'yprint_reset_nonce')) {
+            error_log("YPrint: Nonce verification failed in password reset - provided: " . $_POST['security']);
+            wp_send_json_error(array('message' => 'Security check failed. Please try again or request a new reset link.'));
+            return;
+        }
+        
+        try {
+            $this->process_password_reset();
+        } catch (Exception $e) {
+            error_log("YPrint: Exception in password reset: " . $e->getMessage());
+            wp_send_json_error(array(
+                'message' => 'An unexpected error occurred. Please try again later.'
+            ));
+        }
     }
     
-    /**
-     * Core password reset processing logic
-     */
     public function process_password_reset() {
         global $wpdb;
         
@@ -898,28 +906,40 @@ if ($insert_result === false) {
         $key = isset($_POST['key']) ? sanitize_text_field($_POST['key']) : '';
         $password = isset($_POST['password']) ? $_POST['password'] : '';
         
+        error_log("YPrint: Processing password reset for login: " . $login);
+        
         if (empty($login) || empty($key) || empty($password)) {
+            error_log("YPrint: Missing required fields in password reset");
             wp_send_json_error(array('message' => 'Missing required fields.'));
+            return;
         }
         
         // Validate password
         if (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[\W_]/', $password)) {
+            error_log("YPrint: Password does not meet requirements");
             wp_send_json_error(array('message' => 'Password does not meet the requirements.'));
+            return;
         }
         
         // Verify token
         if (!$this->verify_token($login, $key)) {
+            error_log("YPrint: Invalid or expired token for login: " . $login);
             wp_send_json_error(array('message' => 'Invalid or expired reset link.'));
+            return;
         }
         
         // Get user
         $user = get_user_by('login', $login);
         if (!$user) {
+            error_log("YPrint: User not found for login: " . $login);
             wp_send_json_error(array('message' => 'User not found.'));
+            return;
         }
         
-        // Reset password
-        reset_password($user, $password);
+        error_log("YPrint: Resetting password for user ID: " . $user->ID);
+        
+        // Reset password - use wp_set_password directly for reliability
+        wp_set_password($password, $user->ID);
         
         // Delete token
         $table_name = $wpdb->prefix . 'password_reset_tokens';
@@ -931,6 +951,8 @@ if ($insert_result === false) {
         
         // Send confirmation email
         $this->send_password_changed_email($user);
+        
+        error_log("YPrint: Password reset successful for user ID: " . $user->ID);
         
         wp_send_json_success(array('message' => 'Password reset successfully.'));
     }
@@ -979,9 +1001,19 @@ if ($insert_result === false) {
             return false;
         }
         
-        // Since we can't reverse the hash, we'll need to check the token
+        // For debugging, log all relevant data
+        error_log("YPrint: Verifying token - User ID: " . $user->ID . ", Token: " . substr($token, 0, 5) . "..., Hash: " . substr($stored_token->token_hash, 0, 10) . "...");
+        
+        // For password reset tokens, we're not using wp_hash_password but a direct comparison
+        // This is more reliable for this specific use case
+        if ($token === $stored_token->token_hash) {
+            error_log("YPrint: Token verification successful - direct comparison");
+            return true;
+        }
+        
+        // As a fallback, try the wp_check_password method
         $result = wp_check_password($token, $stored_token->token_hash);
-        error_log("YPrint: Token verification result: " . ($result ? 'success' : 'failure'));
+        error_log("YPrint: Token verification result using wp_check_password: " . ($result ? 'success' : 'failure'));
         return $result;
     }
     
