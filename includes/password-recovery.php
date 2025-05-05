@@ -557,9 +557,6 @@ public function display_reset_form($content) {
         return ob_get_clean();
     }
     
-    /**
-     * Enqueue scripts and styles
-     */
     public function enqueue_scripts() {
         // Only load on recovery pages
         if (is_page('recover-account') || is_page('password-reset-success')) {
@@ -570,41 +567,44 @@ public function display_reset_form($content) {
                     100% { transform: rotate(360deg); }
                 }
                 
+                .page-wrapper {
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 70vh;
+                    padding: 20px;
+                }
+                
                 .yprint-recover-container {
                     width: 100%;
-                    max-width: 420px;
-                    margin: 0 auto;
-                    padding: 40px;
+                    max-width: 400px;
+                    padding: 30px;
                     background-color: #ffffff;
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+                    border: 1px solid #d3d3d3;
                     border-radius: 10px;
+                    box-shadow: none;
                 }
                 
                 .yprint-logo {
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                    margin-bottom: 40px;
+                    margin-bottom: 30px;
                 }
                 
                 .yprint-logo div {
-                    width: 100%;
-                    max-width: 400px;
-                    height: 200px;
+                    width: 200px;
+                    height: 100px;
                     background-image: url("https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg");
                     background-size: contain;
                     background-repeat: no-repeat;
                     background-position: center;
                 }
                 
-                @media (max-width: 600px) {
+                @media (max-width: 480px) {
                     .yprint-recover-container {
-                        width: 90%;
                         padding: 20px;
-                    }
-                
-                    .yprint-logo div {
-                        height: 150px;
+                        width: 90%;
                     }
                 }
             ');
