@@ -831,18 +831,26 @@ if (!$user && !$potential_user) {
 }
         
         // Generate token
-        $token = $this->generate_token();
-        $user_login = $user->user_login;
-        
-        // Store token in database
-$table_name = $wpdb->prefix . 'password_reset_tokens';
+$token = $this->generate_token();
+$user_login = $user->user_login;
 
-// Check if table exists
+// DEBUG: Start des Datenbankprozesses
+error_log("YPrint DEBUG: ===== TOKEN CREATION PROCESS START =====");
+error_log("YPrint DEBUG: Generated token for user: {$user_login} (ID: {$user->ID})");
+
+// Store token in database
+$table_name = $wpdb->prefix . 'password_reset_tokens';
+error_log("YPrint DEBUG: Target table name: {$table_name}");
+
+// Prüfe Tabellenexistenz
 $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
+error_log("YPrint DEBUG: Table exists check: " . ($table_exists ? 'YES' : 'NO'));
+
+// Wenn Tabelle nicht existiert, erstelle sie
 if (!$table_exists) {
-    // Try to create the table on the fly
+    error_log("YPrint DEBUG: Attempting to create table");
     $charset_collate = $wpdb->get_charset_collate();
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         user_id bigint(20) unsigned NOT NULL,
         token_hash varchar(255) NOT NULL,
@@ -850,58 +858,76 @@ if (!$table_exists) {
         expires_at datetime NOT NULL,
         PRIMARY KEY (id),
         KEY user_id (user_id)
-    ) $charset_collate;";
+    ) {$charset_collate};";
     
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
     
     $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
-    if (!$table_exists) {
-        wp_send_json_error(array('message' => 'Database setup error. Please contact support.'));
-        return;
-    }
+    error_log("YPrint DEBUG: Table creation result: " . ($table_exists ? 'SUCCESS' : 'FAILED'));
 }
 
-// Delete any existing tokens for this user
+// Lösche bestehende Tokens für diesen Benutzer
+error_log("YPrint DEBUG: Attempting to delete old tokens for user ID: {$user->ID}");
 $delete_result = $wpdb->delete(
     $table_name,
     array('user_id' => $user->ID),
     array('%d')
 );
-error_log("YPrint: Deleted old tokens for user ID {$user->ID}: " . ($delete_result !== false ? $delete_result : "Failed - " . $wpdb->last_error));
+error_log("YPrint DEBUG: Delete operation result: " . ($delete_result !== false ? "Deleted {$delete_result} rows" : "Error: {$wpdb->last_error}"));
 
-// Set expiry time (1 hour from now)
+// Setze Ablaufzeit (1 Stunde ab jetzt)
 $expires = date('Y-m-d H:i:s', time() + 3600);
-
-// Insert new token with proper hash
 $token_hash = md5($token);
+error_log("YPrint DEBUG: Prepared token data: Hash: {$token_hash}, Expires: {$expires}");
 
-// Direkte SQL-Query statt $wpdb->insert, um sicherzustellen, dass es funktioniert
-$query = $wpdb->prepare(
-    "INSERT INTO {$table_name} (user_id, token_hash, created_at, expires_at) VALUES (%d, %s, %s, %s)",
-    $user->ID,
-    $token_hash,
-    current_time('mysql'),
-    $expires
+// Datensatz-Einfügung vorbereiten
+error_log("YPrint DEBUG: Preparing SQL INSERT operation");
+
+// Direktes $wpdb->insert
+error_log("YPrint DEBUG: Using wpdb->insert method");
+$insert_result = $wpdb->insert(
+    $table_name,
+    array(
+        'user_id' => $user->ID,
+        'token_hash' => $token_hash,
+        'created_at' => current_time('mysql'),
+        'expires_at' => $expires
+    ),
+    array('%d', '%s', '%s', '%s')
 );
 
-$insert_result = $wpdb->query($query);
+// Überprüfe das Ergebnis der Einfügung
+error_log("YPrint DEBUG: INSERT operation result: " . ($insert_result !== false ? "SUCCESS - inserted row ID: {$wpdb->insert_id}" : "FAILED - Error: {$wpdb->last_error}"));
 
-// Umfangreiche Protokollierung für die Fehlerbehebung
-error_log("YPrint: INSERT Query: " . str_replace($token_hash, '[REDACTED]', $query));
-error_log("YPrint: INSERT Result: " . ($insert_result !== false ? "Success" : "Failed - " . $wpdb->last_error));
-error_log("YPrint: Token for user ID {$user->ID}: " . substr($token, 0, 5) . "... (Expires: {$expires})");
-error_log("YPrint: Token hash: " . $token_hash);
+// Überprüfe die MySQL-Berechtigungen
+error_log("YPrint DEBUG: MySQL user privileges: Attempting check");
+$has_privileges = $wpdb->get_results("SHOW GRANTS FOR CURRENT_USER");
+if ($has_privileges) {
+    error_log("YPrint DEBUG: Current MySQL user has following privileges: " . print_r($has_privileges, true));
+} else {
+    error_log("YPrint DEBUG: Could not determine MySQL privileges: {$wpdb->last_error}");
+}
 
-// Überprüfen, ob der Token tatsächlich in der Datenbank gespeichert wurde
-$check_query = $wpdb->prepare(
-    "SELECT COUNT(*) FROM {$table_name} WHERE user_id = %d AND token_hash = %s",
+// Überprüfe, ob der Token tatsächlich in der Datenbank gespeichert wurde
+$verification_query = $wpdb->prepare(
+    "SELECT * FROM {$table_name} WHERE user_id = %d AND token_hash = %s",
     $user->ID,
     $token_hash
 );
-$token_count = $wpdb->get_var($check_query);
-error_log("YPrint: Token verification after insert: Found {$token_count} matching tokens in database");
+$stored_token = $wpdb->get_row($verification_query);
+error_log("YPrint DEBUG: Verification query: " . str_replace($token_hash, '[REDACTED]', $verification_query));
+error_log("YPrint DEBUG: Token stored properly: " . ($stored_token ? 'YES' : 'NO'));
 
+if ($stored_token) {
+    error_log("YPrint DEBUG: Token details: ID: {$stored_token->id}, Created: {$stored_token->created_at}, Expires: {$stored_token->expires_at}");
+} else {
+    error_log("YPrint DEBUG: No token found in database after insert attempt.");
+}
+
+error_log("YPrint DEBUG: ===== TOKEN CREATION PROCESS END =====");
+
+// Wenn der Einfügevorgang fehlgeschlagen ist, sende einen Fehler zurück
 if ($insert_result === false) {
     error_log("YPrint: Database error when inserting token for user ID " . $user->ID . ": " . $wpdb->last_error);
     wp_send_json_error(array('message' => 'Database error. Please try again later.'));
