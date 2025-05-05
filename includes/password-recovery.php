@@ -787,9 +787,13 @@ $user_id = $user->ID;
 // Hash token for secure storage
 $token_hash = wp_hash_password($token);
 
+// Debug-Ausgabe zur Token-Generierung
+error_log("YPrint: Generated token for user $user_login (ID: $user_id) - Token length: " . strlen($token));
+
 // Store token in database
 global $wpdb;
-$token_table = $wpdb->prefix . 'password_reset_tokens';
+// Direkter Tabellenname ohne Präfix
+$token_table = 'wp_password_reset_tokens';
 
 // First, clean up any existing tokens for this user
 $wpdb->delete(
@@ -812,6 +816,9 @@ $wpdb->insert(
     ),
     array('%d', '%s', '%s', '%s')
 );
+
+// Debug-Ausgabe, ob der Eintrag erfolgreich war
+error_log("YPrint: Token inserted: " . $wpdb->last_error ? "Error: " . $wpdb->last_error : "Success");
 
 // Log token creation
 error_log("YPrint DEBUG: Generated secure token for user: {$user_login} (ID: {$user_id})");
@@ -900,12 +907,15 @@ $reset_url = home_url("/recover-account/reset/{$user_login}/{$token}/");
         error_log("YPrint: Password updated for user ID: " . $user->ID);
     
         // Delete used token from database
-        $token_table = $wpdb->prefix . 'password_reset_tokens';
-        $delete_result = $wpdb->delete(
-            $token_table,
-            array('user_id' => $user->ID),
-            array('%d')
-        );
+$token_table = 'wp_password_reset_tokens';
+$delete_result = $wpdb->delete(
+    $token_table,
+    array('user_id' => $user->ID),
+    array('%d')
+);
+
+// Debug-Ausgabe, ob das Löschen erfolgreich war
+error_log("YPrint: Token deletion: " . ($delete_result !== false ? "Success ($delete_result rows)" : "Failed: " . $wpdb->last_error));
         error_log("YPrint: Password reset token deleted for user ID: " . $user->ID);
     
         // Send confirmation email
@@ -942,17 +952,23 @@ private function verify_token($login, $token) {
     }
     
     global $wpdb;
-    $token_table = $wpdb->prefix . 'password_reset_tokens';
-    $user_id = $user->ID;
-    
-    // Fetch token from database
-    $stored_token = $wpdb->get_row(
-        $wpdb->prepare(
-            "SELECT * FROM $token_table WHERE user_id = %d AND expires_at > %s ORDER BY created_at DESC LIMIT 1",
-            $user_id,
-            current_time('mysql')
-        )
-    );
+// Direkter Tabellenname ohne Präfix
+$token_table = 'wp_password_reset_tokens';
+$user_id = $user->ID;
+
+// Debug-Ausgabe für die SQL-Abfrage
+$query = $wpdb->prepare(
+    "SELECT * FROM $token_table WHERE user_id = %d AND expires_at > %s ORDER BY created_at DESC LIMIT 1",
+    $user_id,
+    current_time('mysql')
+);
+error_log("YPrint: Token query: " . $query);
+
+// Fetch token from database
+$stored_token = $wpdb->get_row($query);
+
+// Debug-Ausgabe, ob ein Token gefunden wurde
+error_log("YPrint: Token found: " . ($stored_token ? "Yes" : "No"));
     
     if (!$stored_token) {
         error_log("YPrint: No valid token found for user ID: {$user_id}");
@@ -1062,15 +1078,17 @@ if (!$mail_sent) {
  */
 public static function cleanup_expired_tokens() {
     global $wpdb;
-    $token_table = $wpdb->prefix . 'password_reset_tokens';
-    
-    // Delete all expired tokens
-    $wpdb->query(
-        $wpdb->prepare(
-            "DELETE FROM $token_table WHERE expires_at < %s",
-            current_time('mysql')
-        )
-    );
+$token_table = 'wp_password_reset_tokens';
+
+// Delete all expired tokens
+$result = $wpdb->query(
+    $wpdb->prepare(
+        "DELETE FROM $token_table WHERE expires_at < %s",
+        current_time('mysql')
+    )
+);
+
+error_log("YPrint: Expired password reset tokens cleanup completed. Deleted tokens: " . ($result !== false ? $result : "Error: " . $wpdb->last_error));
     
     error_log("YPrint: Expired password reset tokens cleanup completed");
 }
