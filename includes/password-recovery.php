@@ -500,75 +500,110 @@ public function display_reset_form($content) {
                 </div>
                 
                 <script type="text/javascript">
-    // Password validation
-    document.getElementById('password').addEventListener('input', function() {
-        // ... existing code ...
-    });
-    
-    // Password matching
-    document.getElementById('confirm_password').addEventListener('input', function() {
-        // ... existing code ...
-    });
-    
-    // Form submission
-    document.getElementById('reset-form').addEventListener('submit', function(event) {
-        event.preventDefault();
-        
-        var password = document.getElementById('password').value;
-        var confirmPassword = document.getElementById('confirm_password').value;
-        var login = document.querySelector('input[name="login"]').value;
-        var key = document.querySelector('input[name="key"]').value;
-        
-        // Validate password
-        if (password.length < 8 || !/[A-Z]/.test(password) || !/[\W_]/.test(password)) {
-            alert('Your password does not meet the required criteria.');
-            return false;
-        }
-        
-        // Validate password match
-        if (password !== confirmPassword) {
-            alert('Passwords do not match.');
-            return false;
-        }
-        
-        // Show loading animation
-        document.getElementById('reset-form').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
-        
-        // Send AJAX request
-        jQuery.ajax({
-            type: 'POST',
-            url: '<?php echo admin_url('admin-ajax.php'); ?>',
-            data: {
-                action: 'yprint_reset_password',
-                login: login,
-                key: key,
-                password: password,
-                security: '<?php echo wp_create_nonce('yprint_reset_nonce'); ?>'
-            },
-            success: function(response) {
-                document.getElementById('loading').style.display = 'none';
-                if (response.success) {
-                    document.getElementById('success-message').style.display = 'block';
-                    // Log the successful response for debugging
-                    console.log("Password reset success:", response);
-                    setTimeout(function() {
-                        window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
-                    }, 3000);
+    document.addEventListener('DOMContentLoaded', function() {
+        // Password validation
+        var passwordField = document.getElementById('password');
+        if (passwordField) {
+            passwordField.addEventListener('input', function() {
+                var password = this.value;
+                var strengthDiv = document.getElementById('password-strength');
+                
+                if (password.length >= 8 && /[A-Z]/.test(password) && /[\W_]/.test(password)) {
+                    strengthDiv.style.color = '#28a745';
+                    strengthDiv.textContent = 'Password meets requirements.';
                 } else {
-                    var errorMsg = response.data && response.data.message ? response.data.message : 'An unknown error occurred.';
-                    alert(errorMsg);
-                    console.error("Password reset error:", response);
-                    document.getElementById('reset-form').style.display = 'block';
+                    strengthDiv.style.color = '#dc3545';
+                    strengthDiv.textContent = 'Password must be at least 8 characters long and include a capital letter and a special character.';
                 }
-            },
-            error: function(xhr, status, error) {
-                document.getElementById('loading').style.display = 'none';
-                console.error("AJAX error:", status, error);
-                alert('A connection error occurred. Please try again later.');
-                document.getElementById('reset-form').style.display = 'block';
-            }
-        });
+            });
+        }
+        
+        // Password matching
+        var confirmField = document.getElementById('confirm_password');
+        if (confirmField) {
+            confirmField.addEventListener('input', function() {
+                var confirmPassword = this.value;
+                var password = document.getElementById('password').value;
+                var matchDiv = document.getElementById('password-match');
+                
+                if (confirmPassword === password) {
+                    matchDiv.style.color = '#28a745';
+                    matchDiv.textContent = 'Passwords match.';
+                } else {
+                    matchDiv.style.color = '#dc3545';
+                    matchDiv.textContent = 'Passwords do not match.';
+                }
+            });
+        }
+        
+        // Form submission
+        var resetForm = document.getElementById('reset-form');
+        if (resetForm) {
+            resetForm.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                var password = document.getElementById('password').value;
+                var confirmPassword = document.getElementById('confirm_password').value;
+                var login = document.querySelector('input[name="login"]').value;
+                var key = document.querySelector('input[name="key"]').value;
+                
+                // Validate password
+                if (password.length < 8 || !/[A-Z]/.test(password) || !/[\W_]/.test(password)) {
+                    alert('Your password does not meet the required criteria.');
+                    return false;
+                }
+                
+                // Validate password match
+                if (password !== confirmPassword) {
+                    alert('Passwords do not match.');
+                    return false;
+                }
+                
+                // Show loading animation
+                document.getElementById('reset-form').style.display = 'none';
+                document.getElementById('loading').style.display = 'block';
+                
+                // Create nonce dynamically
+                var nonce = '<?php echo wp_create_nonce('yprint_reset_nonce'); ?>';
+                console.log("Using nonce:", nonce);
+                
+                // Send AJAX request
+                jQuery.ajax({
+                    type: 'POST',
+                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                    data: {
+                        action: 'yprint_reset_password',
+                        login: login,
+                        key: key,
+                        password: password,
+                        security: nonce
+                    },
+                    success: function(response) {
+                        document.getElementById('loading').style.display = 'none';
+                        if (response.success) {
+                            document.getElementById('success-message').style.display = 'block';
+                            // Log the successful response for debugging
+                            console.log("Password reset success:", response);
+                            setTimeout(function() {
+                                window.location.href = '<?php echo esc_url(home_url('/password-reset-success/')); ?>';
+                            }, 3000);
+                        } else {
+                            var errorMsg = response.data && response.data.message ? response.data.message : 'An unknown error occurred.';
+                            alert(errorMsg);
+                            console.error("Password reset error:", response);
+                            document.getElementById('reset-form').style.display = 'block';
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        document.getElementById('loading').style.display = 'none';
+                        console.error("AJAX error:", status, error);
+                        console.error("Response text:", xhr.responseText);
+                        alert('A connection error occurred. Please try again later.');
+                        document.getElementById('reset-form').style.display = 'block';
+                    }
+                });
+            });
+        }
     });
 </script>
             <?php else: ?>
@@ -824,12 +859,13 @@ $wpdb->delete(
 // Set expiry time (1 hour from now)
 $expires = date('Y-m-d H:i:s', time() + 3600);
 
-// Insert new token - store the token directly for reliability
+// Insert new token with proper hash
+$token_hash = wp_hash_password($token);
 $insert_result = $wpdb->insert(
     $table_name,
     array(
         'user_id' => $user->ID,
-        'token_hash' => $token, // Store token directly for consistent verification
+        'token_hash' => $token_hash,
         'created_at' => current_time('mysql'),
         'expires_at' => $expires
     ),
@@ -838,8 +874,10 @@ $insert_result = $wpdb->insert(
 
 // Log the token generation for debugging
 error_log("YPrint: Generated token for user ID " . $user->ID . ": " . substr($token, 0, 5) . "... (Expires: " . $expires . ")");
+error_log("YPrint: Token hash: " . substr($token_hash, 0, 10) . "...");
 
 if ($insert_result === false) {
+    error_log("YPrint: Database error when inserting token for user ID " . $user->ID . ": " . $wpdb->last_error);
     wp_send_json_error(array('message' => 'Database error. Please try again later.'));
     return;
 }
@@ -1004,16 +1042,10 @@ if ($insert_result === false) {
         // For debugging, log all relevant data
         error_log("YPrint: Verifying token - User ID: " . $user->ID . ", Token: " . substr($token, 0, 5) . "..., Hash: " . substr($stored_token->token_hash, 0, 10) . "...");
         
-        // For password reset tokens, we're not using wp_hash_password but a direct comparison
-        // This is more reliable for this specific use case
-        if ($token === $stored_token->token_hash) {
-            error_log("YPrint: Token verification successful - direct comparison");
-            return true;
-        }
-        
-        // As a fallback, try the wp_check_password method
+        // Use WordPress's native password checking function
         $result = wp_check_password($token, $stored_token->token_hash);
         error_log("YPrint: Token verification result using wp_check_password: " . ($result ? 'success' : 'failure'));
+        
         return $result;
     }
     
