@@ -141,11 +141,14 @@ private function send_username_hint_email($user) {
         }
         
         // Add rewrite rule for reset password page with token
-        add_rewrite_rule(
-            'recover-account/reset/([^/]+)/([^/]+)/?$',
-            'index.php?pagename=recover-account&action=reset&login=$matches[1]&key=$matches[2]',
-            'top'
-        );
+add_rewrite_rule(
+    '^recover-account/reset/([^/]+)/([^/]+)/?$',
+    'index.php?pagename=recover-account&action=reset&login=$matches[1]&key=$matches[2]',
+    'top'
+);
+
+// Force flush rewrite rules to ensure our custom rules are added
+flush_rewrite_rules();
         
         // Add query vars
         add_filter('query_vars', function($query_vars) {
@@ -165,9 +168,6 @@ private function send_username_hint_email($user) {
         }
     }
     
-    /**
-     * Display custom template based on URL
-     */
     public function recovery_page_template($template) {
         global $wp_query;
         
@@ -175,11 +175,43 @@ private function send_username_hint_email($user) {
         if (is_page('recover-account')) {
             $action = get_query_var('action', '');
             
+            // Debug information
+            error_log("YPrint: On recover-account page. Action: " . $action);
+            error_log("YPrint: Query vars: " . print_r($wp_query->query_vars, true));
+            
             // Check if we're processing a reset
             if ($action === 'reset') {
+                $login = get_query_var('login', '');
+                $key = get_query_var('key', '');
+                
+                error_log("YPrint: Reset action with login: $login and key: $key");
+                
                 // Display password reset form
                 add_filter('the_content', array($this, 'display_reset_form'));
             } else {
+                // Check URL parameters for direct access (compatibility)
+                $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                if (strpos($path, '/recover-account/reset/') === 0) {
+                    // Extract login and key from URL
+                    $parts = explode('/', trim($path, '/'));
+                    // Format should be: recover-account/reset/username/token/
+                    if (count($parts) >= 4) {
+                        $login = $parts[2];
+                        $key = $parts[3];
+                        
+                        error_log("YPrint: Direct URL access with login: $login and key: $key");
+                        
+                        // Setup query vars manually
+                        $wp_query->set('action', 'reset');
+                        $wp_query->set('login', $login);
+                        $wp_query->set('key', $key);
+                        
+                        // Display password reset form
+                        add_filter('the_content', array($this, 'display_reset_form'));
+                        return $template;
+                    }
+                }
+                
                 // Display request form (default)
                 add_filter('the_content', array($this, 'display_request_form'));
             }
@@ -910,24 +942,31 @@ if ($insert_result === false) {
         return bin2hex(random_bytes($length / 2));
     }
     
-    /**
-     * Verify token validity
-     */
     private function verify_token($login, $token) {
         global $wpdb;
         
         if (empty($login) || empty($token)) {
+            error_log("YPrint: Empty login or token in verify_token");
             return false;
         }
         
         // Get user
         $user = get_user_by('login', $login);
         if (!$user) {
+            error_log("YPrint: User not found for login: " . $login);
             return false;
         }
         
         // Get token from database
         $table_name = $wpdb->prefix . 'password_reset_tokens';
+        
+        // First check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
+        if (!$table_exists) {
+            error_log("YPrint: Password reset tokens table does not exist");
+            return false;
+        }
+        
         $stored_token = $wpdb->get_row($wpdb->prepare(
             "SELECT * FROM $table_name WHERE user_id = %d AND expires_at > %s",
             $user->ID,
@@ -936,13 +975,14 @@ if ($insert_result === false) {
         
         // Check if token exists and has not expired
         if (!$stored_token) {
+            error_log("YPrint: No valid token found for user ID: " . $user->ID);
             return false;
         }
         
         // Since we can't reverse the hash, we'll need to check the token
-        // This is a simplified check - WordPress's password_verify function would be more secure
-        // but it's not directly available in this context
-        return wp_check_password($token, $stored_token->token_hash);
+        $result = wp_check_password($token, $stored_token->token_hash);
+        error_log("YPrint: Token verification result: " . ($result ? 'success' : 'failure'));
+        return $result;
     }
     
     /**
@@ -1086,6 +1126,7 @@ function yprint_recovery_activation() {
     // Set flag to flush rewrite rules
     update_option('yprint_recovery_flush_rules', true);
 }
+
 
 /**
  * Deactivation hook to clean up
