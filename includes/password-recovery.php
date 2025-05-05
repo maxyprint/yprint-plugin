@@ -782,14 +782,42 @@ if (!$user && !$potential_user) {
 // Generate token
 $token = $this->generate_token();
 $user_login = $user->user_login;
+$user_id = $user->ID;
 
-// Log einfaches Token-Generieren
-error_log("YPrint DEBUG: Generated simple token for user: {$user_login} (ID: {$user->ID})");
+// Hash token for secure storage
+$token_hash = wp_hash_password($token);
 
-// Keine Token-Speicherung in der Datenbank mehr
+// Store token in database
+global $wpdb;
+$token_table = $wpdb->prefix . 'password_reset_tokens';
+
+// First, clean up any existing tokens for this user
+$wpdb->delete(
+    $token_table,
+    array('user_id' => $user_id),
+    array('%d')
+);
+
+// Then insert the new token
+$current_time = current_time('mysql');
+$expires_at = date('Y-m-d H:i:s', strtotime('+1 hour', strtotime($current_time)));
+
+$wpdb->insert(
+    $token_table,
+    array(
+        'user_id' => $user_id,
+        'token_hash' => $token_hash,
+        'created_at' => $current_time,
+        'expires_at' => $expires_at
+    ),
+    array('%d', '%s', '%s', '%s')
+);
+
+// Log token creation
+error_log("YPrint DEBUG: Generated secure token for user: {$user_login} (ID: {$user_id})");
         
-        // Build reset URL
-        $reset_url = home_url("/recover-account/reset/{$user_login}/{$token}/");
+// Build reset URL
+$reset_url = home_url("/recover-account/reset/{$user_login}/{$token}/");
         
         // Send email
         $this->send_recovery_email($user, $reset_url);
@@ -836,7 +864,7 @@ error_log("YPrint DEBUG: Generated simple token for user: {$user_login} (ID: {$u
         
         error_log("YPrint: Processing password reset for login: " . $login);
         
-        if (empty($login) || empty($password)) {
+        if (empty($login) || empty($password) || empty($key)) {
             error_log("YPrint: Missing required fields in password reset");
             wp_send_json_error(array('message' => 'Missing required fields.'));
             return;
@@ -849,8 +877,13 @@ error_log("YPrint DEBUG: Generated simple token for user: {$user_login} (ID: {$u
             return;
         }
         
-        // ÜBERSPRINGE TOKEN-ÜBERPRÜFUNG
-        error_log("YPrint: Token verification completely bypassed for login: " . $login);
+        // Verify token
+        $token_valid = $this->verify_token($login, $key);
+        if (!$token_valid) {
+            error_log("YPrint: Token verification failed for login: " . $login);
+            wp_send_json_error(array('message' => 'Invalid or expired token. Please request a new password reset link.'));
+            return;
+        }
         
         // Get user
         $user = get_user_by('login', $login);
@@ -863,23 +896,29 @@ error_log("YPrint DEBUG: Generated simple token for user: {$user_login} (ID: {$u
         error_log("YPrint: Resetting password for user ID: " . $user->ID);
         
         // Reset password - use wp_set_password directly for reliability
-wp_set_password($password, $user->ID);
-error_log("YPrint: Password updated for user ID: " . $user->ID);
-
-// Keine Token-Überprüfung oder -Löschung in der Datenbank mehr
-error_log("YPrint: Password reset token validation bypassed for user ID: " . $user->ID);
-
-// Send confirmation email
-$this->send_password_changed_email($user);
-
-error_log("YPrint: Password reset successful for user ID: " . $user->ID);
-
-// Detaillierte Erfolgsmeldung
-wp_send_json_success(array(
-    'message' => 'Password reset successfully.',
-    'user_id' => $user->ID,
-    'token_deleted' => ($delete_result !== false)
-));
+        wp_set_password($password, $user->ID);
+        error_log("YPrint: Password updated for user ID: " . $user->ID);
+    
+        // Delete used token from database
+        $token_table = $wpdb->prefix . 'password_reset_tokens';
+        $delete_result = $wpdb->delete(
+            $token_table,
+            array('user_id' => $user->ID),
+            array('%d')
+        );
+        error_log("YPrint: Password reset token deleted for user ID: " . $user->ID);
+    
+        // Send confirmation email
+        $this->send_password_changed_email($user);
+    
+        error_log("YPrint: Password reset successful for user ID: " . $user->ID);
+    
+        // Detaillierte Erfolgsmeldung
+        wp_send_json_success(array(
+            'message' => 'Password reset successfully.',
+            'user_id' => $user->ID,
+            'token_deleted' => ($delete_result !== false)
+        ));
     }
     
     /**
@@ -902,9 +941,40 @@ private function verify_token($login, $token) {
         return false;
     }
     
-    // Immer true zurückgeben, keine Token-Überprüfung mehr
-    error_log("YPrint: Token verification bypassed for user ID: {$user->ID}");
-    return true;
+    global $wpdb;
+    $token_table = $wpdb->prefix . 'password_reset_tokens';
+    $user_id = $user->ID;
+    
+    // Fetch token from database
+    $stored_token = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT * FROM $token_table WHERE user_id = %d AND expires_at > %s ORDER BY created_at DESC LIMIT 1",
+            $user_id,
+            current_time('mysql')
+        )
+    );
+    
+    if (!$stored_token) {
+        error_log("YPrint: No valid token found for user ID: {$user_id}");
+        return false;
+    }
+    
+    // We can't directly compare hashed tokens, so we'll need to use a timing-safe comparison
+    // or a special WordPress function if available
+    if (function_exists('wp_check_password')) {
+        $is_valid = wp_check_password($token, $stored_token->token_hash);
+    } else {
+        // Fallback to a simple comparison (not recommended for production)
+        $is_valid = ($token === $stored_token->token_hash);
+    }
+    
+    if ($is_valid) {
+        error_log("YPrint: Token verified successfully for user ID: {$user_id}");
+        return true;
+    } else {
+        error_log("YPrint: Token verification failed for user ID: {$user_id}");
+        return false;
+    }
 }
     
     /**
@@ -987,12 +1057,22 @@ if (!$mail_sent) {
         return $ip;
     }
     
-    /**
- * Clean up expired tokens (nur noch als Platzhalter)
+/**
+ * Clean up expired tokens
  */
 public static function cleanup_expired_tokens() {
-    // Keine Aktion mehr nötig
-    error_log("YPrint: Token cleanup skipped - simplified security model");
+    global $wpdb;
+    $token_table = $wpdb->prefix . 'password_reset_tokens';
+    
+    // Delete all expired tokens
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM $token_table WHERE expires_at < %s",
+            current_time('mysql')
+        )
+    );
+    
+    error_log("YPrint: Expired password reset tokens cleanup completed");
 }
 }
 
