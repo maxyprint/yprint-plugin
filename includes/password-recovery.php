@@ -46,6 +46,66 @@ class YPrint_Password_Recovery {
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_scripts'));
     }
+
+    /**
+ * Send email with username hint when user confuses username and email
+ */
+private function send_username_hint_email($user) {
+    $to = $user->user_email;
+    $subject = 'Account Recovery Information';
+    
+    if (function_exists('yprint_get_email_template')) {
+        $headline = 'Information zu deiner Kontowiederherstellung';
+        $username = $user->user_login;
+        
+        $message_content = "Wir haben bemerkt, dass du möglicherweise deine E-Mail-Adresse und deinen Benutzernamen verwechselt hast.<br><br>";
+        $message_content .= "Dein Benutzername lautet: <strong>" . esc_html($username) . "</strong><br><br>";
+        $message_content .= "Falls du dein Passwort zurücksetzen möchtest, klicke bitte auf den Button unten:<br><br>";
+        
+        // Generate token for password reset
+        $token = $this->generate_token();
+        $reset_url = home_url("/recover-account/reset/{$username}/{$token}/");
+        
+        // Store token in database
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'password_reset_tokens';
+        
+        // Delete any existing tokens for this user
+        $wpdb->delete(
+            $table_name,
+            array('user_id' => $user->ID),
+            array('%d')
+        );
+        
+        // Set expiry time (1 hour from now)
+        $expires = date('Y-m-d H:i:s', time() + 3600);
+        
+        // Insert new token
+        $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $user->ID,
+                'token_hash' => wp_hash_password($token),
+                'created_at' => current_time('mysql'),
+                'expires_at' => $expires
+            ),
+            array('%d', '%s', '%s', '%s')
+        );
+        
+        $message_content .= "<a href='" . esc_url($reset_url) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Passwort zurücksetzen</a><br><br>";
+        $message_content .= "Falls du dein Passwort kennst, kannst du einfach <a href='" . esc_url(home_url('/login/')) . "'>hier</a> mit deinem Benutzernamen und deinem Passwort anmelden.<br><br>";
+        $message_content .= "Falls du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
+        
+        $message = yprint_get_email_template($headline, $username, $message_content);
+        
+        $headers = array(
+            'Content-Type: text/html; charset=UTF-8',
+            'From: YPrint <do-not-reply@yprint.de>'
+        );
+        
+        wp_mail($to, $subject, $message, $headers);
+    }
+}
     
     /**
      * Redirect WordPress's default lost password to our custom page
@@ -232,10 +292,13 @@ public function display_request_form($content) {
             </div>
             
             <form method="post" id="recover-form" style="text-align: center;">
-                <div class="yprint-form-group">
-                    <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
-                    <input type="email" name="user_email" id="user_email" class="input" placeholder="Email" required>
-                </div>
+            <div class="yprint-form-group">
+    <span class="dashicons dashicons-email" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #999;"></span>
+    <input type="email" name="user_email" id="user_email" class="input" placeholder="Email oder Benutzername" required>
+</div>
+<div id="email-hint" style="font-size: 12px; margin-top: 5px; text-align: center; color: #999;">
+    Gib deine E-Mail-Adresse ein. Falls du dich mit deinem Benutzernamen anmeldest, kannst du auch diesen eingeben.
+</div>
                 <div class="yprint-form-group">
                     <input type="submit" name="wp-submit" value="Recover Account" class="button button-primary">
                 </div>
@@ -664,19 +727,32 @@ public function display_reset_form($content) {
             wp_send_json_error(array('message' => 'Too many requests. Please try again later.'));
         }
         
-        // Parse and validate email
-        $user_email = isset($_POST['user_email']) ? sanitize_email($_POST['user_email']) : '';
-        if (empty($user_email)) {
-            wp_send_json_error(array('message' => 'Please enter a valid email address.'));
-        }
+        // Parse input - could be email or username
+$user_input = isset($_POST['user_email']) ? trim($_POST['user_email']) : '';
+if (empty($user_input)) {
+    wp_send_json_error(array('message' => 'Bitte gib deine E-Mail-Adresse oder deinen Benutzernamen ein.'));
+}
+
+// Determine if input is email or username
+$is_email = is_email($user_input);
+$user_email = $is_email ? sanitize_email($user_input) : '';
+$username = !$is_email ? sanitize_user($user_input) : '';
+
+// Find user by email or username
+$user = $is_email ? get_user_by('email', $user_email) : get_user_by('login', $username);
         
-        // Find user by email
-        $user = get_user_by('email', $user_email);
-        
-        // Always return success to prevent user enumeration
-        if (!$user) {
-            wp_send_json_success(array('message' => 'If an account exists with that email, you will receive recovery instructions.'));
-        }
+        // Check if email exists but was entered as username
+$potential_user = get_user_by('login', $user_email);
+if (!$user && !$potential_user) {
+    // Always return success to prevent user enumeration
+    wp_send_json_success(array('message' => 'If an account exists with that email, you will receive recovery instructions.'));
+} elseif (!$user && $potential_user) {
+    // User entered their username instead of email - send a special email
+    $this->send_username_hint_email($potential_user);
+    
+    // Return success to prevent user enumeration
+    wp_send_json_success(array('message' => 'If an account exists with that email, you will receive recovery instructions.'));
+}
         
         // Generate token
         $token = $this->generate_token();

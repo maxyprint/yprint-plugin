@@ -359,7 +359,7 @@ function yprint_login_feedback_shortcode() {
     if ($show_recover_option) {
         echo '<div style="text-align: center; margin-top: 10px;">
                 <a href="' . esc_url(home_url('/recover-account/')) . '" style="color: #0079FF; font-weight: bold; text-decoration: none;">
-                    ❓ Passwort vergessen? Konto wiederherstellen
+                    ❓ Passwort vergessen oder Nutzername falsch? Konto wiederherstellen
                 </a>
               </div>';
     }
