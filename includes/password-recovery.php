@@ -513,7 +513,8 @@ public function display_reset_form($content) {
             });
         }
         
-        // Form submission
+
+// Form submission
 var resetForm = document.getElementById('reset-form');
 if (resetForm) {
     // Sicherstellen, dass das Sicherheits-Feld im Formular existiert
@@ -855,20 +856,20 @@ error_log("YPrint DEBUG: Generated simple token for user: {$user_login} (ID: {$u
         }
         
         // Detaillierte Nonce-Überprüfung mit Logging
-$nonce = isset($_POST['security']) ? $_POST['security'] : '';
-$expected_action = 'yprint_reset_nonce';
-$nonce_valid = wp_verify_nonce($nonce, $expected_action);
-
-error_log("YPrint: Nonce check - Received: {$nonce}, Action: {$expected_action}, Valid: " . ($nonce_valid ? 'YES' : 'NO'));
-
-// Temporäre Lösung: Weitermachen auch wenn der Nonce ungültig ist
-// Entferne diesen Code in der Produktion!
-if (!$nonce_valid) {
-    error_log("YPrint: WARNING - Bypassing nonce verification for testing purposes");
-    // In der Produktion würde hier der folgende Code stehen:
-    // wp_send_json_error(array('message' => 'Security check failed. Please try again or request a new reset link.'));
-    // return;
-}
+    $nonce = isset($_POST['security']) ? $_POST['security'] : '';
+    $expected_action = 'yprint_reset_nonce';
+    $nonce_valid = wp_verify_nonce($nonce, $expected_action);
+    
+    error_log("YPrint: Nonce check - Received: {$nonce}, Action: {$expected_action}, Valid: " . ($nonce_valid ? 'YES' : 'NO'));
+    
+    // Temporäre Lösung: Weitermachen auch wenn der Nonce ungültig ist
+    // Entferne diesen Code in der Produktion!
+    if (!$nonce_valid) {
+        error_log("YPrint: WARNING - Bypassing nonce verification for testing purposes");
+        // In der Produktion würde hier der folgende Code stehen:
+        // wp_send_json_error(array('message' => 'Security check failed. Please try again or request a new reset link.'));
+        // return;
+    }
         
         try {
             $this->process_password_reset();
