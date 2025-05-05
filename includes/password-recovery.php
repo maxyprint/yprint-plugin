@@ -209,90 +209,74 @@ public function display_request_form($content) {
     ob_start();
     ?>
     <style>
-        .page-wrapper {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 70vh;
-            padding: 20px;
-        }
-        
+    .page-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 70vh;
+        padding: 20px;
+    }
+    
+    .yprint-recover-container {
+        width: 100%;
+        max-width: 400px;
+        padding: 30px;
+        background-color: #ffffff;
+        border: 1px solid #d3d3d3;
+        border-radius: 10px;
+        box-shadow: none;
+    }
+    
+    .yprint-logo {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .yprint-logo div {
+        width: 150px;
+        height: 100px;
+        background-image: url("https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg");
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    
+    .yprint-form-group {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .yprint-form-group input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        padding-left: 15px;
+        border: 1px solid #ddd;
+        border-radius: 30px;
+        background-color: #F6F7FA;
+        text-align: center;
+        font-size: 16px;
+    }
+    
+    .yprint-form-group input[type="submit"] {
+        width: 100%;
+        padding: 10px;
+        background-color: #007aff;
+        border: none;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+    
+    @media (max-width: 480px) {
         .yprint-recover-container {
-            width: 100%;
-            max-width: 400px;
-            padding: 30px;
-            background-color: #ffffff;
-            border: 1px solid #d3d3d3;
-            border-radius: 10px;
-            box-shadow: none;
+            padding: 20px;
+            width: 90%;
         }
-        
-        .yprint-logo {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin-bottom: 30px;
-        }
-        
-        .yprint-logo div {
-            width: 200px;
-            height: 100px;
-            background-image: url("https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg");
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-        }
-        
-        .yprint-form-group {
-            position: relative;
-            margin-bottom: 20px;
-        }
-        
-        .yprint-form-group input[type="email"] {
-            width: 100%;
-            padding: 10px 10px 10px 35px;
-            border: 1px solid #ddd;
-            border-radius: 30px;
-            background-color: #F6F7FA;
-            text-align: center;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        
-        .yprint-form-group input[type="submit"] {
-            width: 100%;
-            padding: 10px;
-            background-color: #007aff;
-            border: none;
-            color: #fff;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        #loading .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #007aff;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        
-        @media (max-width: 480px) {
-            .yprint-recover-container {
-                padding: 20px;
-                width: 90%;
-            }
-        }
-    </style>
+    }
+</style>
     
     <div class="page-wrapper">
         <div class="yprint-recover-container">
@@ -444,25 +428,23 @@ public function display_reset_form($content) {
                     
                     <h3 style="margin-bottom: 20px;">Reset Your Password</h3>
                     
-                    <div class="yprint-form-group" style="position: relative; margin-bottom: 20px;">
-                        <span class="dashicons dashicons-lock" style="position: absolute; left: 10px; top: 40%; transform: translateY(-50%); color: #999;"></span>
-                        <input type="password" name="password" id="password" class="input" placeholder="New Password" required style="width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #ddd; border-radius: 30px; background-color: #F6F7FA; text-align: center;">
-                        <div id="password-strength" style="font-size: 12px; margin-top: 5px; text-align: left; color: #999;">
-                            Password must be at least 8 characters long and include a capital letter and a special character.
-                        </div>
-                    </div>
+                    <div class="yprint-form-group">
+    <input type="password" name="password" id="password" class="input" placeholder="New Password" required>
+    <div id="password-strength" style="font-size: 12px; margin-top: 5px; text-align: left; color: #999;">
+        Password must be at least 8 characters long and include a capital letter and a special character.
+    </div>
+</div>
+
+<div class="yprint-form-group">
+    <input type="password" name="confirm_password" id="confirm_password" class="input" placeholder="Confirm Password" required>
+    <div id="password-match" style="font-size: 12px; margin-top: 5px; text-align: left; color: #999;">
+        Passwords must match.
+    </div>
+</div>
                     
-                    <div class="yprint-form-group" style="position: relative; margin-bottom: 20px;">
-                        <span class="dashicons dashicons-lock" style="position: absolute; left: 10px; top: 40%; transform: translateY(-50%); color: #999;"></span>
-                        <input type="password" name="confirm_password" id="confirm_password" class="input" placeholder="Confirm Password" required style="width: 100%; padding: 10px 10px 10px 35px; border: 1px solid #ddd; border-radius: 30px; background-color: #F6F7FA; text-align: center;">
-                        <div id="password-match" style="font-size: 12px; margin-top: 5px; text-align: left; color: #999;">
-                            Passwords must match.
-                        </div>
-                    </div>
-                    
-                    <div class="yprint-form-group" style="text-align: center; margin-bottom: 20px;">
-                        <input type="submit" name="wp-submit" value="Reset Password" class="button button-primary" style="width: 100%; padding: 10px; background-color: #007aff; border: none; color: #fff; border-radius: 5px;">
-                    </div>
+<div class="yprint-form-group" style="text-align: center; margin-bottom: 20px;">
+    <input type="submit" name="wp-submit" value="Reset Password" class="button button-primary">
+</div>
                 </form>
                 
                 <!-- Loading animation -->
