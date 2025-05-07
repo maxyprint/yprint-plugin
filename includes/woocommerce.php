@@ -1173,31 +1173,32 @@ function updateQuantity(cartItemKey, quantity, $item_element) {
             quantity: quantity
         },
         success: function(response) {
-            if (response.success && response.cart_subtotal !== undefined) {
-                console.log('Quantity update successful:', response); // Log success
-
-                // Zwischensumme aktualisieren - Target the class
-                $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
+            console.log('Quantity update response:', response); // Log the full response
+            
+            if (response.success && response.data) {
+                // Zwischensumme aktualisieren
+                if (response.data.cart_subtotal) {
+                    $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.data.cart_subtotal);
+                }
                 
                 // Warenkorb-Anzahl im Header aktualisieren
-                if (response.cart_count !== undefined) {
-                    $cart.find('.yprint-mini-cart-count').text(response.cart_count);
+                if (response.data.cart_count !== undefined) {
+                    $cart.find('.yprint-mini-cart-count').text(response.data.cart_count);
                 }
 
                 // Wenn die Antwort den aktualisierten Artikel-Subtotal enthält, aktualisiere ihn auch
-                if(response.item_subtotal !== undefined && $item_element) {
-                    $item_element.find('.yprint-mini-cart-item-price').html(response.item_subtotal);
+                if(response.data.item_subtotal && $item_element) {
+                    $item_element.find('.yprint-mini-cart-item-price').html(response.data.item_subtotal);
                 }
                 
                 // Aktualisiere die Mengenanzeige mit der tatsächlichen Menge vom Server
-                if(response.updated_quantity !== undefined && $item_element) {
-                    $item_element.find('.qty-value').text(response.updated_quantity);
-                    $item_element.find('.qty-input').val(response.updated_quantity);
+                if(response.data.updated_quantity !== undefined && $item_element) {
+                    $item_element.find('.qty-value').text(response.data.updated_quantity);
+                    $item_element.find('.qty-input').val(response.data.updated_quantity);
                 }
 
                 // Trigger custom event after quantity is updated
                 $(document.body).trigger('yprint_mini_cart_quantity_updated', [cartItemKey, quantity]);
-
             } else {
                 console.error('Ungültige Antwort beim Aktualisieren der Menge:', response);
                 // Bei einem Fehler den Warenkorb komplett aktualisieren
@@ -1263,7 +1264,7 @@ function yprint_update_cart_quantity() {
     // }
 
     $cart_item_key = isset($_POST['cart_item_key']) ? sanitize_text_field($_POST['cart_item_key']) : '';
-    $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0; // Start with 0, check against 1 later
+    $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0;
 
     if ($cart_item_key && $quantity > 0 && !is_null(WC()->cart)) {
         // Stellen Sie sicher, dass die Menge eine positive Zahl ist
@@ -1272,8 +1273,8 @@ function yprint_update_cart_quantity() {
         // Alte Menge zur Fehlerbehandlung speichern
         $old_quantity = WC()->cart->get_cart_item($cart_item_key)['quantity'] ?? 1;
 
-        // Setze die neue Menge (ohne force=true, um WooCommerce-Validierungen zu respektieren)
-        $updated = WC()->cart->set_quantity($cart_item_key, $quantity);
+        // Setze die neue Menge mit force=true, um sicherzustellen, dass die Änderung durchgeführt wird
+        $updated = WC()->cart->set_quantity($cart_item_key, $quantity, true);
         
         // Wenn set_quantity false zurückgibt, gab es ein Problem
         if ($updated === false) {
@@ -1299,12 +1300,11 @@ function yprint_update_cart_quantity() {
         }
 
         // Daten zurückgeben
-        wp_send_json(array(
-            'success' => true,
+        wp_send_json_success(array(
             'cart_subtotal' => WC()->cart->get_cart_subtotal(),
-            'cart_count' => WC()->cart->get_cart_contents_count(), // Aktualisierte Gesamtzahl
-            'item_subtotal' => $item_subtotal_html, // Der aktualisierte Preis für diesen spezifischen Artikel
-            'updated_quantity' => $updated_cart_item['quantity'] // Die tatsächlich aktualisierte Menge
+            'cart_count' => WC()->cart->get_cart_contents_count(), 
+            'item_subtotal' => $item_subtotal_html,
+            'updated_quantity' => $updated_cart_item['quantity'] 
         ));
 
     } else {
