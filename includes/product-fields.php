@@ -16,24 +16,31 @@ if (!defined('ABSPATH')) {
 class YPrint_Product_Fields {
     
     /**
-     * Initialize the class
-     */
-    public static function init() {
-        // Admin: Register custom product fields
-        add_action('init', array(__CLASS__, 'register_product_custom_fields'));
-        
-        // Frontend: Register shortcodes for accessing product data
-        add_action('init', array(__CLASS__, 'register_product_shortcodes'));
-        
-        // REST API: Register custom endpoint
-        add_action('rest_api_init', array(__CLASS__, 'register_product_endpoint'));
-        
-        // API Authentication: Allow public access to product data
-        add_filter('rest_authentication_errors', array(__CLASS__, 'allow_public_product_access'));
-        
-        // Enqueue scripts
-        add_action('wp_enqueue_scripts', array(__CLASS__, 'add_api_nonce'));
-    }
+ * Initialize the class
+ */
+public static function init() {
+    // Admin: Register custom product fields
+    add_action('init', array(__CLASS__, 'register_product_custom_fields'));
+    
+    // Frontend: Register shortcodes for accessing product data
+    add_action('init', array(__CLASS__, 'register_product_shortcodes'));
+    
+    // REST API: Register custom endpoint
+    add_action('rest_api_init', array(__CLASS__, 'register_product_endpoint'));
+    
+    // API Authentication: Allow public access to product data
+    add_filter('rest_authentication_errors', array(__CLASS__, 'allow_public_product_access'));
+    
+    // Enqueue scripts
+    add_action('wp_enqueue_scripts', array(__CLASS__, 'add_api_nonce'));
+    
+    // Register the redirection script in footer
+    add_action('wp_footer', array(__CLASS__, 'add_product_redirect_script'));
+    
+    // Register additional product shortcodes
+    add_shortcode('yprint_product', array(__CLASS__, 'product_container_shortcode'));
+    add_shortcode('yp_gallery_slider', array(__CLASS__, 'gallery_slider_shortcode'));
+}
     
     /**
      * Register custom fields for WooCommerce products
@@ -402,6 +409,299 @@ class YPrint_Product_Fields {
         return $output;
     }
     
+/**
+ * Add JavaScript for product redirection
+ */
+public static function add_product_redirect_script() {
+    ?>
+    <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        // All elements with classes starting with "yprint-product-"
+        var productElements = document.querySelectorAll('[class*="yprint-product-"]');
+        
+        productElements.forEach(function(element) {
+            // Search through the element's classes
+            var classes = element.className.split(' ');
+            var productId = null;
+            
+            // Find the yprint-product-XXXX class and extract the ID
+            classes.forEach(function(className) {
+                if (className.startsWith('yprint-product-')) {
+                    productId = className.replace('yprint-product-', '');
+                }
+            });
+            
+            if (productId) {
+                // Make element clickable
+                element.style.cursor = 'pointer';
+                
+                // Add visual hint
+                element.title = 'Zum Produkt gehen';
+                
+                // Add click event
+                element.addEventListener('click', function(e) {
+                    // Don't redirect if clicking on a link or button inside the container
+                    if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON' || 
+                        e.target.closest('a') || e.target.closest('button')) {
+                        return;
+                    }
+                    window.location.href = '<?php echo esc_url(home_url("/products/")); ?>?product_id=' + productId;
+                });
+            }
+        });
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Shortcode to create a clickable container for a specific product
+ * Usage: [yprint_product id="3799"]Content[/yprint_product]
+ */
+public static function product_container_shortcode($atts, $content = null) {
+    $atts = shortcode_atts(
+        array(
+            'id' => '',
+            'class' => ''
+        ),
+        $atts,
+        'yprint_product'
+    );
+    
+    $product_id = $atts['id'];
+    $extra_class = $atts['class'];
+    
+    if (empty($product_id)) {
+        return $content;
+    }
+    
+    $classes = 'yprint-product-container yprint-product-' . esc_attr($product_id);
+    if (!empty($extra_class)) {
+        $classes .= ' ' . esc_attr($extra_class);
+    }
+    
+    return '<div class="' . $classes . '">' . do_shortcode($content) . '</div>';
+}
+
+/**
+ * Shortcode for a modern product gallery slider with vertical thumbnails
+ * Usage: [yp_gallery_slider] or [yp_gallery_slider id="123"]
+ */
+public static function gallery_slider_shortcode($atts) {
+    $atts = shortcode_atts(
+        array(
+            'id' => '' // Optional direct product ID
+        ),
+        $atts,
+        'yp_gallery_slider'
+    );
+    
+    ob_start();
+    
+    // Get product ID from attribute or URL parameter
+    $product_id = !empty($atts['id']) ? intval($atts['id']) : 0;
+    
+    if (empty($product_id)) {
+        $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
+    }
+    
+    // Get product images
+    $gallery_images = array();
+    $default_image = 'https://yprint.de/wp-content/uploads/2025/03/front.webp';
+    
+    if ($product_id > 0 && function_exists('wc_get_product')) {
+        $product = wc_get_product($product_id);
+        
+        if ($product) {
+            // Get main image
+            $main_image_id = $product->get_image_id();
+            if ($main_image_id) {
+                $main_image_url = wp_get_attachment_image_url($main_image_id, 'full');
+                if ($main_image_url) {
+                    $default_image = $main_image_url;
+                    $gallery_images[] = $main_image_url;
+                }
+            }
+            
+            // Get gallery images
+            $gallery_ids = $product->get_gallery_image_ids();
+            if (!empty($gallery_ids)) {
+                foreach ($gallery_ids as $gallery_id) {
+                    $gallery_image_url = wp_get_attachment_image_url($gallery_id, 'full');
+                    if ($gallery_image_url) {
+                        $gallery_images[] = $gallery_image_url;
+                    }
+                }
+            }
+        }
+    }
+    
+    // If no images found, use the default image
+    if (empty($gallery_images)) {
+        $gallery_images[] = $default_image;
+    }
+    
+    // Prepare images as JSON for JavaScript
+    $gallery_images_json = json_encode($gallery_images);
+    
+    // CSS for the slider
+    ?>
+    <style>
+        .yprint-gallery-container {
+            max-width: 100%;
+            margin: 0 auto 30px auto;
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .yprint-gallery-container {
+                background-color: white;
+                border-radius: 30px;
+                border: 1px solid #e0e0e0;
+                padding: 15px;
+                box-sizing: border-box;
+            }
+        }
+        
+        .yprint-gallery-slider {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background: #e0e0e0;
+            border: 1px solid #DFDFDF;
+        }
+        
+        .yprint-gallery-slides {
+            display: flex;
+            transition: transform 0.3s ease;
+        }
+        
+        .yprint-gallery-slide {
+            min-width: 100%;
+            box-sizing: border-box;
+            background: #F6F7FA;
+        }
+        
+        .yprint-gallery-slide img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .yprint-gallery-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 80px;
+        }
+        
+        .yprint-gallery-thumbnail {
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+            border: 1px solid #DFDFDF;
+            overflow: hidden;
+            background: #e0e0e0;
+        }
+        
+        .yprint-gallery-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .yprint-gallery-thumbnail.active {
+            opacity: 1;
+            border: 2px solid #707070;
+        }
+        
+        @media (max-width: 768px) {
+            .yprint-gallery-container {
+                flex-direction: column;
+            }
+            
+            .yprint-gallery-nav {
+                flex-direction: row;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .yprint-gallery-thumbnail {
+                width: 60px;
+                height: 60px;
+            }
+        }
+    </style>
+    
+    <div class="yprint-gallery-container">
+        <div class="yprint-gallery-slider">
+            <div class="yprint-gallery-slides" id="yprintGallerySlides">
+                <?php foreach ($gallery_images as $index => $image_url): ?>
+                <div class="yprint-gallery-slide">
+                    <img src="<?php echo esc_url($image_url); ?>" alt="Produktbild <?php echo $index + 1; ?>">
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <div class="yprint-gallery-nav" id="yprintGalleryNav">
+            <?php foreach ($gallery_images as $index => $image_url): ?>
+            <div class="yprint-gallery-thumbnail <?php echo $index === 0 ? 'active' : ''; ?>">
+                <img src="<?php echo esc_url($image_url); ?>" alt="Thumbnail <?php echo $index + 1; ?>">
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const slidesContainer = document.getElementById('yprintGallerySlides');
+        const thumbnails = document.querySelectorAll('.yprint-gallery-thumbnail');
+        
+        let currentSlide = 0;
+        const galleryImages = <?php echo $gallery_images_json; ?>;
+        
+        function showSlide(index) {
+            currentSlide = index;
+            slidesContainer.style.transform = `translateX(-${currentSlide * 100}%)`;
+            
+            // Mark active thumbnail
+            thumbnails.forEach((thumb, idx) => {
+                thumb.classList.toggle('active', idx === currentSlide);
+            });
+        }
+        
+        // Add event listeners for thumbnails
+        thumbnails.forEach((thumb, index) => {
+            thumb.addEventListener('click', () => {
+                showSlide(index);
+            });
+        });
+        
+        // Add keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                currentSlide = (currentSlide - 1 + galleryImages.length) % galleryImages.length;
+                showSlide(currentSlide);
+            } else if (e.key === 'ArrowRight') {
+                currentSlide = (currentSlide + 1) % galleryImages.length;
+                showSlide(currentSlide);
+            }
+        });
+        
+        // Initial display
+        showSlide(0);
+    });
+    </script>
+    <?php
+    
+    return ob_get_clean();
+}
+
     /**
      * Register REST API endpoint for product data
      */
@@ -478,3 +778,4 @@ class YPrint_Product_Fields {
 
 // Initialize the class
 YPrint_Product_Fields::init();
+
