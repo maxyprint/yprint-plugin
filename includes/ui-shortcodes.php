@@ -1,6 +1,6 @@
 <?php
 /**
- * UI-related shortcodes for YPrint
+ * UI-related shortcodes and components for YPrint
  *
  * @package YPrint
  */
@@ -62,3 +62,116 @@ function styled_separator_shortcode($atts) {
     return '<div style="background-color: ' . esc_attr($atts['color']) . '; width: ' . esc_attr($atts['width']) . '; height: ' . esc_attr($atts['height']) . '; margin: ' . esc_attr($atts['margin']) . ';"></div>';
 }
 add_shortcode('styled_separator', 'styled_separator_shortcode');
+
+/**
+ * Designer Button Shortcode - Links to the yprint designer tool
+ * 
+ * Usage: [designer_button label="Design" fallback_id="3657"]
+ * 
+ * @param array $atts Shortcode attributes
+ * @return string The designer button HTML
+ */
+function yprint_designer_button_shortcode($atts) {
+    // Default attributes
+    $atts = shortcode_atts(array(
+        'fallback_id' => '', // Fallback product ID
+        'label' => 'Design' // Customizable button text
+    ), $atts);
+    
+    // Get current product
+    global $product;
+    
+    // Get product SKU (article number)
+    $template_id = $product ? $product->get_sku() : $atts['fallback_id'];
+    
+    // If no SKU is available, use fallback ID
+    if (empty($template_id)) {
+        $template_id = $atts['fallback_id'];
+    }
+    
+    // Fallback, if still no ID
+    if (empty($template_id)) {
+        $template_id = '3657'; // Default template ID
+    }
+    
+    // Generate button HTML
+    $button_html = sprintf(
+        '<a href="%s" class="custom-designer-button" style="display: inline-block; background-color: #0079FF; color: white; padding: 5px 20px; text-decoration: none; border-radius: 15px; font-weight: bold; text-align: center; width: 100%%; box-sizing: border-box;">%s</a>',
+        esc_url(add_query_arg('template_id', $template_id, 'https://yprint.de/designer')),
+        esc_html($atts['label'])
+    );
+    
+    return $button_html;
+}
+add_shortcode('designer_button', 'yprint_designer_button_shortcode');
+
+/**
+ * Loading Animation for specified pages
+ */
+function yprint_loading_animation() {
+    // Only show on products page
+    if (!is_page('products')) {
+        return;
+    }
+    
+    ?>
+    <div id="yprint-loading-overlay">
+        <div id="yprint-loading-animation">
+            <img src="https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg" alt="Loading...">
+        </div>
+    </div>
+
+    <style>
+    #yprint-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.8);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #yprint-loading-animation {
+        width: 200px;
+        height: 200px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #yprint-loading-animation img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        animation: yprint-glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes yprint-glow {
+        0% {
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.7));
+        }
+        100% {
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 1));
+        }
+    }
+    </style>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hide animation after 2 seconds
+        setTimeout(function() {
+            var overlay = document.getElementById('yprint-loading-overlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+            }
+        }, 2000);
+    });
+    </script>
+    <?php
+}
+add_action('wp_footer', 'yprint_loading_animation');
+

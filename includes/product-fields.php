@@ -1,0 +1,480 @@
+<?php
+/**
+ * Product Fields functionality for YPrint
+ *
+ * @package YPrint
+ */
+
+// Exit if accessed directly
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+/**
+ * Class to manage custom product fields, shortcodes, and REST API for YPrint products
+ */
+class YPrint_Product_Fields {
+    
+    /**
+     * Initialize the class
+     */
+    public static function init() {
+        // Admin: Register custom product fields
+        add_action('init', array(__CLASS__, 'register_product_custom_fields'));
+        
+        // Frontend: Register shortcodes for accessing product data
+        add_action('init', array(__CLASS__, 'register_product_shortcodes'));
+        
+        // REST API: Register custom endpoint
+        add_action('rest_api_init', array(__CLASS__, 'register_product_endpoint'));
+        
+        // API Authentication: Allow public access to product data
+        add_filter('rest_authentication_errors', array(__CLASS__, 'allow_public_product_access'));
+        
+        // Enqueue scripts
+        add_action('wp_enqueue_scripts', array(__CLASS__, 'add_api_nonce'));
+    }
+    
+    /**
+     * Register custom fields for WooCommerce products
+     */
+    public static function register_product_custom_fields() {
+        // Skip if WooCommerce is not active
+        if (!class_exists('WooCommerce')) {
+            return;
+        }
+        
+        // Add Product Tab
+        add_filter('woocommerce_product_data_tabs', array(__CLASS__, 'add_product_data_tab'));
+        
+        // Add Tab Contents
+        add_action('woocommerce_product_data_panels', array(__CLASS__, 'add_product_data_fields'));
+        
+        // Save Custom Fields
+        add_action('woocommerce_process_product_meta', array(__CLASS__, 'save_product_fields'));
+    }
+    
+    /**
+     * Add custom product data tab
+     */
+    public static function add_product_data_tab($tabs) {
+        $tabs['yprint_details'] = array(
+            'label'    => __('yprint Zusatzdaten', 'yprint'),
+            'target'   => 'yprint_product_data',
+            'class'    => array('show_if_simple', 'show_if_variable'),
+            'priority' => 21
+        );
+        return $tabs;
+    }
+    
+    /**
+     * Add custom fields to product data tab
+     */
+    public static function add_product_data_fields() {
+        ?>
+        <div id="yprint_product_data" class="panel woocommerce_options_panel">
+            <div class="options_group">
+                <?php
+                // Hersteller
+                woocommerce_wp_text_input(array(
+                    'id'          => '_yprint_manufacturer',
+                    'label'       => __('Hersteller', 'yprint'),
+                    'placeholder' => '',
+                    'desc_tip'    => 'true',
+                    'description' => __('Gib den Hersteller des Produkts an.', 'yprint')
+                ));
+
+                // Farben
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_colors',
+                    'label'       => __('Verfügbare Farben', 'yprint'),
+                    'placeholder' => 'z.B. Schwarz, Weiß, Grau',
+                    'desc_tip'    => 'true',
+                    'description' => __('Liste der verfügbaren Farben.', 'yprint')
+                ));
+
+                // Sizing
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_sizing',
+                    'label'       => __('Größeninformationen', 'yprint'),
+                    'placeholder' => 'Größentabelle oder Hinweise',
+                    'desc_tip'    => 'true',
+                    'description' => __('Informationen zur Größenauswahl.', 'yprint')
+                ));
+
+                // Note
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_note',
+                    'label'       => __('Besondere Hinweise', 'yprint'),
+                    'placeholder' => 'Wichtige Hinweise zum Produkt',
+                    'desc_tip'    => 'true',
+                    'description' => __('Besondere Hinweise zum Produkt.', 'yprint')
+                ));
+
+                // Details
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_details',
+                    'label'       => __('Produktdetails', 'yprint'),
+                    'placeholder' => 'Detaillierte Produktinformationen',
+                    'desc_tip'    => 'true',
+                    'description' => __('Detaillierte Informationen zum Produkt.', 'yprint')
+                ));
+
+                // Features
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_features',
+                    'label'       => __('Features', 'yprint'),
+                    'placeholder' => 'Produktmerkmale',
+                    'desc_tip'    => 'true',
+                    'description' => __('Besondere Merkmale des Produkts.', 'yprint')
+                ));
+
+                // Care Instructions
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_care',
+                    'label'       => __('Pflegehinweise', 'yprint'),
+                    'placeholder' => 'Waschanleitung, etc.',
+                    'desc_tip'    => 'true',
+                    'description' => __('Pflegehinweise für das Produkt.', 'yprint')
+                ));
+
+                // Customizations
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_customizations',
+                    'label'       => __('Anpassungsmöglichkeiten', 'yprint'),
+                    'placeholder' => 'Mögliche individuelle Anpassungen',
+                    'desc_tip'    => 'true',
+                    'description' => __('Anpassungsmöglichkeiten für das Produkt.', 'yprint')
+                ));
+
+                // Fabric
+                woocommerce_wp_textarea_input(array(
+                    'id'          => '_yprint_fabric',
+                    'label'       => __('Material/Stoff', 'yprint'),
+                    'placeholder' => 'z.B. 100% Bio-Baumwolle',
+                    'desc_tip'    => 'true',
+                    'description' => __('Informationen zum Material des Produkts.', 'yprint')
+                ));
+                ?>
+            </div>
+        </div>
+        <?php
+    }
+    
+    /**
+     * Save custom product fields
+     */
+    public static function save_product_fields($post_id) {
+        $fields = array(
+            '_yprint_manufacturer',
+            '_yprint_colors',
+            '_yprint_sizing',
+            '_yprint_note',
+            '_yprint_details',
+            '_yprint_features',
+            '_yprint_care',
+            '_yprint_customizations',
+            '_yprint_fabric'
+        );
+
+        foreach ($fields as $field) {
+            if (isset($_POST[$field])) {
+                update_post_meta($post_id, $field, sanitize_textarea_field($_POST[$field]));
+            }
+        }
+    }
+    
+    /**
+     * Register product shortcodes
+     */
+    public static function register_product_shortcodes() {
+        // Produkt-Titel
+        add_shortcode('yprint_title', array(__CLASS__, 'product_title_shortcode'));
+        
+        // Produkt-ID
+        add_shortcode('yprint_id', array(__CLASS__, 'product_id_shortcode'));
+        
+        // Produkt-Beschreibung
+        add_shortcode('yprint_description', array(__CLASS__, 'product_description_shortcode'));
+        
+        // Produkt-Bild
+        add_shortcode('yprint_image', array(__CLASS__, 'product_image_shortcode'));
+        
+        // Produkt-Galerie
+        add_shortcode('yprint_gallery', array(__CLASS__, 'product_gallery_shortcode'));
+        
+        // Produkt-Preis
+        add_shortcode('yprint_price', array(__CLASS__, 'product_price_shortcode'));
+        
+        // In den Warenkorb Button
+        add_shortcode('yprint_add_to_cart', array(__CLASS__, 'add_to_cart_shortcode'));
+        
+        // Benutzerdefinierte Felder als Shortcodes registrieren
+        $custom_fields = array(
+            'manufacturer', 'colors', 'sizing', 'note', 
+            'details', 'features', 'care', 'customizations', 'fabric'
+        );
+        
+        foreach ($custom_fields as $field) {
+            add_shortcode('yprint_' . $field, array(__CLASS__, 'custom_field_shortcode'));
+        }
+    }
+    
+    /**
+     * Helper function to get current product
+     */
+    public static function get_current_product() {
+        global $product;
+        
+        // First try to get product from global
+        if (is_a($product, 'WC_Product')) {
+            return $product;
+        }
+        
+        // Then try from query parameter
+        $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : 0;
+        if ($product_id) {
+            return wc_get_product($product_id);
+        }
+        
+        // Then try from post
+        global $post;
+        if (is_a($post, 'WP_Post') && 'product' === get_post_type($post->ID)) {
+            return wc_get_product($post->ID);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Shortcode: Product Title
+     */
+    public static function product_title_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-title',
+            'tag' => 'h1'
+        ), $atts);
+        
+        return '<' . esc_attr($atts['tag']) . ' class="' . esc_attr($atts['class']) . '">' . 
+               esc_html($product->get_name()) . 
+               '</' . esc_attr($atts['tag']) . '>';
+    }
+    
+    /**
+     * Shortcode: Product ID
+     */
+    public static function product_id_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-id',
+            'label' => 'Produkt-ID:',
+        ), $atts);
+        
+        return '<div class="' . esc_attr($atts['class']) . '">' . 
+               esc_html($atts['label']) . ' ' . esc_html($product->get_id()) . 
+               '</div>';
+    }
+    
+    /**
+     * Shortcode: Product Description
+     */
+    public static function product_description_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-description',
+        ), $atts);
+        
+        return '<div class="' . esc_attr($atts['class']) . '">' . 
+               wpautop($product->get_description()) . 
+               '</div>';
+    }
+    
+    /**
+     * Shortcode: Product Image
+     */
+    public static function product_image_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-image',
+            'size' => 'large'
+        ), $atts);
+        
+        return '<div class="' . esc_attr($atts['class']) . '">' . 
+               $product->get_image($atts['size']) . 
+               '</div>';
+    }
+    
+    /**
+     * Shortcode: Product Gallery
+     */
+    public static function product_gallery_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-gallery',
+            'thumb_class' => 'yprint-gallery-thumb',
+            'size' => 'thumbnail'
+        ), $atts);
+        
+        $attachment_ids = $product->get_gallery_image_ids();
+        if (empty($attachment_ids)) return '';
+        
+        $output = '<div class="' . esc_attr($atts['class']) . '">';
+        foreach ($attachment_ids as $attachment_id) {
+            $output .= '<div class="' . esc_attr($atts['thumb_class']) . '">';
+            $output .= wp_get_attachment_image($attachment_id, $atts['size']);
+            $output .= '</div>';
+        }
+        $output .= '</div>';
+        
+        return $output;
+    }
+    
+    /**
+     * Shortcode: Product Price
+     */
+    public static function product_price_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-price',
+        ), $atts);
+        
+        return '<div class="' . esc_attr($atts['class']) . '">' . 
+               $product->get_price_html() . 
+               '</div>';
+    }
+    
+    /**
+     * Shortcode: Add to Cart Button
+     */
+    public static function add_to_cart_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-add-to-cart-button',
+            'text' => 'In den Warenkorb',
+        ), $atts);
+        
+        return '<a href="' . esc_url($product->add_to_cart_url()) . '" class="' . esc_attr($atts['class']) . '">' . 
+               esc_html($atts['text']) . 
+               '</a>';
+    }
+    
+    /**
+     * Shortcode: Custom Field
+     */
+    public static function custom_field_shortcode($atts, $content = null, $tag = '') {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        // Extract field name from shortcode tag
+        $field_name = str_replace('yprint_', '_yprint_', $tag);
+        
+        $field_value = get_post_meta($product->get_id(), $field_name, true);
+        if (empty($field_value)) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-' . str_replace('_yprint_', '', $field_name),
+            'label' => '',
+            'tag' => 'div',
+        ), $atts);
+        
+        $output = '<' . esc_attr($atts['tag']) . ' class="' . esc_attr($atts['class']) . '">';
+        if (!empty($atts['label'])) {
+            $output .= '<span class="yprint-field-label">' . esc_html($atts['label']) . '</span> ';
+        }
+        $output .= wpautop($field_value);
+        $output .= '</' . esc_attr($atts['tag']) . '>';
+        
+        return $output;
+    }
+    
+    /**
+     * Register REST API endpoint for product data
+     */
+    public static function register_product_endpoint() {
+        register_rest_route('yprint/v1', '/product/(?P<id>\d+)', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_product_data'),
+            'permission_callback' => '__return_true', // Public access
+        ));
+    }
+    
+    /**
+     * Callback function for REST API endpoint
+     */
+    public static function get_product_data($request) {
+        $product_id = $request['id'];
+        $product = wc_get_product($product_id);
+        
+        if (!$product) {
+            return new WP_Error('product_not_found', 'Produkt nicht gefunden', array('status' => 404));
+        }
+        
+        $product_data = array(
+            'id' => $product->get_id(),
+            'name' => $product->get_name(),
+            'description' => $product->get_description(),
+            'short_description' => $product->get_short_description(),
+            'price' => $product->get_price(),
+            'regular_price' => $product->get_regular_price(),
+            'sale_price' => $product->get_sale_price(),
+            'sku' => $product->get_sku(),
+            'stock_status' => $product->get_stock_status(),
+            'featured_image' => get_the_post_thumbnail_url($product_id, 'full'),
+            
+            // Custom fields
+            'manufacturer' => get_post_meta($product_id, '_yprint_manufacturer', true),
+            'colors' => get_post_meta($product_id, '_yprint_colors', true),
+            'sizing' => get_post_meta($product_id, '_yprint_sizing', true),
+            'details' => get_post_meta($product_id, '_yprint_details', true),
+            'features' => get_post_meta($product_id, '_yprint_features', true),
+            'care' => get_post_meta($product_id, '_yprint_care', true),
+            'fabric' => get_post_meta($product_id, '_yprint_fabric', true),
+            'note' => get_post_meta($product_id, '_yprint_note', true),
+            'customizations' => get_post_meta($product_id, '_yprint_customizations', true),
+        );
+        
+        return rest_ensure_response($product_data);
+    }
+    
+    /**
+     * Add WP API nonce for frontend access
+     */
+    public static function add_api_nonce() {
+        wp_enqueue_script('wp-api');
+        wp_localize_script('wp-api', 'wpApiSettings', array(
+            'root' => esc_url_raw(rest_url()),
+            'nonce' => wp_create_nonce('wp_rest')
+        ));
+    }
+    
+    /**
+     * Allow public product access in REST API
+     */
+    public static function allow_public_product_access($permission) {
+        $route = $GLOBALS['wp']->query_vars['rest_route'] ?? '';
+        
+        if (strpos($route, '/wc/v3/products') === 0 || strpos($route, '/yprint/v1/product') === 0) {
+            return true;
+        }
+        
+        return $permission;
+    }
+}
+
+// Initialize the class
+YPrint_Product_Fields::init();
