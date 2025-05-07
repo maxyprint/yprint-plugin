@@ -25,6 +25,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/email.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/rest-registration.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/login.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/password-recovery.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/user-shortcodes.php';
 
 /**
  * Enqueue scripts and styles
