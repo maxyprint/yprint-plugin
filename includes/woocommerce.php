@@ -1061,26 +1061,34 @@ function yprint_minimalist_cart_shortcode() {
         });
 
         // PLUS/MINUS BUTTONS
-        $cart.on('click', '.qty-btn', function() {
-            if (isEditing) return; // Ignorieren, wenn Eingabe aktiv
+$cart.on('click', '.qty-btn', function() {
+    if (isEditing) return; // Ignorieren, wenn Eingabe aktiv
 
-            var $btn = $(this);
-            var $item = $btn.closest('.yprint-mini-cart-item');
-            var $qtyValue = $item.find('.qty-value');
-            var cartItemKey = $item.data('item-key');
-            var currentQty = parseInt($qtyValue.text());
-            var newQty = $btn.data('action') === 'minus' ?
-                         Math.max(1, currentQty - 1) : // Mindestmenge 1
-                         currentQty + 1;
+    var $btn = $(this);
+    var $item = $btn.closest('.yprint-mini-cart-item');
+    var $qtyValue = $item.find('.qty-value');
+    var cartItemKey = $item.data('item-key');
+    var currentQty = parseInt($qtyValue.text());
+    var newQty = $btn.data('action') === 'minus' ?
+                 Math.max(1, currentQty - 1) : // Mindestmenge 1
+                 currentQty + 1;
 
-             if (newQty === currentQty) return; // Keine Aktion, wenn Menge gleich bleibt
+    if (newQty === currentQty) return; // Keine Aktion, wenn Menge gleich bleibt
 
-            // Menge sofort in der UI aktualisieren
-            $qtyValue.text(newQty);
+    // Disable the button to prevent multiple clicks
+    $btn.prop('disabled', true);
+    
+    // Menge sofort in der UI aktualisieren
+    $qtyValue.text(newQty);
 
-            // AJAX-Update der Menge im Backend
-            updateQuantity(cartItemKey, newQty, $item); // Übergabe des Items für potenzielle UI-Updates
-        });
+    // AJAX-Update der Menge im Backend
+    updateQuantity(cartItemKey, newQty, $item); // Übergabe des Items für potenzielle UI-Updates
+    
+    // Re-enable the button after a short delay
+    setTimeout(function() {
+        $btn.prop('disabled', false);
+    }, 500);
+});
 
         // DIREKTEINGABE DER MENGE
         // Klick auf Menge (zum Bearbeiten)
@@ -1170,18 +1178,25 @@ function updateQuantity(cartItemKey, quantity, $item_element) {
 
                 // Zwischensumme aktualisieren - Target the class
                 $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
-                 // Warenkorb-Anzahl im Header aktualisieren
-                 if (response.cart_count !== undefined) {
+                
+                // Warenkorb-Anzahl im Header aktualisieren
+                if (response.cart_count !== undefined) {
                     $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                 }
+                }
 
-                 // Wenn die Antwort den aktualisierten Artikel-Subtotal enthält, aktualisiere ihn auch
-                 if(response.item_subtotal !== undefined && $item_element) {
-                     $item_element.find('.yprint-mini-cart-item-price').html(response.item_subtotal);
-                 }
+                // Wenn die Antwort den aktualisierten Artikel-Subtotal enthält, aktualisiere ihn auch
+                if(response.item_subtotal !== undefined && $item_element) {
+                    $item_element.find('.yprint-mini-cart-item-price').html(response.item_subtotal);
+                }
+                
+                // Aktualisiere die Mengenanzeige mit der tatsächlichen Menge vom Server
+                if(response.updated_quantity !== undefined && $item_element) {
+                    $item_element.find('.qty-value').text(response.updated_quantity);
+                    $item_element.find('.qty-input').val(response.updated_quantity);
+                }
 
-                 // Trigger custom event after quantity is updated
-                 $(document.body).trigger('yprint_mini_cart_quantity_updated', [cartItemKey, quantity]);
+                // Trigger custom event after quantity is updated
+                $(document.body).trigger('yprint_mini_cart_quantity_updated', [cartItemKey, quantity]);
 
             } else {
                 console.error('Ungültige Antwort beim Aktualisieren der Menge:', response);
