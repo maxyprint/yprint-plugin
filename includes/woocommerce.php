@@ -1183,67 +1183,11 @@ function updateQuantity(cartItemKey, quantity, $item_element) {
         $item_element.find('.qty-input').val(quantity);
     }
 
-    console.log('Sending cart update request:', { 
-        cart_item_key: cartItemKey, 
-        quantity: quantity 
-    });
-
-    $.ajax({
-        url: wc_add_to_cart_params.ajax_url,
-        type: 'POST',
-        dataType: 'json',
-        data: {
-            action: 'yprint_update_cart_quantity',
-            cart_item_key: cartItemKey,
-            quantity: quantity
-        },
-        success: function(response) {
-            console.log('Cart update response:', response);
-
-            if (response && response.success === true) {
-                // Zwischensumme aktualisieren
-                if (response.cart_subtotal) {
-                    $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
-                }
-                
-                // Warenkorb-Anzahl im Header aktualisieren
-                if (response.cart_count !== undefined) {
-                    $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                }
-
-                // Artikel-Preis aktualisieren
-                if(response.item_subtotal && $item_element) {
-                    $item_element.find('.yprint-mini-cart-item-price').html(response.item_subtotal);
-                }
-                
-                // Aktualisierte Menge aus Backend setzen
-                if(response.updated_quantity !== undefined && $item_element) {
-                    $item_element.find('.qty-value').text(response.updated_quantity);
-                    $item_element.find('.qty-input').val(response.updated_quantity);
-                }
-
-                // Event nach erfolgreicher Aktualisierung auslösen
-                $(document.body).trigger('yprint_mini_cart_quantity_updated', [cartItemKey, quantity]);
-            } else {
-                console.error('Ungültige Antwort beim Aktualisieren der Menge:', response);
-                // Bei fehlerhafter Antwort komplett aktualisieren
-                refreshCartContent();
-            }
-
-            toggleLoading(false); // Overlay deaktivieren
-        },
-        error: function(xhr, status, error) {
-            console.error('AJAX-Fehler beim Aktualisieren:', {
-                status: status,
-                error: error,
-                responseText: xhr.responseText
-            });
-            
-            // Bei einem AJAX-Fehler komplett aktualisieren
-            refreshCartContent();
-            toggleLoading(false);
-        }
-    });
+    // Kurze Verzögerung, um die UI-Aktualisierung anzuzeigen
+    setTimeout(function() {
+        // Den vollständigen Warenkorb neu laden - einfacherer und zuverlässigerer Ansatz
+        refreshCartContent();
+    }, 500);
 }
 
          // Removed the transitionend listener for animation control,
@@ -1287,81 +1231,44 @@ function yprint_remove_from_cart() {
 }
 
 function yprint_update_cart_quantity() {
-    // Hole die WooCommerce Session vor jedem Cart-Update
-    if (function_exists('WC') && isset(WC()->session)) {
-        WC()->session->ensure_session_loaded();
-    }
-
-    $cart_item_key = isset($_POST['cart_item_key']) ? sanitize_text_field($_POST['cart_item_key']) : '';
-    $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0;
-
-    // Überprüfe, ob WooCommerce aktiv ist und ob der Warenkorb verfügbar ist
-    if (!function_exists('WC') || !isset(WC()->cart)) {
-        wp_send_json_error('WooCommerce ist nicht verfügbar');
-        wp_die();
-    }
-
-    if (empty($cart_item_key)) {
-        wp_send_json_error('Kein Cart-Item-Key angegeben');
-        wp_die();
-    }
-
-    if ($quantity <= 0) {
-        wp_send_json_error('Ungültige Menge');
-        wp_die();
-    }
-
-    // Überprüfe, ob der Artikel im Warenkorb existiert
-    $cart_contents = WC()->cart->get_cart();
-    if (!isset($cart_contents[$cart_item_key])) {
-        wp_send_json_error('Artikel nicht im Warenkorb gefunden');
-        wp_die();
-    }
-
-    // Aktuelle Menge speichern für Logging
-    $current_qty = $cart_contents[$cart_item_key]['quantity'];
+    global $wpdb;
     
-    // Setze die Menge mit force=true
-    $success = WC()->cart->set_quantity($cart_item_key, $quantity, true);
-
-    // Nach dem Update die Gesamtsummen neu berechnen
-    WC()->cart->calculate_totals();
+    // Einfache Fehlerbehandlung für Debugging aktivieren
+    $wpdb->show_errors(); 
     
-    // Den aktualisierten Warenkorb erhalten
-    $updated_cart = WC()->cart->get_cart();
-    
-    // Überprüfen, ob der Artikel im Warenkorb ist und seine Menge aktualisiert wurde
-    if (isset($updated_cart[$cart_item_key])) {
-        $updated_cart_item = $updated_cart[$cart_item_key];
-        $updated_quantity = $updated_cart_item['quantity'];
+    try {
+        // Parameter abrufen
+        $cart_item_key = isset($_POST['cart_item_key']) ? sanitize_text_field($_POST['cart_item_key']) : '';
+        $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0;
         
-        // Produkt und Subtotal holen
-        $_product = $updated_cart_item['data'];
-        $item_subtotal_html = WC()->cart->get_product_subtotal($_product, $updated_quantity);
+        if (empty($cart_item_key) || $quantity <= 0) {
+            wp_send_json_error(array('message' => 'Ungültige Parameter'));
+            return;
+        }
         
-        // Erfolgsantwort senden
-        wp_send_json(array(
-            'success' => true,
+        // WooCommerce-Initialisierung sicherstellen
+        if (!function_exists('WC') || is_null(WC()->cart)) {
+            wp_send_json_error(array('message' => 'WooCommerce nicht verfügbar'));
+            return;
+        }
+        
+        // Menge aktualisieren - einmal versuchen
+        WC()->cart->set_quantity($cart_item_key, $quantity, true);
+        
+        // Summen neu berechnen
+        WC()->cart->calculate_totals();
+        
+        // Antwort senden
+        wp_send_json_success(array(
             'cart_subtotal' => WC()->cart->get_cart_subtotal(),
-            'cart_count' => WC()->cart->get_cart_contents_count(),
-            'item_subtotal' => $item_subtotal_html,
-            'updated_quantity' => $updated_quantity,
-            'debug_info' => array(
-                'old_quantity' => $current_qty,
-                'requested_quantity' => $quantity,
-                'set_quantity_result' => $success
-            )
+            'cart_count' => WC()->cart->get_cart_contents_count()
         ));
-    } else {
-        // Artikel nicht mehr im Warenkorb gefunden (seltsamer Fehlerfall)
-        wp_send_json_error(array(
-            'message' => 'Artikel nach Update nicht im Warenkorb gefunden',
-            'cart_count' => WC()->cart->get_cart_contents_count(),
-            'cart_subtotal' => WC()->cart->get_cart_subtotal()
-        ));
+        
+    } catch (Exception $e) {
+        // Fehlerdetails loggen
+        error_log('YPrint Cart Error: ' . $e->getMessage());
+        wp_send_json_error(array('message' => 'Ein Fehler ist aufgetreten'));
     }
-
-    wp_die();
 }
 add_action('wp_ajax_yprint_update_cart_quantity', 'yprint_update_cart_quantity');
 add_action('wp_ajax_nopriv_yprint_update_cart_quantity', 'yprint_update_cart_quantity');
