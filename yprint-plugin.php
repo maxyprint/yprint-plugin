@@ -27,6 +27,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/login.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/password-recovery.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/user-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/ui-shortcodes.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/woocommerce.php';
 
 /**
  * Enqueue scripts and styles
