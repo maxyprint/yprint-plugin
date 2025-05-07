@@ -554,16 +554,16 @@ function yprint_minimalist_cart_shortcode() {
     ?>
     <style>
         .yprint-mini-cart {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            max-width: 100%;
-            margin: 0 auto;
-            position: relative; /* Für absolute Positionierung des Loading Overlays */
-            box-sizing: border-box; /* Ensure padding doesn't affect width */
-            padding: 15px; /* Added some padding around the whole cart */
-            background-color: #fff; /* White background */
-            border-radius: 8px; /* Rounded corners */
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-        }
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    max-width: 100%;
+    margin: 0 auto;
+    position: relative; /* Für absolute Positionierung des Loading Overlays */
+    box-sizing: border-box; /* Ensure padding doesn't affect width */
+    padding: 0; /* Padding entfernt */
+    background-color: transparent; /* Hintergrund transparent */
+    border-radius: 0; /* Keine abgerundeten Ecken */
+    box-shadow: none; /* Kein Schatten */
+}
         .yprint-mini-cart-header {
             display: flex;
             justify-content: space-between;
@@ -1153,51 +1153,52 @@ function yprint_minimalist_cart_shortcode() {
 
 
         // Funktion zum Aktualisieren der Menge per AJAX
-        function updateQuantity(cartItemKey, quantity, $item_element) {
-            toggleLoading(true); // Overlay aktivieren
+function updateQuantity(cartItemKey, quantity, $item_element) {
+    toggleLoading(true); // Overlay aktivieren
 
-            $.ajax({
-                url: wc_add_to_cart_params.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_update_cart_quantity',
-                    cart_item_key: cartItemKey,
-                    quantity: quantity
-                },
-                success: function(response) {
-                    if (response.success && response.cart_subtotal !== undefined) {
-                        console.log('Quantity update successful:', response); // Log success
+    $.ajax({
+        url: wc_add_to_cart_params.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_update_cart_quantity',
+            cart_item_key: cartItemKey,
+            quantity: quantity
+        },
+        success: function(response) {
+            if (response.success && response.cart_subtotal !== undefined) {
+                console.log('Quantity update successful:', response); // Log success
 
-                        // Zwischensumme aktualisieren - Target the class
-                        $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
-                         // Warenkorb-Anzahl im Header aktualisieren
-                         if (response.cart_count !== undefined) {
-                            $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                         }
+                // Zwischensumme aktualisieren - Target the class
+                $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
+                 // Warenkorb-Anzahl im Header aktualisieren
+                 if (response.cart_count !== undefined) {
+                    $cart.find('.yprint-mini-cart-count').text(response.cart_count);
+                 }
 
-                         // Wenn die Antwort den aktualisierten Artikel-Subtotal enthält, aktualisiere ihn auch
-                         if(response.item_subtotal !== undefined && $item_element) {
-                             $item_element.find('.yprint-mini-cart-item-price').html(response.item_subtotal);
-                         }
+                 // Wenn die Antwort den aktualisierten Artikel-Subtotal enthält, aktualisiere ihn auch
+                 if(response.item_subtotal !== undefined && $item_element) {
+                     $item_element.find('.yprint-mini-cart-item-price').html(response.item_subtotal);
+                 }
 
-                         // Trigger custom event after quantity is updated
-                         $(document.body).trigger('yprint_mini_cart_quantity_updated', [cartItemKey, quantity]);
+                 // Trigger custom event after quantity is updated
+                 $(document.body).trigger('yprint_mini_cart_quantity_updated', [cartItemKey, quantity]);
 
-                    } else {
-                        console.error('Ungültige Antwort beim Aktualisieren der Menge:', response);
-                         // Optional: Menge in der UI zurücksetzen, falls das Backend fehlgeschlagen ist
-                         // Sie müssten hier die alte Menge speichern, bevor Sie das AJAX starten.
-                    }
+            } else {
+                console.error('Ungültige Antwort beim Aktualisieren der Menge:', response);
+                // Bei einem Fehler den Warenkorb komplett aktualisieren
+                refreshCartContent();
+            }
 
-                    toggleLoading(false); // Overlay deaktivieren
-                },
-                error: function(xhr, status, error) {
-                    console.error('Fehler beim Aktualisieren:', status, error);
-                    toggleLoading(false); // Overlay deaktivieren bei Fehlern
-                    // Optional: Menge in der UI zurücksetzen, falls der AJAX-Call fehlschlägt
-                }
-            });
+            toggleLoading(false); // Overlay deaktivieren
+        },
+        error: function(xhr, status, error) {
+            console.error('Fehler beim Aktualisieren:', status, error);
+            toggleLoading(false); // Overlay deaktivieren bei Fehlern
+            // Bei einem Fehler den Warenkorb komplett aktualisieren
+            refreshCartContent();
         }
+    });
+}
 
          // Removed the transitionend listener for animation control,
          // as the animation is now permanently set in CSS when the overlay is active.
@@ -1239,11 +1240,8 @@ function yprint_remove_from_cart() {
     wp_die();
 }
 
-/**
- * Ajax-Funktion zum Aktualisieren der Produktmenge
- */
 function yprint_update_cart_quantity() {
-     // Sicherheit: Nonce überprüfen (Empfohlen für AJAX-Aufrufe)
+    // Sicherheit: Nonce überprüfen (Empfohlen für AJAX-Aufrufe)
     // if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'yprint_cart_nonce' ) ) {
     //     wp_send_json_error( 'Nonce verification failed' );
     //     wp_die();
@@ -1256,29 +1254,42 @@ function yprint_update_cart_quantity() {
         // Stellen Sie sicher, dass die Menge eine positive Zahl ist
         $quantity = max(1, $quantity); // Mindestmenge ist 1
 
-        // Setze die neue Menge und erzwinge Neuberechnung
-        WC()->cart->set_quantity($cart_item_key, $quantity, true);
+        // Alte Menge zur Fehlerbehandlung speichern
+        $old_quantity = WC()->cart->get_cart_item($cart_item_key)['quantity'] ?? 1;
 
-        // Stellen Sie sicher, dass die Gesamtsummen neu berechnet wurden.
-        // set_quantity(..., true) sollte dies tun, aber ein expliziter Aufruf schadet nicht.
-         WC()->cart->calculate_totals();
+        // Setze die neue Menge (ohne force=true, um WooCommerce-Validierungen zu respektieren)
+        $updated = WC()->cart->set_quantity($cart_item_key, $quantity);
+        
+        // Wenn set_quantity false zurückgibt, gab es ein Problem
+        if ($updated === false) {
+            // Zurück zur alten Menge
+            wp_send_json_error([
+                'message' => 'Menge konnte nicht aktualisiert werden', 
+                'old_quantity' => $old_quantity
+            ]);
+            wp_die();
+        }
 
-         // Holen Sie sich den aktualisierten Artikel und seinen neuen Subtotal für die UI
-         $updated_cart_item = WC()->cart->get_cart_item($cart_item_key);
-         $item_subtotal_html = '';
-         if ($updated_cart_item) {
-              $_product = apply_filters('woocommerce_cart_item_product', $updated_cart_item['data'], $updated_cart_item, $cart_item_key);
-              if ($_product) {
-                  $item_subtotal_html = apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $updated_cart_item['quantity'] ), $updated_cart_item, $cart_item_key );
-              }
-         }
+        // Explizit die Gesamtsummen neu berechnen
+        WC()->cart->calculate_totals();
+
+        // Holen Sie sich den aktualisierten Artikel und seinen neuen Subtotal für die UI
+        $updated_cart_item = WC()->cart->get_cart_item($cart_item_key);
+        $item_subtotal_html = '';
+        if ($updated_cart_item) {
+            $_product = apply_filters('woocommerce_cart_item_product', $updated_cart_item['data'], $updated_cart_item, $cart_item_key);
+            if ($_product) {
+                $item_subtotal_html = apply_filters('woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal($_product, $updated_cart_item['quantity']), $updated_cart_item, $cart_item_key);
+            }
+        }
 
         // Daten zurückgeben
         wp_send_json(array(
             'success' => true,
             'cart_subtotal' => WC()->cart->get_cart_subtotal(),
             'cart_count' => WC()->cart->get_cart_contents_count(), // Aktualisierte Gesamtzahl
-             'item_subtotal' => $item_subtotal_html // Der aktualisierte Preis für diesen spezifischen Artikel (Menge * Preis pro Stück)
+            'item_subtotal' => $item_subtotal_html, // Der aktualisierte Preis für diesen spezifischen Artikel
+            'updated_quantity' => $updated_cart_item['quantity'] // Die tatsächlich aktualisierte Menge
         ));
 
     } else {
