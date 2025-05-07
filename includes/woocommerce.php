@@ -438,18 +438,17 @@ if (!defined('ABSPATH')) {
  */
 function yprint_consolidate_cart_items() {
     // Wenn WooCommerce nicht aktiv ist oder der Warenkorb leer ist, beenden
-    if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
+    if (!class_exists('WooCommerce') || is_null(WC()->cart) || WC()->cart->is_empty()) {
         return false; // Keine Änderungen möglich, wenn leer oder WC inaktiv
     }
 
     $cart = WC()->cart->get_cart();
-    $consolidated_items = array();
+    $temp_grouping = array();
     $changes_made = false;
 
     // Temporäre Struktur zur Identifizierung gleicher Produkte
     // Key: product_id-variation_id-variation_attributes_hash(-print_design_hash)
     // Value: array( 'cart_item_key' => first key found, 'quantity' => total quantity, 'duplicate_keys' => array of keys to remove )
-    $temp_grouping = array();
 
     // Gruppieren der Artikel
     foreach ($cart as $cart_item_key => $cart_item) {
@@ -500,33 +499,19 @@ function yprint_consolidate_cart_items() {
                  // Die Menge wurde in der Gruppierung bereits addiert, setze sie für den Hauptartikel
                  // Prüfe, ob der Hauptartikel noch existiert (er wurde nicht als Duplikat entfernt)
                  if (isset(WC()->cart->get_cart()[$group_data['main_cart_item_key']])) {
-                    WC()->cart->set_quantity($group_data['main_cart_item_key'], $group_data['quantity'], false); // false = do not recursively recalculate totals yet
+                    // Use true to recalculate totals immediately after setting quantity for the main item
+                    WC()->cart->set_quantity($group_data['main_cart_item_key'], $group_data['quantity'], true);
                  }
             }
         }
-         // Nach allen Mengen-Updates die Warenkorb-Summen neu berechnen
+         // After all quantity updates, ensure totals are recalculated.
+         // This might be redundant if set_quantity(..., true) works for all items,
+         // but adds robustness, especially if multiple items were consolidated.
         WC()->cart->calculate_totals();
     }
 
     return $changes_made;
 }
-
-
-/**
- * Nach dem Hinzufügen zum Warenkorb, Warenkorb konsolidieren und aktualisieren.
- * Verwendet AJAX, um die UI zu aktualisieren.
- */
-function yprint_after_add_to_cart_ajax() {
-    // Konsolidierung erfolgt jetzt über den AJAX-Aufruf nach 'added_to_cart'
-
-    // Statt Reload, triggern wir einen AJAX-Aufruf zum UI-Refresh
-    // (Der JavaScript-Teil unten wird dies übernehmen, indem er 'added_to_cart' abfängt)
-}
-// Entferne den alten Hook, der window.location.reload() ausgelöst hat
-remove_action('woocommerce_add_to_cart', 'yprint_after_add_to_cart', 20);
-// Optional: Füge einen neuen Hook hinzu, falls zusätzliche Backend-Logik direkt nach add_to_cart benötigt wird,
-// aber die Hauptkonsolidierung und UI-Aktualisierung über den AJAX-Flow läuft.
-// add_action('woocommerce_add_to_cart', 'yprint_after_add_to_cart_ajax', 20, 6);
 
 
 /**
@@ -536,15 +521,13 @@ function yprint_ajax_consolidate_cart_callback() {
     // Warenkorb konsolidieren
     $changes = yprint_consolidate_cart_items();
 
-    // Antwort senden (Der Frontend-JS-Code wird dann refreshCartContent aufrufen)
+    // Antwort senden. Frontend JS wird refreshCartContent aufrufen.
     wp_send_json_success(array(
         'changes_made' => $changes,
-        // Senden Sie keine Warenkorb-Daten hier, da refreshCartContent diese abruft
     ));
 
     wp_die();
 }
-// Sicherstellen, dass der AJAX-Hook korrekt registriert ist
 add_action('wp_ajax_yprint_consolidate_cart_action', 'yprint_ajax_consolidate_cart_callback');
 add_action('wp_ajax_nopriv_yprint_consolidate_cart_action', 'yprint_ajax_consolidate_cart_callback');
 
@@ -557,7 +540,7 @@ function yprint_minimalist_cart_shortcode() {
     ob_start();
 
     // Sicherstellen, dass WooCommerce aktiv ist
-    if (!class_exists('WooCommerce')) {
+    if (!class_exists('WooCommerce') || is_null(WC()->cart) ) {
         return '<p>WooCommerce ist nicht aktiviert.</p>';
     }
 
@@ -575,19 +558,25 @@ function yprint_minimalist_cart_shortcode() {
             max-width: 100%;
             margin: 0 auto;
             position: relative; /* Für absolute Positionierung des Loading Overlays */
+            box-sizing: border-box; /* Ensure padding doesn't affect width */
+            padding: 15px; /* Added some padding around the whole cart */
+            background-color: #fff; /* White background */
+            border-radius: 8px; /* Rounded corners */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle shadow */
         }
         .yprint-mini-cart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
+            padding-bottom: 15px; /* Increased padding */
             margin-bottom: 15px;
         }
         .yprint-mini-cart-title {
             font-size: 18px;
             font-weight: 600;
             margin: 0;
+            color: #333; /* Darker title color */
         }
         .yprint-mini-cart-count {
             background: #0079FF;
@@ -600,15 +589,32 @@ function yprint_minimalist_cart_shortcode() {
             justify-content: center;
             font-size: 12px;
             flex-shrink: 0; /* Verhindert Schrumpfen */
+            font-weight: 600;
         }
         .yprint-mini-cart-items {
             max-height: 300px; /* Oder eine andere passende Höhe */
             overflow-y: auto;
             margin-bottom: 15px;
+             padding-right: 10px; /* Add padding to the right for scrollbar space */
         }
-        /* Ändere das Layout, damit Artikel untereinander sind */
+         /* Style the scrollbar */
+        .yprint-mini-cart-items::-webkit-scrollbar {
+            width: 8px;
+        }
+        .yprint-mini-cart-items::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .yprint-mini-cart-items::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        .yprint-mini-cart-items::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
         .yprint-mini-cart-item {
-            display: flex; /* Behalte flex, aber richte die Kinder vertikal aus */
+            display: flex;
             align-items: flex-start; /* Richte oben aus */
             padding: 15px 0; /* Mehr Padding für besseren Abstand */
             border-bottom: 1px solid #f5f5f5;
@@ -621,12 +627,14 @@ function yprint_minimalist_cart_shortcode() {
             width: 80px; /* Etwas größer für bessere Sichtbarkeit */
             margin-right: 15px; /* Mehr Abstand zum Text */
             flex-shrink: 0; /* Verhindert Schrumpfen */
+            border: 1px solid #eee; /* Light border around image */
+            border-radius: 4px; /* Leichte Rundung */
+             overflow: hidden; /* Hide anything outside the border-radius */
         }
         .yprint-mini-cart-item-image img {
             max-width: 100%;
             height: auto;
             display: block;
-            border-radius: 4px; /* Leichte Rundung */
         }
         .yprint-mini-cart-item-details {
             flex-grow: 1;
@@ -638,8 +646,9 @@ function yprint_minimalist_cart_shortcode() {
             font-size: 15px; /* Etwas größer */
             margin: 0 0 5px;
             font-weight: 600; /* Titel fetter */
+            color: #333;
         }
-         /* Entferne den doppelten Titel */
+         /* Ensure no double title if accidentally rendered */
          .yprint-mini-cart-item-details .yprint-mini-cart-item-title + .yprint-mini-cart-item-title {
              display: none;
          }
@@ -656,6 +665,7 @@ function yprint_minimalist_cart_shortcode() {
             border: 1px solid #ddd; /* Border um Mengen-Kontrolle */
             border-radius: 4px; /* Leichte Rundung */
             width: fit-content; /* Passt sich dem Inhalt an */
+            overflow: hidden; /* Hide borders at edges */
         }
 
         .qty-btn {
@@ -668,19 +678,12 @@ function yprint_minimalist_cart_shortcode() {
             width: auto;
             height: auto;
             transition: background-color 0.2s ease; /* Sanfter Übergang */
+            line-height: 1; /* Adjust line height */
         }
 
         .qty-btn:hover {
             background: #eee; /* Hintergrund bei Hover */
             color: #000;
-        }
-
-        .qty-minus {
-             border-radius: 4px 0 0 4px; /* Runde nur die linke Ecke */
-        }
-
-        .qty-plus {
-            border-radius: 0 4px 4px 0; /* Runde nur die rechte Ecke */
         }
 
         .qty-value {
@@ -692,6 +695,7 @@ function yprint_minimalist_cart_shortcode() {
              border-left: 1px solid #ddd;
              border-right: 1px solid #ddd;
              background: #fff; /* Heller Hintergrund für den Wert */
+             line-height: 1; /* Adjust line height */
         }
         .qty-input {
             width: 30px; /* Breiteres Inputfeld */
@@ -701,6 +705,7 @@ function yprint_minimalist_cart_shortcode() {
             padding: 5px 0; /* Gleiches vertikales Padding wie Buttons */
             display: none;
              box-sizing: border-box; /* Padding/Border in die Breite einbeziehen */
+             line-height: 1; /* Adjust line height */
         }
         /* Positioniere den Remove Button absolut */
         .yprint-mini-cart-item-remove {
@@ -714,6 +719,7 @@ function yprint_minimalist_cart_shortcode() {
             padding: 0; /* Padding entfernen, da Position absolut ist */
             background: none; /* Sicherstellen, dass kein Hintergrund da ist */
             border: none; /* Sicherstellen, dass kein Border da ist */
+            transition: color 0.2s ease; /* Smooth color change */
         }
         .yprint-mini-cart-item-remove:hover {
             color: #FF4136; /* Farbe ändern bei Hover */
@@ -725,6 +731,7 @@ function yprint_minimalist_cart_shortcode() {
             font-weight: 600;
             border-top: 1px solid #eee;
             font-size: 16px; /* Subtotal etwas größer */
+            color: #333;
         }
         .yprint-mini-cart-subtotal span:last-child {
              color: #0079FF; /* Subtotal Wert in Akzentfarbe */
@@ -769,7 +776,7 @@ function yprint_minimalist_cart_shortcode() {
             visibility: hidden;
             transition: opacity 0.3s ease;
             pointer-events: none; /* Ermöglicht Klicks auf Elemente darunter, wenn nicht aktiv */
-             border-radius: 4px; /* Überlagerung an Ecken anpassen */
+             border-radius: 8px; /* Überlagerung an Ecken anpassen */
         }
         .yprint-loading-overlay.active {
             opacity: 1;
@@ -779,12 +786,14 @@ function yprint_minimalist_cart_shortcode() {
         .yprint-loading-overlay img {
             width: 80px;
             height: auto;
-            animation: spin 2s linear infinite; /* Dreh-Animation hinzufügen */
+            /* Removed spin animation */
+             animation: pulse 1.5s infinite alternate; /* Pulsing animation */
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* Define Pulse Animation */
+        @keyframes pulse {
+            0% { opacity: 0.6; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.05); }
         }
 
     </style>
@@ -812,29 +821,21 @@ function yprint_minimalist_cart_shortcode() {
                         $product_name = $_product->get_name();
                         $thumbnail = apply_filters('woocommerce_cart_item_thumbnail', $_product->get_image(), $cart_item, $cart_item_key);
 
-                        // --- PREIS LOGIK ---
-                        // Standard WooCommerce Preis (inkl. Steuern, etc., basierend auf WooCommerce Einstellungen)
-                        $product_price_html = WC()->cart->get_product_price($_product);
+                        // Zeige den Gesamtpreis für diesen Artikel (Preis pro Stück * Menge)
+                        $item_total_price_html = apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ), $cart_item, $cart_item_key );
 
-                        // Wenn Sie einen benutzerdefinierten Preis aus dem Design Tool haben,
-                        // der in $cart_item['print_design']['custom_price'] oder ähnlich gespeichert ist,
-                        // können Sie ihn hier abrufen und $product_price_html überschreiben.
+                        // --- CUSTOM PRICE LOGIC (if needed) ---
+                        // If you have a custom price from the Design Tool stored in $cart_item data,
+                        // uncomment and adapt the following lines to use that price instead of the standard subtotal.
                         /*
                         if (isset($cart_item['print_design']['custom_price'])) {
-                            // Formatieren Sie den benutzerdefinierten Preis wie benötigt
-                            // Stellen Sie sicher, dass der Preis ein numerischer Wert ist
-                            $custom_price = floatval($cart_item['print_design']['custom_price']) * $cart_item['quantity']; // Preis pro Item * Menge
-                             // Formatieren Sie den Preis mit der richtigen Währung und Trennzeichen
-                            $product_price_html = wc_price($custom_price); // Nutzt WooCommerce Formatierung
-                        } else {
-                             // Wenn kein Custom Preis, zeige den Preis pro Stück * Menge
-                             $product_price_html = wc_price( $_product->get_price() * $cart_item['quantity'] );
+                            // Assuming 'custom_price' is the price for the quantity in the cart item
+                            $custom_price = floatval($cart_item['print_design']['custom_price']);
+                            // Format the custom price using WooCommerce formatting
+                            $item_total_price_html = wc_price($custom_price);
                         }
-                         */
-                        // Beachten Sie, dass get_product_price() bereits den Preis pro Stück formatiert zurückgibt.
-                        // Wenn Sie den Gesamtpreis für die Menge des Artikels anzeigen möchten,
-                        // verwenden Sie stattdessen:
-                        $item_total_price_html = apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ), $cart_item, $cart_item_key );
+                        */
+                        // --- END CUSTOM PRICE LOGIC ---
 
 
                         $product_quantity = $cart_item['quantity'];
@@ -864,7 +865,7 @@ function yprint_minimalist_cart_shortcode() {
 
         <div class="yprint-mini-cart-subtotal">
             <span>Zwischensumme:</span>
-            <span><?php echo WC()->cart->get_cart_subtotal(); ?></span>
+            <span class="cart-subtotal-value"><?php echo WC()->cart->get_cart_subtotal(); ?></span>
         </div>
 
         <a href="<?php echo esc_url(wc_get_checkout_url()); ?>" class="yprint-mini-cart-checkout">Zur Kasse</a>
@@ -894,8 +895,14 @@ function yprint_minimalist_cart_shortcode() {
         function toggleLoading(show) {
             if (show) {
                 $cart.find('.yprint-loading-overlay').addClass('active');
+                 // Start pulse animation
+                 $cart.find('.yprint-loading-overlay img').css('animation', 'pulse 1.5s infinite alternate');
             } else {
                 $cart.find('.yprint-loading-overlay').removeClass('active');
+                 // Stop pulse animation (optional, but good practice)
+                 // The animation property in CSS is now permanent while active,
+                 // so no need to explicitly stop it here unless we want to hard reset.
+                 // Keeping the animation defined in CSS makes it simpler.
             }
         }
 
@@ -911,12 +918,14 @@ function yprint_minimalist_cart_shortcode() {
                 },
                 success: function(response) {
                     if (response.success) {
+                        console.log('Cart refresh successful:', response); // Log success
+
                         // Cart-Items aktualisieren
                         $cart.find('.yprint-mini-cart-items').html(response.cart_items_html);
                         // Warenkorb-Anzahl im Header aktualisieren
                         $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                        // Zwischensumme aktualisieren
-                        $cart.find('.yprint-mini-cart-subtotal span:last-child').html(response.cart_subtotal);
+                        // Zwischensumme aktualisieren - Target the class added to the span
+                        $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
 
                         // Trigger custom event after cart is refreshed
                         $(document.body).trigger('yprint_mini_cart_refreshed');
@@ -936,14 +945,18 @@ function yprint_minimalist_cart_shortcode() {
         // Initialisiere die Aktualisierung, wenn der Warenkorb sichtbar wird (oder DOM bereit ist)
         // Dies funktioniert sowohl für Popups als auch normale Einbindungen
         // Einmalige Aktualisierung beim Laden der Seite, falls der Warenkorb sichtbar ist
-        if ($cart.is(':visible')) {
-             refreshCartContent();
-        }
+        $(document).ready(function() {
+             if ($cart.is(':visible')) {
+                 refreshCartContent();
+             }
+        });
+
          // Oder verwenden Sie den IntersectionObserver für dynamische Anzeige (z.B. in Popups)
          var observer = new IntersectionObserver(function(entries) {
             entries.forEach(function(entry) {
                 if (entry.isIntersecting && !$cart.data('content-loaded')) {
                     // Warenkorb ist jetzt sichtbar und Inhalt noch nicht geladen
+                    console.log('Cart is intersecting, refreshing content.');
                     refreshCartContent();
                     $cart.data('content-loaded', true); // Markiere Inhalt als geladen
                 } else if (!entry.isIntersecting && $cart.data('content-loaded')) {
@@ -954,11 +967,15 @@ function yprint_minimalist_cart_shortcode() {
         }, { threshold: 0.01 }); // Schon bei 1% Sichtbarkeit
 
         // Beobachte den Warenkorb
-        observer.observe($cart[0]);
+        if ($cart[0]) {
+            observer.observe($cart[0]);
+        }
+
 
         // Add to Cart Event abfangen, um den Warenkorb nach dem Hinzufügen zu aktualisieren
         // und Konsolidierung im Backend anzustoßen, bevor UI aktualisiert wird
         $(document.body).on('added_to_cart', function() {
+            console.log('Product added to cart.');
             toggleLoading(true); // Overlay aktivieren
 
             // Sende AJAX-Request zur Konsolidierung im Backend
@@ -970,6 +987,7 @@ function yprint_minimalist_cart_shortcode() {
                 },
                 success: function(response) {
                     if (response.success) {
+                        console.log('Consolidation successful:', response);
                         // Nachdem die Konsolidierung im Backend abgeschlossen ist,
                         // den Warenkorb-Inhalt aktualisieren.
                         refreshCartContent();
@@ -1006,19 +1024,21 @@ function yprint_minimalist_cart_shortcode() {
                 },
                 success: function(response) {
                     if (response.cart_count !== undefined && response.cart_subtotal !== undefined) {
+                         console.log('Item removal successful:', response); // Log success
+
                          // Artikel visuell entfernen
                         $item.fadeOut(300, function() {
                             $(this).remove();
 
                              // Warenkorb-Anzahl im Header aktualisieren
                             $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                             // Zwischensumme aktualisieren
-                            $cart.find('.yprint-mini-cart-subtotal span:last-child').html(response.cart_subtotal);
+                             // Zwischensumme aktualisieren - Target the class
+                            $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
 
                             // Leeren Warenkorb zeigen, wenn keine Artikel mehr
                             if (response.cart_count === 0) {
                                 $cart.find('.yprint-mini-cart-items').html('<div class="yprint-mini-cart-empty">Dein Warenkorb ist leer.</div>');
-                                 // Subtotal ausblenden, wenn Warenkorb leer ist? Optional.
+                                 // Optional: hide subtotal and checkout button if cart is empty
                                  // $cart.find('.yprint-mini-cart-subtotal').hide();
                                  // $cart.find('.yprint-mini-cart-checkout').hide();
                             }
@@ -1145,9 +1165,15 @@ function yprint_minimalist_cart_shortcode() {
                     quantity: quantity
                 },
                 success: function(response) {
-                    if (response.cart_subtotal !== undefined) {
-                        // Zwischensumme aktualisieren
-                        $cart.find('.yprint-mini-cart-subtotal span:last-child').html(response.cart_subtotal);
+                    if (response.success && response.cart_subtotal !== undefined) {
+                        console.log('Quantity update successful:', response); // Log success
+
+                        // Zwischensumme aktualisieren - Target the class
+                        $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
+                         // Warenkorb-Anzahl im Header aktualisieren
+                         if (response.cart_count !== undefined) {
+                            $cart.find('.yprint-mini-cart-count').text(response.cart_count);
+                         }
 
                          // Wenn die Antwort den aktualisierten Artikel-Subtotal enthält, aktualisiere ihn auch
                          if(response.item_subtotal !== undefined && $item_element) {
@@ -1160,7 +1186,7 @@ function yprint_minimalist_cart_shortcode() {
                     } else {
                         console.error('Ungültige Antwort beim Aktualisieren der Menge:', response);
                          // Optional: Menge in der UI zurücksetzen, falls das Backend fehlgeschlagen ist
-                         // $item_element.find('.qty-value').text(response.old_quantity); // Setze auf alte Menge, wenn im Fehlerfall zurückgegeben
+                         // Sie müssten hier die alte Menge speichern, bevor Sie das AJAX starten.
                     }
 
                     toggleLoading(false); // Overlay deaktivieren
@@ -1169,21 +1195,12 @@ function yprint_minimalist_cart_shortcode() {
                     console.error('Fehler beim Aktualisieren:', status, error);
                     toggleLoading(false); // Overlay deaktivieren bei Fehlern
                     // Optional: Menge in der UI zurücksetzen, falls der AJAX-Call fehlschlägt
-                    // Der blur-Handler setzt die Menge basierend auf dem Input zurück.
-                    // Hier müsste man die *ursprüngliche* Menge vor dem Klick wiederherstellen.
-                    // Das Speichern der ursprünglichen Menge vor dem Klick/Eingabe würde dies ermöglichen.
                 }
             });
         }
 
-         // Stoppe die Animation im Overlay, wenn es deaktiviert wird
-         $cart.find('.yprint-loading-overlay').on('transitionend webkitTransitionEnd oTransitionEnd MSTransitionEnd', function() {
-             if (!$(this).hasClass('active')) {
-                 $(this).find('img').css('animation', 'none');
-             } else {
-                  $(this).find('img').css('animation', 'spin 2s linear infinite');
-             }
-         });
+         // Removed the transitionend listener for animation control,
+         // as the animation is now permanently set in CSS when the overlay is active.
 
     })(jQuery);
     </script>
@@ -1205,15 +1222,13 @@ function yprint_remove_from_cart() {
 
     $cart_item_key = isset($_POST['cart_item_key']) ? sanitize_text_field($_POST['cart_item_key']) : '';
 
-    if ($cart_item_key && WC()->cart->remove_cart_item($cart_item_key)) {
-        // Optional: Warenkorb nach dem Entfernen erneut konsolidieren (falls das Entfernen Duplikate schafft?)
-        // yprint_consolidate_cart_items(); // Normalerweise nicht nötig nach einem einzelnen Entfernen
-
-        // Warenkorb-Summen neu berechnen
+    if ($cart_item_key && !is_null(WC()->cart) && WC()->cart->remove_cart_item($cart_item_key)) {
+        // Warenkorb-Summen neu berechnen nach dem Entfernen
         WC()->cart->calculate_totals();
 
         // Minimale Daten zurückgeben
         wp_send_json(array(
+            'success' => true, // Indicate success explicitly
             'cart_count' => WC()->cart->get_cart_contents_count(),
             'cart_subtotal' => WC()->cart->get_cart_subtotal()
         ));
@@ -1237,18 +1252,15 @@ function yprint_update_cart_quantity() {
     $cart_item_key = isset($_POST['cart_item_key']) ? sanitize_text_field($_POST['cart_item_key']) : '';
     $quantity = isset($_POST['quantity']) ? intval($_POST['quantity']) : 0; // Start with 0, check against 1 later
 
-    if ($cart_item_key && $quantity > 0) {
+    if ($cart_item_key && $quantity > 0 && !is_null(WC()->cart)) {
         // Stellen Sie sicher, dass die Menge eine positive Zahl ist
         $quantity = max(1, $quantity); // Mindestmenge ist 1
 
-        // Setze die neue Menge
-        WC()->cart->set_quantity($cart_item_key, $quantity, true); // true = recalculate totals
+        // Setze die neue Menge und erzwinge Neuberechnung
+        WC()->cart->set_quantity($cart_item_key, $quantity, true);
 
-        // Optional: Warenkorb nach Mengen-Update erneut konsolidieren (falls nötig, aber unwahrscheinlich)
-        // yprint_consolidate_cart_items(); // Normalerweise nicht nötig
-
-        // Warenkorb-Summen sollten durch set_quantity(..., true) aktualisiert worden sein.
-        // Wir rufen calculate_totals() zur Sicherheit nochmals auf, falls set_quantity(..., true) in bestimmten Szenarien nicht ausreicht.
+        // Stellen Sie sicher, dass die Gesamtsummen neu berechnet wurden.
+        // set_quantity(..., true) sollte dies tun, aber ein expliziter Aufruf schadet nicht.
          WC()->cart->calculate_totals();
 
          // Holen Sie sich den aktualisierten Artikel und seinen neuen Subtotal für die UI
@@ -1260,7 +1272,6 @@ function yprint_update_cart_quantity() {
                   $item_subtotal_html = apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $updated_cart_item['quantity'] ), $updated_cart_item, $cart_item_key );
               }
          }
-
 
         // Daten zurückgeben
         wp_send_json(array(
@@ -1281,23 +1292,17 @@ function yprint_update_cart_quantity() {
  * Verhindert doppelte Artikel beim Laden aus der Session und nach AJAX-Updates
  */
 function yprint_cart_loaded_from_session_and_ajax($cart) {
-    // Diese Funktion wird durch den woocommerce_cart_loaded_from_session Hook aufgerufen.
-    // Sie wird auch indirekt relevant, da AJAX-Aufrufe den Warenkorb manipulieren
-    // und WooCommerce intern den Warenkorb neu lädt.
-    // Die Konsolidierung sollte VOR der Anzeige oder anderen Operationen erfolgen.
+    // Stelle sicher, dass der Warenkorb initialisiert ist, bevor auf Methoden zugegriffen wird
+    if (is_null($cart)) {
+        return;
+    }
 
-    // Die Konsolidierung findet jetzt in yprint_consolidate_cart_items() statt,
-    // die direkt vor dem Rendern des Shortcodes und im AJAX-Refresh aufgerufen wird.
-    // Dieser Hook kann weiterhin nützlich sein, um sicherzustellen, dass der Warenkorb
-    // bei jedem Laden aus der Session konsolidiert wird, unabhängig davon, ob der Shortcode
-    // angezeigt wird oder nicht (z.B. für die Warenkorb-Seite selbst).
-
-     // Führe die Konsolidierung aus
+    // Führe die Konsolidierung aus
      yprint_consolidate_cart_items();
 
      // Stelle sicher, dass die Totals nach der Konsolidierung korrekt sind
      // Dies ist wichtig, falls die Konsolidierung Mengen geändert hat
-     WC()->cart->calculate_totals();
+     $cart->calculate_totals(); // Use $cart object passed by the hook
 
 }
 // Haken für die Konsolidierung beim Laden der Session
@@ -1309,6 +1314,12 @@ add_action('woocommerce_cart_loaded_from_session', 'yprint_cart_loaded_from_sess
  */
 function yprint_refresh_cart_content_callback() {
     ob_start();
+
+    // Stelle sicher, dass der Warenkorb initialisiert ist
+     if (is_null(WC()->cart)) {
+        wp_send_json_error('WooCommerce cart is not initialized.');
+        wp_die();
+     }
 
     // Warenkorb optimieren VOR dem Generieren des HTML
     // Dies stellt sicher, dass das generierte HTML den konsolidierten Zustand widerspiegelt
@@ -1331,6 +1342,15 @@ function yprint_refresh_cart_content_callback() {
 
                  // Zeige den Gesamtpreis für diesen Artikel (Preis pro Stück * Menge)
                 $item_total_price_html = apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ), $cart_item, $cart_item_key );
+
+                // --- CUSTOM PRICE LOGIC (if needed) ---
+                /*
+                if (isset($cart_item['print_design']['custom_price'])) {
+                    $custom_price = floatval($cart_item['print_design']['custom_price']);
+                    $item_total_price_html = wc_price($custom_price);
+                }
+                */
+                // --- END CUSTOM PRICE LOGIC ---
 
                 $product_quantity = $cart_item['quantity'];
                 ?>
@@ -1358,7 +1378,7 @@ function yprint_refresh_cart_content_callback() {
     $cart_items_html = ob_get_clean();
 
     // Nach dem Rendern des HTML, aktualisierte Warenkorb-Daten abrufen
-    // WC()->cart->calculate_totals(); // Sollte bereits aktuell sein durch Konsolidierung/SetQuantity
+    // WC()->cart->calculate_totals(); // Should already be current
 
     wp_send_json(array(
         'success' => true,
@@ -1369,14 +1389,8 @@ function yprint_refresh_cart_content_callback() {
 
     wp_die();
 }
-// Sicherstellen, dass der AJAX-Hook korrekt registriert ist
 add_action('wp_ajax_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
 add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
-
-
-// Alte AJAX-Hooks entfernen, falls sie noch woanders registriert sind oder veraltet sind
-// remove_action('wp_ajax_yprint_consolidate_cart', 'yprint_ajax_consolidate_cart');
-// remove_action('wp_ajax_nopriv_yprint_consolidate_cart', 'yprint_ajax_consolidate_cart');
 
 
 // Shortcode registrieren
