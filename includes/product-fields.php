@@ -215,6 +215,9 @@ public static function init() {
         
         // In den Warenkorb Button
         add_shortcode('yprint_add_to_cart', array(__CLASS__, 'add_to_cart_shortcode'));
+
+        // Produkt-Akkordeon
+        add_shortcode('yprint_product_accordion', array(__CLASS__, 'product_accordion_shortcode'));
         
         // Benutzerdefinierte Felder als Shortcodes registrieren
         $custom_fields = array(
@@ -408,6 +411,193 @@ public static function init() {
         
         return $output;
     }
+
+    /**
+ * Shortcode: Produkt-Akkordeon
+ * 
+ * Zeigt Produktdetails in einem Akkordeon-Format an
+ * Usage: [yprint_product_accordion]
+ */
+public static function product_accordion_shortcode($atts) {
+    $atts = shortcode_atts(array(
+        'id' => '',  // Optionale direkte Produkt-ID
+    ), $atts, 'yprint_product_accordion');
+    
+    // Produkt-ID aus Attribut, URL oder aktuellem Produkt bestimmen
+    $product_id = !empty($atts['id']) ? intval($atts['id']) : 0;
+    
+    if (empty($product_id)) {
+        $product_id = isset($_GET['product_id']) ? intval($_GET['product_id']) : get_the_ID();
+    }
+    
+    // Produkt prüfen
+    if (!$product_id || !function_exists('wc_get_product')) {
+        return '<p class="error-message">Keine gültige Produkt-ID gefunden oder WooCommerce ist nicht aktiv.</p>';
+    }
+    
+    // Produktdaten abrufen mit den korrekten YPrint-Feldern
+    $product_data = array(
+        'note' => get_post_meta($product_id, '_yprint_note', true) ?: 'Keine besonderen Hinweise verfügbar.',
+        'details' => get_post_meta($product_id, '_yprint_details', true) ?: 'Keine Detailinformationen verfügbar.',
+        'features' => get_post_meta($product_id, '_yprint_features', true) ?: 'Keine Features verfügbar.',
+        'care' => get_post_meta($product_id, '_yprint_care', true) ?: 'Keine Pflegehinweise verfügbar.',
+        'customizations' => get_post_meta($product_id, '_yprint_customizations', true) ?: 'Keine Anpassungsinformationen verfügbar.',
+        'fabric' => get_post_meta($product_id, '_yprint_fabric', true) ?: 'Keine Materialinformationen verfügbar.'
+    );
+    
+    // Eindeutige ID für dieses Akkordeon generieren
+    $accordion_id = 'yprint-accordion-' . uniqid();
+    
+    // CSS für das Akkordeon
+    $output = '<style>
+        .yprint-accordion {
+            border-top: 1px solid #e5e5e5;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .yprint-accordion-item {
+            border-bottom: 1px solid #e5e5e5;
+        }
+        .yprint-accordion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .yprint-accordion-header:hover {
+            opacity: 0.8;
+        }
+        .yprint-accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            padding: 0 0 0 0;
+        }
+        .yprint-accordion-content.active {
+            max-height: 1000px;
+            padding: 0 0 20px 0;
+        }
+        .yprint-accordion-icon {
+            font-size: 24px;
+            transition: transform 0.3s ease;
+        }
+        .yprint-accordion-icon.active {
+            transform: rotate(45deg);
+        }
+        .yprint-note {
+            margin-bottom: 20px;
+        }
+        .yprint-note p {
+            font-style: italic;
+            color: #666;
+        }
+        .error-message {
+            color: #777;
+            font-style: italic;
+        }
+    </style>';
+    
+    // Note-Bereich mit Besonderen Hinweisen
+    $output .= '<div class="yprint-note">
+        <h2>Note</h2>
+        <div>' . wpautop($product_data['note']) . '</div>
+    </div>';
+    
+    // Akkordeon-Container
+    $output .= '<div class="yprint-accordion" id="' . esc_attr($accordion_id) . '">';
+    
+    // Details Bereich
+    $output .= '<div class="yprint-accordion-item">
+        <div class="yprint-accordion-header">
+            <span>Details</span>
+            <span class="yprint-accordion-icon">+</span>
+        </div>
+        <div class="yprint-accordion-content">' . wpautop($product_data['details']) . '</div>
+    </div>';
+    
+    // Features Bereich
+    $output .= '<div class="yprint-accordion-item">
+        <div class="yprint-accordion-header">
+            <span>Features</span>
+            <span class="yprint-accordion-icon">+</span>
+        </div>
+        <div class="yprint-accordion-content">' . wpautop($product_data['features']) . '</div>
+    </div>';
+    
+    // Pflegehinweise (Care Instructions)
+    $output .= '<div class="yprint-accordion-item">
+        <div class="yprint-accordion-header">
+            <span>Care Instructions</span>
+            <span class="yprint-accordion-icon">+</span>
+        </div>
+        <div class="yprint-accordion-content">' . wpautop($product_data['care']) . '</div>
+    </div>';
+    
+    // Anpassungsmöglichkeiten (Customizations)
+    $output .= '<div class="yprint-accordion-item">
+        <div class="yprint-accordion-header">
+            <span>Customizations</span>
+            <span class="yprint-accordion-icon">+</span>
+        </div>
+        <div class="yprint-accordion-content">' . wpautop($product_data['customizations']) . '</div>
+    </div>';
+    
+    // Material/Stoff (Fabric)
+    $output .= '<div class="yprint-accordion-item">
+        <div class="yprint-accordion-header">
+            <span>Fabric</span>
+            <span class="yprint-accordion-icon">+</span>
+        </div>
+        <div class="yprint-accordion-content">' . wpautop($product_data['fabric']) . '</div>
+    </div>';
+    
+    // Akkordeon schließen
+    $output .= '</div>';
+    
+    // JavaScript für Akkordeon-Funktionalität mit spezifischer ID
+    $output .= '<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const accordionId = "' . esc_js($accordion_id) . '";
+        const accordion = document.getElementById(accordionId);
+        
+        if (accordion) {
+            const accordionHeaders = accordion.querySelectorAll(".yprint-accordion-header");
+            
+            accordionHeaders.forEach(header => {
+                header.addEventListener("click", function() {
+                    const content = this.nextElementSibling;
+                    const icon = this.querySelector(".yprint-accordion-icon");
+                    
+                    // Toggle active class
+                    content.classList.toggle("active");
+                    icon.classList.toggle("active");
+                    
+                    // Close other sections in this accordion
+                    const allContents = accordion.querySelectorAll(".yprint-accordion-content");
+                    const allIcons = accordion.querySelectorAll(".yprint-accordion-icon");
+                    
+                    allContents.forEach(item => {
+                        if (item !== content && item.classList.contains("active")) {
+                            item.classList.remove("active");
+                        }
+                    });
+                    
+                    allIcons.forEach(item => {
+                        if (item !== icon && item.classList.contains("active")) {
+                            item.classList.remove("active");
+                        }
+                    });
+                });
+            });
+        }
+    });
+    </script>';
+    
+    return $output;
+}
     
 /**
  * Add JavaScript for product redirection
