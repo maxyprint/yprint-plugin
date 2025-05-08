@@ -1022,52 +1022,51 @@ $cart.on('click', '.yprint-mini-cart-item-remove', function() {
 
     toggleLoading(true); // Overlay aktivieren
 
+    // Debug-Ausgabe
+    console.log('Entferne Artikel mit Schlüssel:', cartItemKey);
+
     $.ajax({
         url: wc_add_to_cart_params.ajax_url,
         type: 'POST',
         data: {
             action: 'yprint_remove_from_cart',
-            cart_item_key: cartItemKey,
-            security: wc_add_to_cart_params.nonce // Füge nonce/security token hinzu
+            cart_item_key: cartItemKey
         },
+        dataType: 'json',
         success: function(response) {
-            if (response.success && response.cart_count !== undefined && response.cart_subtotal !== undefined) {
-                 console.log('Item removal successful:', response); // Log success
-
-                 // Artikel visuell entfernen
+            console.log('Antwort vom Server:', response);
+            
+            if (response.success) {
+                // Artikel visuell entfernen
                 $item.fadeOut(300, function() {
                     $(this).remove();
 
-                     // Warenkorb-Anzahl im Header aktualisieren
-                    $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                     // Zwischensumme aktualisieren - Target the class
-                    $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
+                    // Warenkorb-Anzahl im Header aktualisieren
+                    $cart.find('.yprint-mini-cart-count').text(response.data.cart_count);
+                    
+                    // Zwischensumme aktualisieren
+                    $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.data.cart_subtotal);
 
                     // Leeren Warenkorb zeigen, wenn keine Artikel mehr
-                    if (response.cart_count === 0) {
+                    if (response.data.cart_count === 0) {
                         $cart.find('.yprint-mini-cart-items').html('<div class="yprint-mini-cart-empty">Dein Warenkorb ist leer.</div>');
-                         // Optional: hide subtotal and checkout button if cart is empty
-                         // $cart.find('.yprint-mini-cart-subtotal').hide();
-                         // $cart.find('.yprint-mini-cart-checkout').hide();
                     }
 
                     // Trigger custom event after item is removed
                     $(document.body).trigger('yprint_mini_cart_item_removed', [cartItemKey]);
                 });
             } else {
-                 console.error('Ungültige Antwort beim Entfernen:', response);
-                 toggleLoading(false); // Overlay deaktivieren bei fehlerhafter Antwort
+                console.error('Fehler beim Entfernen:', response.data);
+                alert('Der Artikel konnte nicht entfernt werden.');
             }
+            
+            toggleLoading(false);
         },
         error: function(xhr, status, error) {
-            console.error('Fehler beim Entfernen:', status, error);
-            toggleLoading(false); // Overlay deaktivieren bei Fehlern
-        },
-        complete: function() {
-            // Stellen Sie sicher, dass das Overlay in allen Fällen deaktiviert wird
-            if ($cart.find('.yprint-loading-overlay').hasClass('active')) {
-                toggleLoading(false);
-            }
+            console.error('AJAX-Fehler beim Entfernen:', status, error);
+            console.log('XHR Objekt:', xhr);
+            alert('Es ist ein Fehler aufgetreten. Bitte versuche es später erneut.');
+            toggleLoading(false);
         }
     });
 });
@@ -1235,30 +1234,37 @@ function updateQuantity(cartItemKey, quantity, $item_element) {
  * Ajax-Funktion zum Entfernen eines Produkts aus dem Warenkorb
  */
 function yprint_remove_from_cart() {
-    // Sicherheit: Nonce überprüfen (Empfohlen für AJAX-Aufrufe)
-    // if ( ! isset( $_POST['nonce'] ) || ! wp_verify_nonce( $_POST['nonce'], 'yprint_cart_nonce' ) ) {
-    //     wp_send_json_error( 'Nonce verification failed' );
-    //     wp_die();
-    // }
-
+    // Debug-Ausgabe (nur während der Entwicklung)
+    // error_log('yprint_remove_from_cart aufgerufen. POST: ' . print_r($_POST, true));
+    
     $cart_item_key = isset($_POST['cart_item_key']) ? sanitize_text_field($_POST['cart_item_key']) : '';
 
-    if ($cart_item_key && !is_null(WC()->cart) && WC()->cart->remove_cart_item($cart_item_key)) {
+    if (empty($cart_item_key)) {
+        wp_send_json_error('Kein Artikel-Schlüssel angegeben');
+        return;
+    }
+    
+    if (is_null(WC()->cart)) {
+        wp_send_json_error('Warenkorb nicht initialisiert');
+        return;
+    }
+    
+    if (WC()->cart->remove_cart_item($cart_item_key)) {
         // Warenkorb-Summen neu berechnen nach dem Entfernen
         WC()->cart->calculate_totals();
 
-        // Minimale Daten zurückgeben
-        wp_send_json(array(
-            'success' => true, // Indicate success explicitly
+        // Daten zurückgeben
+        wp_send_json_success(array(
             'cart_count' => WC()->cart->get_cart_contents_count(),
-            'cart_subtotal' => WC()->cart->get_cart_subtotal()
+            'cart_subtotal' => WC()->cart->get_cart_subtotal(),
+            'message' => 'Artikel erfolgreich entfernt'
         ));
     } else {
-         wp_send_json_error('Could not remove item or invalid key');
+        wp_send_json_error('Artikel konnte nicht entfernt werden');
     }
-
-    wp_die();
 }
+add_action('wp_ajax_yprint_remove_from_cart', 'yprint_remove_from_cart');
+add_action('wp_ajax_nopriv_yprint_remove_from_cart', 'yprint_remove_from_cart');
 
 function yprint_update_cart_quantity() {
     global $wpdb;
