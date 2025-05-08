@@ -1011,61 +1011,66 @@ function yprint_minimalist_cart_shortcode() {
         });
 
         // ENTFERNEN-BUTTON
-        $cart.on('click', '.yprint-mini-cart-item-remove', function() {
-            var $item = $(this).closest('.yprint-mini-cart-item');
-            var cartItemKey = $item.data('item-key');
+$cart.on('click', '.yprint-mini-cart-item-remove', function() {
+    var $item = $(this).closest('.yprint-mini-cart-item');
+    var cartItemKey = $item.data('item-key');
 
-            if (!cartItemKey) {
-                console.error('Artikel-Schlüssel nicht gefunden.');
-                return;
-            }
+    if (!cartItemKey) {
+        console.error('Artikel-Schlüssel nicht gefunden.');
+        return;
+    }
 
-            toggleLoading(true); // Overlay aktivieren
+    toggleLoading(true); // Overlay aktivieren
 
-            $.ajax({
-                url: wc_add_to_cart_params.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_remove_from_cart',
-                    cart_item_key: cartItemKey
-                },
-                success: function(response) {
-                    if (response.cart_count !== undefined && response.cart_subtotal !== undefined) {
-                         console.log('Item removal successful:', response); // Log success
+    $.ajax({
+        url: wc_add_to_cart_params.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_remove_from_cart',
+            cart_item_key: cartItemKey,
+            security: wc_add_to_cart_params.nonce // Füge nonce/security token hinzu
+        },
+        success: function(response) {
+            if (response.success && response.cart_count !== undefined && response.cart_subtotal !== undefined) {
+                 console.log('Item removal successful:', response); // Log success
 
-                         // Artikel visuell entfernen
-                        $item.fadeOut(300, function() {
-                            $(this).remove();
+                 // Artikel visuell entfernen
+                $item.fadeOut(300, function() {
+                    $(this).remove();
 
-                             // Warenkorb-Anzahl im Header aktualisieren
-                            $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                             // Zwischensumme aktualisieren - Target the class
-                            $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
+                     // Warenkorb-Anzahl im Header aktualisieren
+                    $cart.find('.yprint-mini-cart-count').text(response.cart_count);
+                     // Zwischensumme aktualisieren - Target the class
+                    $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
 
-                            // Leeren Warenkorb zeigen, wenn keine Artikel mehr
-                            if (response.cart_count === 0) {
-                                $cart.find('.yprint-mini-cart-items').html('<div class="yprint-mini-cart-empty">Dein Warenkorb ist leer.</div>');
-                                 // Optional: hide subtotal and checkout button if cart is empty
-                                 // $cart.find('.yprint-mini-cart-subtotal').hide();
-                                 // $cart.find('.yprint-mini-cart-checkout').hide();
-                            }
-
-                            // Trigger custom event after item is removed
-                            $(document.body).trigger('yprint_mini_cart_item_removed', [cartItemKey]);
-                        });
-                    } else {
-                         console.error('Ungültige Antwort beim Entfernen:', response);
+                    // Leeren Warenkorb zeigen, wenn keine Artikel mehr
+                    if (response.cart_count === 0) {
+                        $cart.find('.yprint-mini-cart-items').html('<div class="yprint-mini-cart-empty">Dein Warenkorb ist leer.</div>');
+                         // Optional: hide subtotal and checkout button if cart is empty
+                         // $cart.find('.yprint-mini-cart-subtotal').hide();
+                         // $cart.find('.yprint-mini-cart-checkout').hide();
                     }
 
-
-                    toggleLoading(false); // Overlay deaktivieren
-                },
-                error: function(xhr, status, error) {
-                    console.error('Fehler beim Entfernen:', status, error);
-                    toggleLoading(false); // Overlay deaktivieren bei Fehlern
-                }
-            });
-        });
+                    // Trigger custom event after item is removed
+                    $(document.body).trigger('yprint_mini_cart_item_removed', [cartItemKey]);
+                });
+            } else {
+                 console.error('Ungültige Antwort beim Entfernen:', response);
+                 toggleLoading(false); // Overlay deaktivieren bei fehlerhafter Antwort
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Fehler beim Entfernen:', status, error);
+            toggleLoading(false); // Overlay deaktivieren bei Fehlern
+        },
+        complete: function() {
+            // Stellen Sie sicher, dass das Overlay in allen Fällen deaktiviert wird
+            if ($cart.find('.yprint-loading-overlay').hasClass('active')) {
+                toggleLoading(false);
+            }
+        }
+    });
+});
 
 // PLUS/MINUS BUTTONS
 $cart.on('click', '.qty-btn', function() {
