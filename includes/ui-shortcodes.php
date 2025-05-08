@@ -193,3 +193,107 @@ function yprint_current_page_shortcode() {
     return '<div style="' . esc_attr($style) . '">' . esc_html($current_path) . '</div>';
 }
 add_shortcode('current_page', 'yprint_current_page_shortcode');
+
+/**
+ * Mobile Navigation Toggle für verbesserte Mobile-Menu-Erfahrung
+ * Ermöglicht bessere Benutzererfahrung durch richtiges Umschalten des Menü-Buttons
+ */
+function yprint_mobile_nav_toggle() {
+    ?>
+    <script>
+    jQuery(document).ready(function($) {
+        // Warten bis die Seite vollständig geladen ist
+        $(window).on('load', function() {
+            // Diese Funktion überprüft, ob das Menü geöffnet ist
+            function isMenuOpen() {
+                return window.location.hash === '#mobile-navigation' || 
+                       window.location.search.indexOf('nav_open=1') !== -1;
+            }
+            
+            // Finde alle Navigations-Buttons (es könnten mehrere sein)
+            var $navButtons = $('a[href="#mobile-navigation"], a[href*="nav_open=1"]');
+            console.log('Gefundene Nav-Buttons:', $navButtons.length);
+            
+            // Wenn wir Buttons gefunden haben
+            if ($navButtons.length > 0) {
+                // Speichere die originalen href-Werte
+                $navButtons.each(function() {
+                    $(this).data('original-href', $(this).attr('href'));
+                });
+                
+                // Füge einen Event-Listener für Klicks hinzu, der NACH dem ursprünglichen Klick ausgeführt wird
+                $navButtons.on('click', function(e) {
+                    // Speichere eine Referenz auf den Button
+                    var $clickedButton = $(this);
+                    
+                    // Überprüfe, ob das Menü bereits geöffnet ist
+                    if (isMenuOpen()) {
+                        console.log('Menü ist offen, schließe es');
+                        // Verhindern Sie das Standard-Klick-Verhalten
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Wenn es offen ist, schließe es durch Neuladen der Seite ohne Parameter
+                        var cleanUrl = window.location.protocol + '//' + window.location.host + 
+                                    window.location.pathname;
+                        
+                        // Behalte andere Query-Parameter bei, falls vorhanden, aber entferne nav_open
+                        var searchParams = new URLSearchParams(window.location.search);
+                        searchParams.delete('nav_open');
+                        
+                        // Füge bereinigte Parameter hinzu, falls welche übrig sind
+                        if (searchParams.toString()) {
+                            cleanUrl += '?' + searchParams.toString();
+                        }
+                        
+                        // Navigiere zur bereinigten URL
+                        window.location.href = cleanUrl;
+                        return false;
+                    } else {
+                        console.log('Menü ist geschlossen, lasse es öffnen');
+                        // Wenn das Menü geschlossen ist, lasse das Standard-Verhalten zu
+                        // Aber ändere den Text nach einer kurzen Verzögerung
+                        setTimeout(function() {
+                            if ($clickedButton.data('original-text')) {
+                                $clickedButton.text('Menü schließen');
+                            }
+                        }, 500);
+                        return true; // Lasse den normalen Klick durchlaufen
+                    }
+                });
+                
+                // Update Button-Text basierend auf Menü-Status
+                function updateButtonsText() {
+                    if (isMenuOpen()) {
+                        $navButtons.each(function() {
+                            // Speichere den originalen Text, falls wir ihn noch nicht gespeichert haben
+                            var $btn = $(this);
+                            if (!$btn.data('original-text') && $btn.text() !== 'Menü schließen') {
+                                $btn.data('original-text', $btn.text());
+                                console.log('Originaler Text gespeichert:', $btn.data('original-text'));
+                            }
+                            $btn.text('Menü schließen');
+                        });
+                    } else {
+                        $navButtons.each(function() {
+                            var $btn = $(this);
+                            // Stelle den ursprünglichen Text wieder her, falls gespeichert
+                            if ($btn.data('original-text')) {
+                                $btn.text($btn.data('original-text'));
+                            }
+                        });
+                    }
+                }
+                
+                // Initialer Check und regelmäßiges Update
+                setTimeout(updateButtonsText, 500);
+                setInterval(updateButtonsText, 1000);
+                
+                console.log('Mobile Navigation Toggle initialisiert');
+            }
+        });
+    });
+    </script>
+    <?php
+}
+add_action('wp_footer', 'yprint_mobile_nav_toggle', 999);
