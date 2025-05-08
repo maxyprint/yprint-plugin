@@ -1378,5 +1378,297 @@ add_action('wp_ajax_yprint_refresh_cart_content', 'yprint_refresh_cart_content_c
 add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
 
 
+/**
+ * Stellt sicher, dass die print_design-Daten während des Checkouts erhalten bleiben
+ */
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_add_design_data_to_order_item', 10, 4);
+function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $order) {
+    // Überprüfen, ob es print_design-Daten gibt
+    if (isset($values['print_design']) && !empty($values['print_design'])) {
+        $design = $values['print_design'];
+        
+        // Design-Metadaten zum Bestelleintrag hinzufügen
+        foreach ($design as $meta_key => $meta_value) {
+            if (is_array($meta_value) || is_object($meta_value)) {
+                $meta_value = wp_json_encode($meta_value);
+            }
+            $item->add_meta_data('_design_' . $meta_key, $meta_value);
+        }
+        
+        // Setze die Hauptinformationen für die einfache Anzeige in der Bestellansicht
+        $item->add_meta_data('_design_id', $design['design_id'] ?? '');
+        $item->add_meta_data('_design_name', $design['name'] ?? '');
+        $item->add_meta_data('_design_color', $design['variation_name'] ?? '');
+        $item->add_meta_data('_design_size', $design['size_name'] ?? '');
+        $item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
+        
+        // Stelle sicher, dass diese Informationen auch für das OctoPrint Plugin verfügbar sind
+        $item->add_meta_data('_has_print_design', 'yes');
+        
+        // Zusätzliche spezifische Meta-Daten für Octo Plugin
+        $item->add_meta_data('print_design', $design);
+    }
+}
+
+/**
+ * Erweiterte Warenkorb-Konsolidierungsfunktion mit Design-Produkten-Behandlung
+ */
+function yprint_extended_consolidate_cart_items() {
+    if (!class_exists('WooCommerce') || is_null(WC()->cart)) {
+        return false;
+    }
+    
+    $cart = WC()->cart->get_cart();
+    $temp_grouping = array();
+    $changes_made = false;
+
+    // Gruppieren der Artikel
+    foreach ($cart as $cart_item_key => $cart_item) {
+        $product_id = $cart_item['product_id'];
+        $variation_id = isset($cart_item['variation_id']) ? $cart_item['variation_id'] : 0;
+        $variation_attributes = isset($cart_item['variation']) ? $cart_item['variation'] : array();
+        
+        // Wenn es ein Design-Produkt ist, diesen Artikel auslassen
+        if (isset($cart_item['print_design'])) {
+            continue;
+        }
+
+        // Erstelle einen Hash für die Variationen, sortiert für Konsistenz
+        ksort($variation_attributes);
+        $variation_hash = md5(serialize($variation_attributes));
+
+        // Unique Key für dieses Produkt/Variation erstellen
+        $unique_group_key = $product_id . '-' . $variation_id . '-' . $variation_hash;
+
+        if (isset($temp_grouping[$unique_group_key])) {
+            // Produkt bereits in der Gruppe gesehen, Menge addieren und Schlüssel zum Entfernen vormerken
+            $temp_grouping[$unique_group_key]['quantity'] += $cart_item['quantity'];
+            $temp_grouping[$unique_group_key]['duplicate_keys'][] = $cart_item_key;
+            $changes_made = true;
+        } else {
+            // Neues Produkt in der Gruppe
+            $temp_grouping[$unique_group_key] = array(
+                'main_cart_item_key' => $cart_item_key, // Behalte den ersten Schlüssel
+                'quantity' => $cart_item['quantity'],
+                'duplicate_keys' => array()
+            );
+        }
+    }
+
+    // Aktualisieren und Entfernen von doppelten Einträgen
+    if ($changes_made) {
+        foreach ($temp_grouping as $group_data) {
+            // Entferne die doppelten Einträge
+            foreach ($group_data['duplicate_keys'] as $key_to_remove) {
+                WC()->cart->remove_cart_item($key_to_remove);
+            }
+
+            // Aktualisiere die Menge des Hauptartikels, falls nötig
+            if (!empty($group_data['duplicate_keys'])) {
+                if (isset(WC()->cart->get_cart()[$group_data['main_cart_item_key']])) {
+                    WC()->cart->set_quantity($group_data['main_cart_item_key'], $group_data['quantity'], true);
+                }
+            }
+        }
+        // Stelle sicher, dass Summen neu berechnet werden
+        WC()->cart->calculate_totals();
+    }
+
+    return $changes_made;
+}
+
+/**
+ * Hook für Konsolidierung nach dem Hinzufügen zum Warenkorb
+ */
+add_action('woocommerce_add_to_cart', 'yprint_handle_cart_updates', 20, 6);
+function yprint_handle_cart_updates($cart_item_key, $product_id, $quantity, $variation_id, $variation, $cart_item_data) {
+    // Verhindert rekursive Aufrufe
+    static $is_processing = false;
+    
+    if ($is_processing) {
+        return;
+    }
+    
+    $is_processing = true;
+    
+    // Entferne den Hook temporär
+    remove_action('woocommerce_add_to_cart', 'yprint_handle_cart_updates', 20);
+    
+    // Prüfe auf print_design Daten im aktuellen Produkt
+    $has_print_design = isset($cart_item_data['print_design']);
+    
+    // Konsolidiere den Warenkorb, aber nur wenn es kein Print-Design-Produkt ist
+    if (!$has_print_design) {
+        yprint_extended_consolidate_cart_items();
+    } else {
+        // Wenn es ein Print-Design-Produkt ist, markieren wir es als solches
+        $current_cart_item = WC()->cart->get_cart_item($cart_item_key);
+        if ($current_cart_item && isset($current_cart_item['print_design'])) {
+            // Speichere das Design-Flag für dieses Produkt
+            WC()->cart->cart_contents[$cart_item_key]['_is_design_product'] = true;
+            
+            // Generiere einen eindeutigen Schlüssel für dieses Design
+            if (isset($current_cart_item['print_design']['design_id'])) {
+                $unique_design_key = md5(wp_json_encode($current_cart_item['print_design']));
+                WC()->cart->cart_contents[$cart_item_key]['unique_design_key'] = $unique_design_key;
+            }
+            
+            // Persistiere den Warenkorb
+            WC()->cart->set_session();
+        }
+    }
+    
+    // Füge den Hook wieder hinzu
+    add_action('woocommerce_add_to_cart', 'yprint_handle_cart_updates', 20, 6);
+    
+    $is_processing = false;
+}
+
+/**
+ * Bearbeitet cart sessions, um sicherzustellen, dass print_design-Daten erhalten bleiben
+ */
+add_filter('woocommerce_get_cart_item_from_session', 'yprint_get_cart_item_from_session', 10, 2);
+function yprint_get_cart_item_from_session($cart_item, $values) {
+    if (isset($values['print_design'])) {
+        $cart_item['print_design'] = $values['print_design'];
+        
+        // Markiere das Item als Design-Produkt, damit es nicht konsolidiert wird
+        $cart_item['_is_design_product'] = true;
+        
+        // Stelle sicher, dass der unique_design_key erhalten bleibt
+        if (isset($values['unique_design_key'])) {
+            $cart_item['unique_design_key'] = $values['unique_design_key'];
+        }
+        
+        // Wenn ein berechneter Preis vorliegt, setze diesen
+        if (isset($values['print_design']['calculated_price'])) {
+            $product = $cart_item['data'];
+            
+            // Originalpreis speichern, falls nicht gesetzt
+            if (!isset($cart_item['original_price'])) {
+                $cart_item['original_price'] = $product->get_price();
+            }
+            
+            // Preis basierend auf berechneter Designpreis setzen
+            $product->set_price($values['print_design']['calculated_price']);
+        }
+    }
+    
+    return $cart_item;
+}
+
+/**
+ * Designdaten in den Bestelldetails anzeigen
+ */
+add_action('woocommerce_order_item_meta_end', 'yprint_display_design_data_in_order', 10, 3);
+function yprint_display_design_data_in_order($item_id, $item, $order) {
+    // Überprüfen, ob es sich um ein Print-Design-Produkt handelt
+    if ($item->get_meta('_has_print_design') === 'yes') {
+        echo '<div class="print-design-info" style="margin-top: 10px; padding-top: 10px; border-top: 1px dotted #ccc;">';
+        echo '<p><strong>Design-Details:</strong></p>';
+        
+        $design_name = $item->get_meta('_design_name');
+        if (!empty($design_name)) {
+            echo '<p>Name: ' . esc_html($design_name) . '</p>';
+        }
+        
+        $design_color = $item->get_meta('_design_color');
+        if (!empty($design_color)) {
+            echo '<p>Farbe: ' . esc_html($design_color) . '</p>';
+        }
+        
+        $design_size = $item->get_meta('_design_size');
+        if (!empty($design_size)) {
+            echo '<p>Größe: ' . esc_html($design_size) . '</p>';
+        }
+        
+        $preview_url = $item->get_meta('_design_preview_url');
+        if (!empty($preview_url)) {
+            echo '<p><img src="' . esc_url($preview_url) . '" style="max-width: 100px; height: auto;" alt="Vorschau"></p>';
+        }
+        
+        echo '</div>';
+    }
+}
+
+/**
+ * Designdaten in Bestell-E-Mails anzeigen
+ */
+add_action('woocommerce_email_order_item_meta', 'yprint_display_design_data_in_email', 10, 4);
+function yprint_display_design_data_in_email($item_id, $item, $order, $plain_text) {
+    if ($plain_text) {
+        return; // Überspringe einfachen Text und füge nur HTML hinzu
+    }
+    
+    // Überprüfen, ob es sich um ein Print-Design-Produkt handelt
+    if ($item->get_meta('_has_print_design') === 'yes') {
+        echo '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dotted #ccc;">';
+        echo '<p><strong>Design-Details:</strong></p>';
+        
+        $design_name = $item->get_meta('_design_name');
+        if (!empty($design_name)) {
+            echo '<p>Name: ' . esc_html($design_name) . '</p>';
+        }
+        
+        $design_color = $item->get_meta('_design_color');
+        if (!empty($design_color)) {
+            echo '<p>Farbe: ' . esc_html($design_color) . '</p>';
+        }
+        
+        $design_size = $item->get_meta('_design_size');
+        if (!empty($design_size)) {
+            echo '<p>Größe: ' . esc_html($design_size) . '</p>';
+        }
+        
+        echo '</div>';
+    }
+}
+
+/**
+ * Passt den Produkttitel im Warenkorb an, um Designinformationen anzuzeigen
+ */
+add_filter('woocommerce_cart_item_name', 'yprint_modify_cart_item_name', 10, 3);
+function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
+    if (isset($cart_item['print_design'])) {
+        $design = $cart_item['print_design'];
+        
+        // Designname hinzufügen, falls vorhanden
+        if (!empty($design['name'])) {
+            $name .= ' - <span class="design-name">' . esc_html($design['name']) . '</span>';
+        }
+        
+        // Variation und Größe hinzufügen, falls vorhanden
+        $details = [];
+        if (!empty($design['variation_name'])) {
+            $details[] = esc_html($design['variation_name']);
+        }
+        if (!empty($design['size_name'])) {
+            $details[] = esc_html($design['size_name']);
+        }
+        
+        if (!empty($details)) {
+            $name .= ' <span class="design-details">(' . implode(', ', $details) . ')</span>';
+        }
+    }
+    
+    return $name;
+}
+
+/**
+ * Fügt eine Vorschaubilder-Miniaturansicht zum Warenkorbartikel hinzu
+ * (Kommentiert, wie in deinem Ursprungscode)
+ */
+// add_filter('woocommerce_cart_item_thumbnail', 'yprint_custom_cart_item_thumbnail', 10, 3);
+// function yprint_custom_cart_item_thumbnail($thumbnail, $cart_item, $cart_item_key) {
+//     if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['preview_url'])) {
+//         $preview_url = $cart_item['print_design']['preview_url'];
+//         
+//         // Original-Thumbnail erhalten und darunter Designvorschau anzeigen
+//         $thumbnail .= '<div class="design-preview" style="margin-top: 5px;"><img src="' . esc_url($preview_url) . '" style="max-width: 50px; height: auto;" alt="Design Preview"></div>';
+//     }
+//     
+//     return $thumbnail;
+// }
+
 // Shortcode registrieren
 add_shortcode('yprint_minimalist_cart', 'yprint_minimalist_cart_shortcode');
