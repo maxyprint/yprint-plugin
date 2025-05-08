@@ -1190,11 +1190,29 @@ function updateQuantity(cartItemKey, quantity, $item_element) {
         $item_element.find('.qty-input').val(quantity);
     }
 
-    // Kurze Verzögerung, um die UI-Aktualisierung anzuzeigen
-    setTimeout(function() {
-        // Den vollständigen Warenkorb neu laden - einfacherer und zuverlässigerer Ansatz
-        refreshCartContent();
-    }, 500);
+    // AJAX-Request zum Aktualisieren der Menge im Backend
+    $.ajax({
+        url: wc_add_to_cart_params.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_update_cart_quantity',
+            cart_item_key: cartItemKey,
+            quantity: quantity
+        },
+        success: function(response) {
+            if (response.success) {
+                console.log('Quantity update successful:', response);
+                refreshCartContent();
+            } else {
+                console.error('Fehler beim Aktualisieren der Menge:', response.data);
+                toggleLoading(false);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('AJAX Fehler beim Aktualisieren der Menge:', status, error);
+            toggleLoading(false);
+        }
+    });
 }
 
          // Removed the transitionend listener for animation control,
