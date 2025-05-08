@@ -446,30 +446,38 @@ function yprint_consolidate_cart_items() {
     $temp_grouping = array();
     $changes_made = false;
 
-    // Temporäre Struktur zur Identifizierung gleicher Produkte
-    // Key: product_id-variation_id-variation_attributes_hash(-print_design_hash)
-    // Value: array( 'cart_item_key' => first key found, 'quantity' => total quantity, 'duplicate_keys' => array of keys to remove )
-
     // Gruppieren der Artikel
     foreach ($cart as $cart_item_key => $cart_item) {
         $product_id = $cart_item['product_id'];
         $variation_id = isset($cart_item['variation_id']) ? $cart_item['variation_id'] : 0;
         $variation_attributes = isset($cart_item['variation']) ? $cart_item['variation'] : array();
 
+        // Spezialfall: Print-Design oder Design-Product-Flag macht ein Produkt einzigartig
+        if (isset($cart_item['print_design']) || isset($cart_item['_is_design_product'])) {
+            // Bei Design-Produkten jedes als einzigartiges Produkt behandeln und konsolidierung überspringen
+            continue;
+        }
+
+        // Sammle alle benutzerdefinierten Daten außer den Standard-Schlüsseln
+        $custom_data = array();
+        foreach ($cart_item as $key => $value) {
+            if (!in_array($key, array('product_id', 'variation_id', 'variation', 'quantity', 'data', 'key'))) {
+                $custom_data[$key] = $value;
+            }
+        }
+
         // Erstelle einen Hash für die Variationen, sortiert, um Konsistenz zu gewährleisten
         ksort($variation_attributes);
         $variation_hash = md5(serialize($variation_attributes));
+        
+        // Erstelle einen Hash für benutzerdefinierte Daten
+        $custom_data_hash = !empty($custom_data) ? md5(serialize($custom_data)) : '';
 
-        // Spezialfall: Print-Design macht ein Produkt einzigartig
-        $print_design_hash = '';
-        if (isset($cart_item['print_design'])) {
-             // Erstelle einen Hash für das Print-Design-Daten (Annahme: ist serialisierbar)
-             // Achtung: Die Struktur von 'print_design' muss serialisierbar sein.
-            $print_design_hash = md5(serialize($cart_item['print_design']));
+        // Unique Key für dieses Produkt/Variation/Custom-Data erstellen
+        $unique_group_key = $product_id . '-' . $variation_id . '-' . $variation_hash;
+        if (!empty($custom_data_hash)) {
+            $unique_group_key .= '-' . $custom_data_hash;
         }
-
-        // Unique Key für dieses Produkt/Variation/Design erstellen
-        $unique_group_key = $product_id . '-' . $variation_id . '-' . $variation_hash . ($print_design_hash ? '-' . $print_design_hash : '');
 
         if (isset($temp_grouping[$unique_group_key])) {
             // Produkt bereits in der Gruppe gesehen, Menge addieren und Schlüssel zum Entfernen vormerken
@@ -496,17 +504,16 @@ function yprint_consolidate_cart_items() {
 
             // Aktualisiere die Menge des Hauptartikels, falls nötig
             if (!empty($group_data['duplicate_keys'])) {
-                 // Die Menge wurde in der Gruppierung bereits addiert, setze sie für den Hauptartikel
-                 // Prüfe, ob der Hauptartikel noch existiert (er wurde nicht als Duplikat entfernt)
-                 if (isset(WC()->cart->get_cart()[$group_data['main_cart_item_key']])) {
-                    // Use true to recalculate totals immediately after setting quantity for the main item
-                    WC()->cart->set_quantity($group_data['main_cart_item_key'], $group_data['quantity'], true);
-                 }
+                $main_key = $group_data['main_cart_item_key'];
+                // Prüfe, ob der Hauptschlüssel noch im Warenkorb existiert
+                if (isset(WC()->cart->get_cart()[$main_key])) {
+                    // Menge aktualisieren und Summenwerte sofort neu berechnen
+                    WC()->cart->set_quantity($main_key, $group_data['quantity'], true);
+                }
             }
         }
-         // After all quantity updates, ensure totals are recalculated.
-         // This might be redundant if set_quantity(..., true) works for all items,
-         // but adds robustness, especially if multiple items were consolidated.
+        
+        // Gesamtsummen einmalig am Ende neu berechnen für bessere Performance
         WC()->cart->calculate_totals();
     }
 
@@ -1387,6 +1394,9 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
     if (isset($values['print_design']) && !empty($values['print_design'])) {
         $design = $values['print_design'];
         
+        // Debugging: Protokolliere die Design-Daten
+        error_log("Verarbeite Design-Daten für Bestellung: " . print_r($design, true));
+        
         // Design-Metadaten zum Bestelleintrag hinzufügen
         foreach ($design as $meta_key => $meta_value) {
             if (is_array($meta_value) || is_object($meta_value)) {
@@ -1407,6 +1417,9 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         
         // Zusätzliche spezifische Meta-Daten für Octo Plugin
         $item->add_meta_data('print_design', $design);
+        
+        // Speichere den Item, um sicherzustellen, dass die Meta-Daten persistiert werden
+        $item->save();
     }
 }
 
@@ -1682,3 +1695,76 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
 
 // Shortcode registrieren
 add_shortcode('yprint_minimalist_cart', 'yprint_minimalist_cart_shortcode');
+
+/**
+ * Wird aufgerufen, nachdem ein Produkt zum Warenkorb hinzugefügt wurde
+ */
+add_action('woocommerce_add_to_cart', 'yprint_after_add_to_cart', 20, 6);
+function yprint_after_add_to_cart($cart_item_key, $product_id, $quantity, $variation_id, $variation, $cart_item_data) {
+    // Verhindert rekursive Aufrufe
+    static $is_processing = false;
+    
+    if ($is_processing) {
+        return;
+    }
+    
+    $is_processing = true;
+    
+    // Entferne den Hook temporär
+    remove_action('woocommerce_add_to_cart', 'yprint_after_add_to_cart', 20);
+    
+    // Prüfe auf print_design Daten im aktuellen Produkt
+    $has_print_design = isset($cart_item_data['print_design']);
+    
+    // Konsolidiere den Warenkorb, aber nur wenn es kein Print-Design-Produkt ist
+    if (!$has_print_design) {
+        yprint_consolidate_cart_items();
+    } else {
+        // Wenn es ein Print-Design-Produkt ist, markieren wir es als solches
+        $current_cart_item = WC()->cart->get_cart_item($cart_item_key);
+        if ($current_cart_item && isset($current_cart_item['print_design'])) {
+            // Speichere das Design-Flag für dieses Produkt
+            WC()->cart->cart_contents[$cart_item_key]['_is_design_product'] = true;
+            
+            // Generiere einen eindeutigen Schlüssel für dieses Design
+            if (isset($current_cart_item['print_design']['design_id'])) {
+                $unique_design_key = md5(wp_json_encode($current_cart_item['print_design']));
+                WC()->cart->cart_contents[$cart_item_key]['unique_design_key'] = $unique_design_key;
+            }
+            
+            // Persistiere den Warenkorb
+            WC()->cart->set_session();
+        }
+    }
+    
+    // Füge den Hook wieder hinzu
+    add_action('woocommerce_add_to_cart', 'yprint_after_add_to_cart', 20, 6);
+    
+    // Event für AJAX-Aktualisierung triggern
+    do_action('yprint_cart_updated');
+    
+    $is_processing = false;
+}
+
+/**
+ * Spezielle Funktion zum Persistieren von Design-Daten während des Checkouts
+ */
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_preserve_design_data_in_order', 20, 4);
+function yprint_preserve_design_data_in_order($item, $cart_item_key, $values, $order) {
+    // Überprüfe, ob es ein Design-Produkt ist
+    if (isset($values['print_design']) && !empty($values['print_design'])) {
+        // Speichere die Design-Daten direkt als Meta-Feld für das Octo-Plugin
+        $item->update_meta_data('print_design', $values['print_design']);
+        
+        // Stelle sicher, dass es als Design-Produkt markiert ist
+        $item->update_meta_data('_is_design_product', true);
+        
+        // Speichere auch alle individuellen Design-Parameter als Meta-Daten
+        foreach ($values['print_design'] as $key => $value) {
+            if (is_array($value) || is_object($value)) {
+                $value = wp_json_encode($value);
+            }
+            $item->update_meta_data('design_' . $key, $value);
+        }
+    }
+}
