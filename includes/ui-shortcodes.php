@@ -106,6 +106,110 @@ function yprint_designer_button_shortcode($atts) {
 add_shortcode('designer_button', 'yprint_designer_button_shortcode');
 
 /**
+ * Add shortcode for CookieYes consent popup trigger button
+ * 
+ * Usage: [cookieyes_button text="Cookie Settings" class="my-class" style="color: red;"]
+ * 
+ * @param array $atts Shortcode attributes
+ * @param string $content Shortcode content
+ * @return string HTML output
+ */
+function yprint_cookieyes_button_shortcode($atts, $content = null) {
+    // Parse attributes
+    $attributes = shortcode_atts(array(
+        'class' => '',
+        'text'  => 'Cookie Settings',
+        'style' => '',
+    ), $atts);
+    
+    // Generate unique ID
+    $unique_id = 'cky-btn-' . uniqid();
+    
+    // Combine classes - include cky-banner-element class for automatic CookieYes detection
+    $classes = 'cky-banner-element ' . esc_attr($attributes['class']);
+    
+    // Build button style
+    $style = '';
+    if ($attributes['style']) {
+        $style = ' style="' . esc_attr($attributes['style']) . '"';
+    }
+    
+    // Build the button HTML
+    $button = '<button id="' . esc_attr($unique_id) . '" class="' . esc_attr($classes) . '"' . $style . '>';
+    $button .= esc_html($attributes['text']);
+    $button .= '</button>';
+    
+    return $button;
+}
+add_shortcode('cookieyes_button', 'yprint_cookieyes_button_shortcode');
+
+/**
+ * Replace CookieYes icon with custom cookie bite SVG icon
+ */
+function replace_cookieyes_icon_with_cookie_bite() {
+    ?>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function checkAndReplaceIcon() {
+            const revisitBtn = document.querySelector('[data-cky-tag="revisit-consent"] img');
+            const buttonWrapper = document.querySelector('[data-cky-tag="revisit-consent"]');
+            
+            if (revisitBtn && buttonWrapper) {
+                // Hintergrund transparent machen
+                buttonWrapper.style.backgroundColor = 'transparent';
+                buttonWrapper.style.border = 'none';
+                buttonWrapper.style.boxShadow = 'none';
+                
+                // Das Bild-Element durch das Cookie-Bite-SVG ersetzen
+                const cookieSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                cookieSvg.setAttribute('width', '40');
+                cookieSvg.setAttribute('height', '40');
+                cookieSvg.setAttribute('viewBox', '0 0 512 512');
+                cookieSvg.setAttribute('fill', '#1b7cff');
+                
+                // Exakter Pfad für das Cookie-Bite-Icon
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'M257.5 27.6c-.8-5.4-4.9-9.8-10.3-10.6c-22.1-3.1-44.6 .9-64.4 11.4l-74 39.5C89.1 78.4 73.2 94.9 63.4 115L26.7 190.6c-9.8 20.1-13 42.9-9.1 64.9l14.5 82.8c3.9 22.1 14.6 42.3 30.7 57.9l60.3 58.4c16.1 15.6 36.6 25.6 58.7 28.7l83 11.7c22.1 3.1 44.6-.9 64.4-11.4l74-39.5c19.7-10.5 35.6-27 45.4-47.2l36.7-75.5c9.8-20.1 13-42.9 9.1-64.9c-.9-5.3-5.3-9.3-10.6-10.1c-51.5-8.2-92.8-47.1-104.5-97.4c-1.8-7.6-8-13.4-15.7-14.6c-54.6-8.7-97.7-52-106.2-106.8zM208 144a32 32 0 1 1 0 64 32 32 0 1 1 0-64zM144 336a32 32 0 1 1 64 0 32 32 0 1 1 -64 0zm224-64a32 32 0 1 1 0 64 32 32 0 1 1 0-64z');
+                
+                cookieSvg.appendChild(path);
+                revisitBtn.parentNode.replaceChild(cookieSvg, revisitBtn);
+                
+                // Optional: Größe des Button-Wrappers anpassen
+                buttonWrapper.style.padding = '8px';
+                
+                return true;
+            }
+            return false;
+        }
+        
+        // Sofort versuchen, das Icon zu ersetzen
+        if (!checkAndReplaceIcon()) {
+            // Wenn nicht sofort möglich, MutationObserver verwenden
+            const observer = new MutationObserver(function(mutations) {
+                if (checkAndReplaceIcon()) {
+                    // Icon wurde ersetzt, Observer kann beendet werden
+                    observer.disconnect();
+                }
+            });
+            
+            // Gesamtes body-Element beobachten
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // Sicherheitsabbruch nach 10 Sekunden
+            setTimeout(function() {
+                observer.disconnect();
+            }, 10000);
+        }
+    });
+    </script>
+    <?php
+}
+add_action('wp_footer', 'replace_cookieyes_icon_with_cookie_bite', 999);
+
+/**
  * Loading Animation for specified pages
  */
 function yprint_loading_animation() {
