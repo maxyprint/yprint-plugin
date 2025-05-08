@@ -175,3 +175,21 @@ function yprint_loading_animation() {
 }
 add_action('wp_footer', 'yprint_loading_animation');
 
+/**
+ * Shortcode to display the current URL path with styling
+ * 
+ * Usage: [current_page]
+ * 
+ * @return string The formatted current page path
+ */
+function yprint_current_page_shortcode() {
+    // Get the path after the domain
+    $current_path = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
+    
+    // Set default styling, can be customized via parameters if needed in the future
+    $style = 'font-family: \'Roboto\', sans-serif; font-size: 40px; font-weight: 600;';
+    
+    // Return the formatted path
+    return '<div style="' . esc_attr($style) . '">' . esc_html($current_path) . '</div>';
+}
+add_shortcode('current_page', 'yprint_current_page_shortcode');
