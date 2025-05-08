@@ -104,7 +104,7 @@ function legal_navigation_shortcode() {
             
             <!-- Logo im Footer -->
             <div class="yprint-legal-footer">
-                <img src="https://yprint.de/wp-content/uploads/2025/02/120225-y-icon.svg" alt="yprint Logo" class="yprint-footer-logo">
+                <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="yprint Logo" class="yprint-footer-logo">
             </div>
         </div>
         
