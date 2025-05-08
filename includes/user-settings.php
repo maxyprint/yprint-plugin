@@ -124,6 +124,27 @@ function yprint_create_settings_tables() {
 function yprint_user_settings_shortcode() {
     ob_start();
     
+    // Google Fonts für Roboto
+    echo '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">';
+    
+    // Go Back Button
+    echo '<a href="https://yprint.de/my-products" style="
+        background: transparent;
+        border: none;
+        font-family: \'Roboto\', sans-serif;
+        font-size: 15px;
+        color: #2997FF;
+        cursor: pointer;
+        padding: 0;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        font-weight: bold;
+        text-decoration: none;
+    ">
+        ← go back
+    </a>';
+    
     // Benutzer muss angemeldet sein
     if (!is_user_logged_in()) {
         return '<div class="yprint-login-required">
