@@ -34,6 +34,9 @@ public static function init() {
     // Enqueue scripts
     add_action('wp_enqueue_scripts', array(__CLASS__, 'add_api_nonce'));
     
+    // Register sticky scroll effect for product headers
+    add_action('wp_enqueue_scripts', array(__CLASS__, 'add_sticky_scroll_effect'));
+    
     // Register the redirection script in footer
     add_action('wp_footer', array(__CLASS__, 'add_product_redirect_script'));
     
@@ -230,6 +233,123 @@ public static function init() {
         }
     }
     
+/**
+ * Add sticky scroll effect for header containers
+ */
+public static function add_sticky_scroll_effect() {
+    // CSS für den Scroll-Effekt
+    $css_scroll_effect = '
+    .header-container {
+        /* Normale Position bis zum Scrollen */
+        position: relative;
+        z-index: 1000;
+        background-color: transparent;
+        border: none;
+        border-radius: 30px;
+    }
+
+    /* Grundstil für sticky */
+    .header-container.sticky {
+        position: fixed;
+        top: 100px;
+        border-radius: 30px;
+        background-color: transparent;
+        border: none;
+    }
+    
+    /* Platzhalter, um Sprünge im Layout zu vermeiden */
+    .sticky-placeholder {
+        display: none;
+    }
+    
+    .sticky-placeholder.active {
+        display: block;
+    }
+    
+    /* Mobile Ausnahme - kein Sticky-Verhalten unter 768px */
+    @media (max-width: 768px) {
+        .header-container.sticky {
+            position: relative;
+            top: auto;
+        }
+        
+        .sticky-placeholder {
+            display: none !important;
+        }
+    }';
+
+    // JavaScript für den Scroll-Effekt
+    $script_scroll_effect = '
+    document.addEventListener("DOMContentLoaded", function() {
+        const headerContainer = document.querySelector(".header-container");
+        
+        if (!headerContainer) {
+            return;
+        }
+        
+        // Platzhalter-Element erstellen
+        const placeholder = document.createElement("div");
+        placeholder.className = "sticky-placeholder";
+        headerContainer.parentNode.insertBefore(placeholder, headerContainer);
+        
+        // Container-Position und Größe speichern
+        const headerRect = headerContainer.getBoundingClientRect();
+        const headerOffsetTop = headerRect.top + window.scrollY;
+        const headerHeight = headerRect.height;
+        const headerWidth = headerRect.width;
+        const headerLeft = headerRect.left;
+        
+        // Platzhalter-Größe anpassen
+        placeholder.style.height = headerHeight + "px";
+        placeholder.style.width = headerWidth + "px";
+        
+        window.addEventListener("scroll", function() {
+            // Prüfen, ob der Container jetzt sticky werden sollte
+            const shouldBeSticky = window.scrollY > headerOffsetTop;
+            
+            if (shouldBeSticky) {
+                // Container sticky machen
+                headerContainer.classList.add("sticky");
+                placeholder.classList.add("active");
+                
+                // Größe und Position beibehalten
+                headerContainer.style.width = headerWidth + "px";
+                headerContainer.style.left = headerLeft + "px";
+            } else {
+                // Sticky-Status aufheben
+                headerContainer.classList.remove("sticky");
+                placeholder.classList.remove("active");
+                
+                // Zurücksetzen der Stile
+                headerContainer.style.width = "";
+                headerContainer.style.left = "";
+            }
+        });
+        
+        // Bei Fenstergröße-Änderung die Position und Größe aktualisieren
+        window.addEventListener("resize", function() {
+            if (headerContainer.classList.contains("sticky")) {
+                const newHeaderRect = placeholder.getBoundingClientRect();
+                headerContainer.style.width = newHeaderRect.width + "px";
+                headerContainer.style.left = newHeaderRect.left + "px";
+            }
+        });
+        
+        // Beim Laden der Seite überprüfen
+        window.dispatchEvent(new Event("scroll"));
+    });';
+
+    // CSS registrieren und einfügen
+    wp_register_style('yprint-sticky-scroll-style', false);
+    wp_enqueue_style('yprint-sticky-scroll-style');
+    wp_add_inline_style('yprint-sticky-scroll-style', $css_scroll_effect);
+    
+    // JavaScript registrieren und einfügen (ohne jQuery-Abhängigkeit, da der Code reines JavaScript ist)
+    wp_register_script('yprint-sticky-scroll-script', '', array(), null, true);
+    wp_enqueue_script('yprint-sticky-scroll-script');
+    wp_add_inline_script('yprint-sticky-scroll-script', $script_scroll_effect);
+}
+
     /**
      * Helper function to get current product
      */
