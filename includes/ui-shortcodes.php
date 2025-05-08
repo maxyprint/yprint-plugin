@@ -401,3 +401,80 @@ function yprint_mobile_nav_toggle() {
     <?php
 }
 add_action('wp_footer', 'yprint_mobile_nav_toggle', 999);
+
+/**
+ * Shortcode für einen Toggle-Button mit Popup-Funktionalität
+ * 
+ * Usage: [toggle_button_popup]
+ * 
+ * @return string Der HTML-Code für den Toggle-Button
+ */
+function toggle_button_with_popup_shortcode() {
+    ob_start();
+    ?>
+    <!-- Font Awesome wird nur geladen, wenn es nicht bereits im Theme enthalten ist -->
+    <?php if (!wp_style_is('font-awesome', 'enqueued')) : ?>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <?php endif; ?>
+    
+    <a href="#footer_popup" class="footer-button" data-popup-trigger="#footer_popup">
+        <i class="fas fa-angle-up"></i>
+    </a>
+    
+    <style>
+        /* Stile für den Button */
+        .footer-button {
+            position: relative;
+            background-color: transparent !important; 
+            border: none !important; 
+            padding: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            outline: none; 
+            text-decoration: none; /* Entfernt Unterstreichung für den Link */
+        }
+        .footer-button:focus {
+            outline: none; 
+        }
+        .footer-button i {
+            font-size: 24px;
+            color: #0079FF !important; 
+            transition: transform 0.3s ease, color 0.3s ease;
+        }
+        .footer-button.active i {
+            color: #0079FF !important;
+        }
+        .footer-button.active {
+            transform: translateY(-80px); 
+        }
+    </style>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const button = document.querySelector('.footer-button');
+            if (button) {
+                button.addEventListener('click', function(e) {
+                    const icon = this.querySelector('i');
+
+                    // Toggle position and icon
+                    this.classList.toggle('active');
+                    if (icon.classList.contains('fa-angle-up')) {
+                        icon.classList.remove('fa-angle-up');
+                        icon.classList.add('fa-angle-down');
+                    } else {
+                        icon.classList.remove('fa-angle-down');
+                        icon.classList.add('fa-angle-up');
+                    }
+
+                    // Verhindere den Standard-Click auf den Link, da der Popup-Trigger bereits durch das 'href' getriggert wird
+                    e.preventDefault();
+                });
+            }
+        });
+    </script>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('toggle_button_popup', 'toggle_button_with_popup_shortcode');
