@@ -65,26 +65,42 @@ class YPrint_Stripe_Admin {
  * Add admin menu
  */
 public function add_admin_menu() {
-    // Hauptmenüpunkt hinzufügen
+    // Hauptmenüpunkt für YPrint Plugin
     add_menu_page(
-        __('YPrint', 'yprint-plugin'),              // Seitentitel
-        __('YPrint', 'yprint-plugin'),              // Menütitel
-        'manage_options',                           // Erforderliche Berechtigung
-        'yprint-settings',                          // Menü-Slug
-        null,                                       // Callback-Funktion (null, da wir Untermenüs verwenden)
-        'dashicons-cart',                           // Icon (Warenkorb-Icon)
-        30                                          // Position im Menü
+        __('YPrint Plugin', 'yprint-plugin'),
+        __('YPrint', 'yprint-plugin'),
+        'manage_options',
+        'yprint-plugin',
+        array($this, 'display_main_page'),
+        'dashicons-cart',
+        58
     );
     
-    // Untermenüpunkt für Stripe-Einstellungen hinzufügen
+    // Untermenüpunkt für Stripe-Einstellungen
     add_submenu_page(
-        'yprint-settings',                          // Übergeordneter Slug
-        __('Stripe Settings', 'yprint-plugin'),     // Seitentitel
-        __('Stripe', 'yprint-plugin'),              // Menütitel
-        'manage_options',                           // Erforderliche Berechtigung
-        'yprint-stripe-settings',                   // Menü-Slug
-        array($this, 'display_settings_page')       // Callback-Funktion
+        'yprint-plugin', // Parent slug - YPrint Hauptmenü
+        __('YPrint Stripe Settings', 'yprint-plugin'),
+        __('Stripe', 'yprint-plugin'),
+        'manage_options',
+        'yprint-stripe-settings',
+        array($this, 'display_settings_page')
     );
+}
+
+/**
+ * Display main plugin page
+ */
+public function display_main_page() {
+    ?>
+    <div class="wrap">
+        <h1><?php echo esc_html__('YPrint Plugin Dashboard', 'yprint-plugin'); ?></h1>
+        <div class="card">
+            <h2><?php echo esc_html__('Welcome to YPrint Plugin', 'yprint-plugin'); ?></h2>
+            <p><?php echo esc_html__('This plugin provides core functionality for your YPrint e-commerce website.', 'yprint-plugin'); ?></p>
+            <p><?php echo esc_html__('Use the menu on the left to access different settings sections.', 'yprint-plugin'); ?></p>
+        </div>
+    </div>
+    <?php
 }
 
     /**
@@ -242,17 +258,15 @@ public function add_admin_menu() {
         </div>
         <?php
     }
-
 /**
  * Enqueue admin scripts
  */
 public function enqueue_admin_scripts($hook) {
     // Only enqueue on our settings page
-    if ('yprint-settings_page_yprint-stripe-settings' !== $hook) {
+    if ('yprint-plugin_page_yprint-stripe-settings' !== $hook) {
         return;
     }
     
-    // Rest of the function remains the same
     wp_enqueue_script(
         'yprint-stripe-admin',
         YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-admin.js',
@@ -260,19 +274,19 @@ public function enqueue_admin_scripts($hook) {
         YPRINT_PLUGIN_VERSION,
         true
     );
-        
-        wp_localize_script(
-            'yprint-stripe-admin',
-            'yprint_stripe_admin',
-            array(
-                'ajax_url' => admin_url('admin-ajax.php'),
-                'nonce' => wp_create_nonce('yprint_stripe_admin_nonce'),
-                'testing_connection' => __('Testing connection...', 'yprint-plugin'),
-                'connection_success' => __('Connection successful!', 'yprint-plugin'),
-                'connection_error' => __('Connection failed: ', 'yprint-plugin'),
-            )
-        );
-    }
+    
+    wp_localize_script(
+        'yprint-stripe-admin',
+        'yprint_stripe_admin',
+        array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('yprint_stripe_admin_nonce'),
+            'testing_connection' => __('Testing connection...', 'yprint-plugin'),
+            'connection_success' => __('Connection successful!', 'yprint-plugin'),
+            'connection_error' => __('Connection failed: ', 'yprint-plugin'),
+        )
+    );
+}
 
     /**
      * AJAX handler for testing connection
