@@ -1,76 +1,87 @@
-// IIFE to prevent pollution of global namespace
+/**
+ * YPrint Stripe Admin JavaScript
+ */
 (function($) {
-    // Variable to track if the button click is already being processed
-    var isProcessing = false;
-    
-    // Function that will be executed once when the document is ready
-    $(function() {
-        console.log('YPrint Stripe Admin JS loaded!');
-        
-        // Remove any existing click handlers to prevent multiple bindings
-        $('#yprint_stripe_test_connection_button').off('click');
-        
+    'use strict';
+
+    $(document).ready(function() {
         // Test Connection Button
-        $('#yprint_stripe_test_connection_button').on('click', function(e) {
-            // Prevent the default action
-            e.preventDefault();
+        $('#yprint_stripe_test_connection_button').on('click', function() {
+            var $button = $(this);
+            var $result = $('#yprint_stripe_test_connection_result');
             
-            // If already processing, don't start another request
-            if (isProcessing) {
-                console.log('Already processing a request, skipping');
-                return;
-            }
+            $button.prop('disabled', true);
+            $result.html(yprint_stripe_admin.testing_connection);
             
-            console.log('Test button clicked!');
-            var button = $(this);
-            var resultSpan = $('#yprint_stripe_test_connection_result');
-            var detailsDiv = $('#yprint_stripe_test_details');
-            var detailsContent = $('#yprint_stripe_test_details_content');
-            
-            // Set processing flag
-            isProcessing = true;
-            
-            // Disable button and show loading message
-            button.prop('disabled', true);
-            resultSpan.html('<span style="color: #777;">' + yprint_stripe_admin.testing_connection + '</span>');
-            detailsDiv.hide();
-            
-            // Send AJAX request
             $.ajax({
                 url: yprint_stripe_admin.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'yprint_stripe_test_connection',
-                    nonce: yprint_stripe_admin.nonce
+                    nonce: yprint_stripe_admin.nonce,
+                    test_type: 'connection'
                 },
                 success: function(response) {
-                    console.log('AJAX success:', response);
-                    button.prop('disabled', false);
-                    
                     if (response.success) {
-                        resultSpan.html('<span style="color: green;">' + yprint_stripe_admin.connection_success + '</span>');
+                        $result.html('<span style="color: green;">' + response.data.message + '</span>');
                         
-                        // Display details if they exist
-                        if (response.data && response.data.details) {
-                            detailsContent.html('<pre>' + JSON.stringify(response.data.details, null, 2) + '</pre>');
-                            detailsDiv.show();
-                        }
+                        // Show details
+                        $('#yprint_stripe_test_details').show();
+                        $('#yprint_stripe_test_details_content').html('<pre>' + JSON.stringify(response.data.details, null, 2) + '</pre>');
                     } else {
-                        resultSpan.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + (response.data && response.data.message ? response.data.message : 'Unknown error') + '</span>');
+                        $result.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + response.data.message + '</span>');
                     }
-                    
-                    // Reset processing flag
-                    isProcessing = false;
                 },
-                error: function(xhr, status, error) {
-                    console.log('AJAX error:', xhr, status, error);
-                    button.prop('disabled', false);
-                    resultSpan.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + error + '</span>');
-                    
-                    // Reset processing flag
-                    isProcessing = false;
+                error: function() {
+                    $result.html('<span style="color: red;">Ajax error. Please check console logs.</span>');
+                },
+                complete: function() {
+                    $button.prop('disabled', false);
+                }
+            });
+        });
+        
+        // Test Apple Pay Domain Button
+        $('#yprint_stripe_test_apple_pay_button').on('click', function() {
+            var $button = $(this);
+            var $result = $('#yprint_stripe_test_connection_result');
+            
+            $button.prop('disabled', true);
+            $result.html(yprint_stripe_admin.testing_connection);
+            
+            $.ajax({
+                url: yprint_stripe_admin.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'yprint_stripe_test_connection',
+                    nonce: yprint_stripe_admin.nonce,
+                    test_type: 'apple_pay'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $result.html('<span style="color: green;">' + response.data.message + '</span>');
+                        
+                        // Show details
+                        $('#yprint_stripe_test_details').show();
+                        $('#yprint_stripe_test_details_content').html('<pre>' + JSON.stringify(response.data.details, null, 2) + '</pre>');
+                    } else {
+                        $result.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + response.data.message + '</span>');
+                        
+                        // Show error details if available
+                        if (response.data.details) {
+                            $('#yprint_stripe_test_details').show();
+                            $('#yprint_stripe_test_details_content').html('<pre>' + JSON.stringify(response.data.details, null, 2) + '</pre>');
+                        }
+                    }
+                },
+                error: function() {
+                    $result.html('<span style="color: red;">Ajax error. Please check console logs.</span>');
+                },
+                complete: function() {
+                    $button.prop('disabled', false);
                 }
             });
         });
     });
+
 })(jQuery);

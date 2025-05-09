@@ -234,6 +234,7 @@ public function display_main_page() {
  */
 public function test_button_callback() {
     echo '<button type="button" id="yprint_stripe_test_connection_button" class="button button-secondary">' . __('Test Connection', 'yprint-plugin') . '</button>';
+    echo '<button type="button" id="yprint_stripe_test_apple_pay_button" class="button button-secondary" style="margin-left: 10px;">' . __('Test Apple Pay Domain', 'yprint-plugin') . '</button>';
     echo '<span id="yprint_stripe_test_connection_result" style="margin-left: 10px;"></span>';
 }
 
@@ -289,6 +290,9 @@ public function enqueue_admin_scripts($hook) {
             'testing_connection' => __('Testing connection...', 'yprint-plugin'),
             'connection_success' => __('Connection successful!', 'yprint-plugin'),
             'connection_error' => __('Connection failed: ', 'yprint-plugin'),
+            'testing_apple_pay' => __('Testing Apple Pay domain verification...', 'yprint-plugin'),
+            'apple_pay_success' => __('Apple Pay domain verification successful!', 'yprint-plugin'),
+            'apple_pay_error' => __('Apple Pay domain verification failed: ', 'yprint-plugin'),
         )
     );
     
@@ -313,17 +317,25 @@ public function ajax_test_connection() {
     // Make sure we use fresh settings
     YPrint_Stripe_API::set_secret_key_for_mode();
     
-    $response = YPrint_Stripe_API::test_connection();
-    error_log('Stripe-Test-Connection Ergebnis: ' . wp_json_encode($response));
+    $test_type = isset($_POST['test_type']) ? sanitize_text_field($_POST['test_type']) : 'connection';
+    
+    if ($test_type === 'apple_pay') {
+        $response = YPrint_Stripe_API::test_apple_pay_domain_verification();
+    } else {
+        $response = YPrint_Stripe_API::test_connection();
+    }
+    
+    error_log('Stripe-Test-' . $test_type . ' Ergebnis: ' . wp_json_encode($response));
     
     if ($response['success']) {
         wp_send_json_success(array(
             'message' => $response['message'],
-            'details' => $response['data'],
+            'details' => isset($response['data']) ? $response['data'] : [],
         ));
     } else {
         wp_send_json_error(array(
             'message' => $response['message'],
+            'details' => isset($response['details']) ? $response['details'] : [],
         ));
     }
     

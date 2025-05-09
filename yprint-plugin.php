@@ -35,6 +35,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php';
 // Include Stripe files
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/yprint-stripe.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-admin.php';
+// Apple Pay class will be loaded by yprint-stripe.php
 
 // Initialize Stripe Admin
 add_action('plugins_loaded', function() {
@@ -159,8 +160,23 @@ function yprint_plugin_activation() {
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql);
     
+    // Stripe Apple Pay: Create .well-known directory and set up rewrite rules
+    $well_known_dir = untrailingslashit(ABSPATH) . '/.well-known';
+    if (!file_exists($well_known_dir)) {
+        @mkdir($well_known_dir, 0755);
+    }
+    
+    // Copy domain association file if available
+    $source_file = YPRINT_PLUGIN_DIR . 'includes/stripe/apple-developer-merchantid-domain-association';
+    $dest_file = $well_known_dir . '/apple-developer-merchantid-domain-association';
+    
+    if (file_exists($source_file)) {
+        @copy($source_file, $dest_file);
+    }
+    
     // Flag setzen, um Rewrite Rules zu aktualisieren
     update_option('yprint_recovery_flush_rules', true);
+    flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, 'yprint_plugin_activation');
 

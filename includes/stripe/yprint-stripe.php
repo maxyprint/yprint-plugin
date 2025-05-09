@@ -114,6 +114,9 @@ class YPrint_Stripe_API {
      */
     public static function update_stripe_settings($settings) {
         update_option('yprint_stripe_settings', $settings);
+        
+        // Trigger a hook after settings are updated
+        do_action('yprint_stripe_settings_updated');
     }
 
     /**
@@ -168,7 +171,7 @@ class YPrint_Stripe_API {
     public static function request($request, $api = '', $method = 'POST') {
         $headers = self::get_headers();
         
-        $response = wp_remote_post(
+        $response = wp_remote_request(
             self::ENDPOINT . $api,
             array(
                 'method'  => $method,
@@ -186,34 +189,52 @@ class YPrint_Stripe_API {
         return json_decode($response['body']);
     }
 
-/**
- * Test the API connection
- *
- * @return array API response with success/error details
- */
-public static function test_connection() {
-    try {
-        // Sicherstellen, dass der Secret Key gesetzt ist
-        if (empty(self::get_secret_key())) {
+    /**
+     * Test the API connection
+     *
+     * @return array API response with success/error details
+     */
+    public static function test_connection() {
+        try {
+            // Sicherstellen, dass der Secret Key gesetzt ist
+            if (empty(self::get_secret_key())) {
+                return array(
+                    'success' => false,
+                    'message' => __('API key is not set. Please save your settings first.', 'yprint-plugin'),
+                );
+            }
+            
+            // Simple API call to check connection
+            $response = self::request(array(), 'account', 'GET');
+            
+            return array(
+                'success' => true,
+                'message' => __('Connection to Stripe API successful!', 'yprint-plugin'),
+                'data' => $response,
+            );
+        } catch (Exception $e) {
             return array(
                 'success' => false,
-                'message' => __('API key is not set. Please save your settings first.', 'yprint-plugin'),
+                'message' => $e->getMessage(),
             );
         }
+    }
+
+    /**
+     * Test Apple Pay domain verification
+     *
+     * @return array API response with success/error details
+     */
+    public static function test_apple_pay_domain_verification() {
+        // Ensure Apple Pay class is loaded
+        require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
         
-        // Simple API call to check connection
-        $response = self::request(array(), 'account', 'GET');
-        
-        return array(
-            'success' => true,
-            'message' => __('Connection to Stripe API successful!', 'yprint-plugin'),
-            'data' => $response,
-        );
-    } catch (Exception $e) {
-        return array(
-            'success' => false,
-            'message' => $e->getMessage(),
-        );
+        // Test domain verification
+        $apple_pay = YPrint_Stripe_Apple_Pay::get_instance();
+        return $apple_pay->test_domain_verification();
     }
 }
-}
+
+// Load Apple Pay class
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
+YPrint_Stripe_Apple_Pay::get_instance();
