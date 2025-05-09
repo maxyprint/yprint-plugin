@@ -230,12 +230,29 @@ public function display_main_page() {
     }
 
     /**
-     * Test button callback
-     */
-    public function test_button_callback() {
-        echo '<button type="button" id="yprint_stripe_test_connection_button" class="button button-secondary">' . __('Test Connection', 'yprint-plugin') . '</button>';
-        echo '<span id="yprint_stripe_test_connection_result" style="margin-left: 10px;"></span>';
-    }
+ * Test button callback
+ */
+public function test_button_callback() {
+    echo '<button type="button" id="yprint_stripe_test_connection_button" class="button button-secondary" onclick="console.log(\'Button direkt geklickt!\'); if(typeof jQuery !== \'undefined\') { jQuery(this).trigger(\'click\'); }">' . __('Test Connection', 'yprint-plugin') . '</button>';
+    echo '<span id="yprint_stripe_test_connection_result" style="margin-left: 10px;"></span>';
+    
+    // Debug-Information
+    echo '<script>
+    console.log("Test-Button wurde gerendert");
+    document.addEventListener("DOMContentLoaded", function() {
+        console.log("DOM geladen, suche nach Test-Button...");
+        var button = document.getElementById("yprint_stripe_test_connection_button");
+        if (button) {
+            console.log("Test-Button gefunden:", button);
+            button.addEventListener("click", function() {
+                console.log("Test-Button wurde über DOM-Event-Listener geklickt");
+            });
+        } else {
+            console.log("Test-Button wurde NICHT gefunden!");
+        }
+    });
+    </script>';
+}
 
     /**
      * Display settings page
@@ -262,16 +279,21 @@ public function display_main_page() {
  * Enqueue admin scripts
  */
 public function enqueue_admin_scripts($hook) {
-    // Only enqueue on our settings page
-    if ('yprint-plugin_page_yprint-stripe-settings' !== $hook) {
+    // Debug info - remove in production
+    error_log('Current admin page hook: ' . $hook);
+    
+    // Weniger strenge Prüfung für den Seitenhaken
+    if (strpos($hook, 'yprint-stripe-settings') === false && strpos($hook, 'yprint-plugin') === false) {
         return;
     }
+    
+    error_log('Enqueuing Stripe admin scripts');
     
     wp_enqueue_script(
         'yprint-stripe-admin',
         YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-admin.js',
         array('jquery'),
-        YPRINT_PLUGIN_VERSION,
+        YPRINT_PLUGIN_VERSION . '.' . time(), // Cache-Busting für Entwicklung
         true
     );
     
@@ -286,32 +308,43 @@ public function enqueue_admin_scripts($hook) {
             'connection_error' => __('Connection failed: ', 'yprint-plugin'),
         )
     );
+    
+    // Debug-Ausgabe in der Konsole
+    wp_add_inline_script('yprint-stripe-admin', 'console.log("YPrint Stripe Admin script localized with:", yprint_stripe_admin);', 'before');
 }
 
     /**
-     * AJAX handler for testing connection
-     */
-    public function ajax_test_connection() {
-        check_ajax_referer('yprint_stripe_admin_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'yprint-plugin')));
-        }
-        
-        // Make sure we use fresh settings
-        YPrint_Stripe_API::set_secret_key_for_mode();
-        
-        $response = YPrint_Stripe_API::test_connection();
-        
-        if ($response['success']) {
-            wp_send_json_success(array(
-                'message' => $response['message'],
-                'details' => $response['data'],
-            ));
-        } else {
-            wp_send_json_error(array(
-                'message' => $response['message'],
-            ));
-        }
+ * AJAX handler for testing connection
+ */
+public function ajax_test_connection() {
+    // Debug-Nachricht für AJAX-Aufruf
+    error_log('AJAX-Handler für Stripe-Test-Connection wurde aufgerufen.');
+    
+    check_ajax_referer('yprint_stripe_admin_nonce', 'nonce');
+    
+    if (!current_user_can('manage_options')) {
+        error_log('Stripe-Test-Connection: Berechtigungsfehler');
+        wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'yprint-plugin')));
     }
+    
+    // Make sure we use fresh settings
+    YPrint_Stripe_API::set_secret_key_for_mode();
+    
+    $response = YPrint_Stripe_API::test_connection();
+    error_log('Stripe-Test-Connection Ergebnis: ' . wp_json_encode($response));
+    
+    if ($response['success']) {
+        wp_send_json_success(array(
+            'message' => $response['message'],
+            'details' => $response['data'],
+        ));
+    } else {
+        wp_send_json_error(array(
+            'message' => $response['message'],
+        ));
+    }
+    
+    // Diese Zeile sollte nie erreicht werden, aber fügen wir sie zur Sicherheit hinzu
+    wp_die();
+}
 }
