@@ -62,18 +62,18 @@ class YPrint_Stripe_Admin {
     }
 
     /**
-     * Add admin menu
-     */
-    public function add_admin_menu() {
-        add_submenu_page(
-            'yprint-plugin', // Parent slug
-            __('Stripe Settings', 'yprint-plugin'),
-            __('Stripe Settings', 'yprint-plugin'),
-            'manage_options',
-            'yprint-stripe-settings',
-            array($this, 'display_settings_page')
-        );
-    }
+ * Add admin menu
+ */
+public function add_admin_menu() {
+    add_submenu_page(
+        'woocommerce', // Parent slug - WooCommerce Hauptmenü
+        __('YPrint Stripe Settings', 'yprint-plugin'),
+        __('YPrint Stripe', 'yprint-plugin'),
+        'manage_options',
+        'yprint-stripe-settings',
+        array($this, 'display_settings_page')
+    );
+}
 
     /**
      * Register settings
@@ -232,21 +232,22 @@ class YPrint_Stripe_Admin {
     }
 
     /**
-     * Enqueue admin scripts
-     */
-    public function enqueue_admin_scripts($hook) {
-        // Only enqueue on our settings page
-        if ('yprint-plugin_page_yprint-stripe-settings' !== $hook) {
-            return;
-        }
-        
-        wp_enqueue_script(
-            'yprint-stripe-admin',
-            YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-admin.js',
-            array('jquery'),
-            YPRINT_PLUGIN_VERSION,
-            true
-        );
+ * Enqueue admin scripts
+ */
+public function enqueue_admin_scripts($hook) {
+    // Only enqueue on our settings page
+    if ('woocommerce_page_yprint-stripe-settings' !== $hook) {
+        return;
+    }
+    
+    // Rest of the function remains the same
+    wp_enqueue_script(
+        'yprint-stripe-admin',
+        YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-admin.js',
+        array('jquery'),
+        YPRINT_PLUGIN_VERSION,
+        true
+    );
         
         wp_localize_script(
             'yprint-stripe-admin',
