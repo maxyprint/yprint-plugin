@@ -318,28 +318,36 @@ public function ajax_test_connection() {
     YPrint_Stripe_API::set_secret_key_for_mode();
     
     $test_type = isset($_POST['test_type']) ? sanitize_text_field($_POST['test_type']) : 'connection';
+    error_log('Stripe-Test-Type: ' . $test_type);
     
-    if ($test_type === 'apple_pay') {
-        $response = YPrint_Stripe_API::test_apple_pay_domain_verification();
-    } else {
-        $response = YPrint_Stripe_API::test_connection();
-    }
-    
-    error_log('Stripe-Test-' . $test_type . ' Ergebnis: ' . wp_json_encode($response));
-    
-    if ($response['success']) {
-        wp_send_json_success(array(
-            'message' => $response['message'],
-            'details' => isset($response['data']) ? $response['data'] : [],
-        ));
-    } else {
+    try {
+        if ($test_type === 'apple_pay') {
+            $response = YPrint_Stripe_API::test_apple_pay_domain_verification();
+        } else {
+            $response = YPrint_Stripe_API::test_connection();
+        }
+        
+        error_log('Stripe-Test-' . $test_type . ' Ergebnis: ' . wp_json_encode($response));
+        
+        if ($response['success']) {
+            wp_send_json_success(array(
+                'message' => $response['message'],
+                'details' => isset($response['data']) ? $response['data'] : (isset($response['details']) ? $response['details'] : []),
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => $response['message'],
+                'details' => isset($response['details']) ? $response['details'] : [],
+            ));
+        }
+    } catch (Exception $e) {
+        error_log('Stripe-Test-Exception: ' . $e->getMessage());
         wp_send_json_error(array(
-            'message' => $response['message'],
-            'details' => isset($response['details']) ? $response['details'] : [],
+            'message' => $e->getMessage(),
+            'details' => ['error' => $e->getMessage()]
         ));
     }
     
-    // Diese Zeile sollte nie erreicht werden, aber fügen wir sie zur Sicherheit hinzu
     wp_die();
 }
 }

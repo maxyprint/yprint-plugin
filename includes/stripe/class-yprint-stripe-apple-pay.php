@@ -227,38 +227,51 @@ class YPrint_Stripe_Apple_Pay {
     }
 
     /**
-     * Makes request to register the domain with Stripe.
-     *
-     * @return array Response with success/error details.
-     */
-    private function make_domain_registration_request() {
-        try {
-            $secret_key = YPrint_Stripe_API::get_secret_key();
-            
-            if (empty($secret_key)) {
-                throw new Exception(__('Unable to verify domain - missing secret key.', 'yprint-plugin'));
-            }
-
-            $request = [
-                'domain_name' => $this->domain_name,
-            ];
-
-            // Request to register domain
-            $response = YPrint_Stripe_API::request($request, 'payment_method_domains', 'POST');
-
-            return [
-                'success' => true,
-                'message' => __('Domain successfully registered with Stripe.', 'yprint-plugin'),
-                'data' => $response
-            ];
-        } catch (Exception $e) {
-            $this->apple_pay_verify_notice = $e->getMessage();
-            return [
-                'success' => false,
-                'message' => sprintf(__('Unable to verify domain - %s', 'yprint-plugin'), $e->getMessage())
-            ];
+ * Makes request to register the domain with Stripe.
+ *
+ * @return array Response with success/error details.
+ */
+private function make_domain_registration_request() {
+    try {
+        $secret_key = YPrint_Stripe_API::get_secret_key();
+        error_log('Attempting domain registration with API key: ' . (empty($secret_key) ? 'Missing' : 'Present'));
+        
+        if (empty($secret_key)) {
+            throw new Exception(__('Unable to verify domain - missing secret key.', 'yprint-plugin'));
         }
+
+        $request = [
+            'domain_name' => $this->domain_name,
+        ];
+        
+        error_log('Registering domain: ' . $this->domain_name);
+
+        // Request to register domain
+        $response = YPrint_Stripe_API::request($request, 'payment_method_domains', 'POST');
+        error_log('Domain registration response: ' . wp_json_encode($response));
+
+        if (isset($response->error)) {
+            throw new Exception($response->error->message ?? __('Unknown error from Stripe API', 'yprint-plugin'));
+        }
+
+        return [
+            'success' => true,
+            'message' => __('Domain successfully registered with Stripe.', 'yprint-plugin'),
+            'data' => $response
+        ];
+    } catch (Exception $e) {
+        error_log('Domain registration error: ' . $e->getMessage());
+        $this->apple_pay_verify_notice = $e->getMessage();
+        return [
+            'success' => false,
+            'message' => sprintf(__('Unable to verify domain - %s', 'yprint-plugin'), $e->getMessage()),
+            'details' => [
+                'error' => $e->getMessage(),
+                'domain' => $this->domain_name
+            ]
+        ];
     }
+}
 
     /**
      * Register domain with Apple Pay via Stripe.
@@ -328,47 +341,67 @@ class YPrint_Stripe_Apple_Pay {
     }
 
     /**
-     * Test the domain verification
-     *
-     * @return array Response with success/error details
-     */
-    public function test_domain_verification() {
-        // First check if the domain association file exists and is accessible
-        $file_url = get_site_url() . '/' . self::DOMAIN_ASSOCIATION_FILE_DIR . '/' . self::DOMAIN_ASSOCIATION_FILE_NAME;
-        $response = wp_remote_get($file_url);
+ * Test the domain verification
+ *
+ * @return array Response with success/error details
+ */
+public function test_domain_verification() {
+    error_log('Starting Apple Pay domain verification test');
+    
+    // First check if the domain association file exists and is accessible
+    $file_url = get_site_url() . '/' . self::DOMAIN_ASSOCIATION_FILE_DIR . '/' . self::DOMAIN_ASSOCIATION_FILE_NAME;
+    error_log('Checking domain association file at: ' . $file_url);
+    
+    $response = wp_remote_get($file_url);
+    
+    if (is_wp_error($response)) {
+        error_log('Error accessing domain association file: ' . $response->get_error_message());
         
-        if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
-            // Try to update the file
-            $file_error = $this->update_domain_association_file();
-            
-            if ($file_error) {
-                return [
-                    'success' => false,
-                    'message' => $file_error,
-                    'details' => [
-                        'step' => 'file_verification',
-                        'url' => $file_url,
-                        'response' => is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)
-                    ]
-                ];
-            }
-            
-            // Check again after updating
-            $response = wp_remote_get($file_url);
-            if (is_wp_error($response) || 200 !== wp_remote_retrieve_response_code($response)) {
-                return [
-                    'success' => false,
-                    'message' => __('Domain association file is not accessible.', 'yprint-plugin'),
-                    'details' => [
-                        'step' => 'file_verification',
-                        'url' => $file_url,
-                        'response' => is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_response_code($response)
-                    ]
-                ];
-            }
+        // Try to update the file
+        $file_error = $this->update_domain_association_file();
+        
+        if ($file_error) {
+            error_log('Failed to update domain association file: ' . $file_error);
+            return [
+                'success' => false,
+                'message' => $file_error,
+                'details' => [
+                    'step' => 'file_verification',
+                    'url' => $file_url,
+                    'error' => $response->get_error_message(),
+                    'code' => $response->get_error_code()
+                ]
+            ];
         }
         
-        // If the file is accessible, try to register the domain
-        return $this->verify_domain_if_configured();
+        // Check again after updating
+        error_log('Checking domain association file again after update');
+        $response = wp_remote_get($file_url);
     }
+    
+    $response_code = wp_remote_retrieve_response_code($response);
+    error_log('Domain association file response code: ' . $response_code);
+    
+    if (is_wp_error($response) || 200 !== $response_code) {
+        error_log('Domain association file is still not accessible after update');
+        return [
+            'success' => false,
+            'message' => __('Domain association file is not accessible.', 'yprint-plugin'),
+            'details' => [
+                'step' => 'file_verification',
+                'url' => $file_url,
+                'response_code' => $response_code,
+                'response_body' => is_wp_error($response) ? $response->get_error_message() : wp_remote_retrieve_body($response)
+            ]
+        ];
+    }
+    
+    error_log('Domain association file is accessible, proceeding with domain verification');
+    
+    // If the file is accessible, try to register the domain
+    $verification_result = $this->verify_domain_if_configured();
+    error_log('Domain verification result: ' . wp_json_encode($verification_result));
+    
+    return $verification_result;
+}
 }

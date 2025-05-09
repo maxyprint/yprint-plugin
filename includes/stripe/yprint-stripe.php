@@ -160,34 +160,61 @@ class YPrint_Stripe_API {
     }
 
     /**
-     * Send the request to Stripe's API
-     *
-     * @param array  $request
-     * @param string $api
-     * @param string $method
-     * @return object
-     * @throws Exception
-     */
-    public static function request($request, $api = '', $method = 'POST') {
-        $headers = self::get_headers();
-        
-        $response = wp_remote_request(
-            self::ENDPOINT . $api,
-            array(
-                'method'  => $method,
-                'headers' => $headers,
-                'body'    => $request,
-                'timeout' => 70,
-            )
-        );
+ * Send the request to Stripe's API
+ *
+ * @param array  $request
+ * @param string $api
+ * @param string $method
+ * @return object
+ * @throws Exception
+ */
+public static function request($request, $api = '', $method = 'POST') {
+    $headers = self::get_headers();
+    
+    error_log('Stripe API Request: ' . $method . ' ' . self::ENDPOINT . $api);
+    error_log('Request data: ' . wp_json_encode($request));
+    
+    $response = wp_remote_request(
+        self::ENDPOINT . $api,
+        array(
+            'method'  => $method,
+            'headers' => $headers,
+            'body'    => $request,
+            'timeout' => 70,
+        )
+    );
 
-        if (is_wp_error($response) || empty($response['body'])) {
-            $error_message = is_wp_error($response) ? $response->get_error_message() : __('Empty response from Stripe', 'yprint-plugin');
-            throw new Exception($error_message);
-        }
-
-        return json_decode($response['body']);
+    if (is_wp_error($response)) {
+        $error_message = $response->get_error_message();
+        error_log('Stripe API Error: ' . $error_message);
+        throw new Exception($error_message);
     }
+    
+    if (empty($response['body'])) {
+        $error_message = __('Empty response from Stripe', 'yprint-plugin');
+        error_log('Stripe API Error: ' . $error_message);
+        throw new Exception($error_message);
+    }
+    
+    $response_code = wp_remote_retrieve_response_code($response);
+    $body = wp_remote_retrieve_body($response);
+    
+    error_log('Stripe API Response Code: ' . $response_code);
+    error_log('Stripe API Response Body: ' . $body);
+    
+    $json_response = json_decode($body);
+    
+    // Überprüfen auf API-Fehler in der Antwort
+    if (isset($json_response->error)) {
+        $error_message = $json_response->error->message ?? __('Unknown Stripe API error', 'yprint-plugin');
+        $error_type = $json_response->error->type ?? 'unknown';
+        $error_code = $json_response->error->code ?? 'unknown';
+        
+        error_log("Stripe API Error: Type: {$error_type}, Code: {$error_code}, Message: {$error_message}");
+    }
+
+    return $json_response;
+}
 
     /**
      * Test the API connection
