@@ -348,16 +348,19 @@ private function make_domain_registration_request() {
 public function test_domain_verification() {
     error_log('Starting Apple Pay domain verification test');
     
-    // First check if the domain association file exists and is accessible
+    // Prüfe erst, ob die Domain-Assoziationsdatei existiert und zugänglich ist
     $file_url = get_site_url() . '/' . self::DOMAIN_ASSOCIATION_FILE_DIR . '/' . self::DOMAIN_ASSOCIATION_FILE_NAME;
     error_log('Checking domain association file at: ' . $file_url);
     
-    $response = wp_remote_get($file_url);
+    $response = wp_remote_get($file_url, array(
+        'timeout' => 15, // Kurzer Timeout für lokale Ressource
+        'sslverify' => false, // Für lokale Anfragen keine SSL-Verifizierung nötig
+    ));
     
     if (is_wp_error($response)) {
         error_log('Error accessing domain association file: ' . $response->get_error_message());
         
-        // Try to update the file
+        // Versuche, die Datei zu aktualisieren
         $file_error = $this->update_domain_association_file();
         
         if ($file_error) {
@@ -374,9 +377,12 @@ public function test_domain_verification() {
             ];
         }
         
-        // Check again after updating
+        // Prüfe erneut nach dem Aktualisieren
         error_log('Checking domain association file again after update');
-        $response = wp_remote_get($file_url);
+        $response = wp_remote_get($file_url, array(
+            'timeout' => 15,
+            'sslverify' => false,
+        ));
     }
     
     $response_code = wp_remote_retrieve_response_code($response);
@@ -398,10 +404,16 @@ public function test_domain_verification() {
     
     error_log('Domain association file is accessible, proceeding with domain verification');
     
-    // If the file is accessible, try to register the domain
-    $verification_result = $this->verify_domain_if_configured();
-    error_log('Domain verification result: ' . wp_json_encode($verification_result));
-    
-    return $verification_result;
+    // Wenn die Datei zugänglich ist, melde nur das zurück ohne direkt die Verifizierung durchzuführen
+    // Dies verhindert, dass die AJAX-Anfrage zu lange dauert
+    return [
+        'success' => true,
+        'message' => __('Domain association file is accessible. You can now register your domain with Stripe.', 'yprint-plugin'),
+        'details' => [
+            'step' => 'file_verification_completed',
+            'url' => $file_url,
+            'next_step' => 'Run domain registration with Stripe separately',
+        ]
+    ];
 }
 }

@@ -321,8 +321,14 @@ public function ajax_test_connection() {
     error_log('Stripe-Test-Type: ' . $test_type);
     
     try {
+        // Je nach Test-Typ unterschiedliche Aktionen ausführen
         if ($test_type === 'apple_pay') {
             $response = YPrint_Stripe_API::test_apple_pay_domain_verification();
+        } else if ($test_type === 'register_domain') {
+            // Neue Option: Separate Domain-Registrierung
+            require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
+            $apple_pay = YPrint_Stripe_Apple_Pay::get_instance();
+            $response = $apple_pay->register_domain();
         } else {
             $response = YPrint_Stripe_API::test_connection();
         }

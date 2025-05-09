@@ -174,19 +174,23 @@ public static function request($request, $api = '', $method = 'POST') {
     error_log('Stripe API Request: ' . $method . ' ' . self::ENDPOINT . $api);
     error_log('Request data: ' . wp_json_encode($request));
     
+    // Erhöhter Timeout für API-Anfragen
     $response = wp_remote_request(
         self::ENDPOINT . $api,
         array(
             'method'  => $method,
             'headers' => $headers,
             'body'    => $request,
-            'timeout' => 70,
+            'timeout' => 120, // Erhöht von 70 auf 120 Sekunden
+            'sslverify' => true,
+            'httpversion' => '1.1',
         )
     );
 
     if (is_wp_error($response)) {
         $error_message = $response->get_error_message();
-        error_log('Stripe API Error: ' . $error_message);
+        $error_code = $response->get_error_code();
+        error_log('Stripe API WP Error: Code: ' . $error_code . ', Message: ' . $error_message);
         throw new Exception($error_message);
     }
     
@@ -200,7 +204,10 @@ public static function request($request, $api = '', $method = 'POST') {
     $body = wp_remote_retrieve_body($response);
     
     error_log('Stripe API Response Code: ' . $response_code);
-    error_log('Stripe API Response Body: ' . $body);
+    
+    // Kürze den Response-Body für das Logging
+    $log_body = strlen($body) > 1000 ? substr($body, 0, 1000) . '... [truncated]' : $body;
+    error_log('Stripe API Response Body: ' . $log_body);
     
     $json_response = json_decode($body);
     
