@@ -186,25 +186,33 @@ class YPrint_Stripe_API {
         return json_decode($response['body']);
     }
 
-    /**
-     * Test the API connection
-     *
-     * @return object|WP_Error API response or WP_Error
-     */
-    public static function test_connection() {
-        try {
-            // Simple API call to check connection
-            $response = self::request(array(), 'account', 'GET');
-            return array(
-                'success' => true,
-                'message' => __('Connection to Stripe API successful!', 'yprint-plugin'),
-                'data' => $response,
-            );
-        } catch (Exception $e) {
+/**
+ * Test the API connection
+ *
+ * @return array API response with success/error details
+ */
+public static function test_connection() {
+    try {
+        // Sicherstellen, dass der Secret Key gesetzt ist
+        if (empty(self::get_secret_key())) {
             return array(
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => __('API key is not set. Please save your settings first.', 'yprint-plugin'),
             );
         }
+        
+        // Simple API call to check connection
+        $response = self::request(array(), 'account', 'GET');
+        
+        return array(
+            'success' => true,
+            'message' => __('Connection to Stripe API successful!', 'yprint-plugin'),
+            'data' => $response,
+        );
+    } catch (Exception $e) {
+        return array(
+            'success' => false,
+            'message' => $e->getMessage(),
+        );
     }
 }
