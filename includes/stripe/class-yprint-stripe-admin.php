@@ -61,17 +61,29 @@ class YPrint_Stripe_Admin {
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
     }
 
-    /**
+/**
  * Add admin menu
  */
 public function add_admin_menu() {
+    // Hauptmenüpunkt hinzufügen
+    add_menu_page(
+        __('YPrint', 'yprint-plugin'),              // Seitentitel
+        __('YPrint', 'yprint-plugin'),              // Menütitel
+        'manage_options',                           // Erforderliche Berechtigung
+        'yprint-settings',                          // Menü-Slug
+        null,                                       // Callback-Funktion (null, da wir Untermenüs verwenden)
+        'dashicons-cart',                           // Icon (Warenkorb-Icon)
+        30                                          // Position im Menü
+    );
+    
+    // Untermenüpunkt für Stripe-Einstellungen hinzufügen
     add_submenu_page(
-        'woocommerce', // Parent slug - WooCommerce Hauptmenü
-        __('YPrint Stripe Settings', 'yprint-plugin'),
-        __('YPrint Stripe', 'yprint-plugin'),
-        'manage_options',
-        'yprint-stripe-settings',
-        array($this, 'display_settings_page')
+        'yprint-settings',                          // Übergeordneter Slug
+        __('Stripe Settings', 'yprint-plugin'),     // Seitentitel
+        __('Stripe', 'yprint-plugin'),              // Menütitel
+        'manage_options',                           // Erforderliche Berechtigung
+        'yprint-stripe-settings',                   // Menü-Slug
+        array($this, 'display_settings_page')       // Callback-Funktion
     );
 }
 
@@ -231,12 +243,12 @@ public function add_admin_menu() {
         <?php
     }
 
-    /**
+/**
  * Enqueue admin scripts
  */
 public function enqueue_admin_scripts($hook) {
     // Only enqueue on our settings page
-    if ('woocommerce_page_yprint-stripe-settings' !== $hook) {
+    if ('yprint-settings_page_yprint-stripe-settings' !== $hook) {
         return;
     }
     
