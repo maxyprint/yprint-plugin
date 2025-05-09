@@ -31,6 +31,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/woocommerce.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/legal-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/product-fields.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php'; //
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/yprint-stripe.php';
 
 /**
  * Enqueue scripts and styles
