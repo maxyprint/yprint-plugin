@@ -216,3 +216,4 @@ public static function test_connection() {
         );
     }
 }
+}
