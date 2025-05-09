@@ -1,19 +1,17 @@
 jQuery(document).ready(function($) {
-    // Test connection button
+    // Test Connection Button
     $('#yprint_stripe_test_connection_button').on('click', function() {
         var button = $(this);
-        var result = $('#yprint_stripe_test_connection_result');
-        var details = $('#yprint_stripe_test_details');
+        var resultSpan = $('#yprint_stripe_test_connection_result');
+        var detailsDiv = $('#yprint_stripe_test_details');
         var detailsContent = $('#yprint_stripe_test_details_content');
         
-        // Disable button and show loading text
+        // Disable button and show loading message
         button.prop('disabled', true);
-        result.html(yprint_stripe_admin.testing_connection);
+        resultSpan.html('<span style="color: #777;">' + yprint_stripe_admin.testing_connection + '</span>');
+        detailsDiv.hide();
         
-        // Hide previous test details
-        details.hide();
-        
-        // Make AJAX call
+        // Send AJAX request
         $.ajax({
             url: yprint_stripe_admin.ajax_url,
             type: 'POST',
@@ -22,21 +20,21 @@ jQuery(document).ready(function($) {
                 nonce: yprint_stripe_admin.nonce
             },
             success: function(response) {
+                button.prop('disabled', false);
+                
                 if (response.success) {
-                    result.html('<span style="color: green;">' + yprint_stripe_admin.connection_success + '</span>');
+                    resultSpan.html('<span style="color: green;">' + yprint_stripe_admin.connection_success + '</span>');
                     
-                    // Display test details
+                    // Display details
                     detailsContent.html('<pre>' + JSON.stringify(response.data.details, null, 2) + '</pre>');
-                    details.show();
+                    detailsDiv.show();
                 } else {
-                    result.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + response.data.message + '</span>');
+                    resultSpan.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + (response.data.message || 'Unknown error') + '</span>');
                 }
             },
-            error: function() {
-                result.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + 'AJAX request failed.</span>');
-            },
-            complete: function() {
+            error: function(xhr, status, error) {
                 button.prop('disabled', false);
+                resultSpan.html('<span style="color: red;">' + yprint_stripe_admin.connection_error + error + '</span>');
             }
         });
     });
