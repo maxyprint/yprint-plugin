@@ -233,25 +233,8 @@ public function display_main_page() {
  * Test button callback
  */
 public function test_button_callback() {
-    echo '<button type="button" id="yprint_stripe_test_connection_button" class="button button-secondary" onclick="console.log(\'Button direkt geklickt!\'); if(typeof jQuery !== \'undefined\') { jQuery(this).trigger(\'click\'); }">' . __('Test Connection', 'yprint-plugin') . '</button>';
+    echo '<button type="button" id="yprint_stripe_test_connection_button" class="button button-secondary">' . __('Test Connection', 'yprint-plugin') . '</button>';
     echo '<span id="yprint_stripe_test_connection_result" style="margin-left: 10px;"></span>';
-    
-    // Debug-Information
-    echo '<script>
-    console.log("Test-Button wurde gerendert");
-    document.addEventListener("DOMContentLoaded", function() {
-        console.log("DOM geladen, suche nach Test-Button...");
-        var button = document.getElementById("yprint_stripe_test_connection_button");
-        if (button) {
-            console.log("Test-Button gefunden:", button);
-            button.addEventListener("click", function() {
-                console.log("Test-Button wurde über DOM-Event-Listener geklickt");
-            });
-        } else {
-            console.log("Test-Button wurde NICHT gefunden!");
-        }
-    });
-    </script>';
 }
 
     /**
