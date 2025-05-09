@@ -30,8 +30,16 @@ require_once YPRINT_PLUGIN_DIR . 'includes/ui-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/woocommerce.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/legal-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/product-fields.php';
-require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php'; //
+require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php';
+
+// Include Stripe files
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/yprint-stripe.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-admin.php';
+
+// Initialize Stripe Admin
+add_action('plugins_loaded', function() {
+    YPrint_Stripe_Admin::get_instance();
+});
 
 /**
  * Enqueue scripts and styles
