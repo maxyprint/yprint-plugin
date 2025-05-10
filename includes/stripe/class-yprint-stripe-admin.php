@@ -104,69 +104,109 @@ public function display_main_page() {
 }
 
     /**
-     * Register settings
-     */
-    public function register_settings() {
-        // Register setting
-        register_setting('yprint_stripe_settings_group', 'yprint_stripe_settings');
-        
-        // Add settings section
-        add_settings_section(
-            'yprint_stripe_main_section',
-            __('Stripe API Settings', 'yprint-plugin'),
-            array($this, 'main_section_callback'),
-            'yprint-stripe-settings'
-        );
-        
-        // Add settings fields
-        add_settings_field(
-            'yprint_stripe_testmode',
-            __('Test Mode', 'yprint-plugin'),
-            array($this, 'testmode_callback'),
-            'yprint-stripe-settings',
-            'yprint_stripe_main_section'
-        );
-        
-        add_settings_field(
-            'yprint_stripe_test_secret_key',
-            __('Test Secret Key', 'yprint-plugin'),
-            array($this, 'test_secret_key_callback'),
-            'yprint-stripe-settings',
-            'yprint_stripe_main_section'
-        );
-        
-        add_settings_field(
-            'yprint_stripe_test_publishable_key',
-            __('Test Publishable Key', 'yprint-plugin'),
-            array($this, 'test_publishable_key_callback'),
-            'yprint-stripe-settings',
-            'yprint_stripe_main_section'
-        );
-        
-        add_settings_field(
-            'yprint_stripe_secret_key',
-            __('Live Secret Key', 'yprint-plugin'),
-            array($this, 'secret_key_callback'),
-            'yprint-stripe-settings',
-            'yprint_stripe_main_section'
-        );
-        
-        add_settings_field(
-            'yprint_stripe_publishable_key',
-            __('Live Publishable Key', 'yprint-plugin'),
-            array($this, 'publishable_key_callback'),
-            'yprint-stripe-settings',
-            'yprint_stripe_main_section'
-        );
-        
-        add_settings_field(
-            'yprint_stripe_test_button',
-            __('Test Connection', 'yprint-plugin'),
-            array($this, 'test_button_callback'),
-            'yprint-stripe-settings',
-            'yprint_stripe_main_section'
-        );
-    }
+ * Register settings
+ */
+public function register_settings() {
+    // Register setting
+    register_setting('yprint_stripe_settings_group', 'yprint_stripe_settings');
+    
+    // Add settings section
+    add_settings_section(
+        'yprint_stripe_main_section',
+        __('Stripe API Settings', 'yprint-plugin'),
+        array($this, 'main_section_callback'),
+        'yprint-stripe-settings'
+    );
+    
+    // Add settings fields
+    add_settings_field(
+        'yprint_stripe_testmode',
+        __('Test Mode', 'yprint-plugin'),
+        array($this, 'testmode_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_main_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_test_secret_key',
+        __('Test Secret Key', 'yprint-plugin'),
+        array($this, 'test_secret_key_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_main_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_test_publishable_key',
+        __('Test Publishable Key', 'yprint-plugin'),
+        array($this, 'test_publishable_key_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_main_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_secret_key',
+        __('Live Secret Key', 'yprint-plugin'),
+        array($this, 'secret_key_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_main_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_publishable_key',
+        __('Live Publishable Key', 'yprint-plugin'),
+        array($this, 'publishable_key_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_main_section'
+    );
+    
+    // Add Payment Request Button section
+    add_settings_section(
+        'yprint_stripe_payment_request_section',
+        __('Payment Request Button Settings', 'yprint-plugin'),
+        array($this, 'payment_request_section_callback'),
+        'yprint-stripe-settings'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_payment_request',
+        __('Payment Request Button', 'yprint-plugin'),
+        array($this, 'payment_request_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_payment_request_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_payment_request_button_type',
+        __('Button Type', 'yprint-plugin'),
+        array($this, 'payment_request_button_type_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_payment_request_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_payment_request_button_theme',
+        __('Button Theme', 'yprint-plugin'),
+        array($this, 'payment_request_button_theme_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_payment_request_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_payment_request_button_height',
+        __('Button Height', 'yprint-plugin'),
+        array($this, 'payment_request_button_height_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_payment_request_section'
+    );
+    
+    add_settings_field(
+        'yprint_stripe_test_button',
+        __('Test Connection', 'yprint-plugin'),
+        array($this, 'test_button_callback'),
+        'yprint-stripe-settings',
+        'yprint_stripe_main_section'
+    );
+}
 
     /**
      * Main section callback
@@ -207,6 +247,68 @@ public function display_main_page() {
         
         echo '<input type="text" id="yprint_stripe_test_publishable_key" name="yprint_stripe_settings[test_publishable_key]" value="' . esc_attr($value) . '" class="regular-text" />';
     }
+
+/**
+ * Payment Request section callback
+ */
+public function payment_request_section_callback() {
+    echo '<p>' . __('Configure payment request button settings below:', 'yprint-plugin') . '</p>';
+    echo '<p>' . __('The payment request button displays Apple Pay / Google Pay buttons on product pages, cart and checkout.', 'yprint-plugin') . '</p>';
+}
+
+/**
+ * Payment Request callback
+ */
+public function payment_request_callback() {
+    $options = YPrint_Stripe_API::get_stripe_settings();
+    $checked = isset($options['payment_request']) && 'yes' === $options['payment_request'] ? 'checked' : '';
+    
+    echo '<input type="checkbox" id="yprint_stripe_payment_request" name="yprint_stripe_settings[payment_request]" value="yes" ' . $checked . ' />';
+    echo '<label for="yprint_stripe_payment_request">' . __('Enable Payment Request Button', 'yprint-plugin') . '</label>';
+    echo '<p class="description">' . __('This enables Apple Pay, Google Pay and Payment Request API buttons.', 'yprint-plugin') . '</p>';
+}
+
+/**
+ * Payment Request Button Type callback
+ */
+public function payment_request_button_type_callback() {
+    $options = YPrint_Stripe_API::get_stripe_settings();
+    $button_type = isset($options['payment_request_button_type']) ? $options['payment_request_button_type'] : 'default';
+    
+    echo '<select id="yprint_stripe_payment_request_button_type" name="yprint_stripe_settings[payment_request_button_type]">';
+    echo '<option value="default" ' . selected($button_type, 'default', false) . '>' . __('Default', 'yprint-plugin') . '</option>';
+    echo '<option value="buy" ' . selected($button_type, 'buy', false) . '>' . __('Buy', 'yprint-plugin') . '</option>';
+    echo '<option value="donate" ' . selected($button_type, 'donate', false) . '>' . __('Donate', 'yprint-plugin') . '</option>';
+    echo '<option value="book" ' . selected($button_type, 'book', false) . '>' . __('Book', 'yprint-plugin') . '</option>';
+    echo '</select>';
+    echo '<p class="description">' . __('Select the type of button you want to show.', 'yprint-plugin') . '</p>';
+}
+
+/**
+ * Payment Request Button Theme callback
+ */
+public function payment_request_button_theme_callback() {
+    $options = YPrint_Stripe_API::get_stripe_settings();
+    $button_theme = isset($options['payment_request_button_theme']) ? $options['payment_request_button_theme'] : 'dark';
+    
+    echo '<select id="yprint_stripe_payment_request_button_theme" name="yprint_stripe_settings[payment_request_button_theme]">';
+    echo '<option value="dark" ' . selected($button_theme, 'dark', false) . '>' . __('Dark', 'yprint-plugin') . '</option>';
+    echo '<option value="light" ' . selected($button_theme, 'light', false) . '>' . __('Light', 'yprint-plugin') . '</option>';
+    echo '<option value="light-outline" ' . selected($button_theme, 'light-outline', false) . '>' . __('Light Outline', 'yprint-plugin') . '</option>';
+    echo '</select>';
+    echo '<p class="description">' . __('Select the theme of the button you want to show.', 'yprint-plugin') . '</p>';
+}
+
+/**
+ * Payment Request Button Height callback
+ */
+public function payment_request_button_height_callback() {
+    $options = YPrint_Stripe_API::get_stripe_settings();
+    $button_height = isset($options['payment_request_button_height']) ? $options['payment_request_button_height'] : '48';
+    
+    echo '<input type="number" id="yprint_stripe_payment_request_button_height" name="yprint_stripe_settings[payment_request_button_height]" value="' . esc_attr($button_height) . '" min="40" max="64" step="1" />';
+    echo '<p class="description">' . __('Enter the height of the button in pixels (between 40 and 64).', 'yprint-plugin') . '</p>';
+}
 
     /**
      * Live secret key callback
@@ -384,6 +486,12 @@ public function ajax_test_connection() {
                 }
                 $response = YPrint_Stripe_Webhook_Handler::test_webhook();
                 break;
+
+            // Add this in the switch statement in ajax_test_connection method
+            case 'payment_request':
+            // Test der Payment Request Button Funktionalität
+            $response = YPrint_Stripe_API::test_payment_request_button();
+            break;
                 
             default:
                 // Standard: API-Verbindungstest
