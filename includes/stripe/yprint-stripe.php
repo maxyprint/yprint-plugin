@@ -273,6 +273,7 @@ public static function request($request, $api = '', $method = 'POST') {
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-gateway.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-webhook-handler.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-request.php';
 
 // Initialize classes
 YPrint_Stripe_Apple_Pay::get_instance();
