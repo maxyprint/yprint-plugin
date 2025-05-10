@@ -116,6 +116,16 @@
         $('#yprint_stripe_test_apple_pay_button').on('click', function() {
             performStripeTest('apple_pay', this);
         });
+        
+        // Test Payment Gateway Button
+        $('#yprint_stripe_test_payment_gateway_button').on('click', function() {
+            performStripeTest('payment_gateway', this);
+        });
+        
+        // Test Webhook Button
+        $('#yprint_stripe_test_webhook_button').on('click', function() {
+            performStripeTest('webhook', this);
+        });
     });
 
 })(jQuery);

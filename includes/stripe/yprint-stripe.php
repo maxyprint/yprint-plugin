@@ -269,6 +269,25 @@ public static function request($request, $api = '', $method = 'POST') {
     }
 }
 
-// Load Apple Pay class
+// Load required classes
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-gateway.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-webhook-handler.php';
+
+// Initialize classes
 YPrint_Stripe_Apple_Pay::get_instance();
+YPrint_Stripe_Webhook_Handler::get_instance();
+
+// Add WooCommerce payment gateway
+add_filter('woocommerce_payment_gateways', 'yprint_add_stripe_gateway');
+
+/**
+ * Add the Stripe Gateway to WooCommerce
+ *
+ * @param array $gateways WooCommerce payment gateways
+ * @return array Payment gateways with Stripe added
+ */
+function yprint_add_stripe_gateway($gateways) {
+    $gateways[] = 'YPrint_Stripe_Payment_Gateway';
+    return $gateways;
+}

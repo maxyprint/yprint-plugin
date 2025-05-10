@@ -235,6 +235,8 @@ public function display_main_page() {
 public function test_button_callback() {
     echo '<button type="button" id="yprint_stripe_test_connection_button" class="button button-secondary">' . __('Test Connection', 'yprint-plugin') . '</button>';
     echo '<button type="button" id="yprint_stripe_test_apple_pay_button" class="button button-secondary" style="margin-left: 10px;">' . __('Test Apple Pay Domain', 'yprint-plugin') . '</button>';
+    echo '<button type="button" id="yprint_stripe_test_payment_gateway_button" class="button button-secondary" style="margin-left: 10px;">' . __('Test Payment Gateway', 'yprint-plugin') . '</button>';
+    echo '<button type="button" id="yprint_stripe_test_webhook_button" class="button button-secondary" style="margin-left: 10px;">' . __('Test Webhook', 'yprint-plugin') . '</button>';
     echo '<span id="yprint_stripe_test_connection_result" style="margin-left: 10px;"></span>';
 }
 
@@ -322,15 +324,38 @@ public function ajax_test_connection() {
     
     try {
         // Je nach Test-Typ unterschiedliche Aktionen ausführen
-        if ($test_type === 'apple_pay') {
-            $response = YPrint_Stripe_API::test_apple_pay_domain_verification();
-        } else if ($test_type === 'register_domain') {
-            // Neue Option: Separate Domain-Registrierung
-            require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
-            $apple_pay = YPrint_Stripe_Apple_Pay::get_instance();
-            $response = $apple_pay->register_domain();
-        } else {
-            $response = YPrint_Stripe_API::test_connection();
+        switch ($test_type) {
+            case 'apple_pay':
+                $response = YPrint_Stripe_API::test_apple_pay_domain_verification();
+                break;
+                
+            case 'register_domain':
+                // Separate Domain-Registrierung
+                require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
+                $apple_pay = YPrint_Stripe_Apple_Pay::get_instance();
+                $response = $apple_pay->register_domain();
+                break;
+                
+            case 'payment_gateway':
+                // Test der Payment Gateway Integration
+                if (!class_exists('YPrint_Stripe_Payment_Gateway')) {
+                    require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-gateway.php';
+                }
+                $response = YPrint_Stripe_Payment_Gateway::test_gateway();
+                break;
+                
+            case 'webhook':
+                // Test der Webhook-Funktionalität
+                if (!class_exists('YPrint_Stripe_Webhook_Handler')) {
+                    require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-webhook-handler.php';
+                }
+                $response = YPrint_Stripe_Webhook_Handler::test_webhook();
+                break;
+                
+            default:
+                // Standard: API-Verbindungstest
+                $response = YPrint_Stripe_API::test_connection();
+                break;
         }
         
         error_log('Stripe-Test-' . $test_type . ' Ergebnis: ' . wp_json_encode($response));
