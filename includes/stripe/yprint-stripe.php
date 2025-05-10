@@ -160,68 +160,68 @@ class YPrint_Stripe_API {
     }
 
     /**
- * Send the request to Stripe's API
- *
- * @param array  $request
- * @param string $api
- * @param string $method
- * @return object
- * @throws Exception
- */
-public static function request($request, $api = '', $method = 'POST') {
-    $headers = self::get_headers();
-    
-    error_log('Stripe API Request: ' . $method . ' ' . self::ENDPOINT . $api);
-    error_log('Request data: ' . wp_json_encode($request));
-    
-    // Erhöhter Timeout für API-Anfragen
-    $response = wp_remote_request(
-        self::ENDPOINT . $api,
-        array(
-            'method'  => $method,
-            'headers' => $headers,
-            'body'    => $request,
-            'timeout' => 120, // Erhöht von 70 auf 120 Sekunden
-            'sslverify' => true,
-            'httpversion' => '1.1',
-        )
-    );
-
-    if (is_wp_error($response)) {
-        $error_message = $response->get_error_message();
-        $error_code = $response->get_error_code();
-        error_log('Stripe API WP Error: Code: ' . $error_code . ', Message: ' . $error_message);
-        throw new Exception($error_message);
-    }
-    
-    if (empty($response['body'])) {
-        $error_message = __('Empty response from Stripe', 'yprint-plugin');
-        error_log('Stripe API Error: ' . $error_message);
-        throw new Exception($error_message);
-    }
-    
-    $response_code = wp_remote_retrieve_response_code($response);
-    $body = wp_remote_retrieve_body($response);
-    
-    error_log('Stripe API Response Code: ' . $response_code);
-    
-    // Kürze den Response-Body für das Logging
-    $log_body = strlen($body) > 1000 ? substr($body, 0, 1000) . '... [truncated]' : $body;
-    error_log('Stripe API Response Body: ' . $log_body);
-    
-    $json_response = json_decode($body);
-    
-    // Überprüfen auf API-Fehler in der Antwort
-    if (isset($json_response->error)) {
-        $error_message = $json_response->error->message ?? __('Unknown Stripe API error', 'yprint-plugin');
-        $error_type = $json_response->error->type ?? 'unknown';
-        $error_code = $json_response->error->code ?? 'unknown';
+     * Send the request to Stripe's API
+     *
+     * @param array  $request
+     * @param string $api
+     * @param string $method
+     * @return object
+     * @throws Exception
+     */
+    public static function request($request, $api = '', $method = 'POST') {
+        $headers = self::get_headers();
         
-        error_log("Stripe API Error: Type: {$error_type}, Code: {$error_code}, Message: {$error_message}");
-    }
+        error_log('Stripe API Request: ' . $method . ' ' . self::ENDPOINT . $api);
+        error_log('Request data: ' . wp_json_encode($request));
+        
+        // Erhöhter Timeout für API-Anfragen
+        $response = wp_remote_request(
+            self::ENDPOINT . $api,
+            array(
+                'method'  => $method,
+                'headers' => $headers,
+                'body'    => $request,
+                'timeout' => 120, // Erhöht von 70 auf 120 Sekunden
+                'sslverify' => true,
+                'httpversion' => '1.1',
+            )
+        );
 
-    return $json_response;
-}
+        if (is_wp_error($response)) {
+            $error_message = $response->get_error_message();
+            $error_code = $response->get_error_code();
+            error_log('Stripe API WP Error: Code: ' . $error_code . ', Message: ' . $error_message);
+            throw new Exception($error_message);
+        }
+        
+        if (empty($response['body'])) {
+            $error_message = __('Empty response from Stripe', 'yprint-plugin');
+            error_log('Stripe API Error: ' . $error_message);
+            throw new Exception($error_message);
+        }
+        
+        $response_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        
+        error_log('Stripe API Response Code: ' . $response_code);
+        
+        // Kürze den Response-Body für das Logging
+        $log_body = strlen($body) > 1000 ? substr($body, 0, 1000) . '... [truncated]' : $body;
+        error_log('Stripe API Response Body: ' . $log_body);
+        
+        $json_response = json_decode($body);
+        
+        // Überprüfen auf API-Fehler in der Antwort
+        if (isset($json_response->error)) {
+            $error_message = $json_response->error->message ?? __('Unknown Stripe API error', 'yprint-plugin');
+            $error_type = $json_response->error->type ?? 'unknown';
+            $error_code = $json_response->error->code ?? 'unknown';
+            
+            error_log("Stripe API Error: Type: {$error_type}, Code: {$error_code}, Message: {$error_message}");
+        }
+
+        return $json_response;
+    }
 
     /**
      * Test the API connection
@@ -273,10 +273,12 @@ public static function request($request, $api = '', $method = 'POST') {
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-gateway.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-webhook-handler.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-request.php';
 
 // Initialize classes
 YPrint_Stripe_Apple_Pay::get_instance();
 YPrint_Stripe_Webhook_Handler::get_instance();
+YPrint_Stripe_Payment_Request::get_instance();
 
 // Add WooCommerce payment gateway
 add_filter('woocommerce_payment_gateways', 'yprint_add_stripe_gateway');
@@ -290,4 +292,66 @@ add_filter('woocommerce_payment_gateways', 'yprint_add_stripe_gateway');
 function yprint_add_stripe_gateway($gateways) {
     $gateways[] = 'YPrint_Stripe_Payment_Gateway';
     return $gateways;
+}
+
+/**
+ * Register AJAX endpoints for Payment Request
+ */
+function yprint_stripe_register_ajax_endpoints() {
+    // Add AJAX actions for the Payment Request APIs
+    add_action('wp_ajax_yprint_stripe_get_cart_details', 'yprint_stripe_ajax_get_cart_details');
+    add_action('wp_ajax_nopriv_yprint_stripe_get_cart_details', 'yprint_stripe_ajax_get_cart_details');
+    
+    add_action('wp_ajax_yprint_stripe_get_shipping_options', 'yprint_stripe_ajax_get_shipping_options');
+    add_action('wp_ajax_nopriv_yprint_stripe_get_shipping_options', 'yprint_stripe_ajax_get_shipping_options');
+    
+    add_action('wp_ajax_yprint_stripe_update_shipping_method', 'yprint_stripe_ajax_update_shipping_method');
+    add_action('wp_ajax_nopriv_yprint_stripe_update_shipping_method', 'yprint_stripe_ajax_update_shipping_method');
+    
+    add_action('wp_ajax_yprint_stripe_add_to_cart', 'yprint_stripe_ajax_add_to_cart');
+    add_action('wp_ajax_nopriv_yprint_stripe_add_to_cart', 'yprint_stripe_ajax_add_to_cart');
+    
+    add_action('wp_ajax_yprint_stripe_process_payment', 'yprint_stripe_ajax_process_payment');
+    add_action('wp_ajax_nopriv_yprint_stripe_process_payment', 'yprint_stripe_ajax_process_payment');
+}
+add_action('init', 'yprint_stripe_register_ajax_endpoints');
+
+/**
+ * AJAX Cart Details Handler
+ */
+function yprint_stripe_ajax_get_cart_details() {
+    $payment_request = YPrint_Stripe_Payment_Request::get_instance();
+    $payment_request->ajax_get_cart_details();
+}
+
+/**
+ * AJAX Shipping Options Handler
+ */
+function yprint_stripe_ajax_get_shipping_options() {
+    $payment_request = YPrint_Stripe_Payment_Request::get_instance();
+    $payment_request->ajax_get_shipping_options();
+}
+
+/**
+ * AJAX Update Shipping Method Handler
+ */
+function yprint_stripe_ajax_update_shipping_method() {
+    $payment_request = YPrint_Stripe_Payment_Request::get_instance();
+    $payment_request->ajax_update_shipping_method();
+}
+
+/**
+ * AJAX Add to Cart Handler
+ */
+function yprint_stripe_ajax_add_to_cart() {
+    $payment_request = YPrint_Stripe_Payment_Request::get_instance();
+    $payment_request->ajax_add_to_cart();
+}
+
+/**
+ * AJAX Process Payment Handler
+ */
+function yprint_stripe_ajax_process_payment() {
+    $payment_request = YPrint_Stripe_Payment_Request::get_instance();
+    $payment_request->ajax_process_payment();
 }

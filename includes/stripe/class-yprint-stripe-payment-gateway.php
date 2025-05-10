@@ -18,91 +18,145 @@ if (!defined('ABSPATH')) {
  */
 class YPrint_Stripe_Payment_Gateway extends WC_Payment_Gateway {
 
+    /**
+     * Constructor for the gateway.
+     */
     public function __construct() {
         $this->id                 = 'yprint_stripe';
         $this->icon               = apply_filters('yprint_stripe_icon', YPRINT_PLUGIN_URL . 'assets/images/stripe.png');
         $this->has_fields         = true;
         $this->method_title       = __('YPrint Stripe', 'yprint-plugin');
-        $this->method_description = sprintf(
-            __('Accept payments via Stripe - Credit Cards, Apple Pay, and more. <br/><strong>Webhook URL:</strong> <code>%s</code><br/>Add this URL to your <a href="https://dashboard.stripe.com/webhooks" target="_blank">Stripe Webhook settings</a> and enter the webhook secret below.', 'yprint-plugin'),
-            home_url('wc-api/yprint_stripe')
-        );
+        $this->method_description = __('Accept payments via Stripe - Credit Cards, Apple Pay, and more.', 'yprint-plugin');
         $this->supports           = array(
             'products',
             'refunds',
         );
-    
+
         // Load the settings
         $this->init_form_fields();
         $this->init_settings();
-    
+
         // Define user set variables
         $this->title        = $this->get_option('title');
         $this->description  = $this->get_option('description');
         $this->enabled      = $this->get_option('enabled');
         $this->testmode     = 'yes' === $this->get_option('testmode');
-    
+
+        // Payment Request (Apple Pay) specific settings
+        $this->payment_request = $this->get_option('payment_request', 'yes');
+        $this->payment_request_button_type = $this->get_option('payment_request_button_type', 'default');
+        $this->payment_request_button_theme = $this->get_option('payment_request_button_theme', 'dark');
+        $this->payment_request_button_height = $this->get_option('payment_request_button_height', '48');
+        $this->payment_request_button_locations = $this->get_option('payment_request_button_locations', array('product', 'cart', 'checkout'));
+
         // Actions
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_api_yprint_stripe', array(YPrint_Stripe_Webhook_Handler::get_instance(), 'handle_webhook'));
     }
 
     /**
- * Initialize Gateway Settings Form Fields
- */
-public function init_form_fields() {
-    $this->form_fields = array(
-        'enabled' => array(
-            'title'       => __('Enable/Disable', 'yprint-plugin'),
-            'label'       => __('Enable YPrint Stripe', 'yprint-plugin'),
-            'type'        => 'checkbox',
-            'description' => '',
-            'default'     => 'no',
-        ),
-        'title' => array(
-            'title'       => __('Title', 'yprint-plugin'),
-            'type'        => 'text',
-            'description' => __('This controls the title which the user sees during checkout.', 'yprint-plugin'),
-            'default'     => __('Credit Card (Stripe)', 'yprint-plugin'),
-            'desc_tip'    => true,
-        ),
-        'description' => array(
-            'title'       => __('Description', 'yprint-plugin'),
-            'type'        => 'textarea',
-            'description' => __('This controls the description which the user sees during checkout.', 'yprint-plugin'),
-            'default'     => __('Pay with your credit card via Stripe.', 'yprint-plugin'),
-            'desc_tip'    => true,
-        ),
-        'testmode' => array(
-            'title'       => __('Test mode', 'yprint-plugin'),
-            'label'       => __('Enable Test Mode', 'yprint-plugin'),
-            'type'        => 'checkbox',
-            'description' => __('Place the payment gateway in test mode using test API keys.', 'yprint-plugin'),
-            'default'     => 'yes',
-            'desc_tip'    => true,
-        ),
-        'webhook_settings' => array(
-            'title'       => __('Webhook Settings', 'yprint-plugin'),
-            'type'        => 'title',
-            'description' => __('Webhooks allow Stripe to notify your site when events happen in your Stripe account, such as successful payments or refunds.', 'yprint-plugin'),
-        ),
-        'webhook_url' => array(
-            'title'       => __('Webhook URL', 'yprint-plugin'),
-            'type'        => 'text',
-            'description' => __('Add this URL to your Stripe webhook settings to receive notifications about payments.', 'yprint-plugin'),
-            'default'     => home_url('wc-api/yprint_stripe'),
-            'disabled'    => true,
-            'css'         => 'width: 400px;',
-        ),
-        'webhook_secret' => array(
-            'title'       => __('Webhook Secret', 'yprint-plugin'),
-            'type'        => 'password',
-            'description' => __('The webhook secret is used to verify that webhook calls come from Stripe. Get this from your Stripe Dashboard → Developers → Webhooks.', 'yprint-plugin'),
-            'default'     => '',
-            'css'         => 'width: 400px;',
-        ),
-    );
-}
+     * Initialize Gateway Settings Form Fields
+     */
+    public function init_form_fields() {
+        $this->form_fields = array(
+            'enabled' => array(
+                'title'       => __('Enable/Disable', 'yprint-plugin'),
+                'label'       => __('Enable YPrint Stripe', 'yprint-plugin'),
+                'type'        => 'checkbox',
+                'description' => '',
+                'default'     => 'no',
+            ),
+            'title' => array(
+                'title'       => __('Title', 'yprint-plugin'),
+                'type'        => 'text',
+                'description' => __('This controls the title which the user sees during checkout.', 'yprint-plugin'),
+                'default'     => __('Credit Card (Stripe)', 'yprint-plugin'),
+                'desc_tip'    => true,
+            ),
+            'description' => array(
+                'title'       => __('Description', 'yprint-plugin'),
+                'type'        => 'textarea',
+                'description' => __('This controls the description which the user sees during checkout.', 'yprint-plugin'),
+                'default'     => __('Pay with your credit card via Stripe.', 'yprint-plugin'),
+                'desc_tip'    => true,
+            ),
+            'testmode' => array(
+                'title'       => __('Test mode', 'yprint-plugin'),
+                'label'       => __('Enable Test Mode', 'yprint-plugin'),
+                'type'        => 'checkbox',
+                'description' => __('Place the payment gateway in test mode using test API keys.', 'yprint-plugin'),
+                'default'     => 'yes',
+                'desc_tip'    => true,
+            ),
+            'webhook_secret' => array(
+                'title'       => __('Webhook Secret', 'yprint-plugin'),
+                'type'        => 'password',
+                'description' => __('The webhook secret is used to verify that webhook calls come from Stripe.', 'yprint-plugin') . ' ' . sprintf(__('Your webhook URL is: %s', 'yprint-plugin'), '<code>' . home_url('wc-api/yprint_stripe') . '</code>'),
+                'default'     => '',
+            ),
+            
+            // Payment Request (Apple Pay) Settings
+            'payment_request_title' => array(
+                'title'       => __('Payment Request Settings', 'yprint-plugin'),
+                'type'        => 'title',
+                'description' => __('These settings control the appearance of Apple Pay and Payment Request buttons.', 'yprint-plugin'),
+            ),
+            'payment_request' => array(
+                'title'       => __('Payment Request Buttons', 'yprint-plugin'),
+                'label'       => __('Enable Payment Request Buttons (Apple Pay and Payment Request API)', 'yprint-plugin'),
+                'type'        => 'checkbox',
+                'description' => __('If enabled, users will be able to pay using Apple Pay and Payment Request API if available in their browser.', 'yprint-plugin'),
+                'default'     => 'yes',
+                'desc_tip'    => true,
+            ),
+            'payment_request_button_type' => array(
+                'title'       => __('Button Type', 'yprint-plugin'),
+                'type'        => 'select',
+                'description' => __('Choose the button type to show.', 'yprint-plugin'),
+                'default'     => 'default',
+                'desc_tip'    => true,
+                'options'     => array(
+                    'default' => __('Default', 'yprint-plugin'),
+                    'buy'     => __('Buy', 'yprint-plugin'),
+                    'donate'  => __('Donate', 'yprint-plugin'),
+                ),
+            ),
+            'payment_request_button_theme' => array(
+                'title'       => __('Button Theme', 'yprint-plugin'),
+                'type'        => 'select',
+                'description' => __('Choose the button theme to show.', 'yprint-plugin'),
+                'default'     => 'dark',
+                'desc_tip'    => true,
+                'options'     => array(
+                    'dark'    => __('Dark', 'yprint-plugin'),
+                    'light'   => __('Light', 'yprint-plugin'),
+                    'light-outline' => __('Light Outline', 'yprint-plugin'),
+                ),
+            ),
+            'payment_request_button_height' => array(
+                'title'       => __('Button Height', 'yprint-plugin'),
+                'type'        => 'text',
+                'description' => __('Enter the height of the button in pixels. Minimum height is 40px.', 'yprint-plugin'),
+                'default'     => '48',
+                'desc_tip'    => true,
+            ),
+            'payment_request_button_locations' => array(
+                'title'       => __('Button Locations', 'yprint-plugin'),
+                'type'        => 'multiselect',
+                'description' => __('Choose where to show the button.', 'yprint-plugin'),
+                'default'     => array('product', 'cart', 'checkout'),
+                'desc_tip'    => true,
+                'options'     => array(
+                    'product'  => __('Product Page', 'yprint-plugin'),
+                    'cart'     => __('Cart Page', 'yprint-plugin'),
+                    'checkout' => __('Checkout Page', 'yprint-plugin'),
+                ),
+                'custom_attributes' => array(
+                    'data-placeholder' => __('Select locations', 'yprint-plugin'),
+                ),
+            ),
+        );
+    }
 
     /**
      * Process the payment and return the result.
@@ -115,8 +169,14 @@ public function init_form_fields() {
 
         error_log('Processing payment for order: ' . $order_id);
 
-        // Here you would implement the actual payment processing logic
-        // For now, just mark as completed for testing purposes
+        // Check if this is a Payment Request (Apple Pay) payment
+        $payment_method_id = $order->get_meta('_yprint_stripe_payment_method_id');
+        
+        if (!empty($payment_method_id)) {
+            return $this->process_payment_request_payment($order, $payment_method_id);
+        }
+
+        // Regular payment process - would be implemented for standard checkout
         $order->payment_complete();
         
         // Remove cart
@@ -127,6 +187,48 @@ public function init_form_fields() {
             'result'   => 'success',
             'redirect' => $this->get_return_url($order),
         );
+    }
+
+    /**
+     * Process a payment request (Apple Pay) payment
+     * 
+     * @param WC_Order $order
+     * @param string $payment_method_id
+     * @return array
+     */
+    public function process_payment_request_payment($order, $payment_method_id) {
+        try {
+            // In a real implementation, you would:
+            // 1. Create a payment intent with Stripe
+            // 2. Confirm the payment intent
+            // 3. Handle any required actions (like 3D Secure)
+            
+            // For now, we'll just simulate a successful payment
+            $order->payment_complete();
+            
+            // Add payment method details to order notes
+            $order->add_order_note(
+                sprintf(__('Payment processed via Stripe Payment Request (Method ID: %s)', 'yprint-plugin'), 
+                $payment_method_id)
+            );
+            
+            // Remove cart
+            WC()->cart->empty_cart();
+            
+            return array(
+                'result'   => 'success',
+                'redirect' => $this->get_return_url($order),
+            );
+        } catch (Exception $e) {
+            error_log('Error processing payment request: ' . $e->getMessage());
+            
+            $order->update_status('failed', $e->getMessage());
+            
+            return array(
+                'result'   => 'error',
+                'messages' => $e->getMessage(),
+            );
+        }
     }
 
     /**
@@ -208,6 +310,18 @@ public function init_form_fields() {
                 );
             }
             
+            // Test Payment Request (Apple Pay) configuration
+            if (class_exists('YPrint_Stripe_Payment_Request')) {
+                $payment_request_test = YPrint_Stripe_Payment_Request::test_payment_request();
+                if (!$payment_request_test['success']) {
+                    return array(
+                        'success' => false,
+                        'message' => $payment_request_test['message'],
+                        'details' => isset($payment_request_test['details']) ? $payment_request_test['details'] : array(),
+                    );
+                }
+            }
+            
             return array(
                 'success' => true,
                 'message' => __('YPrint Stripe Gateway is properly configured and registered with WooCommerce.', 'yprint-plugin'),
@@ -215,6 +329,7 @@ public function init_form_fields() {
                     'webhook_url' => $webhook_url,
                     'is_enabled' => $payment_gateways['yprint_stripe']->enabled === 'yes',
                     'testmode' => $payment_gateways['yprint_stripe']->testmode,
+                    'payment_request_enabled' => isset($payment_gateways['yprint_stripe']->payment_request) && $payment_gateways['yprint_stripe']->payment_request === 'yes',
                 ),
             );
         } catch (Exception $e) {
