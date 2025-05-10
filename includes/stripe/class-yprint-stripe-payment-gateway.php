@@ -18,77 +18,91 @@ if (!defined('ABSPATH')) {
  */
 class YPrint_Stripe_Payment_Gateway extends WC_Payment_Gateway {
 
-    /**
-     * Constructor for the gateway.
-     */
     public function __construct() {
         $this->id                 = 'yprint_stripe';
         $this->icon               = apply_filters('yprint_stripe_icon', YPRINT_PLUGIN_URL . 'assets/images/stripe.png');
         $this->has_fields         = true;
         $this->method_title       = __('YPrint Stripe', 'yprint-plugin');
-        $this->method_description = __('Accept payments via Stripe - Credit Cards, Apple Pay, and more.', 'yprint-plugin');
+        $this->method_description = sprintf(
+            __('Accept payments via Stripe - Credit Cards, Apple Pay, and more. <br/><strong>Webhook URL:</strong> <code>%s</code><br/>Add this URL to your <a href="https://dashboard.stripe.com/webhooks" target="_blank">Stripe Webhook settings</a> and enter the webhook secret below.', 'yprint-plugin'),
+            home_url('wc-api/yprint_stripe')
+        );
         $this->supports           = array(
             'products',
             'refunds',
         );
-
+    
         // Load the settings
         $this->init_form_fields();
         $this->init_settings();
-
+    
         // Define user set variables
         $this->title        = $this->get_option('title');
         $this->description  = $this->get_option('description');
         $this->enabled      = $this->get_option('enabled');
         $this->testmode     = 'yes' === $this->get_option('testmode');
-
+    
         // Actions
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_api_yprint_stripe', array(YPrint_Stripe_Webhook_Handler::get_instance(), 'handle_webhook'));
     }
 
     /**
-     * Initialize Gateway Settings Form Fields
-     */
-    public function init_form_fields() {
-        $this->form_fields = array(
-            'enabled' => array(
-                'title'       => __('Enable/Disable', 'yprint-plugin'),
-                'label'       => __('Enable YPrint Stripe', 'yprint-plugin'),
-                'type'        => 'checkbox',
-                'description' => '',
-                'default'     => 'no',
-            ),
-            'title' => array(
-                'title'       => __('Title', 'yprint-plugin'),
-                'type'        => 'text',
-                'description' => __('This controls the title which the user sees during checkout.', 'yprint-plugin'),
-                'default'     => __('Credit Card (Stripe)', 'yprint-plugin'),
-                'desc_tip'    => true,
-            ),
-            'description' => array(
-                'title'       => __('Description', 'yprint-plugin'),
-                'type'        => 'textarea',
-                'description' => __('This controls the description which the user sees during checkout.', 'yprint-plugin'),
-                'default'     => __('Pay with your credit card via Stripe.', 'yprint-plugin'),
-                'desc_tip'    => true,
-            ),
-            'testmode' => array(
-                'title'       => __('Test mode', 'yprint-plugin'),
-                'label'       => __('Enable Test Mode', 'yprint-plugin'),
-                'type'        => 'checkbox',
-                'description' => __('Place the payment gateway in test mode using test API keys.', 'yprint-plugin'),
-                'default'     => 'yes',
-                'desc_tip'    => true,
-            ),
-            'webhook_secret' => array(
-                'title'       => __('Webhook Secret', 'yprint-plugin'),
-                'type'        => 'password',
-                'description' => __('The webhook secret is used to verify that webhook calls come from Stripe.', 'yprint-plugin') . ' ' . sprintf(__('Your webhook URL is: %s', 'yprint-plugin'), '<code>' . home_url('wc-api/yprint_stripe') . '</code>'),
-                'default'     => '',
-            ),
-        );
-    }
+ * Initialize Gateway Settings Form Fields
+ */
+public function init_form_fields() {
+    $this->form_fields = array(
+        'enabled' => array(
+            'title'       => __('Enable/Disable', 'yprint-plugin'),
+            'label'       => __('Enable YPrint Stripe', 'yprint-plugin'),
+            'type'        => 'checkbox',
+            'description' => '',
+            'default'     => 'no',
+        ),
+        'title' => array(
+            'title'       => __('Title', 'yprint-plugin'),
+            'type'        => 'text',
+            'description' => __('This controls the title which the user sees during checkout.', 'yprint-plugin'),
+            'default'     => __('Credit Card (Stripe)', 'yprint-plugin'),
+            'desc_tip'    => true,
+        ),
+        'description' => array(
+            'title'       => __('Description', 'yprint-plugin'),
+            'type'        => 'textarea',
+            'description' => __('This controls the description which the user sees during checkout.', 'yprint-plugin'),
+            'default'     => __('Pay with your credit card via Stripe.', 'yprint-plugin'),
+            'desc_tip'    => true,
+        ),
+        'testmode' => array(
+            'title'       => __('Test mode', 'yprint-plugin'),
+            'label'       => __('Enable Test Mode', 'yprint-plugin'),
+            'type'        => 'checkbox',
+            'description' => __('Place the payment gateway in test mode using test API keys.', 'yprint-plugin'),
+            'default'     => 'yes',
+            'desc_tip'    => true,
+        ),
+        'webhook_settings' => array(
+            'title'       => __('Webhook Settings', 'yprint-plugin'),
+            'type'        => 'title',
+            'description' => __('Webhooks allow Stripe to notify your site when events happen in your Stripe account, such as successful payments or refunds.', 'yprint-plugin'),
+        ),
+        'webhook_url' => array(
+            'title'       => __('Webhook URL', 'yprint-plugin'),
+            'type'        => 'text',
+            'description' => __('Add this URL to your Stripe webhook settings to receive notifications about payments.', 'yprint-plugin'),
+            'default'     => home_url('wc-api/yprint_stripe'),
+            'disabled'    => true,
+            'css'         => 'width: 400px;',
+        ),
+        'webhook_secret' => array(
+            'title'       => __('Webhook Secret', 'yprint-plugin'),
+            'type'        => 'password',
+            'description' => __('The webhook secret is used to verify that webhook calls come from Stripe. Get this from your Stripe Dashboard → Developers → Webhooks.', 'yprint-plugin'),
+            'default'     => '',
+            'css'         => 'width: 400px;',
+        ),
+    );
+}
 
     /**
      * Process the payment and return the result.

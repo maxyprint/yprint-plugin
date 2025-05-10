@@ -241,26 +241,59 @@ public function test_button_callback() {
 }
 
     /**
-     * Display settings page
-     */
-    public function display_settings_page() {
-        ?>
-        <div class="wrap">
-            <h1><?php echo esc_html__('YPrint Stripe Settings', 'yprint-plugin'); ?></h1>
-            <form method="post" action="options.php">
-                <?php
-                settings_fields('yprint_stripe_settings_group');
-                do_settings_sections('yprint-stripe-settings');
-                submit_button();
+ * Display settings page
+ */
+public function display_settings_page() {
+    ?>
+    <div class="wrap">
+        <h1><?php echo esc_html__('YPrint Stripe Settings', 'yprint-plugin'); ?></h1>
+        
+        <?php if (class_exists('WooCommerce')): ?>
+        <div class="notice notice-info">
+            <p>
+                <?php 
+                echo sprintf(
+                    __('To configure Webhook Secret and other payment gateway settings, please visit the %sWooCommerce Stripe Payment Gateway settings%s.', 'yprint-plugin'),
+                    '<a href="' . admin_url('admin.php?page=wc-settings&tab=checkout&section=yprint_stripe') . '">',
+                    '</a>'
+                ); 
                 ?>
-            </form>
-            <div id="yprint_stripe_test_details" style="display: none; margin-top: 20px;">
-                <h2><?php echo esc_html__('Connection Test Details', 'yprint-plugin'); ?></h2>
-                <div id="yprint_stripe_test_details_content" style="background: #f8f8f8; padding: 15px; border: 1px solid #ddd;"></div>
-            </div>
+            </p>
         </div>
-        <?php
-    }
+        <?php endif; ?>
+        
+        <form method="post" action="options.php">
+            <?php
+            settings_fields('yprint_stripe_settings_group');
+            do_settings_sections('yprint-stripe-settings');
+            submit_button();
+            ?>
+        </form>
+        
+        <div id="yprint_stripe_test_details" style="display: none; margin-top: 20px;">
+            <h2><?php echo esc_html__('Connection Test Details', 'yprint-plugin'); ?></h2>
+            <div id="yprint_stripe_test_details_content" style="background: #f8f8f8; padding: 15px; border: 1px solid #ddd;"></div>
+        </div>
+        
+        <?php if (class_exists('WooCommerce')): ?>
+        <div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 3px;">
+            <h2><?php echo esc_html__('Stripe Payment Gateway', 'yprint-plugin'); ?></h2>
+            <p><?php echo esc_html__('The Stripe Payment Gateway has been registered with WooCommerce. You can configure it in the WooCommerce payment settings.', 'yprint-plugin'); ?></p>
+            <p><strong><?php echo esc_html__('Webhook URL:', 'yprint-plugin'); ?></strong> <code><?php echo esc_html(home_url('wc-api/yprint_stripe')); ?></code></p>
+            <p><?php echo esc_html__('This is the URL you should configure in your Stripe Dashboard for webhooks.', 'yprint-plugin'); ?></p>
+            <p>
+                <a href="<?php echo esc_url(admin_url('admin.php?page=wc-settings&tab=checkout&section=yprint_stripe')); ?>" class="button button-primary">
+                    <?php echo esc_html__('Configure Payment Gateway', 'yprint-plugin'); ?>
+                </a>
+                <a href="https://dashboard.stripe.com/webhooks" target="_blank" class="button">
+                    <?php echo esc_html__('Stripe Webhooks Dashboard', 'yprint-plugin'); ?>
+                </a>
+            </p>
+        </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
 /**
  * Enqueue admin scripts
  */
