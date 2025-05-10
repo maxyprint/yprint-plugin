@@ -141,6 +141,68 @@ class YPrint_Stripe_API {
     }
 
     /**
+ * Test Payment Request Button
+ *
+ * @return array Response with success/error details
+ */
+public static function test_payment_request_button() {
+    try {
+        // Ensure we have API keys set
+        if (empty(self::get_secret_key())) {
+            return array(
+                'success' => false,
+                'message' => __('API key is not set. Please save your settings first.', 'yprint-plugin'),
+            );
+        }
+        
+        // Check if payment request button is enabled
+        $options = self::get_stripe_settings();
+        $payment_request_enabled = isset($options['payment_request']) && 'yes' === $options['payment_request'];
+        
+        if (!$payment_request_enabled) {
+            return array(
+                'success' => false,
+                'message' => __('Payment Request Button is not enabled in settings.', 'yprint-plugin'),
+                'details' => array(
+                    'enabled' => false,
+                ),
+            );
+        }
+        
+        // Check for Apple Pay domain registration
+        $apple_pay_domain_set = isset($options['apple_pay_domain_set']) && 'yes' === $options['apple_pay_domain_set'];
+        $apple_pay_verified_domain = isset($options['apple_pay_verified_domain']) ? $options['apple_pay_verified_domain'] : '';
+        
+        if (!$apple_pay_domain_set) {
+            return array(
+                'success' => false,
+                'message' => __('Domain is not verified for Apple Pay. Please complete the domain verification first.', 'yprint-plugin'),
+                'details' => array(
+                    'enabled' => true,
+                    'domain_verified' => false,
+                    'domain' => $apple_pay_verified_domain
+                ),
+            );
+        }
+        
+        return array(
+            'success' => true,
+            'message' => __('Payment Request Button is enabled and domain is verified for Apple Pay.', 'yprint-plugin'),
+            'details' => array(
+                'enabled' => true,
+                'domain_verified' => true,
+                'domain' => $apple_pay_verified_domain
+            ),
+        );
+    } catch (Exception $e) {
+        return array(
+            'success' => false,
+            'message' => $e->getMessage(),
+        );
+    }
+}
+
+    /**
      * Generates the headers to pass to API request.
      *
      * @return array
@@ -224,35 +286,44 @@ public static function request($request, $api = '', $method = 'POST') {
 }
 
     /**
-     * Test the API connection
-     *
-     * @return array API response with success/error details
-     */
-    public static function test_connection() {
-        try {
-            // Sicherstellen, dass der Secret Key gesetzt ist
-            if (empty(self::get_secret_key())) {
-                return array(
-                    'success' => false,
-                    'message' => __('API key is not set. Please save your settings first.', 'yprint-plugin'),
-                );
-            }
-            
-            // Simple API call to check connection
-            $response = self::request(array(), 'account', 'GET');
-            
-            return array(
-                'success' => true,
-                'message' => __('Connection to Stripe API successful!', 'yprint-plugin'),
-                'data' => $response,
-            );
-        } catch (Exception $e) {
+ * Test the API connection
+ *
+ * @return array API response with success/error details
+ */
+public static function test_connection() {
+    try {
+        // Sicherstellen, dass der Secret Key gesetzt ist
+        if (empty(self::get_secret_key())) {
             return array(
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => __('API key is not set. Please save your settings first.', 'yprint-plugin'),
             );
         }
+        
+        // Simple API call to check connection
+        $response = self::request(array(), 'account', 'GET');
+        
+        // Check if payment request button is enabled
+        $options = self::get_stripe_settings();
+        $payment_request_enabled = isset($options['payment_request']) && 'yes' === $options['payment_request'];
+        
+        return array(
+            'success' => true,
+            'message' => __('Connection to Stripe API successful!', 'yprint-plugin'),
+            'data' => array(
+                'account' => $response,
+                'payment_request_enabled' => $payment_request_enabled,
+                'api_version' => self::STRIPE_API_VERSION,
+                'testmode' => self::is_testmode(),
+            ),
+        );
+    } catch (Exception $e) {
+        return array(
+            'success' => false,
+            'message' => $e->getMessage(),
+        );
     }
+}
 
     /**
      * Test Apple Pay domain verification
