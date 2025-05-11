@@ -694,21 +694,21 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
     }
     
     /**
-     * AJAX: Process payment
-     */
-    public function ajax_process_payment() {
-        check_ajax_referer('yprint-stripe-payment-request', 'security');
-        
-        if (!defined('WOOCOMMERCE_CHECKOUT')) {
-            define('WOOCOMMERCE_CHECKOUT', true);
-        }
-        
+ * AJAX: Process payment
+ */
+public function ajax_process_payment() {
+    check_ajax_referer('yprint-stripe-payment-request', 'security');
+    
+    if (!defined('WOOCOMMERCE_CHECKOUT')) {
+        define('WOOCOMMERCE_CHECKOUT', true);
+    }
+    
+    try {
         // Get payment method ID from request
         $payment_method_id = isset($_POST['payment_method_id']) ? wc_clean(wp_unslash($_POST['payment_method_id'])) : '';
         
         if (empty($payment_method_id)) {
-            wp_send_json_error(array('message' => __('Payment method ID is required', 'yprint-plugin')));
-            return;
+            throw new Exception(__('Payment method ID is required', 'yprint-plugin'));
         }
         
         // Set payment method
@@ -725,15 +725,46 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
         // Process checkout
         $checkout = WC()->checkout();
         $order_id = $checkout->create_order(array());
-        $order = wc_get_order($order_id);
         
         if (is_wp_error($order_id)) {
-            wp_send_json_error(array('message' => $order_id->get_error_message()));
-            return;
+            throw new Exception($order_id->get_error_message());
         }
+        
+        $order = wc_get_order($order_id);
+        
+        if (!$order) {
+            throw new Exception(__('Failed to create order', 'yprint-plugin'));
+        }
+        
+        // Add customer data to order
+        if (isset($_POST['billing_email'])) {
+            $order->set_billing_email(sanitize_email(wp_unslash($_POST['billing_email'])));
+        }
+        
+        if (isset($_POST['billing_name'])) {
+            $name_parts = explode(' ', sanitize_text_field(wp_unslash($_POST['billing_name'])));
+            $order->set_billing_first_name($name_parts[0]);
+            if (count($name_parts) > 1) {
+                $order->set_billing_last_name(end($name_parts));
+            }
+        }
+        
+        $order->save();
         
         // Mark order as paid
         $order->payment_complete();
+        
+        // Add order note
+        $payment_type = isset($_POST['payment_request_type']) ? 
+            sanitize_text_field($_POST['payment_request_type']) : 'payment_request';
+        
+        $payment_type_label = 'payment_request' === $payment_type ? 'Payment Request' : 
+            ('apple_pay' === $payment_type ? 'Apple Pay' : 
+            ('google_pay' === $payment_type ? 'Google Pay' : $payment_type));
+            
+        $order->add_order_note(
+            sprintf(__('Order paid via %s (Stripe Payment Request)', 'yprint-plugin'), $payment_type_label)
+        );
         
         // Clear cart
         WC()->cart->empty_cart();
@@ -742,7 +773,16 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
         wp_send_json_success(array(
             'redirect' => $order->get_checkout_order_received_url(),
         ));
+    } catch (Exception $e) {
+        // Log error
+        error_log('YPrint Stripe Payment Request Error: ' . $e->getMessage());
+        
+        wp_send_json_error(array(
+            'message' => $e->getMessage(),
+            'code' => $e->getCode()
+        ));
     }
+}
 }
 
 // Initialize the class
