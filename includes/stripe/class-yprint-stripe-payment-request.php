@@ -70,23 +70,20 @@ public function init() {
     add_action('woocommerce_checkout_before_customer_details', array($this, 'display_payment_request_button_html'), 1);
     
     // Register AJAX handlers - Use WordPress AJAX instead of WC AJAX to avoid conflicts
-    add_action('wp_ajax_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
-    add_action('wp_ajax_nopriv_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
-    
-    add_action('wp_ajax_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
-    add_action('wp_ajax_nopriv_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
-    
-    add_action('wp_ajax_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
-    add_action('wp_ajax_nopriv_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
-    
-    add_action('wp_ajax_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
-    add_action('wp_ajax_nopriv_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
-    
-    add_action('wp_ajax_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
-    add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
-    
-    // Add payment data to orders
-    add_action('woocommerce_checkout_order_processed', array($this, 'add_order_meta'), 10, 2);
+add_action('wp_ajax_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
+add_action('wp_ajax_nopriv_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
+
+add_action('wp_ajax_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
+add_action('wp_ajax_nopriv_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
+
+add_action('wp_ajax_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
+add_action('wp_ajax_nopriv_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
+
+add_action('wp_ajax_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
+add_action('wp_ajax_nopriv_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
+
+add_action('wp_ajax_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
+add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
 }
     
     /**
