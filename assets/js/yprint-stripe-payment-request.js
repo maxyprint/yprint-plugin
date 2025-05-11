@@ -76,14 +76,9 @@
             this.initialized = true;
         },
         
-        /**
-         * Initialize Payment Request
-         */
         initPaymentRequest: function() {
             var self = this;
             var params = yprint_stripe_payment_request_params;
-// Update the AJAX URL to use standard WordPress AJAX
-params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
             
             // Check if product data is available
             if (params.product && params.is_product) {
@@ -109,14 +104,27 @@ params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
             this.paymentRequest = this.stripe.paymentRequest(paymentRequestOptions);
             
             // Check if payment request is supported by the browser
-            this.paymentRequest.canMakePayment().then(function(result) {
-                if (result) {
-                    self.setupPaymentRequestButton(result);
-                    self.getCartDetails();
-                } else {
-                    console.log('Payment Request is not available in your browser');
-                }
-            });
+this.paymentRequest.canMakePayment().then(function(result) {
+    if (result) {
+        console.log('Payment Request is available:', result);
+        self.setupPaymentRequestButton(result);
+        self.getCartDetails();
+    } else {
+        console.log('Payment Request is not available in your browser');
+        // Hide the wrapper and separator completely for better UX
+        self.$wrapper.remove();
+        if (self.$separator.length) {
+            self.$separator.remove();
+        }
+    }
+}).catch(function(error) {
+    console.error('Error checking Payment Request availability:', error);
+    // Hide the wrapper and separator if there's an error
+    self.$wrapper.remove();
+    if (self.$separator.length) {
+        self.$separator.remove();
+    }
+});
             
             // Handle shipping address changes
             if (params.checkout.needs_shipping === 'yes') {
@@ -161,13 +169,27 @@ params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
             this.paymentRequest = this.stripe.paymentRequest(paymentRequestOptions);
             
             // Check if payment request is supported by the browser
-            this.paymentRequest.canMakePayment().then(function(result) {
-                if (result) {
-                    self.setupPaymentRequestButton(result);
-                } else {
-                    console.log('Payment Request is not available in your browser');
-                }
-            });
+this.paymentRequest.canMakePayment().then(function(result) {
+    if (result) {
+        console.log('Payment Request is available:', result);
+        self.setupPaymentRequestButton(result);
+        self.getCartDetails();
+    } else {
+        console.log('Payment Request is not available in your browser');
+        // Hide the wrapper and separator completely for better UX
+        self.$wrapper.remove();
+        if (self.$separator.length) {
+            self.$separator.remove();
+        }
+    }
+}).catch(function(error) {
+    console.error('Error checking Payment Request availability:', error);
+    // Hide the wrapper and separator if there's an error
+    self.$wrapper.remove();
+    if (self.$separator.length) {
+        self.$separator.remove();
+    }
+});
             
             // Handle shipping address changes
             if (product.requestShipping) {
@@ -461,20 +483,41 @@ params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
         },
         
         /**
-         * Process Payment
-         */
-        processPayment: function(paymentMethodId, event) {
-            var self = this;
-            
-            $.ajax({
-                type: 'POST',
-                url: yprint_stripe_payment_request_params.ajax_url.replace('%%endpoint%%', 'yprint_stripe_process_payment'),
-                data: {
-                    security: yprint_stripe_payment_request_params.nonce.payment,
-                    payment_method_id: paymentMethodId,
-                    payment_request_type: this.paymentMethodType || 'payment_request'
-                },
-                dataType: 'json',
+ * Process Payment
+ */
+processPayment: function(paymentMethodId, event) {
+    var self = this;
+    
+    // Gather payment and customer data
+    var paymentData = {
+        security: yprint_stripe_payment_request_params.nonce.payment,
+        payment_method_id: paymentMethodId,
+        payment_request_type: this.paymentMethodType || 'payment_request'
+    };
+    
+    // Add billing details if available
+    if (event.payerName) {
+        paymentData.billing_name = event.payerName;
+    }
+    
+    if (event.payerEmail) {
+        paymentData.billing_email = event.payerEmail;
+    }
+    
+    if (event.payerPhone) {
+        paymentData.billing_phone = event.payerPhone;
+    }
+    
+    // Add shipping details if available
+    if (event.shippingAddress) {
+        paymentData.shipping_address = event.shippingAddress;
+    }
+    
+    $.ajax({
+        type: 'POST',
+        url: yprint_stripe_payment_request_params.ajax_url + '?action=yprint_stripe_process_payment',
+        data: paymentData,
+        dataType: 'json',
                 success: function(response) {
                     if (response.success) {
                         event.complete('success');
