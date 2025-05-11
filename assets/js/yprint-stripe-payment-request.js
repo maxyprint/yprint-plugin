@@ -82,6 +82,8 @@
         initPaymentRequest: function() {
             var self = this;
             var params = yprint_stripe_payment_request_params;
+// Update the AJAX URL to use standard WordPress AJAX
+params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
             
             // Check if product data is available
             if (params.product && params.is_product) {
@@ -139,6 +141,9 @@
         initProductPaymentRequest: function() {
             var self = this;
             var params = yprint_stripe_payment_request_params;
+// Update the AJAX URL to use standard WordPress AJAX
+params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
+
             var product = params.product;
             
             // Create payment request object for product page
@@ -187,6 +192,9 @@
         setupPaymentRequestButton: function(paymentMethodResult) {
             var self = this;
             var params = yprint_stripe_payment_request_params;
+// Update the AJAX URL to use standard WordPress AJAX
+params.ajax_url = params.ajax_url.replace('%%endpoint%%', '');
+
             
             // Detect payment method
             var paymentMethod = 'payment_request';

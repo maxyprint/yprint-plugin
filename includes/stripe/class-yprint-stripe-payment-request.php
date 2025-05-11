@@ -52,33 +52,42 @@ class YPrint_Stripe_Payment_Request {
     }
     
     /**
-     * Initialize hooks
-     */
-    public function init() {
-        $options = YPrint_Stripe_API::get_stripe_settings();
-        $this->total_label = isset($options['statement_descriptor']) ? $options['statement_descriptor'] : get_bloginfo('name');
-        
-        // Default total label
-        $this->total_label = apply_filters('yprint_stripe_payment_request_total_label', $this->total_label . ' (via YPrint)');
-        
-        // Register scripts
-        add_action('wp_enqueue_scripts', array($this, 'scripts'));
-        
-        // Add payment request buttons to various locations
-        add_action('woocommerce_after_add_to_cart_form', array($this, 'display_payment_request_button_html'), 1);
-        add_action('woocommerce_proceed_to_checkout', array($this, 'display_payment_request_button_html'), 25);
-        add_action('woocommerce_checkout_before_customer_details', array($this, 'display_payment_request_button_html'), 1);
-        
-        // Register AJAX handlers
-        add_action('wc_ajax_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
-        add_action('wc_ajax_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
-        add_action('wc_ajax_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
-        add_action('wc_ajax_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
-        add_action('wc_ajax_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
-        
-        // Add payment data to orders
-        add_action('woocommerce_checkout_order_processed', array($this, 'add_order_meta'), 10, 2);
-    }
+ * Initialize hooks
+ */
+public function init() {
+    $options = YPrint_Stripe_API::get_stripe_settings();
+    $this->total_label = isset($options['statement_descriptor']) ? $options['statement_descriptor'] : get_bloginfo('name');
+    
+    // Default total label
+    $this->total_label = apply_filters('yprint_stripe_payment_request_total_label', $this->total_label . ' (via YPrint)');
+    
+    // Register scripts
+    add_action('wp_enqueue_scripts', array($this, 'scripts'));
+    
+    // Add payment request buttons to various locations
+    add_action('woocommerce_after_add_to_cart_form', array($this, 'display_payment_request_button_html'), 1);
+    add_action('woocommerce_proceed_to_checkout', array($this, 'display_payment_request_button_html'), 25);
+    add_action('woocommerce_checkout_before_customer_details', array($this, 'display_payment_request_button_html'), 1);
+    
+    // Register AJAX handlers - Use WordPress AJAX instead of WC AJAX to avoid conflicts
+    add_action('wp_ajax_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
+    add_action('wp_ajax_nopriv_yprint_stripe_get_cart_details', array($this, 'ajax_get_cart_details'));
+    
+    add_action('wp_ajax_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
+    add_action('wp_ajax_nopriv_yprint_stripe_get_shipping_options', array($this, 'ajax_get_shipping_options'));
+    
+    add_action('wp_ajax_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
+    add_action('wp_ajax_nopriv_yprint_stripe_update_shipping_method', array($this, 'ajax_update_shipping_method'));
+    
+    add_action('wp_ajax_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
+    add_action('wp_ajax_nopriv_yprint_stripe_add_to_cart', array($this, 'ajax_add_to_cart'));
+    
+    add_action('wp_ajax_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
+    add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_process_payment'));
+    
+    // Add payment data to orders
+    add_action('woocommerce_checkout_order_processed', array($this, 'add_order_meta'), 10, 2);
+}
     
     /**
      * Register and enqueue scripts
@@ -111,17 +120,12 @@ class YPrint_Stripe_Payment_Request {
         wp_enqueue_script('yprint-stripe-payment-request');
     }
     
-    /**
-     * Get JavaScript parameters
-     *
-     * @return array JavaScript parameters
-     */
     public function get_javascript_params() {
         $options = YPrint_Stripe_API::get_stripe_settings();
         $testmode = isset($options['testmode']) && 'yes' === $options['testmode'];
         
         $params = array(
-            'ajax_url' => WC_AJAX::get_endpoint('%%endpoint%%'),
+            'ajax_url' => admin_url('admin-ajax.php'),
             'stripe' => array(
                 'key' => $testmode ? $options['test_publishable_key'] : $options['publishable_key'],
                 'locale' => $this->get_stripe_locale(),
@@ -133,6 +137,7 @@ class YPrint_Stripe_Payment_Request {
                 'get_cart_details' => wp_create_nonce('yprint-stripe-get-cart-details'),
                 'add_to_cart' => wp_create_nonce('yprint-stripe-add-to-cart'),
             ),
+            // Rest of the code
             'button' => array(
                 'type' => 'default',
                 'theme' => 'dark',
