@@ -30,6 +30,8 @@ class YPrint_Stripe_Payment_Gateway extends WC_Payment_Gateway {
         $this->supports           = array(
             'products',
             'refunds',
+            'tokenization',
+            'add_payment_method',
         );
     
         // Load the settings
@@ -45,6 +47,16 @@ class YPrint_Stripe_Payment_Gateway extends WC_Payment_Gateway {
         // Actions
         add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
         add_action('woocommerce_api_yprint_stripe', array(YPrint_Stripe_Webhook_Handler::get_instance(), 'handle_webhook'));
+        add_action('woocommerce_api_yprint_stripe_verification', array($this, 'process_payment_verification'));
+        
+        // Add JavaScript for handling payment form
+        add_action('wp_enqueue_scripts', array($this, 'payment_scripts'));
+        
+        // Pay for order screen - handle Apple Pay/Payment Request
+        add_action('woocommerce_receipt_' . $this->id, array($this, 'receipt_page'));
+        
+        // Save payment method checkbox
+        add_action('woocommerce_checkout_order_processed', array($this, 'save_payment_method_checkbox'), 10, 3);
     }
 
     /**
@@ -104,31 +116,305 @@ public function init_form_fields() {
     );
 }
 
-    /**
-     * Process the payment and return the result.
-     *
-     * @param int $order_id
-     * @return array
-     */
-    public function process_payment($order_id) {
-        $order = wc_get_order($order_id);
+   /**
+ * Process the payment and return the result.
+ *
+ * @param int $order_id
+ * @return array
+ */
+public function process_payment($order_id) {
+    $order = wc_get_order($order_id);
 
-        error_log('Processing payment for order: ' . $order_id);
+    error_log('Processing payment for order: ' . $order_id);
 
-        // Here you would implement the actual payment processing logic
-        // For now, just mark as completed for testing purposes
-        $order->payment_complete();
+    try {
+        // Check if we have a payment method ID directly
+        $payment_method_id = isset($_POST['yprint_stripe_payment_method_id']) 
+            ? wc_clean(wp_unslash($_POST['yprint_stripe_payment_method_id'])) 
+            : '';
+            
+        // If no payment method provided, check if we should redirect to Stripe Checkout
+        if (empty($payment_method_id)) {
+            // Create payment intent
+            $intent_data = array(
+                'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
+                'currency' => strtolower($order->get_currency()),
+                'payment_method_types' => ['card'],
+                'description' => sprintf('Order #%s from %s', $order->get_order_number(), get_bloginfo('name')),
+                'metadata' => array(
+                    'order_id' => $order->get_id(),
+                    'site_url' => get_site_url(),
+                ),
+                'receipt_email' => $order->get_billing_email(),
+            );
+            
+            // Create the PaymentIntent
+            $intent = YPrint_Stripe_API::request($intent_data, 'payment_intents');
+            
+            if (!empty($intent->error)) {
+                throw new Exception($intent->error->message);
+            }
+            
+            // Save intent ID to order
+            $order->update_meta_data('_yprint_stripe_intent_id', $intent->id);
+            $order->save();
+            
+            return array(
+                'result'   => 'success',
+                'redirect' => $this->get_stripe_checkout_url($intent),
+            );
+        }
         
-        // Remove cart
-        WC()->cart->empty_cart();
-
-        // Return thank you page redirect
+        // If we have a payment method ID (from Apple Pay/Google Pay), create and confirm intent
+        $intent_data = array(
+            'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
+            'currency' => strtolower($order->get_currency()),
+            'payment_method' => $payment_method_id,
+            'confirmation_method' => 'manual',
+            'confirm' => true,
+            'description' => sprintf('Order #%s from %s', $order->get_order_number(), get_bloginfo('name')),
+            'metadata' => array(
+                'order_id' => $order->get_id(),
+                'site_url' => get_site_url(),
+            ),
+            'receipt_email' => $order->get_billing_email(),
+        );
+        
+        // Create and confirm the PaymentIntent
+        $intent = YPrint_Stripe_API::request($intent_data, 'payment_intents');
+        
+        if (!empty($intent->error)) {
+            throw new Exception($intent->error->message);
+        }
+        
+        // Check if authentication is required
+        if ('requires_action' === $intent->status || 'requires_source_action' === $intent->status) {
+            // 3D Secure is required
+            return array(
+                'result' => 'success',
+                'redirect' => $this->get_return_url($order),
+                'payment_intent_client_secret' => $intent->client_secret,
+            );
+        }
+        
+        if ('succeeded' === $intent->status) {
+            // Payment is complete
+            $order->payment_complete($intent->id);
+            
+            // Store the payment method ID
+            $order->update_meta_data('_yprint_stripe_payment_method_id', $payment_method_id);
+            $order->update_meta_data('_yprint_stripe_intent_id', $intent->id);
+            
+            // Add payment type info if available
+            if (isset($_POST['payment_request_type'])) {
+                $payment_type = wc_clean(wp_unslash($_POST['payment_request_type']));
+                $order->update_meta_data('_yprint_stripe_payment_type', $payment_type);
+                
+                // Set a more user-friendly payment method title
+                if ('apple_pay' === $payment_type) {
+                    $order->set_payment_method_title('Apple Pay');
+                } elseif ('google_pay' === $payment_type) {
+                    $order->set_payment_method_title('Google Pay');
+                }
+            }
+            
+            $order->add_order_note(sprintf(__('Stripe payment complete (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+            $order->save();
+            
+            // Empty cart
+            WC()->cart->empty_cart();
+            
+            return array(
+                'result'   => 'success',
+                'redirect' => $this->get_return_url($order),
+            );
+        }
+        
+        // If we reach this point, something unexpected happened
+        $order->update_status('failed', __('Payment failed or was declined', 'yprint-plugin'));
+        throw new Exception(__('Payment failed. Please try again.', 'yprint-plugin'));
+        
+    } catch (Exception $e) {
+        wc_add_notice($e->getMessage(), 'error');
+        
+        // Update order status to failed
+        $order->update_status('failed', $e->getMessage());
+        
+        error_log('Stripe payment failed: ' . $e->getMessage());
+        
         return array(
-            'result'   => 'success',
-            'redirect' => $this->get_return_url($order),
+            'result'   => 'failure',
+            'redirect' => wc_get_checkout_url(),
         );
     }
+}
 
+/**
+ * Get the Stripe Checkout URL
+ *
+ * @param object $intent
+ * @return string
+ */
+private function get_stripe_checkout_url($intent) {
+    $stripe_settings = YPrint_Stripe_API::get_stripe_settings();
+    $testmode = isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'];
+    
+    $key = $testmode ? $stripe_settings['test_publishable_key'] : $stripe_settings['publishable_key'];
+    
+    return add_query_arg(
+        array(
+            'payment_intent' => $intent->id,
+            'key' => $key,
+            'return_url' => rawurlencode($this->get_return_url(null)),
+        ),
+        'https://checkout.stripe.com/pay/'
+    );
+}
+
+/**
+ * Load payment scripts on checkout page
+ */
+public function payment_scripts() {
+    // Don't load scripts if gateway is disabled
+    if ('no' === $this->enabled) {
+        return;
+    }
+    
+    // Don't load scripts on non-checkout pages
+    if (!is_checkout() && !is_wc_endpoint_url('order-pay') && !isset($_GET['pay_for_order'])) {
+        return;
+    }
+    
+    // Get Stripe settings
+    $stripe_settings = YPrint_Stripe_API::get_stripe_settings();
+    $testmode = isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'];
+    $publishable_key = $testmode ? $stripe_settings['test_publishable_key'] : $stripe_settings['publishable_key'];
+    
+    // Check if publishable key is set
+    if (empty($publishable_key)) {
+        return;
+    }
+    
+    // Register and enqueue scripts
+    wp_register_script('stripe-js', 'https://js.stripe.com/v3/', array(), null, true);
+    wp_register_script(
+        'yprint-stripe-checkout',
+        YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-checkout.js',
+        array('jquery', 'stripe-js'),
+        YPRINT_PLUGIN_VERSION,
+        true
+    );
+    
+    // Localize script
+    wp_localize_script(
+        'yprint-stripe-checkout',
+        'yprint_stripe_checkout_params',
+        array(
+            'publishable_key' => $publishable_key,
+            'is_checkout'     => is_checkout() && empty($_GET['pay_for_order']),
+            'is_pay_for_order' => isset($_GET['pay_for_order']),
+            'is_order_pay'    => is_wc_endpoint_url('order-pay'),
+            'ajax_url'        => admin_url('admin-ajax.php'),
+            'return_url'      => $this->get_return_url(null),
+            'nonce'           => wp_create_nonce('yprint-stripe-checkout'),
+            'i18n'            => array(
+                'card_error'        => __('There was an error processing your card. Please try again or use a different card.', 'yprint-plugin'),
+                'card_declined'     => __('Your card was declined.', 'yprint-plugin'),
+                'card_try_again'    => __('Please try again with a different card.', 'yprint-plugin'),
+                'generic_error'     => __('Something went wrong. Please try again or use an alternative payment method.', 'yprint-plugin'),
+            ),
+        )
+    );
+    
+    wp_enqueue_script('yprint-stripe-checkout');
+    
+    // Add inline styles for payment request buttons
+    wp_add_inline_style('woocommerce-inline', '
+        .yprint-stripe-payment-request-wrapper {
+            margin-bottom: 20px;
+        }
+        .payment-method-separator {
+            text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .payment-method-separator:before {
+            content: "";
+            display: block;
+            border-top: 1px solid #e6e6e6;
+            width: 100%;
+            height: 1px;
+            position: absolute;
+            top: 50%;
+            z-index: 1;
+        }
+        .payment-method-separator span {
+            background: #fff;
+            padding: 0 10px;
+            position: relative;
+            z-index: 2;
+            color: #666;
+        }
+    ');
+}
+
+/**
+ * Display payment form fields on checkout
+ */
+public function payment_fields() {
+    $description = $this->get_description();
+    if (!empty($description)) {
+        echo '<p>' . wp_kses_post($description) . '</p>';
+    }
+    
+    echo '<div id="yprint-stripe-card-element"></div>';
+    echo '<div id="yprint-stripe-card-errors" role="alert"></div>';
+    
+    if (is_user_logged_in()) {
+        $this->save_payment_method_checkbox();
+    }
+    
+    // Add nonce field
+    wp_nonce_field('yprint_stripe_checkout_nonce', 'yprint_stripe_checkout_nonce');
+}
+
+/**
+ * Output checkbox for saving payment method
+ */
+public function save_payment_method_checkbox() {
+    // Only show if user is logged in
+    if (!is_user_logged_in()) {
+        return;
+    }
+    
+    echo '<p class="form-row woocommerce-SavedPaymentMethods-saveNew">
+        <input id="yprint_stripe_save_payment_method" name="yprint_stripe_save_payment_method" type="checkbox" value="yes" />
+        <label for="yprint_stripe_save_payment_method">' . esc_html__('Save payment method for future purchases', 'yprint-plugin') . '</label>
+    </p>';
+}
+
+/**
+ * Output for the order received page.
+ *
+ * @param int $order_id
+ */
+public function receipt_page($order_id) {
+    $order = wc_get_order($order_id);
+    
+    echo '<div id="yprint-stripe-payment-data" data-order-id="' . esc_attr($order_id) . '"></div>';
+    
+    // Check if we need to show payment request buttons
+    $options = YPrint_Stripe_API::get_stripe_settings();
+    if (isset($options['payment_request']) && 'yes' === $options['payment_request']) {
+        echo '<div class="yprint-stripe-payment-request-wrapper" style="margin-top: 1em;">
+            <div id="yprint-stripe-payment-request-button"></div>
+        </div>';
+        
+        echo '<div class="payment-method-separator">
+            <span>' . esc_html__('OR', 'yprint-plugin') . '</span>
+        </div>';
+    }
+}
     /**
      * Process a refund if supported.
      *
@@ -155,6 +441,71 @@ public function init_form_fields() {
         parent::admin_options();
     }
     
+    /**
+ * Process payment after customer returns from 3D Secure verification
+ */
+public function process_payment_verification() {
+    if (!isset($_GET['payment_intent']) || !isset($_GET['wc_order_id'])) {
+        return;
+    }
+    
+    $order_id = intval($_GET['wc_order_id']);
+    $intent_id = wc_clean(wp_unslash($_GET['payment_intent']));
+    
+    $order = wc_get_order($order_id);
+    
+    if (!$order) {
+        return;
+    }
+    
+    // If the order is already completed, redirect to the thank you page
+    if ($order->has_status('completed') || $order->has_status('processing')) {
+        wp_redirect($this->get_return_url($order));
+        exit;
+    }
+    
+    try {
+        // Retrieve the PaymentIntent from Stripe
+        $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $intent_id, 'GET');
+        
+        if (!empty($intent->error)) {
+            throw new Exception($intent->error->message);
+        }
+        
+        if ('succeeded' === $intent->status) {
+            // Payment is complete
+            $order->payment_complete($intent->id);
+            $order->add_order_note(sprintf(__('Stripe payment complete (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+            $order->save();
+            
+            // Empty cart
+            WC()->cart->empty_cart();
+            
+            wp_redirect($this->get_return_url($order));
+            exit;
+        }
+        
+        if ('requires_payment_method' === $intent->status) {
+            // Payment failed
+            $order->update_status('failed', __('Payment authentication failed or customer cancelled.', 'yprint-plugin'));
+            wc_add_notice(__('Payment failed. Please try again with a different payment method.', 'yprint-plugin'), 'error');
+            wp_redirect(wc_get_checkout_url());
+            exit;
+        }
+        
+        // Handle other status cases
+        $order->update_status('on-hold', sprintf(__('Payment status: %s. Manual verification required.', 'yprint-plugin'), $intent->status));
+        wc_add_notice(__('Your payment is being processed. Please contact us if you encounter any issues.', 'yprint-plugin'), 'notice');
+        wp_redirect($this->get_return_url($order));
+        exit;
+        
+    } catch (Exception $e) {
+        wc_add_notice($e->getMessage(), 'error');
+        wp_redirect(wc_get_checkout_url());
+        exit;
+    }
+}
+
     /**
      * Test the payment gateway integration.
      *
@@ -207,6 +558,8 @@ public function init_form_fields() {
                     ),
                 );
             }
+
+            
             
             return array(
                 'success' => true,
@@ -223,5 +576,8 @@ public function init_form_fields() {
                 'message' => $e->getMessage(),
             );
         }
+    
+        
+    
     }
 }
