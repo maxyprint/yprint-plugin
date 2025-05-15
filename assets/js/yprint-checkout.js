@@ -10,6 +10,8 @@
     var cardElement = null;
     var paymentRequest = null;
     var paymentRequestButton = null;
+    var paymentRequestWrapper = $('#yprint-stripe-payment-request-wrapper');
+    var paymentMethodSeparator = $('.payment-method-separator');
 
     // Initialize Checkout
     var YPrintCheckout = {
@@ -194,15 +196,37 @@
             // Check if Payment Request is available
             paymentRequest.canMakePayment().then(function(result) {
                 if (result) {
+                    console.log('Payment Request available:', result);
                     // Display payment request button
                     self.displayPaymentRequestButton(result);
+                } else {
+                    console.log('Payment Request is not available');
+                    // Hide the payment request elements
+                    paymentRequestWrapper.hide();
+                    paymentMethodSeparator.hide();
                 }
             }).catch(function(error) {
                 console.error('Error checking Payment Request availability:', error);
+                // Hide the payment request elements in case of error
+                paymentRequestWrapper.hide();
+                paymentMethodSeparator.hide();
             });
+            
+            // Calculate totals to update the payment request button
+            this.updateCheckout();
         },
         
         displayPaymentRequestButton: function(paymentMethod) {
+            console.log('Setting up Payment Request Button with method:', paymentMethod);
+            
+            // Determine payment method type for analytics
+            var paymentMethodType = 'standard';
+            if (paymentMethod.applePay) paymentMethodType = 'apple_pay';
+            if (paymentMethod.googlePay) paymentMethodType = 'google_pay';
+            if (paymentMethod.microsoftPay) paymentMethodType = 'microsoft_pay';
+            
+            console.log('Payment method type:', paymentMethodType);
+            
             // Create payment request button
             paymentRequestButton = elements.create('paymentRequestButton', {
                 paymentRequest: paymentRequest,
@@ -215,12 +239,21 @@
                 }
             });
             
-            // Mount the button
-            paymentRequestButton.mount('#yprint-stripe-payment-request-button');
-            
-            // Show the wrapper and separator
-            $('#yprint-stripe-payment-request-wrapper').show();
-            $('.payment-method-separator').show();
+            // Check if the element exists before mounting
+            var buttonElement = document.getElementById('yprint-stripe-payment-request-button');
+            if (buttonElement) {
+                // Mount the button
+                paymentRequestButton.mount('#yprint-stripe-payment-request-button');
+                
+                // Show the wrapper and separator
+                paymentRequestWrapper.show();
+                paymentMethodSeparator.show();
+                
+                // Store payment method type for later use
+                this.paymentMethodType = paymentMethodType;
+            } else {
+                console.error('Payment request button element not found');
+            }
         },
         
         updatePaymentRequestShipping: function(event) {
@@ -343,11 +376,16 @@
         handlePaymentMethodReceived: function(event) {
             var self = this;
             
+            console.log('Payment method received:', event.paymentMethod);
+            
             // Set the payment method ID
             $('#payment_method_id').val(event.paymentMethod.id);
             
             // Get form data
             var formData = this.$form.serialize();
+            
+            // Add payment method type (Apple Pay, Google Pay, etc.)
+            formData += '&payment_request_type=' + (this.paymentMethodType || 'payment_request');
             
             // Add billing and shipping data from the payment request
             var additionalData = {
@@ -357,22 +395,56 @@
                 billing_phone: event.payerPhone
             };
             
+            // If billing address is provided in the payment method
+            if (event.paymentMethod.billing_details && event.paymentMethod.billing_details.address) {
+                var billingAddress = event.paymentMethod.billing_details.address;
+                if (billingAddress.line1) additionalData.billing_address_1 = billingAddress.line1;
+                if (billingAddress.line2) additionalData.billing_address_2 = billingAddress.line2;
+                if (billingAddress.city) additionalData.billing_city = billingAddress.city;
+                if (billingAddress.state) additionalData.billing_state = billingAddress.state;
+                if (billingAddress.postal_code) additionalData.billing_postcode = billingAddress.postal_code;
+                if (billingAddress.country) additionalData.billing_country = billingAddress.country;
+            }
+            
+            // Add shipping details if available
             if (event.shippingAddress) {
-                additionalData.shipping_first_name = event.shippingAddress.recipient.split(' ')[0];
-                additionalData.shipping_last_name = event.shippingAddress.recipient.split(' ').slice(1).join(' ');
+                // Apple Pay format
+                if (event.shippingAddress.recipient) {
+                    additionalData.shipping_first_name = event.shippingAddress.recipient.split(' ')[0];
+                    additionalData.shipping_last_name = event.shippingAddress.recipient.split(' ').slice(1).join(' ');
+                }
+                // Standard format
+                else if (event.shippingAddress.name) {
+                    additionalData.shipping_first_name = event.shippingAddress.name.split(' ')[0];
+                    additionalData.shipping_last_name = event.shippingAddress.name.split(' ').slice(1).join(' ');
+                }
+                
                 additionalData.shipping_country = event.shippingAddress.country;
-                additionalData.shipping_state = event.shippingAddress.region;
-                additionalData.shipping_postcode = event.shippingAddress.postalCode;
+                additionalData.shipping_state = event.shippingAddress.region || event.shippingAddress.state;
+                additionalData.shipping_postcode = event.shippingAddress.postalCode || event.shippingAddress.postal_code;
                 additionalData.shipping_city = event.shippingAddress.city;
-                additionalData.shipping_address_1 = event.shippingAddress.addressLine && event.shippingAddress.addressLine.length > 0 ? event.shippingAddress.addressLine[0] : '';
-                additionalData.shipping_address_2 = event.shippingAddress.addressLine && event.shippingAddress.addressLine.length > 1 ? event.shippingAddress.addressLine[1] : '';
+                
+                // Handle address lines (different formats)
+                if (event.shippingAddress.addressLine) {
+                    additionalData.shipping_address_1 = event.shippingAddress.addressLine.length > 0 ? event.shippingAddress.addressLine[0] : '';
+                    additionalData.shipping_address_2 = event.shippingAddress.addressLine.length > 1 ? event.shippingAddress.addressLine[1] : '';
+                } else if (event.shippingAddress.line1) {
+                    additionalData.shipping_address_1 = event.shippingAddress.line1;
+                    additionalData.shipping_address_2 = event.shippingAddress.line2 || '';
+                }
+                
                 additionalData.ship_to_different_address = 1;
             }
             
             // Add additional data to form data
             for (var key in additionalData) {
-                formData += '&' + key + '=' + encodeURIComponent(additionalData[key]);
+                if (additionalData[key]) {
+                    formData += '&' + key + '=' + encodeURIComponent(additionalData[key]);
+                }
             }
+            
+            // Show processing message
+            self.showProcessingMessage();
             
             // Process the payment
             $.ajax({
@@ -623,6 +695,10 @@
             $('html, body').animate({
                 scrollTop: this.$messages.offset().top - 100
             }, 500);
+        },
+        
+        showProcessingMessage: function() {
+            this.$messages.html('<div class="yprint-checkout-processing">' + yprint_checkout_params.i18n.payment_processing + '</div>');
         }
     };
     

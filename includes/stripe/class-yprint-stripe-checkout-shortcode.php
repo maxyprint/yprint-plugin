@@ -84,34 +84,48 @@ class YPrint_Stripe_Checkout_Shortcode {
             $testmode = isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'];
             $publishable_key = $testmode ? $stripe_settings['test_publishable_key'] : $stripe_settings['publishable_key'];
             
-            // Localize script
-            wp_localize_script(
-                'yprint-checkout',
-                'yprint_checkout_params',
-                array(
-                    'ajax_url' => admin_url('admin-ajax.php'),
-                    'nonce' => wp_create_nonce('yprint-checkout'),
-                    'stripe' => array(
-                        'key' => $publishable_key,
-                        'locale' => get_locale(),
-                    ),
-                    'i18n' => array(
-                        'required' => __('This field is required.', 'yprint-plugin'),
-                        'invalid_email' => __('Please enter a valid email address.', 'yprint-plugin'),
-                        'processing' => __('Processing...', 'yprint-plugin'),
-                        'payment_processing' => __('Processing payment. Please wait...', 'yprint-plugin'),
-                        'checkout_error' => __('Error processing checkout. Please try again.', 'yprint-plugin'),
-                    ),
-                    'button' => array(
-                        'type' => 'default',
-                        'theme' => 'dark',
-                        'height' => 48,
-                    ),
-                    'shipping_required' => WC()->cart->needs_shipping(),
-                    'currency' => get_woocommerce_currency(),
-                    'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
-                )
-            );
+            // Get payment request button settings
+$stripe_settings = YPrint_Stripe_API::get_stripe_settings();
+$payment_request_button_type = isset($stripe_settings['payment_request_button_type']) ? $stripe_settings['payment_request_button_type'] : 'default';
+$payment_request_button_theme = isset($stripe_settings['payment_request_button_theme']) ? $stripe_settings['payment_request_button_theme'] : 'dark';
+$payment_request_button_height = isset($stripe_settings['payment_request_button_height']) ? $stripe_settings['payment_request_button_height'] : '48';
+$statement_descriptor = isset($stripe_settings['statement_descriptor']) ? $stripe_settings['statement_descriptor'] : get_bloginfo('name');
+
+// Check if Apple Pay domain is verified
+$apple_pay_domain_set = isset($stripe_settings['apple_pay_domain_set']) && 'yes' === $stripe_settings['apple_pay_domain_set'];
+
+// Localize script
+wp_localize_script(
+    'yprint-checkout',
+    'yprint_checkout_params',
+    array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint-checkout'),
+        'stripe' => array(
+            'key' => $publishable_key,
+            'locale' => get_locale(),
+            'apple_pay_enabled' => $apple_pay_domain_set,
+        ),
+        'i18n' => array(
+            'required' => __('This field is required.', 'yprint-plugin'),
+            'invalid_email' => __('Please enter a valid email address.', 'yprint-plugin'),
+            'processing' => __('Processing...', 'yprint-plugin'),
+            'payment_processing' => __('Processing payment. Please wait...', 'yprint-plugin'),
+            'checkout_error' => __('Error processing checkout. Please try again.', 'yprint-plugin'),
+            'place_order' => __('Place Order', 'yprint-plugin'),
+            'no_shipping_methods' => __('No shipping methods available', 'yprint-plugin'),
+        ),
+        'button' => array(
+            'type' => $payment_request_button_type,
+            'theme' => $payment_request_button_theme,
+            'height' => $payment_request_button_height,
+        ),
+        'shipping_required' => WC()->cart->needs_shipping(),
+        'currency' => get_woocommerce_currency(),
+        'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
+        'total_label' => apply_filters('yprint_stripe_payment_request_total_label', $statement_descriptor),
+    )
+);
             
             wp_enqueue_script('yprint-checkout');
             

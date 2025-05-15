@@ -417,4 +417,46 @@
     .yprint-checkout .yprint-order-summary {
         position: static;
     }
+
+    /* Payment Request Button Styles */
+.yprint-checkout #yprint-stripe-payment-request-wrapper {
+    margin-bottom: 20px;
+}
+
+/* Processing message */
+.yprint-checkout-processing {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0079FF;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border-radius: 0 5px 5px 0;
+    color: #333;
+}
+
+/* Payment method separator with OR text */
+.yprint-checkout .payment-method-separator {
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+}
+
+.yprint-checkout .payment-method-separator:before {
+    content: "";
+    display: block;
+    border-top: 1px solid #e5e5e5;
+    width: 100%;
+    height: 1px;
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+}
+
+.yprint-checkout .payment-method-separator span {
+    background: #fff;
+    padding: 0 10px;
+    position: relative;
+    z-index: 2;
+    color: #6e6e73;
+    font-weight: 500;
+}
 }
