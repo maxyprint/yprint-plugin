@@ -37,7 +37,12 @@
             // Initialize variables
             this.$form = $('#yprint-checkout-form');
             this.$messages = $('.yprint-checkout-messages');
-            this.$shippingAddress = $('.shipping-address');
+            // Updated selectors for new address sections
+            this.$shippingAddressNewFields = $('.shipping-address-new-fields');
+            this.$billingAddressSection = $('.billing-address-section');
+            this.$billingAddressSameAsShipping = $('.billing-address-same-as-shipping');
+            this.$billingSavedAddressesSection = $('.yprint-saved-billing-addresses-section');
+            this.$billingNewFields = $('.billing-address-new-fields');
             this.$placeOrderButton = $('#yprint-place-order');
 
             // Setup event handlers
@@ -48,20 +53,32 @@
 
             // Update checkout on load
             this.updateCheckout();
+
+            // Initial display state for address sections
+            this.updateAddressSectionsDisplay();
         },
 
         setupEventHandlers: function() {
             var self = this;
 
-            // Ship to different address checkbox
-            $('#ship_to_different_address').on('change', function() {
-                if ($(this).is(':checked')) {
-                    self.$shippingAddress.slideDown();
-                } else {
-                    self.$shippingAddress.slideUp();
-                }
-                self.updateCheckout(); // Update checkout when shipping address visibility changes
+            // Shipping address selection (saved vs new)
+            $('input[name="yprint_shipping_address_selection"]').on('change', function() {
+                self.updateAddressSectionsDisplay();
+                self.updateCheckout(); // Update checkout when shipping address changes
             });
+
+            // Separate billing address checkbox
+            $('#ship_to_different_address').on('change', function() {
+                self.updateAddressSectionsDisplay();
+                self.updateCheckout(); // Update checkout when billing address visibility changes
+            });
+
+             // Billing address selection (saved vs new) - only relevant when separate billing is checked
+            $('input[name="yprint_billing_address_selection"]').on('change', function() {
+                 self.updateAddressSectionsDisplay();
+                 self.updateCheckout(); // Update checkout when billing address changes
+             });
+
 
             // Country/state selectors
             // Use delegated events for potentially dynamically loaded content
@@ -131,7 +148,7 @@
             if (typeof Stripe === 'undefined' || !yprint_checkout_params.stripe || !yprint_checkout_params.stripe.key) {
                 console.error('Stripe is not available or publishable key is missing.');
                 // Hide Stripe card and payment request elements if Stripe is not available
-                $('#yprint-stripe-card-element').hide();
+                $('#yprint-stripe-card-element').closest('.form-row').hide(); // Hide the whole form-row
                 $('#yprint-stripe-card-errors').hide();
                 paymentRequestWrapper.hide();
                 paymentMethodSeparator.hide();
@@ -190,7 +207,7 @@
             } catch (error) {
                 console.error('Error initializing Stripe:', error);
                  // Hide Stripe card and payment request elements in case of initialization error
-                $('#yprint-stripe-card-element').hide();
+                $('#yprint-stripe-card-element').closest('.form-row').hide();
                 $('#yprint-stripe-card-errors').hide();
                 paymentRequestWrapper.hide();
                 paymentMethodSeparator.hide();
@@ -351,12 +368,27 @@
                 shipping_address_1: address.addressLine && address.addressLine.length > 0 ? address.addressLine[0] : '',
                 shipping_address_2: address.addressLine && address.addressLine.length > 1 ? address.addressLine[1] : '',
                 // Include other relevant fields if needed by your backend update logic
-                billing_country: $('#billing_country').val(), // Send current billing country as well
-                billing_state: $('#billing_state').val(),
+                // We need to send the currently selected billing address or new billing fields as well
+                // to ensure the backend has the full context for calculations.
+                // This requires reading values from the appropriate billing fields based on
+                // the 'ship_to_different_address' checkbox and 'yprint_billing_address_selection' radio.
+                // For simplicity here, we'll send the form values. Your backend needs to handle this.
+                billing_first_name: $('#billing_first_name').val(),
+                billing_last_name: $('#billing_last_name').val(),
+                billing_company: $('#billing_company').val(),
+                billing_country: $('#billing_country').val(),
+                billing_address_1: $('#billing_address_1').val(),
+                billing_address_2: $('#billing_address_2').val(),
                 billing_postcode: $('#billing_postcode').val(),
                 billing_city: $('#billing_city').val(),
-                // Also send cart items info if your backend needs it to calculate shipping
-                // This might require fetching cart data or including it in yprint_checkout_params
+                billing_state: $('#billing_state').val(),
+                billing_phone: $('#billing_phone').val(),
+                billing_email: $('#billing_email').val(),
+                ship_to_different_address: $('#ship_to_different_address').is(':checked') ? 1 : 0,
+                yprint_shipping_address_selection: $('input[name="yprint_shipping_address_selection"]:checked').val(),
+                yprint_billing_address_selection: $('input[name="yprint_billing_address_selection"]:checked').val(),
+                shipping_address_title: $('#shipping_address_title').val(), // Include title if new address
+                billing_address_title: $('#billing_address_title').val() // Include title if new address
             };
 
             // Make AJAX request to get shipping options and updated totals
@@ -409,6 +441,10 @@
                             shippingOptions: shippingOptions,
                             total: total
                         });
+                         // Also update the totals and shipping methods displayed on the page
+                         self.updateDisplayedTotals(data.totals);
+                         self.updateShippingMethods(data.shipping_methods);
+
                     } else {
                         console.error('updatePaymentRequestShipping AJAX failed: Invalid response structure or success is false.');
                         console.error('Received response:', response);
@@ -439,25 +475,44 @@
             console.log('Selected shipping option:', shippingOption);
 
             // Make AJAX request to update the chosen shipping method in the cart/session
+            // Include current address data to ensure context for recalculation
+            var data = {
+                shipping_method: shippingOption.id,
+                 // Include current billing/shipping address data as well to ensure context
+                 billing_first_name: $('#billing_first_name').val(),
+                 billing_last_name: $('#billing_last_name').val(),
+                 billing_company: $('#billing_company').val(),
+                 billing_country: $('#billing_country').val(),
+                 billing_address_1: $('#billing_address_1').val(),
+                 billing_address_2: $('#billing_address_2').val(),
+                 billing_postcode: $('#billing_postcode').val(),
+                 billing_city: $('#billing_city').val(),
+                 billing_state: $('#billing_state').val(),
+                 billing_phone: $('#billing_phone').val(),
+                 billing_email: $('#billing_email').val(),
+                 shipping_first_name: $('#shipping_first_name').val(),
+                 shipping_last_name: $('#shipping_last_name').val(),
+                 shipping_company: $('#shipping_company').val(),
+                 shipping_country: $('#shipping_country').val(),
+                 shipping_address_1: $('#shipping_address_1').val(),
+                 shipping_address_2: $('#shipping_address_2').val(),
+                 shipping_postcode: $('#shipping_postcode').val(),
+                 shipping_city: $('#shipping_city').val(),
+                 shipping_state: $('#shipping_state').val(),
+                 ship_to_different_address: $('#ship_to_different_address').is(':checked') ? 1 : 0,
+                 yprint_shipping_address_selection: $('input[name="yprint_shipping_address_selection"]:checked').val(),
+                 yprint_billing_address_selection: $('input[name="yprint_billing_address_selection"]:checked').val(),
+                 shipping_address_title: $('#shipping_address_title').val(), // Include title if new address
+                 billing_address_title: $('#billing_address_title').val() // Include title if new address
+            };
+
             $.ajax({
                 type: 'POST',
                 url: yprint_checkout_params.ajax_url,
                 data: {
                     action: 'yprint_update_checkout', // Use the same update action
                     nonce: yprint_checkout_params.nonce,
-                    checkout_data: $.param({
-                        shipping_method: shippingOption.id,
-                        // Include current billing/shipping address data as well to ensure context
-                         billing_country: $('#billing_country').val(),
-                         billing_state: $('#billing_state').val(),
-                         billing_postcode: $('#billing_postcode').val(),
-                         billing_city: $('#billing_city').val(),
-                         shipping_country: $('#shipping_country').val(), // Use values from form, might be updated by addresschange
-                         shipping_state: $('#shipping_state').val(),
-                         shipping_postcode: $('#shipping_postcode').val(),
-                         shipping_city: $('#shipping_city').val(),
-                         ship_to_different_address: $('#ship_to_different_address').is(':checked') ? 1 : 0
-                    })
+                    checkout_data: $.param(data) // Serialize the data object
                 },
                 success: function(response) {
                     console.log('updatePaymentRequestShippingOption AJAX success:', response);
@@ -480,6 +535,7 @@
                         });
                          // Also update the totals displayed on the page
                          self.updateDisplayedTotals(data.totals);
+                         // No need to update shipping methods list here, as it's already done in updateCheckout
 
                     } else {
                         console.error('updatePaymentRequestShippingOption AJAX failed: Invalid response structure or success is false.');
@@ -509,13 +565,14 @@
             // Set the payment method ID in a hidden field
             $('#payment_method_id').val(event.paymentMethod.id);
 
-            // Get form data
+            // Get form data (this will include the selected address radio buttons)
             var formData = this.$form.serialize();
 
             // Add payment method type (Apple Pay, Google Pay, etc.)
             formData += '&payment_request_type=' + encodeURIComponent(this.paymentMethodType || 'payment_request');
 
             // Add billing and shipping data from the payment request if available
+            // This data should override the form data if provided by the Payment Request Button
             var additionalData = {};
 
             // Payer details
@@ -540,16 +597,8 @@
             } else {
                  // Fallback to form values if billing details not provided by payment method
                  console.warn('Billing details not provided by Payment Method. Using form values.');
-                 additionalData.billing_first_name = $('#billing_first_name').val();
-                 additionalData.billing_last_name = $('#billing_last_name').val();
-                 additionalData.billing_email = $('#billing_email').val();
-                 additionalData.billing_phone = $('#billing_phone').val();
-                 additionalData.billing_address_1 = $('#billing_address_1').val();
-                 additionalData.billing_address_2 = $('#billing_address_2').val();
-                 additionalData.billing_city = $('#billing_city').val();
-                 additionalData.billing_state = $('#billing_state').val();
-                 additionalData.billing_postcode = $('#billing_postcode').val();
-                 additionalData.billing_country = $('#billing_country').val();
+                 // No need to explicitly add form values here, as they are already in formData.
+                 // The backend should handle which data source to prioritize.
             }
 
 
@@ -584,30 +633,27 @@
                 }
 
                 // Mark that shipping is to a different address if shipping address is provided via PRB
+                // This might override the user's checkbox selection, which is correct behavior for PRB
                 additionalData.ship_to_different_address = 1;
+                // Also, since PRB provides a specific address, the selection is implicitly "new_address"
+                additionalData.yprint_shipping_address_selection = 'new_address';
+
 
             } else {
                  console.warn('Shipping address not provided by Payment Request. Using form values.');
-                 // Fallback to form values if shipping address not provided by payment request
-                 additionalData.shipping_first_name = $('#shipping_first_name').val();
-                 additionalData.shipping_last_name = $('#shipping_last_name').val();
-                 additionalData.shipping_address_1 = $('#shipping_address_1').val();
-                 additionalData.shipping_address_2 = $('#shipping_address_2').val();
-                 additionalData.shipping_city = $('#shipping_city').val();
-                 additionalData.shipping_state = $('#shipping_state').val();
-                 additionalData.shipping_postcode = $('#shipping_postcode').val();
-                 additionalData.shipping_country = $('#shipping_country').val();
-                 additionalData.ship_to_different_address = $('#ship_to_different_address').is(':checked') ? 1 : 0;
+                 // No need to explicitly add form values here, as they are already in formData.
+                 // The backend should handle which data source to prioritize.
             }
 
 
             // Add additional data to form data, overwriting existing fields if provided by PRB
             for (var key in additionalData) {
-                if (additionalData.hasOwnProperty(key) && additionalData[key] !== undefined && additionalData[key] !== null) {
+                if (additionalData.hasOwnProperty(key) && additionalData[key] !== undefined && additionalData[Data] !== null) {
                      // Use a regex to replace existing key=value pairs or add if not present
-                     var regex = new RegExp('&' + key + '=[^&]*', 'g');
+                     // This ensures PRB data overrides form data
+                     var regex = new RegExp('(^|&)' + key + '=[^&]*', 'g');
                      if (formData.match(regex)) {
-                         formData = formData.replace(regex, '&' + key + '=' + encodeURIComponent(additionalData[key]));
+                         formData = formData.replace(regex, '$1' + key + '=' + encodeURIComponent(additionalData[key]));
                      } else {
                          formData += '&' + key + '=' + encodeURIComponent(additionalData[key]);
                      }
@@ -651,6 +697,10 @@
                             ? response.data.message
                             : (yprint_checkout_params.i18n.checkout_error || 'Error processing checkout.');
                         self.showError(errorMessage);
+
+                         // Re-enable the place order button
+                        var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
+                        self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
                     }
                 },
                 error: function(xhr, status, error) {
@@ -665,6 +715,10 @@
                         : (yprint_checkout_params.i18n.checkout_error || 'Error processing checkout.');
 
                     self.showError(errorMessage);
+
+                    // Re-enable the place order button
+                    var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
+                    self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
                 }
             });
         },
@@ -724,7 +778,7 @@
                  return;
              }
 
-            // Collect form data
+            // Collect form data (this will include the selected address radio buttons)
             var formData = this.$form.serialize();
 
             // Add action and nonce to data
@@ -781,9 +835,10 @@
         updateDisplayedTotals: function(totals) {
             // Ensure totals object exists before updating
             if (totals) {
-                 $('.order-total-row.subtotal .value').html(totals.subtotal || '');
-                 $('.order-total-row.shipping .value').html(totals.shipping || '');
-                 $('.order-total-row.tax .value').html(totals.tax || '');
+                 // Use the formatted values from the response
+                 $('.order-total-row.subtotal .value').html(totals.subtotal_formatted || '');
+                 $('.order-total-row.shipping .value').html(totals.shipping_formatted || '');
+                 $('.order-total-row.tax .value').html(totals.tax_formatted || '');
                  $('.order-total-row.total .value').html(totals.total_formatted || '');
             } else {
                  console.warn('Totals object is missing, cannot update displayed totals.');
@@ -803,39 +858,49 @@
                 return;
             }
 
-            // Get currently selected method from the form
+            // Get currently selected method from the form data (if any)
+            // This is important if updateCheckout is triggered by something other than shipping method change
             var selectedMethod = $('input[name="shipping_method"]:checked').val();
-             console.log('Currently selected shipping method:', selectedMethod);
+            console.log('Currently selected shipping method:', selectedMethod);
+
 
             // Add shipping methods
+            var firstAvailableMethodId = null;
             $.each(shippingMethods, function(index, method) {
-                // Determine if this method should be selected
-                var isSelected = selectedMethod === method.id || (index === 0 && !selectedMethod); // Select first if none selected
+                 if (method.enabled) { // Only show enabled methods
+                     if (firstAvailableMethodId === null) {
+                         firstAvailableMethodId = method.id;
+                     }
+                     // Determine if this method should be selected
+                     // Select if it was previously selected OR if it's the first enabled method and nothing was selected
+                     var isSelected = selectedMethod === method.id || (selectedMethod === undefined && index === 0);
 
-                $shippingMethodsList.append(
-                    '<div class="shipping-method">' +
-                        '<label class="radio-container">' +
-                            '<input type="radio" name="shipping_method" id="shipping_method_' + method.id +
-                            '" value="' + method.id + '"' + (isSelected ? ' checked="checked"' : '') + ' class="shipping-method-input">' +
-                            '<span class="radio-checkmark"></span>' +
-                            '<span class="shipping-method-label">' + (method.label || 'Shipping Method') + ' - ' + (method.cost_formatted || method.cost || 'N/A') + '</span>' +
-                        '</label>' +
-                    '</div>'
-                );
+
+                     $shippingMethodsList.append(
+                         '<div class="shipping-method">' +
+                             '<label class="radio-container">' +
+                                 '<input type="radio" name="shipping_method" id="shipping_method_' + method.id.replace(/[^a-zA-Z0-9]/g, '_') + // Sanitize ID for HTML
+                                 '" value="' + method.id + '"' + (isSelected ? ' checked="checked"' : '') + ' class="shipping-method-input">' +
+                                 '<span class="radio-checkmark"></span>' +
+                                 '<span class="shipping-method-label">' + (method.label || 'Shipping Method') + ' - ' + (method.cost_formatted || method.cost || 'N/A') + '</span>' +
+                             '</label>' +
+                         '</div>'
+                     );
+                 }
             });
 
-             // If a method was selected but is no longer available, or if no method was selected,
-             // re-select the first available method and trigger an updateCheckout
+             // After adding all methods, check if any method is checked.
+             // If not, and there are available methods, check the first one.
              var newlySelectedMethod = $('input[name="shipping_method"]:checked').val();
-             if (!newlySelectedMethod && shippingMethods.length > 0) {
-                 console.log('No shipping method selected, selecting the first available.');
-                 $('input[name="shipping_method"]:first').prop('checked', true);
+             if (!newlySelectedMethod && firstAvailableMethodId !== null) {
+                 console.log('No shipping method selected after update, selecting the first available:', firstAvailableMethodId);
+                 $('input[name="shipping_method"][value="' + firstAvailableMethodId + '"]').prop('checked', true);
                  // Trigger update checkout to ensure session is updated with the newly selected method
                  self.updateCheckout();
              } else if (selectedMethod && selectedMethod !== newlySelectedMethod) {
-                  console.log('Previously selected method is no longer available. New selection:', newlySelectedMethod);
+                  console.log('Previously selected method is no longer available or changed. New selection:', newlySelectedMethod);
                   // Trigger update checkout if the selection changed (e.g., previously selected method disappeared)
-                  self.updateCheckout();
+                   self.updateCheckout(); // This will trigger another update, but ensures the session is correct
              }
         },
 
@@ -883,17 +948,23 @@
             // Clear previous messages
             this.$messages.empty();
 
+            // Basic form validation before proceeding
+            if (!self.validateFormFields()) {
+                // Re-enable the place order button
+                var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
+                self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
+                return; // Stop if validation fails
+            }
+
+
             // Check if we already have a payment method ID (from Payment Request Button)
             var paymentMethodId = $('#payment_method_id').val();
 
             if (paymentMethodId) {
                 console.log('Payment method ID already available from Payment Request Button.');
-                // We already have a payment method (from Payment Request Button)
-                // The handlePaymentMethodReceived function should have already been triggered
-                // If not, this flow might need adjustment depending on how PRB is handled.
-                // For now, assume PRB flow handles processCheckout via its 'paymentmethod' event.
-                // If placeOrder is manually clicked after PRB interaction, this path is taken.
-                // We should probably just call processCheckout directly here.
+                // If Payment Method ID is already set (from PRB), proceed to process checkout directly.
+                // The handlePaymentMethodReceived function should have already been triggered by the PRB flow.
+                // We just need to ensure the form data includes the necessary details.
                  self.processCheckout();
 
             } else {
@@ -901,19 +972,17 @@
                 // We need to create a payment method from card element
 
                 // Validate billing address fields before creating payment method
-                 if (!self.validateFormFields()) {
-                     // Re-enable the place order button
-                     var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Place Order';
-                     self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
-                     return; // Stop if validation fails
-                 }
+                // This is already covered by the initial validateFormFields call,
+                // but specifically highlight billing fields for Stripe if needed.
+                // For now, rely on the general validation.
+
 
                 stripe.createPaymentMethod({
                     type: 'card',
                     card: cardElement,
                     billing_details: {
                         // Ensure fields are not empty before sending to Stripe
-                        name: ($('#billing_first_name').val() + ' ' + $('#billing_last_name').val()).trim(),
+                        name: ($('#billing_first_name').val() + ' ' + $('#billing_last_name').val()).trim() || undefined,
                         email: $('#billing_email').val() || undefined, // Send undefined if empty
                         phone: $('#billing_phone').val() || undefined, // Send undefined if empty
                         address: {
@@ -932,7 +1001,7 @@
                         self.showError(result.error.message);
 
                         // Re-enable the place order button
-                        var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Place Order';
+                        var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
                         self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
                     } else {
                         console.log('Stripe createPaymentMethod success:', result.paymentMethod);
@@ -953,12 +1022,12 @@
              if (!yprint_checkout_params.ajax_url || !yprint_checkout_params.nonce) {
                  console.error('AJAX URL or nonce missing for processCheckout.');
                  self.showError(yprint_checkout_params.i18n.checkout_error || 'Error processing checkout.');
-                 var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Place Order';
+                 var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
                  self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
                  return;
              }
 
-            // Collect form data
+            // Collect form data (this will include the selected address radio buttons and potentially new address fields)
             var formData = this.$form.serialize();
 
             // Add action and nonce to data
@@ -992,7 +1061,7 @@
                         self.showError(errorMessage);
 
                         // Re-enable the place order button
-                        var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Place Order';
+                        var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
                         self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
                     }
                 },
@@ -1007,13 +1076,70 @@
                     self.showError(errorMessage);
 
                     // Re-enable the place order button
-                    var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Place Order';
+                    var placeOrderText = yprint_checkout_params.i18n && yprint_checkout_params.i18n.place_order ? yprint_checkout_params.i18n.place_order : 'Verbindlich Bestellen';
                     self.$placeOrderButton.prop('disabled', false).text(placeOrderText);
                 }
             });
         },
 
-        // Basic form validation
+        // Function to show/hide address sections based on user selection
+        updateAddressSectionsDisplay: function() {
+            var self = this;
+
+            // Shipping Address Display
+            if ($('input[name="yprint_shipping_address_selection"]:checked').val() === 'new_address') {
+                self.$shippingAddressNewFields.slideDown();
+                // Make fields required for new address input
+                self.$shippingAddressNewFields.find('input, select').prop('required', true);
+                 // Ensure required fields for new shipping address have the '*' indicator
+                 self.$shippingAddressNewFields.find('.required').show();
+
+            } else {
+                self.$shippingAddressNewFields.slideUp();
+                // Remove required attribute for saved address selection
+                self.$shippingAddressNewFields.find('input, select').prop('required', false);
+                 // Hide required indicators for new shipping address fields
+                 self.$shippingAddressNewFields.find('.required').hide();
+            }
+
+            // Billing Address Display
+            if ($('#ship_to_different_address').is(':checked')) {
+                self.$billingAddressSameAsShipping.slideUp();
+                self.$billingSavedAddressesSection.slideDown();
+
+                // Check if "Enter a new address" is selected for billing
+                if ($('input[name="yprint_billing_address_selection"]:checked').val() === 'new_address') {
+                     self.$billingNewFields.slideDown();
+                     // Make fields required for new billing address input
+                     self.$billingNewFields.find('input, select').prop('required', true);
+                     // Ensure required fields for new billing address have the '*' indicator
+                     self.$billingNewFields.find('.required').show();
+                } else {
+                     self.$billingNewFields.slideUp();
+                     // Remove required attribute for saved billing address selection
+                     self.$billingNewFields.find('input, select').prop('required', false);
+                      // Hide required indicators for new billing address fields
+                     self.$billingNewFields.find('.required').hide();
+                }
+
+            } else {
+                self.$billingAddressSameAsShipping.slideDown();
+                self.$billingSavedAddressesSection.slideUp();
+                self.$billingNewFields.slideUp(); // Hide new fields if not separate billing
+                // Remove required attribute for billing fields when same as shipping
+                self.$billingNewFields.find('input, select').prop('required', false);
+                 // Hide required indicators for billing fields when same as shipping
+                 self.$billingNewFields.find('.required').hide();
+            }
+
+             // Note: The actual data population for saved addresses when selected
+             // needs to happen in your backend logic (e.g., in yprint_checkout_load_user_data)
+             // or via a separate AJAX call triggered by the radio button change if you prefer
+             // a more dynamic client-side update. The current JS only controls visibility.
+        },
+
+
+        // Basic form validation - updated to consider visible fields
         validateFormFields: function() {
              var self = this;
              var isValid = true;
@@ -1021,43 +1147,29 @@
 
              // Clear previous errors
              this.$messages.empty();
+             $('.yprint-checkout-invalid').removeClass('yprint-checkout-invalid'); // Clear previous invalid highlights
 
-             // Required fields (based on your PHP validation)
-             var requiredFields = [
-                 '#billing_first_name', '#billing_last_name', '#billing_address_1',
-                 '#billing_city', '#billing_postcode', '#billing_country',
-                 '#billing_email', '#billing_phone'
-             ];
+             // Validate visible required fields
+             this.$form.find('input:visible, select:visible, textarea:visible').each(function() {
+                 var $field = $(this);
 
-             // Add shipping fields if shipping to a different address
-             if ($('#ship_to_different_address').is(':checked') || yprint_checkout_params.shipping_required) {
-                 requiredFields = requiredFields.concat([
-                     '#shipping_first_name', '#shipping_last_name', '#shipping_address_1',
-                     '#shipping_city', '#shipping_postcode', '#shipping_country'
-                 ]);
-             }
-
-             $.each(requiredFields, function(index, fieldId) {
-                 var $field = $(fieldId);
-                 if ($field.length && $field.val().trim() === '') {
+                 // Check if the field is required and empty
+                 if ($field.prop('required') && $field.val().trim() === '') {
                      isValid = false;
-                     var fieldLabel = $field.closest('.form-row').find('label').text().replace('*', '').trim(); // Get label text
+                     var fieldLabel = $field.closest('.form-field').find('label').text().replace('*', '').trim(); // Get label text
                      messages.push((yprint_checkout_params.i18n && yprint_checkout_params.i18n.required ? yprint_checkout_params.i18n.required : 'This field is required.').replace('%s', fieldLabel));
                      $field.addClass('yprint-checkout-invalid'); // Add a class for styling
-                 } else {
-                     $field.removeClass('yprint-checkout-invalid');
                  }
              });
 
-             // Validate email format
-             var $emailField = $('#billing_email');
-             if ($emailField.length && $emailField.val().trim() !== '' && !self.isValidEmail($emailField.val().trim())) {
+             // Validate email format for the visible email field
+             var $emailField = $('#billing_email'); // Assuming billing email is always required/visible in one form
+             if ($emailField.is(':visible') && $emailField.val().trim() !== '' && !self.isValidEmail($emailField.val().trim())) {
                  isValid = false;
                  messages.push(yprint_checkout_params.i18n && yprint_checkout_params.i18n.invalid_email ? yprint_checkout_params.i18n.invalid_email : 'Please enter a valid email address.');
                  $emailField.addClass('yprint-checkout-invalid');
-             } else if ($emailField.length) {
-                 $emailField.removeClass('yprint-checkout-invalid');
              }
+
 
              if (!isValid) {
                  self.showError(messages.join('<br>'));

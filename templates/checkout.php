@@ -24,16 +24,24 @@
                             $saved_shipping_addresses = get_user_meta( get_current_user_id(), 'additional_shipping_addresses', true );
                             $default_shipping_address_id = get_user_meta( get_current_user_id(), 'default_shipping_address', true );
 
-                            if ( ! empty( $saved_shipping_addresses ) ) {
+                            if ( ! empty( $saved_shipping_addresses ) && is_array( $saved_shipping_addresses ) ) {
                                 echo '<p>' . __('Select one of your saved addresses or enter a new one.', 'yprint-plugin') . '</p>';
                                 foreach ( $saved_shipping_addresses as $address_id => $address ) {
+                                    // Ensure required keys exist to prevent errors
+                                    $address = wp_parse_args( $address, array(
+                                        'title' => '',
+                                        'address_1' => '',
+                                        'postcode' => '',
+                                        'city' => '',
+                                        'company' => ''
+                                    ) );
                                     $is_default = ( $address_id == $default_shipping_address_id );
                                     ?>
                                     <div class="saved-address-option">
                                         <label class="radio-container">
                                             <input type="radio" name="yprint_shipping_address_selection" value="<?php echo esc_attr($address_id); ?>" <?php checked( $is_default ); ?>>
                                             <span class="radio-checkmark"></span>
-                                            <span class="address-title"><?php echo esc_html( $address['title'] ); ?></span>
+                                            <span class="address-title"><?php echo esc_html( !empty($address['title']) ? $address['title'] : __('Saved Address', 'yprint-plugin') ); ?></span>
                                             <div class="address-details">
                                                 <?php echo esc_html( $address['address_1'] . ', ' . $address['postcode'] . ' ' . $address['city'] ); ?>
                                                 <?php if ( ! empty( $address['company'] ) ) echo ' (' . esc_html( $address['company'] ) . ')'; ?>
@@ -46,7 +54,7 @@
                                 ?>
                                 <div class="saved-address-option">
                                     <label class="radio-container">
-                                        <input type="radio" name="yprint_shipping_address_selection" value="new_address" <?php checked( empty( $default_shipping_address_id ) ); ?>>
+                                        <input type="radio" name="yprint_shipping_address_selection" value="new_address" <?php checked( empty( $default_shipping_address_id ) || !array_key_exists($default_shipping_address_id, $saved_shipping_addresses) ); ?>>
                                         <span class="radio-checkmark"></span>
                                         <span class="address-title"><?php _e('Enter a new address', 'yprint-plugin'); ?></span>
                                     </label>
@@ -158,6 +166,8 @@
                     <div class="form-row shipping-methods-container">
                         <div class="shipping-methods-list">
                             <?php
+                            // This section is typically updated via AJAX based on the selected shipping address.
+                            // The initial display might show methods for the default address or base country.
                             $packages = WC()->shipping->get_packages();
 
                             if (!empty($packages)) {
@@ -214,16 +224,24 @@
                                  $saved_billing_addresses = get_user_meta( get_current_user_id(), 'additional_billing_addresses', true );
                                  $default_billing_address_id = get_user_meta( get_current_user_id(), 'default_billing_address', true ); // Assuming you add this meta field
 
-                                 if ( ! empty( $saved_billing_addresses ) ) {
+                                 if ( ! empty( $saved_billing_addresses ) && is_array( $saved_billing_addresses ) ) {
                                      echo '<p>' . __('Select one of your saved addresses or enter a new one.', 'yprint-plugin') . '</p>';
                                      foreach ( $saved_billing_addresses as $address_id => $address ) {
+                                          // Ensure required keys exist to prevent errors
+                                         $address = wp_parse_args( $address, array(
+                                             'title' => '',
+                                             'address_1' => '',
+                                             'postcode' => '',
+                                             'city' => '',
+                                             'company' => ''
+                                         ) );
                                           $is_default = ( $address_id == $default_billing_address_id );
                                          ?>
                                          <div class="saved-address-option">
                                              <label class="radio-container">
                                                  <input type="radio" name="yprint_billing_address_selection" value="<?php echo esc_attr($address_id); ?>" <?php checked( $is_default ); ?>>
                                                  <span class="radio-checkmark"></span>
-                                                  <span class="address-title"><?php echo esc_html( $address['title'] ); ?></span>
+                                                  <span class="address-title"><?php echo esc_html( !empty($address['title']) ? $address['title'] : __('Saved Address', 'yprint-plugin') ); ?></span>
                                                   <div class="address-details">
                                                       <?php echo esc_html( $address['address_1'] . ', ' . $address['postcode'] . ' ' . $address['city'] ); ?>
                                                       <?php if ( ! empty( $address['company'] ) ) echo ' (' . esc_html( $address['company'] ) . ')'; ?>
@@ -236,7 +254,7 @@
                                      ?>
                                      <div class="saved-address-option">
                                           <label class="radio-container">
-                                              <input type="radio" name="yprint_billing_address_selection" value="new_address" <?php checked( empty( $default_billing_address_id ) ); ?>>
+                                              <input type="radio" name="yprint_billing_address_selection" value="new_address" <?php checked( empty( $default_billing_address_id ) || !array_key_exists($default_billing_address_id, $saved_billing_addresses) ); ?>>
                                               <span class="radio-checkmark"></span>
                                               <span class="address-title"><?php _e('Enter a new address', 'yprint-plugin'); ?></span>
                                           </label>
@@ -436,26 +454,26 @@
                         <div class="order-totals">
                             <div class="order-total-row subtotal">
                                 <div class="label"><?php _e('Subtotal', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo $cart_subtotal; ?></div>
+                                <div class="value"><?php echo wc_price(WC()->cart->get_subtotal()); // Use WC functions for live data ?></div>
                             </div>
 
                             <?php if (WC()->cart->needs_shipping()) : ?>
                             <div class="order-total-row shipping">
                                 <div class="label"><?php _e('Shipping', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price($cart_shipping); ?></div>
+                                <div class="value"><?php echo wc_price(WC()->cart->get_shipping_total()); // Use WC functions for live data ?></div>
                             </div>
                             <?php endif; ?>
 
                             <?php if (wc_tax_enabled()) : ?>
                             <div class="order-total-row tax">
                                 <div class="label"><?php _e('Tax', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price($cart_tax); ?></div>
+                                <div class="value"><?php echo wc_price(WC()->cart->get_taxes_total()); // Use WC functions for live data ?></div>
                             </div>
                             <?php endif; ?>
 
                             <div class="order-total-row total">
                                 <div class="label"><?php _e('Total', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price($cart_total); ?></div>
+                                <div class="value"><?php echo wc_price(WC()->cart->get_total('edit')); // Use WC functions for live data ?></div>
                             </div>
                         </div>
                     </div>
@@ -465,258 +483,3 @@
     </div>
 </div>
 
-<script type="text/javascript">
-jQuery(document).ready(function($) {
-    // --- JavaScript for showing/hiding address sections and handling selection ---
-
-    var $shippingAddressSelection = $('input[name="yprint_shipping_address_selection"]');
-    var $shippingNewFields = $('.shipping-address-new-fields');
-
-    var $separateBillingCheckbox = $('#ship_to_different_address');
-    var $billingAddressSection = $('.billing-address-section');
-    var $billingAddressSameAsShipping = $('.billing-address-same-as-shipping');
-    var $billingSavedAddressesSection = $('.yprint-saved-billing-addresses-section');
-    var $billingNewFields = $('.billing-address-new-fields');
-    var $billingAddressSelection = $('input[name="yprint_billing_address_selection"]');
-
-
-    // Initial state based on selected shipping address option
-    function updateShippingAddressDisplay() {
-        if ($('input[name="yprint_shipping_address_selection"]:checked').val() === 'new_address') {
-            $shippingNewFields.show();
-            $shippingNewFields.find('input, select').prop('required', true); // Make fields required for new address
-        } else {
-            $shippingNewFields.hide();
-            $shippingNewFields.find('input, select').prop('required', false); // Don't require fields for saved address
-        }
-    }
-
-     // Initial state for billing address display
-    function updateBillingAddressDisplay() {
-        if ($separateBillingCheckbox.is(':checked')) {
-            $billingAddressSameAsShipping.hide();
-            $billingSavedAddressesSection.show();
-            $billingAddressSelection.prop('required', true); // Make billing selection required
-
-             // Check if "Enter a new address" is selected for billing
-            if ($('input[name="yprint_billing_address_selection"]:checked').val() === 'new_address') {
-                 $billingNewFields.show();
-                 $billingNewFields.find('input, select').prop('required', true); // Make fields required for new billing address
-            } else {
-                 $billingNewFields.hide();
-                 $billingNewFields.find('input, select').prop('required', false); // Don't require fields for saved billing address
-            }
-
-        } else {
-            $billingAddressSameAsShipping.show();
-            $billingSavedAddressesSection.hide();
-            $billingNewFields.hide(); // Hide new fields if not separate billing
-            $billingAddressSelection.prop('required', false); // Billing selection not required
-            $billingNewFields.find('input, select').prop('required', false); // Don't require new billing fields
-        }
-    }
-
-
-    // Trigger display updates on page load
-    updateShippingAddressDisplay();
-    updateBillingAddressDisplay();
-
-    // Bind events for shipping address selection
-    $shippingAddressSelection.on('change', updateShippingAddressDisplay);
-
-    // Bind event for separate billing address checkbox
-    $separateBillingCheckbox.on('change', updateBillingAddressDisplay);
-
-     // Bind event for billing address selection (only relevant when separate billing is checked)
-     $billingAddressSelection.on('change', updateBillingAddressDisplay);
-
-
-    // --- END: JavaScript for showing/hiding address sections ---
-
-    // --- Styling for Order Summary (Add this to your theme's CSS file or a dedicated CSS file for the plugin) ---
-    /*
-    .yprint-checkout-summary-column .yprint-order-summary {
-        background-color: #fff;
-        border: 1px solid #ddd; // Light grey border
-        border-radius: 30px; // 30px rounding
-        padding: 20px; // Adjust padding as needed
-    }
-
-    .yprint-order-summary h2 {
-        // Style for the "Your Order" heading
-    }
-
-    .yprint-order-summary .cart-items {
-        // Styling for the list of products
-        margin-bottom: 20px;
-    }
-
-    .yprint-order-summary .cart-item {
-        display: flex;
-        align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #eee; // Separator for items
-    }
-
-    .yprint-order-summary .cart-item:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-        padding-bottom: 0;
-    }
-
-    .yprint-order-summary .cart-item-image {
-        position: relative;
-        margin-right: 15px;
-    }
-
-    .yprint-order-summary .cart-item-image img {
-        width: 60px; // Adjust size as needed
-        height: auto;
-    }
-
-     .yprint-order-summary .cart-item-image .item-quantity {
-         position: absolute;
-         top: -5px;
-         right: -5px;
-         background-color: #000; // Or your brand color
-         color: #fff;
-         border-radius: 50%;
-         width: 20px;
-         height: 20px;
-         text-align: center;
-         line-height: 20px;
-         font-size: 12px;
-         font-weight: bold;
-     }
-
-
-    .yprint-order-summary .cart-item-details {
-        flex-grow: 1;
-    }
-
-    .yprint-order-summary .cart-item-name {
-        font-weight: bold;
-    }
-
-    .yprint-order-summary .cart-item-variation {
-        font-size: 0.9em;
-        color: #555;
-    }
-
-    .yprint-order-summary .cart-item-price {
-        font-weight: bold;
-        text-align: right;
-    }
-
-    .yprint-order-summary .order-totals {
-        border-top: 1px solid #eee; // Separator above totals
-        padding-top: 15px;
-    }
-
-    .yprint-order-summary .order-total-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-    }
-
-    .yprint-order-summary .order-total-row .label {
-        font-weight: normal;
-    }
-
-    .yprint-order-summary .order-total-row .value {
-        font-weight: bold;
-    }
-
-     .yprint-order-summary .order-total-row.total .label,
-     .yprint-order-summary .order-total-row.total .value {
-         font-size: 1.2em; // Larger font for total
-     }
-
-     .payment-method-separator {
-         text-align: center;
-         margin: 20px 0;
-         position: relative;
-         line-height: 1em;
-     }
-
-     .payment-method-separator span {
-         background-color: #fff; // Match background
-         padding: 0 10px;
-         position: relative;
-         z-index: 1;
-     }
-
-     .payment-method-separator::before {
-         content: '';
-         position: absolute;
-         top: 50%;
-         left: 0;
-         right: 0;
-         border-top: 1px solid #ddd; // Light grey line
-         z-index: 0;
-     }
-
-     .saved-addresses-list .saved-address-option {
-         margin-bottom: 10px;
-         padding: 10px;
-         border: 1px solid #eee;
-         border-radius: 5px;
-     }
-
-      .saved-addresses-list .saved-address-option .address-title {
-          font-weight: bold;
-      }
-
-      .saved-addresses-list .saved-address-option .address-details {
-          font-size: 0.9em;
-          color: #555;
-          margin-top: 5px;
-      }
-
-     .no-saved-addresses {
-         font-style: italic;
-         color: #888;
-     }
-
-     .shipping-address-new-fields,
-     .billing-address-new-fields {
-          border-top: 1px dashed #ddd; // Optional separator
-          padding-top: 20px;
-          margin-top: 20px;
-     }
-
-     .billing-address-same-as-shipping {
-         font-style: italic;
-         color: #555;
-         margin-bottom: 20px;
-     }
-
-
-     // Add other necessary styles for the overall layout, form fields, etc.
-     // Ensure your half-width and full-width form fields work with flexbox or floats for columns.
-     // Your original code had .yprint-checkout-columns, .yprint-checkout-form-column, .yprint-checkout-summary-column
-     // Make sure these have display: flex; or equivalent to create the two columns.
-     // Example basic column styling:
-     .yprint-checkout-columns {
-         display: flex;
-         flex-wrap: wrap; // Allow wrapping on smaller screens
-         gap: 30px; // Space between columns
-     }
-
-     .yprint-checkout-form-column {
-         flex: 1 1 60%; // Takes 60% width, grows and shrinks
-         min-width: 300px; // Minimum width to prevent squishing
-     }
-
-     .yprint-checkout-summary-column {
-         flex: 1 1 35%; // Takes 35% width
-         min-width: 250px; // Minimum width
-     }
-
-     // Adjust flex-basis percentages as needed for your layout.
-
-    */
-
-});
-</script>
