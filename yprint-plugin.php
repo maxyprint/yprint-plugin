@@ -37,6 +37,9 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/yprint-stripe.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-admin.php';
 // Apple Pay class will be loaded by yprint-stripe.php
 
+// Include the checkout shortcode
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout-shortcode.php';
+
 // Initialize Stripe Admin
 add_action('plugins_loaded', function() {
     YPrint_Stripe_Admin::get_instance();
