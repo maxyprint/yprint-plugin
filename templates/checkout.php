@@ -3,14 +3,65 @@
  * YPrint Custom Checkout Template
  *
  * This template is modified to support saved addresses and updated payment layout.
+ *
+ * @package YPrint_Plugin
+ * @subpackage Checkout_Template
+ * @since 1.0.0
+ *
+ * @global WC_Cart $cart The WooCommerce cart object.
+ * @global WC_Customer $customer The WooCommerce customer object.
+ * @global array $countries Array of countries.
+ * @global array $states Array of states.
+ * @global array $saved_addresses Array of user's saved addresses.
+ * @global string $default_shipping_address_id Default shipping address ID.
+ * @global string $default_billing_address_id Default billing address ID.
+ * @global string $currency_symbol The currency symbol.
+ * @global string $cart_total The formatted cart total.
+ * @global string $cart_subtotal The formatted cart subtotal.
+ * @global string $cart_tax_total The formatted total tax.
+ * @global string $cart_shipping_total The formatted shipping total.
  */
+
+// Ensure WooCommerce is active and cart is not empty before rendering
+if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
+    // This template should ideally not be included if WC is not active or cart is empty,
+    // but add a fallback message just in case.
+    echo '<div class="yprint-checkout-error">' . esc_html__('Checkout is not available.', 'yprint-plugin') . '</div>';
+    return; // Stop rendering the template
+}
+
+// Get global variables passed from the shortcode class
+global $cart, $customer, $countries, $states, $saved_addresses,
+       $default_shipping_address_id, $default_billing_address_id,
+       $currency_symbol, $cart_total, $cart_subtotal, $cart_tax_total, $cart_shipping_total;
+
+// Ensure variables are set (they should be if included by the shortcode class)
+$cart = WC()->cart;
+$customer = WC()->customer;
+if (!isset($countries)) $countries = WC()->countries->get_countries();
+if (!isset($states)) $states = WC()->countries->get_states(); // Note: states are loaded via AJAX by wc-country-select
+if (!isset($saved_addresses)) $saved_addresses = array();
+if (!isset($default_shipping_address_id)) $default_shipping_address_id = '';
+if (!isset($default_billing_address_id)) $default_billing_address_id = '';
+if (!isset($currency_symbol)) $currency_symbol = get_woocommerce_currency_symbol();
+// Ensure totals are calculated and available
+$cart->calculate_totals();
+if (!isset($cart_total)) $cart_total = wc_price($cart->get_total());
+if (!isset($cart_subtotal)) $cart_subtotal = $cart->get_cart_subtotal();
+if (!isset($cart_tax_total)) $cart_tax_total = wc_price($cart->get_total_tax());
+if (!isset($cart_shipping_total)) $cart_shipping_total = wc_price($cart->get_shipping_total());
+
+
+$user_id = get_current_user_id();
+$is_user_logged_in = ($user_id > 0);
+
 ?>
 
 <div class="yprint-checkout">
     <div class="yprint-checkout-container">
-        <div class="yprint-checkout-messages"></div>
+        <div class="yprint-checkout-messages"></div> <form id="yprint-checkout-form" class="yprint-checkout-form">
+             <?php wp_nonce_field('yprint-checkout', 'nonce'); // Security nonce field ?>
 
-        <form id="yprint-checkout-form" class="yprint-checkout-form">
             <div class="yprint-checkout-columns">
                 <div class="yprint-checkout-form-column">
 
@@ -18,60 +69,53 @@
                         <h2><?php _e('Choose Shipping Address', 'yprint-plugin'); ?></h2>
                         <div class="saved-addresses-list">
                             <?php
-                            // --- START: Placeholder for displaying saved shipping addresses ---
-                            // You will need to fetch saved shipping addresses (e.g., from user metadata 'additional_shipping_addresses') here.
-                            // Example structure (replace with your actual data retrieval and loop):
-                            $saved_shipping_addresses = get_user_meta( get_current_user_id(), 'additional_shipping_addresses', true );
-                            $default_shipping_address_id = get_user_meta( get_current_user_id(), 'default_shipping_address', true );
+                            $saved_shipping_addresses = isset($saved_addresses['shipping']) ? $saved_addresses['shipping'] : array();
 
-                            if ( ! empty( $saved_shipping_addresses ) && is_array( $saved_shipping_addresses ) ) {
-                                echo '<p>' . __('Select one of your saved addresses or enter a new one.', 'yprint-plugin') . '</p>';
-                                foreach ( $saved_shipping_addresses as $address_id => $address ) {
-                                    // Ensure required keys exist to prevent errors
-                                    $address = wp_parse_args( $address, array(
-                                        'title' => '',
-                                        'address_1' => '',
-                                        'postcode' => '',
-                                        'city' => '',
-                                        'company' => ''
-                                    ) );
+                            if ( ! empty( $saved_shipping_addresses ) ) : ?>
+                                <p><?php _e('Select one of your saved addresses or enter a new one.', 'yprint-plugin'); ?></p>
+                                <?php foreach ( $saved_shipping_addresses as $address_id => $address ) :
+                                    // Ensure required keys exist to prevent errors (handled in get_user_saved_addresses)
                                     $is_default = ( $address_id == $default_shipping_address_id );
+                                    $address_display = esc_html( $address['address_1'] . ', ' . $address['postcode'] . ' ' . $address['city'] );
+                                    if ( ! empty( $address['company'] ) ) $address_display .= ' (' . esc_html( $address['company'] ) . ')';
                                     ?>
-                                    <div class="saved-address-option">
+                                    <div class="saved-address-option <?php echo $is_default ? 'active' : ''; ?>">
                                         <label class="radio-container">
                                             <input type="radio" name="yprint_shipping_address_selection" value="<?php echo esc_attr($address_id); ?>" <?php checked( $is_default ); ?>>
                                             <span class="radio-checkmark"></span>
                                             <span class="address-title"><?php echo esc_html( !empty($address['title']) ? $address['title'] : __('Saved Address', 'yprint-plugin') ); ?></span>
                                             <div class="address-details">
-                                                <?php echo esc_html( $address['address_1'] . ', ' . $address['postcode'] . ' ' . $address['city'] ); ?>
-                                                <?php if ( ! empty( $address['company'] ) ) echo ' (' . esc_html( $address['company'] ) . ')'; ?>
+                                                <?php echo esc_html( $address['first_name'] . ' ' . $address['last_name'] ); ?><br/>
+                                                <?php echo $address_display; ?><br/>
+                                                <?php echo esc_html( $address['country'] ); ?>
                                             </div>
                                         </label>
                                     </div>
-                                    <?php
-                                }
+                                <?php endforeach;
+
                                 // Option to enter a new address
+                                // Check if 'new_address' should be checked initially (no default or default not in saved list)
+                                $check_new_shipping = empty( $default_shipping_address_id ) || !array_key_exists($default_shipping_address_id, $saved_shipping_addresses);
                                 ?>
-                                <div class="saved-address-option">
+                                <div class="saved-address-option <?php echo $check_new_shipping ? 'active' : ''; ?>">
                                     <label class="radio-container">
-                                        <input type="radio" name="yprint_shipping_address_selection" value="new_address" <?php checked( empty( $default_shipping_address_id ) || !array_key_exists($default_shipping_address_id, $saved_shipping_addresses) ); ?>>
+                                        <input type="radio" name="yprint_shipping_address_selection" value="new_address" <?php checked( $check_new_shipping ); ?>>
                                         <span class="radio-checkmark"></span>
                                         <span class="address-title"><?php _e('Enter a new address', 'yprint-plugin'); ?></span>
                                     </label>
                                 </div>
-                                <?php
-                            } else {
+                            <?php else :
                                 // Message if no addresses are saved
                                 ?>
                                 <p class="no-saved-addresses"><?php _e('No shipping addresses saved yet. Please enter an address below.', 'yprint-plugin'); ?></p>
-                                <input type="hidden" name="yprint_shipping_address_selection" value="new_address"> <?php
-                            }
-                            // --- END: Placeholder for displaying saved shipping addresses ---
-                            ?>
+                                <input type="hidden" name="yprint_shipping_address_selection" value="new_address">
+                            <?php endif; ?>
                         </div>
                         <?php
-                         // Link/Button to manage addresses (optional, depends on your user account page)
-                         // echo '<a href="#">' . __('Manage Saved Addresses', 'yprint-plugin') . '</a>';
+                         // Optional: Link/Button to manage addresses (depends on your user account page)
+                         // if ($is_user_logged_in) {
+                         //     echo '<a href="' . esc_url(wc_get_account_endpoint_url('edit-address')) . '">' . __('Manage Saved Addresses', 'yprint-plugin') . '</a>';
+                         // }
                         ?>
                     </div>
 
@@ -86,19 +130,19 @@
                          <div class="form-row">
                              <div class="form-field half-width">
                                  <label for="shipping_first_name"><?php _e('First Name', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                 <input type="text" id="shipping_first_name" name="shipping_first_name" class="input-text" value="<?php echo isset($saved_addresses['shipping']['first_name']) ? esc_attr($saved_addresses['shipping']['first_name']) : ''; ?>">
+                                 <input type="text" id="shipping_first_name" name="shipping_first_name" class="input-text" value="<?php echo esc_attr($customer->get_shipping_first_name()); ?>">
                              </div>
 
                              <div class="form-field half-width">
                                  <label for="shipping_last_name"><?php _e('Last Name', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                 <input type="text" id="shipping_last_name" name="shipping_last_name" class="input-text" value="<?php echo isset($saved_addresses['shipping']['last_name']) ? esc_attr($saved_addresses['shipping']['last_name']) : ''; ?>">
+                                 <input type="text" id="shipping_last_name" name="shipping_last_name" class="input-text" value="<?php echo esc_attr($customer->get_shipping_last_name()); ?>">
                              </div>
                          </div>
 
                          <div class="form-row">
                              <div class="form-field full-width">
                                  <label for="shipping_company"><?php _e('Company Name', 'yprint-plugin'); ?> (<?php _e('Optional', 'yprint-plugin'); ?>)</label>
-                                 <input type="text" id="shipping_company" name="shipping_company" class="input-text" value="<?php echo isset($saved_addresses['shipping']['company']) ? esc_attr($saved_addresses['shipping']['company']) : ''; ?>">
+                                 <input type="text" id="shipping_company" name="shipping_company" class="input-text" value="<?php echo esc_attr($customer->get_shipping_company()); ?>">
                              </div>
                          </div>
 
@@ -107,9 +151,10 @@
                                  <label for="shipping_country"><?php _e('Country / Region', 'yprint-plugin'); ?> <span class="required">*</span></label>
                                  <select id="shipping_country" name="shipping_country" class="country-select">
                                      <option value=""><?php _e('Select a country / region', 'yprint-plugin'); ?></option>
-                                     <?php foreach ($countries as $code => $name) : ?>
-                                         <option value="<?php echo esc_attr($code); ?>" <?php selected(isset($saved_addresses['shipping']['country']) ? $saved_addresses['shipping']['country'] : WC()->countries->get_base_country(), $code); ?>><?php echo esc_html($name); ?></option>
-                                     <?php endforeach; ?>
+                                     <?php // Populate with countries
+                                     foreach ($countries as $code => $name) :
+                                         echo '<option value="' . esc_attr($code) . '" ' . selected($customer->get_shipping_country(), $code, false) . '>' . esc_html($name) . '</option>';
+                                     endforeach; ?>
                                  </select>
                              </div>
                          </div>
@@ -117,26 +162,26 @@
                          <div class="form-row">
                              <div class="form-field full-width">
                                  <label for="shipping_address_1"><?php _e('Street Address', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                 <input type="text" id="shipping_address_1" name="shipping_address_1" class="input-text" placeholder="<?php _e('House number and street name', 'yprint-plugin'); ?>" value="<?php echo isset($saved_addresses['shipping']['address_1']) ? esc_attr($saved_addresses['shipping']['address_1']) : ''; ?>">
+                                 <input type="text" id="shipping_address_1" name="shipping_address_1" class="input-text" placeholder="<?php _e('House number and street name', 'yprint-plugin'); ?>" value="<?php echo esc_attr($customer->get_shipping_address_1()); ?>">
                              </div>
                          </div>
 
                          <div class="form-row">
                              <div class="form-field full-width">
                                  <label for="shipping_address_2"><?php _e('Apartment, suite, unit, etc.', 'yprint-plugin'); ?> (<?php _e('Optional', 'yprint-plugin'); ?>)</label>
-                                 <input type="text" id="shipping_address_2" name="shipping_address_2" class="input-text" placeholder="<?php _e('Apartment, suite, unit, etc. (optional)', 'yprint-plugin'); ?>" value="<?php echo isset($saved_addresses['shipping']['address_2']) ? esc_attr($saved_addresses['shipping']['address_2']) : ''; ?>">
+                                 <input type="text" id="shipping_address_2" name="shipping_address_2" class="input-text" placeholder="<?php _e('Apartment, suite, unit, etc. (optional)', 'yprint-plugin'); ?>" value="<?php echo esc_attr($customer->get_shipping_address_2()); ?>">
                              </div>
                          </div>
 
                          <div class="form-row">
                              <div class="form-field half-width">
                                  <label for="shipping_postcode"><?php _e('Postcode / ZIP', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                 <input type="text" id="shipping_postcode" name="shipping_postcode" class="input-text" value="<?php echo isset($saved_addresses['shipping']['postcode']) ? esc_attr($saved_addresses['shipping']['postcode']) : ''; ?>">
+                                 <input type="text" id="shipping_postcode" name="shipping_postcode" class="input-text" value="<?php echo esc_attr($customer->get_shipping_postcode()); ?>">
                              </div>
 
                              <div class="form-field half-width">
                                  <label for="shipping_city"><?php _e('Town / City', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                 <input type="text" id="shipping_city" name="shipping_city" class="input-text" value="<?php echo isset($saved_addresses['shipping']['city']) ? esc_attr($saved_addresses['shipping']['city']) : ''; ?>">
+                                 <input type="text" id="shipping_city" name="shipping_city" class="input-text" value="<?php echo esc_attr($customer->get_shipping_city()); ?>">
                              </div>
                          </div>
 
@@ -146,10 +191,12 @@
                                  <select id="shipping_state" name="shipping_state" class="state-select">
                                      <option value=""><?php _e('Select a state / county', 'yprint-plugin'); ?></option>
                                      <?php
-                                     $country = isset($saved_addresses['shipping']['country']) ? $saved_addresses['shipping']['country'] : WC()->countries->get_base_country();
-                                     if (isset($states[$country])) {
-                                         foreach ($states[$country] as $code => $name) {
-                                             echo '<option value="' . esc_attr($code) . '" ' . selected(isset($saved_addresses['shipping']['state']) ? $saved_addresses['shipping']['state'] : '', $code, false) . '>' . esc_html($name) . '</option>';
+                                     // States are typically loaded via AJAX by wc-country-select,
+                                     // but we can pre-populate if the customer already has one set for the default country.
+                                     $current_shipping_country = $customer->get_shipping_country();
+                                     if ($current_shipping_country && isset($states[$current_shipping_country])) {
+                                         foreach ($states[$current_shipping_country] as $code => $name) {
+                                             echo '<option value="' . esc_attr($code) . '" ' . selected($customer->get_shipping_state(), $code, false) . '>' . esc_html($name) . '</option>';
                                          }
                                      }
                                      ?>
@@ -157,10 +204,13 @@
                              </div>
                          </div>
                          <?php
-                         // Checkbox to save this new address for future use (optional, backend logic needed)
-                         // echo '<div class="form-row"><div class="form-field full-width"><label class="checkbox-container"><input type="checkbox" name="save_shipping_address" value="1"><span class="checkmark"></span>' . __('Save this address for future use?', 'yprint-plugin') . '</label></div></div>';
+                         // Optional: Checkbox to save this new address for future use (requires backend logic)
+                         if ($is_user_logged_in) {
+                            // echo '<div class="form-row"><div class="form-field full-width"><label class="checkbox-container"><input type="checkbox" name="save_shipping_address" value="1"><span class="checkmark"></span>' . __('Save this address for future use?', 'yprint-plugin') . '</label></div></div>';
+                         }
                          ?>
                      </div>
+
                     <?php if (WC()->cart->needs_shipping() && WC()->cart->show_shipping()) : ?>
                     <h2><?php _e('Shipping Method', 'yprint-plugin'); ?></h2>
                     <div class="form-row shipping-methods-container">
@@ -168,30 +218,9 @@
                             <?php
                             // This section is typically updated via AJAX based on the selected shipping address.
                             // The initial display might show methods for the default address or base country.
-                            $packages = WC()->shipping->get_packages();
-
-                            if (!empty($packages)) {
-                                foreach ($packages as $package_key => $package) {
-                                    if (!empty($package['rates'])) {
-                                        foreach ($package['rates'] as $key => $rate) {
-                                            ?>
-                                            <div class="shipping-method">
-                                                <label class="radio-container">
-                                                    <input type="radio" name="shipping_method" id="shipping_method_<?php echo esc_attr($rate->id); ?>" value="<?php echo esc_attr($rate->id); ?>" class="shipping-method-input" <?php checked($package_key . ':' . $rate->id, WC()->session->get('chosen_shipping_methods')[$package_key] ?? ''); ?>>
-                                                    <span class="radio-checkmark"></span>
-                                                    <span class="shipping-method-label"><?php echo esc_html($rate->label); ?> - <?php echo wc_price($rate->cost); ?></span>
-                                                </label>
-                                            </div>
-                                            <?php
-                                        }
-                                    } else {
-                                        ?>
-                                        <p class="no-shipping-methods"><?php _e('No shipping methods available for your location. Please check your address and try again.', 'yprint-plugin'); ?></p>
-                                        <?php
-                                    }
-                                }
-                            }
+                            // The JS will replace this content after the initial updateCheckout call.
                             ?>
+                            <p><?php _e('Loading shipping methods...', 'yprint-plugin'); ?></p>
                         </div>
                     </div>
                     <?php endif; ?>
@@ -199,7 +228,7 @@
                     <div class="form-row">
                          <div class="form-field full-width separate-billing-address-checkbox">
                              <label class="checkbox-container">
-                                 <input id="ship_to_different_address" type="checkbox" name="ship_to_different_address" value="1">
+                                 <input id="ship_to_different_address" type="checkbox" name="ship_to_different_address" value="1" <?php checked( apply_filters('woocommerce_ship_to_different_address_checked', false) ); // Default unchecked ?>>
                                  <span class="checkmark"></span>
                                  <?php _e('Set a separate billing address', 'yprint-plugin'); ?>
                              </label>
@@ -218,60 +247,53 @@
                              <h2><?php _e('Choose Billing Address', 'yprint-plugin'); ?></h2>
                              <div class="saved-addresses-list">
                                  <?php
-                                 // --- START: Placeholder for displaying saved billing addresses ---
-                                 // You will need to fetch saved billing addresses (e.g., from user metadata 'additional_billing_addresses') here.
-                                 // Similar structure as shipping addresses.
-                                 $saved_billing_addresses = get_user_meta( get_current_user_id(), 'additional_billing_addresses', true );
-                                 $default_billing_address_id = get_user_meta( get_current_user_id(), 'default_billing_address', true ); // Assuming you add this meta field
+                                 $saved_billing_addresses = isset($saved_addresses['billing']) ? $saved_addresses['billing'] : array();
 
-                                 if ( ! empty( $saved_billing_addresses ) && is_array( $saved_billing_addresses ) ) {
-                                     echo '<p>' . __('Select one of your saved addresses or enter a new one.', 'yprint-plugin') . '</p>';
-                                     foreach ( $saved_billing_addresses as $address_id => $address ) {
-                                          // Ensure required keys exist to prevent errors
-                                         $address = wp_parse_args( $address, array(
-                                             'title' => '',
-                                             'address_1' => '',
-                                             'postcode' => '',
-                                             'city' => '',
-                                             'company' => ''
-                                         ) );
-                                          $is_default = ( $address_id == $default_billing_address_id );
-                                         ?>
-                                         <div class="saved-address-option">
-                                             <label class="radio-container">
-                                                 <input type="radio" name="yprint_billing_address_selection" value="<?php echo esc_attr($address_id); ?>" <?php checked( $is_default ); ?>>
-                                                 <span class="radio-checkmark"></span>
-                                                  <span class="address-title"><?php echo esc_html( !empty($address['title']) ? $address['title'] : __('Saved Address', 'yprint-plugin') ); ?></span>
-                                                  <div class="address-details">
-                                                      <?php echo esc_html( $address['address_1'] . ', ' . $address['postcode'] . ' ' . $address['city'] ); ?>
-                                                      <?php if ( ! empty( $address['company'] ) ) echo ' (' . esc_html( $address['company'] ) . ')'; ?>
-                                                  </div>
-                                             </label>
-                                         </div>
-                                         <?php
-                                     }
-                                     // Option to enter a new address
-                                     ?>
-                                     <div class="saved-address-option">
-                                          <label class="radio-container">
-                                              <input type="radio" name="yprint_billing_address_selection" value="new_address" <?php checked( empty( $default_billing_address_id ) || !array_key_exists($default_billing_address_id, $saved_billing_addresses) ); ?>>
-                                              <span class="radio-checkmark"></span>
-                                              <span class="address-title"><?php _e('Enter a new address', 'yprint-plugin'); ?></span>
-                                          </label>
-                                      </div>
-                                     <?php
-                                 } else {
-                                     // Message if no addresses are saved
-                                     ?>
-                                     <p class="no-saved-addresses"><?php _e('No billing addresses saved yet. Please enter an address below.', 'yprint-plugin'); ?></p>
-                                     <input type="hidden" name="yprint_billing_address_selection" value="new_address"> <?php
-                                 }
-                                 // --- END: Placeholder for displaying saved billing addresses ---
-                                 ?>
+                                 if ( ! empty( $saved_billing_addresses ) ) : ?>
+                                     <p><?php _e('Select one of your saved addresses or enter a new one.', 'yprint-plugin'); ?></p>
+                                     <?php foreach ( $saved_billing_addresses as $address_id => $address ) :
+                                          // Ensure required keys exist (handled in get_user_saved_addresses)
+                                           $is_default = ( $address_id == $default_billing_address_id );
+                                           $address_display = esc_html( $address['address_1'] . ', ' . $address['postcode'] . ' ' . $address['city'] );
+                                           if ( ! empty( $address['company'] ) ) $address_display .= ' (' . esc_html( $address['company'] ) . ')';
+                                          ?>
+                                          <div class="saved-address-option <?php echo $is_default ? 'active' : ''; ?>">
+                                              <label class="radio-container">
+                                                  <input type="radio" name="yprint_billing_address_selection" value="<?php echo esc_attr($address_id); ?>" <?php checked( $is_default ); ?>>
+                                                  <span class="radio-checkmark"></span>
+                                                   <span class="address-title"><?php echo esc_html( !empty($address['title']) ? $address['title'] : __('Saved Address', 'yprint-plugin') ); ?></span>
+                                                   <div class="address-details">
+                                                       <?php echo esc_html( $address['first_name'] . ' ' . $address['last_name'] ); ?><br/>
+                                                       <?php echo $address_display; ?><br/>
+                                                       <?php echo esc_html( $address['country'] ); ?>
+                                                   </div>
+                                              </label>
+                                          </div>
+                                      <?php endforeach;
+
+                                      // Option to enter a new address
+                                      // Check if 'new_address' should be checked initially
+                                      $check_new_billing = empty( $default_billing_address_id ) || !array_key_exists($default_billing_address_id, $saved_billing_addresses);
+                                      ?>
+                                      <div class="saved-address-option <?php echo $check_new_billing ? 'active' : ''; ?>">
+                                           <label class="radio-container">
+                                               <input type="radio" name="yprint_billing_address_selection" value="new_address" <?php checked( $check_new_billing ); ?>>
+                                               <span class="radio-checkmark"></span>
+                                               <span class="address-title"><?php _e('Enter a new address', 'yprint-plugin'); ?></span>
+                                           </label>
+                                       </div>
+                                  <?php else :
+                                      // Message if no addresses are saved
+                                      ?>
+                                      <p class="no-saved-addresses"><?php _e('No billing addresses saved yet. Please enter an address below.', 'yprint-plugin'); ?></p>
+                                       <input type="hidden" name="yprint_billing_address_selection" value="new_address">
+                                  <?php endif; ?>
                              </div>
                              <?php
-                              // Link/Button to manage addresses (optional)
-                              // echo '<a href="#">' . __('Manage Saved Addresses', 'yprint-plugin') . '</a>';
+                              // Optional: Link/Button to manage addresses (depends on your user account page)
+                              // if ($is_user_logged_in) {
+                              //     echo '<a href="' . esc_url(wc_get_account_endpoint_url('edit-address')) . '">' . __('Manage Saved Addresses', 'yprint-plugin') . '</a>';
+                              // }
                              ?>
                          </div>
 
@@ -286,19 +308,19 @@
                              <div class="form-row">
                                  <div class="form-field half-width">
                                      <label for="billing_first_name"><?php _e('First Name', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="text" id="billing_first_name" name="billing_first_name" class="input-text" value="<?php echo isset($saved_addresses['billing']['first_name']) ? esc_attr($saved_addresses['billing']['first_name']) : ''; ?>" required>
+                                     <input type="text" id="billing_first_name" name="billing_first_name" class="input-text" value="<?php echo esc_attr($customer->get_billing_first_name()); ?>" required>
                                  </div>
 
                                  <div class="form-field half-width">
                                      <label for="billing_last_name"><?php _e('Last Name', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="text" id="billing_last_name" name="billing_last_name" class="input-text" value="<?php echo isset($saved_addresses['billing']['last_name']) ? esc_attr($saved_addresses['billing']['last_name']) : ''; ?>" required>
+                                     <input type="text" id="billing_last_name" name="billing_last_name" class="input-text" value="<?php echo esc_attr($customer->get_billing_last_name()); ?>" required>
                                  </div>
                              </div>
 
                              <div class="form-row">
                                  <div class="form-field full-width">
                                      <label for="billing_company"><?php _e('Company Name', 'yprint-plugin'); ?> (<?php _e('Optional', 'yprint-plugin'); ?>)</label>
-                                     <input type="text" id="billing_company" name="billing_company" class="input-text" value="<?php echo isset($saved_addresses['billing']['company']) ? esc_attr($saved_addresses['billing']['company']) : ''; ?>">
+                                     <input type="text" id="billing_company" name="billing_company" class="input-text" value="<?php echo esc_attr($customer->get_billing_company()); ?>">
                                  </div>
                              </div>
 
@@ -307,9 +329,10 @@
                                      <label for="billing_country"><?php _e('Country / Region', 'yprint-plugin'); ?> <span class="required">*</span></label>
                                      <select id="billing_country" name="billing_country" class="country-select" required>
                                          <option value=""><?php _e('Select a country / region', 'yprint-plugin'); ?></option>
-                                         <?php foreach ($countries as $code => $name) : ?>
-                                             <option value="<?php echo esc_attr($code); ?>" <?php selected(isset($saved_addresses['billing']['country']) ? $saved_addresses['billing']['country'] : WC()->countries->get_base_country(), $code); ?>><?php echo esc_html($name); ?></option>
-                                         <?php endforeach; ?>
+                                         <?php
+                                         foreach ($countries as $code => $name) :
+                                             echo '<option value="' . esc_attr($code) . '" ' . selected($customer->get_billing_country(), $code, false) . '>' . esc_html($name) . '</option>';
+                                         endforeach; ?>
                                      </select>
                                  </div>
                              </div>
@@ -317,26 +340,26 @@
                              <div class="form-row">
                                  <div class="form-field full-width">
                                      <label for="billing_address_1"><?php _e('Street Address', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="text" id="billing_address_1" name="billing_address_1" class="input-text" placeholder="<?php _e('House number and street name', 'yprint-plugin'); ?>" value="<?php echo isset($saved_addresses['billing']['address_1']) ? esc_attr($saved_addresses['billing']['address_1']) : ''; ?>" required>
+                                     <input type="text" id="billing_address_1" name="billing_address_1" class="input-text" placeholder="<?php _e('House number and street name', 'yprint-plugin'); ?>" value="<?php echo esc_attr($customer->get_billing_address_1()); ?>" required>
                                  </div>
                              </div>
 
                              <div class="form-row">
                                  <div class="form-field full-width">
                                      <label for="billing_address_2"><?php _e('Apartment, suite, unit, etc.', 'yprint-plugin'); ?> (<?php _e('Optional', 'yprint-plugin'); ?>)</label>
-                                     <input type="text" id="billing_address_2" name="billing_address_2" class="input-text" placeholder="<?php _e('Apartment, suite, unit, etc. (optional)', 'yprint-plugin'); ?>" value="<?php echo isset($saved_addresses['billing']['address_2']) ? esc_attr($saved_addresses['billing']['address_2']) : ''; ?>">
+                                     <input type="text" id="billing_address_2" name="billing_address_2" class="input-text" placeholder="<?php _e('Apartment, suite, unit, etc. (optional)', 'yprint-plugin'); ?>" value="<?php echo esc_attr($customer->get_billing_address_2()); ?>">
                                  </div>
                              </div>
 
                              <div class="form-row">
                                  <div class="form-field half-width">
                                      <label for="billing_postcode"><?php _e('Postcode / ZIP', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="text" id="billing_postcode" name="billing_postcode" class="input-text" value="<?php echo isset($saved_addresses['billing']['postcode']) ? esc_attr($saved_addresses['billing']['postcode']) : ''; ?>" required>
+                                     <input type="text" id="billing_postcode" name="billing_postcode" class="input-text" value="<?php echo esc_attr($customer->get_billing_postcode()); ?>" required>
                                  </div>
 
                                  <div class="form-field half-width">
                                      <label for="billing_city"><?php _e('Town / City', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="text" id="billing_city" name="billing_city" class="input-text" value="<?php echo isset($saved_addresses['billing']['city']) ? esc_attr($saved_addresses['billing']['city']) : ''; ?>" required>
+                                     <input type="text" id="billing_city" name="billing_city" class="input-text" value="<?php echo esc_attr($customer->get_billing_city()); ?>" required>
                                  </div>
                              </div>
 
@@ -346,10 +369,11 @@
                                      <select id="billing_state" name="billing_state" class="state-select">
                                          <option value=""><?php _e('Select a state / county', 'yprint-plugin'); ?></option>
                                          <?php
-                                         $country = isset($saved_addresses['billing']['country']) ? $saved_addresses['billing']['country'] : WC()->countries->get_base_country();
-                                         if (isset($states[$country])) {
-                                             foreach ($states[$country] as $code => $name) {
-                                                 echo '<option value="' . esc_attr($code) . '" ' . selected(isset($saved_addresses['billing']['state']) ? $saved_addresses['billing']['state'] : '', $code, false) . '>' . esc_html($name) . '</option>';
+                                         // States are typically loaded via AJAX by wc-country-select
+                                         $current_billing_country = $customer->get_billing_country();
+                                         if ($current_billing_country && isset($states[$current_billing_country])) {
+                                             foreach ($states[$current_billing_country] as $code => $name) {
+                                                 echo '<option value="' . esc_attr($code) . '" ' . selected($customer->get_billing_state(), $code, false) . '>' . esc_html($name) . '</option>';
                                              }
                                          }
                                          ?>
@@ -359,30 +383,32 @@
                              <div class="form-row">
                                  <div class="form-field half-width">
                                      <label for="billing_phone"><?php _e('Phone', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="tel" id="billing_phone" name="billing_phone" class="input-text" value="<?php echo isset($saved_addresses['billing']['phone']) ? esc_attr($saved_addresses['billing']['phone']) : ''; ?>" required>
+                                     <input type="tel" id="billing_phone" name="billing_phone" class="input-text" value="<?php echo esc_attr($customer->get_billing_phone()); ?>" required>
                                  </div>
 
                                  <div class="form-field half-width">
                                      <label for="billing_email"><?php _e('Email Address', 'yprint-plugin'); ?> <span class="required">*</span></label>
-                                     <input type="email" id="billing_email" name="billing_email" class="input-text" value="<?php echo isset($saved_addresses['billing']['email']) ? esc_attr($saved_addresses['billing']['email']) : ''; ?>" required>
+                                     <input type="email" id="billing_email" name="billing_email" class="input-text" value="<?php echo esc_attr($customer->get_billing_email()); ?>" required>
                                  </div>
                              </div>
                              <?php
-                             // Checkbox to save this new address for future use (optional, backend logic needed)
-                             // echo '<div class="form-row"><div class="form-field full-width"><label class="checkbox-container"><input type="checkbox" name="save_billing_address" value="1"><span class="checkmark"></span>' . __('Save this address for future use?', 'yprint-plugin') . '</label></div></div>';
+                             // Optional: Checkbox to save this new address for future use (requires backend logic)
+                              if ($is_user_logged_in) {
+                                 // echo '<div class="form-row"><div class="form-field full-width"><label class="checkbox-container"><input type="checkbox" name="save_billing_address" value="1"><span class="checkmark"></span>' . __('Save this address for future use?', 'yprint-plugin') . '</label></div></div>';
+                              }
                              ?>
                          </div>
                          </div>
                     <div class="form-row">
                         <div class="form-field full-width">
                             <label for="order_comments"><?php _e('Order Notes', 'yprint-plugin'); ?> (<?php _e('Optional', 'yprint-plugin'); ?>)</label>
-                            <textarea id="order_comments" name="order_comments" class="input-text" placeholder="<?php _e('Notes about your order, e.g. special notes for delivery.', 'yprint-plugin'); ?>"></textarea>
+                            <textarea id="order_comments" name="order_comments" class="input-text" placeholder="<?php esc_attr_e('Notes about your order, e.g. special notes for delivery.', 'yprint-plugin'); ?>"></textarea>
                         </div>
                     </div>
 
                     <h2><?php _e('Payment Method', 'yprint-plugin'); ?></h2>
 
-                    <div id="yprint-stripe-payment-request-wrapper">
+                    <div id="yprint-stripe-payment-request-wrapper" style="display: none;">
                         <div id="yprint-stripe-payment-request-button"></div>
                     </div>
 
@@ -398,88 +424,94 @@
                                 <div id="yprint-stripe-card-errors" role="alert"></div>
                             </div>
                         </div>
-                    </div>
+                        </div>
 
                     <input type="hidden" id="payment_method_id" name="payment_method_id" value="">
-                    <input type="hidden" name="payment_method" value="yprint_stripe"> <div class="form-row">
+                    <input type="hidden" name="payment_method" value=""> <div class="form-row">
                         <button type="submit" id="yprint-place-order" class="checkout-button"><?php _e('Verbindlich Bestellen', 'yprint-plugin'); ?></button>
                     </div>
 
-                </div>
-
-                <div class="yprint-checkout-summary-column">
+                </div> <div class="yprint-checkout-summary-column">
                     <div class="yprint-order-summary">
                         <h2><?php _e('Your Order', 'yprint-plugin'); ?></h2>
 
                         <div class="cart-items">
-                            <?php foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) :
+                            <?php
+                            // Loop through items in the WooCommerce cart
+                            foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) :
                                 $_product = apply_filters('woocommerce_cart_item_product', $cart_item['data'], $cart_item, $cart_item_key);
                                 $product_id = apply_filters('woocommerce_cart_item_product_id', $cart_item['product_id'], $cart_item, $cart_item_key);
 
-                                if ($_product && $_product->exists() && $cart_item['quantity'] > 0 && apply_filters('woocommerce_cart_item_visible', true, $cart_item, $cart_item_key)) {
+                                // Check if product exists, is visible, and has quantity > 0
+                                if ($_product && $_product->exists() && $cart_item['quantity'] > 0 && apply_filters('woocommerce_cart_item_visible', true, $cart_item, $cart_item_key)) :
                                     $product_name = apply_filters('woocommerce_cart_item_name', $_product->get_name(), $cart_item, $cart_item_key);
                                     $thumbnail = apply_filters('woocommerce_cart_item_thumbnail', $_product->get_image(), $cart_item, $cart_item_key);
-                                    $product_price = apply_filters('woocommerce_cart_item_price', WC()->cart->get_product_price($_product), $cart_item, $cart_item_key);
+                                    // Use get_product_subtotal for the price per item line, as it includes quantity
                                     $product_subtotal = apply_filters('woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal($_product, $cart_item['quantity']), $cart_item, $cart_item_key);
                                     ?>
                                     <div class="cart-item">
                                         <div class="cart-item-image">
-                                            <?php echo $thumbnail; ?>
-                                            <span class="item-quantity"><?php echo $cart_item['quantity']; ?></span>
+                                            <?php echo $thumbnail; // Escaped by WC function ?>
+                                            <span class="item-quantity"><?php echo esc_html($cart_item['quantity']); ?></span>
                                         </div>
                                         <div class="cart-item-details">
-                                            <div class="cart-item-name"><?php echo $product_name; ?></div>
+                                            <div class="cart-item-name"><?php echo wp_kses_post($product_name); // Escaped by WC function/filter ?></div>
                                             <?php
-                                            // Display variation data
-                                            if (!empty($cart_item['variation'])) {
+                                            // Display variation data if it exists
+                                            if (!empty($cart_item['variation'])) :
                                                 echo '<div class="cart-item-variation">';
-                                                foreach ($cart_item['variation'] as $attr => $value) {
+                                                // Loop through variation attributes
+                                                foreach ($cart_item['variation'] as $attr => $value) :
+                                                    // Get taxonomy name from attribute key
                                                     $taxonomy = wc_attribute_taxonomy_name(str_replace('attribute_pa_', '', urldecode($attr)));
-                                                    $term = get_term_by('slug', $value, $taxonomy);
+                                                    // Get term object if taxonomy exists
+                                                    $term = taxonomy_exists($taxonomy) ? get_term_by('slug', $value, $taxonomy) : false;
+                                                    // Get attribute label
                                                     $label = wc_attribute_label(str_replace('attribute_', '', urldecode($attr)));
-                                                    $display_value = $term ? $term->name : $value;
-                                                    echo $label . ': ' . $display_value . '<br>';
-                                                }
+                                                    // Get display value (term name or raw value)
+                                                    $display_value = $term && !is_wp_error($term) ? $term->name : $value;
+                                                    // Output label and value
+                                                    echo esc_html($label) . ': ' . esc_html($display_value) . '<br>';
+                                                endforeach;
                                                 echo '</div>';
-                                            }
+                                            endif;
                                             ?>
                                         </div>
-                                        <div class="cart-item-price"><?php echo $product_subtotal; ?></div>
+                                        <div class="cart-item-price"><?php echo wp_kses_post($product_subtotal); // Escaped by WC function/filter ?></div>
                                     </div>
-                                <?php
-                                }
+                                <?php endif;
                             endforeach; ?>
                         </div>
 
                         <div class="order-totals">
                             <div class="order-total-row subtotal">
                                 <div class="label"><?php _e('Subtotal', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price(WC()->cart->get_subtotal()); // Use WC functions for live data ?></div>
+                                <div class="value"><?php echo wp_kses_post($cart_subtotal); // Already formatted by WC ?></div>
                             </div>
 
                             <?php if (WC()->cart->needs_shipping()) : ?>
                             <div class="order-total-row shipping">
                                 <div class="label"><?php _e('Shipping', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price(WC()->cart->get_shipping_total()); // Use WC functions for live data ?></div>
+                                <div class="value"><?php echo wp_kses_post($cart_shipping_total); // Initial value from WC ?></div>
                             </div>
                             <?php endif; ?>
 
                             <?php if (wc_tax_enabled()) : ?>
                             <div class="order-total-row tax">
                                 <div class="label"><?php _e('Tax', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price(WC()->cart->get_taxes_total()); // Use WC functions for live data ?></div>
+                                <div class="value"><?php echo wp_kses_post($cart_tax_total); // Initial value from WC ?></div>
                             </div>
                             <?php endif; ?>
 
-                            <div class="order-total-row total">
+                            <hr /> <div class="order-total-row total">
                                 <div class="label"><?php _e('Total', 'yprint-plugin'); ?></div>
-                                <div class="value"><?php echo wc_price(WC()->cart->get_total('edit')); // Use WC functions for live data ?></div>
+                                <div class="value"><?php echo wp_kses_post($cart_total); // Initial formatted total from WC ?></div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-</div>
-
+                    </div> </div> </div> </form> </div> </div> <?php
+// Note: This template relies on the following being available in the global scope
+// (passed from the Shortcode class that includes this file):
+// $cart, $customer, $countries, $states, $saved_addresses,
+// $default_shipping_address_id, $default_billing_address_id,
+// $currency_symbol, $cart_total, $cart_subtotal, $cart_tax_total, $cart_shipping_total
+?>

@@ -7,6 +7,10 @@
     display: flex;
     flex-wrap: wrap; /* Allow wrapping on smaller screens */
     gap: 30px; /* Space between columns */
+    max-width: 1200px; /* Max Breite hinzufügen */
+    margin: 0 auto; /* Zentrieren */
+    padding: 20px; /* Add some padding */
+    box-sizing: border-box; /* Include padding in width */
 }
 
 .yprint-checkout-form-column {
@@ -24,12 +28,29 @@
     .yprint-checkout-columns {
         flex-direction: column; /* Stack columns on small screens */
         gap: 20px;
+        padding: 10px; /* Less padding on small screens */
     }
     .yprint-checkout-form-column,
     .yprint-checkout-summary-column {
         flex-basis: 100%; /* Full width on small screens */
         min-width: auto;
     }
+     .yprint-checkout-summary-column {
+          margin-top: 20px; /* Add space above summary on mobile */
+     }
+}
+
+/* General Section Headings */
+.yprint-checkout h2 {
+    font-size: 1.5em;
+    margin-top: 1.5em;
+    margin-bottom: 1em;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 0.5em;
+}
+.yprint-checkout h2:first-child {
+    margin-top: 0; /* No top margin for the first heading */
 }
 
 
@@ -48,6 +69,8 @@
     margin-bottom: 20px;
     font-size: 1.5em;
     color: #333;
+    border-bottom: none; /* No border for this heading */
+    padding-bottom: 0;
 }
 
 .yprint-order-summary .cart-items {
@@ -102,15 +125,17 @@
 
 .yprint-order-summary .cart-item-details {
     flex-grow: 1;
+     margin-right: 10px; /* Space before price */
 }
 
 .yprint-order-summary .cart-item-name {
     font-weight: bold;
     margin-bottom: 5px;
+    font-size: 0.95em;
 }
 
 .yprint-order-summary .cart-item-variation {
-    font-size: 0.9em;
+    font-size: 0.85em; /* Slightly smaller */
     color: #555;
 }
 
@@ -118,6 +143,7 @@
     font-weight: bold;
     text-align: right;
     flex-shrink: 0; /* Prevent price from shrinking */
+    font-size: 1em;
 }
 
 .yprint-order-summary .order-totals {
@@ -128,7 +154,10 @@
 .yprint-order-summary .order-total-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 8px; /* Slightly less space */
+    font-weight: normal;
+    color: #555;
+    font-size: 0.95em;
 }
 
 .yprint-order-summary .order-total-row .label {
@@ -141,12 +170,25 @@
     color: #333;
 }
 
- .yprint-order-summary .order-total-row.total .label,
- .yprint-order-summary .order-total-row.total .value {
+ .yprint-order-summary .order-total-row.total {
      font-size: 1.2em; /* Larger font for total */
      font-weight: bold;
      color: #000; /* Make total stand out */
+     margin-top: 15px; /* More space after the line */
  }
+ .yprint-order-summary .order-total-row.total .label,
+ .yprint-order-summary .order-total-row.total .value {
+      font-weight: bold;
+      color: #000;
+ }
+
+ .order-totals hr { /* Horizontal line in totals */
+     border: none;
+     height: 1px;
+     background-color: #ccc;
+     margin: 10px 0;
+ }
+
 
 /* Payment Method Separator */
 .payment-method-separator {
@@ -158,7 +200,7 @@
 }
 
 .payment-method-separator span {
-    background-color: #f8f8f8; /* Match background of the form area */
+    background-color: #f7f8fc; /* Match background of the form area */
     padding: 0 15px; /* More padding for the "OR" text */
     position: relative;
     z-index: 1;
@@ -186,126 +228,27 @@
     border-radius: 8px; /* Slightly more rounded */
     cursor: pointer; /* Indicate it's clickable */
     transition: border-color 0.2s ease-in-out;
+    background-color: #fff; /* White background */
 }
 
 .saved-addresses-list .saved-address-option:hover {
     border-color: #ccc; /* Highlight on hover */
 }
+.saved-addresses-list .saved-address-option.active { /* Active/Selected state */
+     border-color: #0070f3; /* Example color */
+     box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.2); /* Example shadow */
+}
+
 
 .saved-addresses-list .saved-address-option .radio-container {
     display: flex; /* Align radio button and text */
     align-items: flex-start;
     cursor: pointer;
-}
-
-.saved-addresses-list .saved-address-option input[type="radio"] {
-    margin-right: 10px; /* Space between radio and text */
-    flex-shrink: 0; /* Prevent radio button from shrinking */
-    margin-top: 3px; /* Align radio button with text */
-}
-
-.saved-addresses-list .saved-address-option .address-title {
-    font-weight: bold;
-    flex-grow: 1; /* Allow title to take space */
-}
-
-.saved-addresses-list .saved-address-option .address-details {
-    font-size: 0.9em;
-    color: #555;
-    margin-top: 5px;
-    margin-left: 25px; /* Indent address details */
-}
-
-/* Style for the selected saved address option */
-.saved-addresses-list .saved-address-option input[type="radio"]:checked + .radio-checkmark {
-    background-color: #0073aa; /* Or your primary color */
-    border-color: #0073aa;
-}
-
-.saved-addresses-list .saved-address-option input[type="radio"]:checked + .radio-checkmark::after {
-    display: block;
-}
-
-
-.no-saved-addresses {
-    font-style: italic;
-    color: #888;
-    padding: 15px;
-    border: 1px dashed #ddd;
-    border-radius: 8px;
-    text-align: center;
-}
-
-/* Styling for the new address fields section */
-.shipping-address-new-fields,
-.billing-address-new-fields {
-     border-top: 1px dashed #ddd; /* Optional separator */
-     padding-top: 20px;
-     margin-top: 20px;
-     /* Add transition for smooth show/hide if desired */
-     /* transition: opacity 0.3s ease-in-out; */
-}
-
-.billing-address-same-as-shipping {
-    font-style: italic;
-    color: #555;
-    margin-bottom: 20px;
-    padding: 15px;
-    border: 1px solid #eee;
-    border-radius: 8px;
-}
-
-/* Form Field Styling (basic, assuming your theme/plugin has more) */
-.form-row {
-    margin-bottom: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px; /* Space between fields in a row */
-}
-
-.form-field {
-    flex-grow: 1;
-    min-width: 150px; /* Minimum width for form fields */
-}
-
-.form-field.half-width {
-    flex-basis: calc(50% - 7.5px); /* Adjust for gap */
-}
-
-.form-field.full-width {
-    flex-basis: 100%;
-}
-
-.form-field label {
-    display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
-    color: #333;
-}
-
-.form-field input[type="text"],
-.form-field input[type="email"],
-.form-field input[type="tel"],
-.form-field select,
-.form-field textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    box-sizing: border-box; /* Include padding and border in element's total width and height */
-}
-
-.form-field input[type="checkbox"] {
-    margin-right: 5px;
-}
-
-.form-field .required {
-    color: red;
-    margin-left: 2px;
+    margin-bottom: 0; /* No extra margin inside the option */
 }
 
 /* Custom Radio/Checkbox Styling (if not using browser defaults) */
-/* Example for .radio-container and .checkbox-container */
+/* Example for .radio-container and .checkbox-container - adapted from original CSS */
 .radio-container,
 .checkbox-container {
     display: block;
@@ -364,8 +307,8 @@
 /* When the radio button is checked, add a blue background */
 .radio-container input:checked ~ .radio-checkmark,
 .checkbox-container input:checked ~ .checkmark {
-    background-color: #0073aa; /* Or your primary color */
-    border-color: #0073aa;
+    background-color: #0070f3; /* Adjusted color */
+    border-color: #0070f3; /* Adjusted color */
 }
 
 /* Create the indicator (dot/check) inside the radio/checkbox */
@@ -405,38 +348,290 @@
     transform: rotate(45deg);
 }
 
-/* Stripe Card Element Styling */
-.stripe-card-element {
-    padding: 10px 12px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+
+.saved-addresses-list .saved-address-option .address-title {
+    font-weight: bold;
+    flex-grow: 1; /* Allow title to take space */
+    margin-bottom: 5px;
+    color: #0070f3; /* Example color */
+}
+
+.saved-addresses-list .saved-address-option .address-details {
+    font-size: 0.9em;
+    color: #555;
+    margin-top: 5px;
+    margin-left: 25px; /* Indent address details (align with text after radio) */
+    line-height: 1.4;
+}
+
+.no-saved-addresses {
+    font-style: italic;
+    color: #888;
+    padding: 15px;
+    border: 1px dashed #ddd;
+    border-radius: 8px;
+    text-align: center;
     background-color: #fff;
 }
 
-#yprint-stripe-card-errors {
-    color: #fa755a;
-    margin-top: 10px;
-    font-size: 0.9em;
+/* Styling for the new address fields section */
+.shipping-address-new-fields,
+.billing-address-new-fields {
+     border-top: 1px dashed #ddd; /* Optional separator */
+     padding-top: 20px;
+     margin-top: 20px;
+     /* Add transition for smooth show/hide if desired */
+     /* transition: opacity 0.3s ease-in-out; */
 }
 
-/* Checkout Button Styling */
+.billing-address-same-as-shipping {
+    font-style: italic;
+    color: #555;
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    background-color: #fff;
+}
+
+/* Form Field Styling (basic, assuming your theme/plugin has more) */
+.form-row {
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px; /* Space between fields in a row */
+}
+
+.form-field {
+    flex-grow: 1;
+    min-width: 150px; /* Minimum width for form fields */
+}
+
+.form-field.half-width {
+    flex-basis: calc(50% - 7.5px); /* Adjust for gap */
+}
+
+.form-field.full-width {
+    flex-basis: 100%;
+}
+
+.form-field label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: #333;
+    font-size: 0.9em; /* Slightly smaller label font */
+}
+
+.form-field input[type="text"],
+.form-field input[type="email"],
+.form-field input[type="tel"],
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+    background-color: #fff; /* White background */
+    font-size: 1em;
+}
+.form-field textarea {
+     min-height: 80px; /* Minimum height for textarea */
+     resize: vertical; /* Allow vertical resizing */
+}
+
+
+.form-field .required {
+    color: red;
+    margin-left: 2px;
+}
+
+/* Shipping Method Styling */
+.shipping-methods-list {
+    margin-bottom: 20px;
+}
+.shipping-method {
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    background-color: #fff;
+}
+.shipping-method .radio-container {
+    margin-bottom: 0; /* No extra space inside the option */
+}
+.shipping-method-label {
+    font-size: 1em;
+}
+.no-shipping-methods {
+     font-style: italic;
+     color: #888;
+     padding: 15px;
+     border: 1px dashed #ddd;
+     border-radius: 8px;
+     text-align: center;
+     background-color: #fff;
+}
+
+
+/* Separate Billing Checkbox Styling */
+.separate-billing-address-checkbox {
+     margin-top: 20px;
+     padding-top: 15px;
+     border-top: 1px dashed #ddd;
+}
+.separate-billing-address-checkbox label {
+    font-weight: normal; /* Label not bold */
+    color: #111;
+     font-size: 1em; /* Normal font size */
+}
+
+
+/* Express Checkout & Wallet Buttons Styling */
+.express-checkout h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    color: #333;
+}
+.wallet-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap; /* Allow wrapping */
+}
+.wallet-button {
+    flex-grow: 1; /* Distribute space evenly */
+    text-align: center; /* Center text */
+    border: 1px solid #ccc;
+    border-radius: 0.75rem;
+    padding: 0.75rem 1rem; /* More vertical padding */
+    background: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+.wallet-button:hover {
+    background-color: #f0f0f0;
+}
+/* Hide the default credit card section and separator if PRB is available */
+#yprint-stripe-payment-request-wrapper:not(:empty) + .payment-method-separator,
+#yprint-stripe-payment-request-wrapper:not(:empty) ~ .credit-card-section {
+    display: none;
+}
+
+
+/* Separator Styling */
+.payment-method-separator {
+    text-align: center;
+    margin: 30px 0; /* More space around separator */
+    position: relative;
+    line-height: 1em;
+    color: #888; /* Color for the "OR" text */
+}
+
+.payment-method-separator span {
+    background-color: #f7f8fc; /* Match background of the form area */
+    padding: 0 15px; /* More padding for the "OR" text */
+    position: relative;
+    z-index: 1;
+}
+
+.payment-method-separator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    border-top: 1px solid #ddd; /* Light grey line */
+    z-index: 0;
+}
+
+/* Card Input Section Styling */
+.credit-card-section {
+     margin-top: 20px; /* Space above card section */
+}
+.card-input-section { /* Used in the static example, not directly in PHP template */
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin-bottom: 1.5rem; /* More space */
+    flex-wrap: wrap; /* Allow wrapping */
+}
+.card-input { /* Used in the static example, not directly in PHP template */
+    flex: 1;
+    border: 1px solid #ccc;
+    border-radius: 0.75rem;
+    padding: 0.75rem;
+    background-color: #f5f5f5;
+    color: #333; /* Darker color for input */
+    min-width: 200px; /* Minimum width for input */
+}
+ /* Style for Stripe card element container */
+#yprint-stripe-card-element {
+     padding: 10px 12px;
+     border: 1px solid #ccc;
+     border-radius: 4px;
+     background-color: #fff;
+     min-height: 40px; /* Minimum height for the element */
+     display: flex;
+     align-items: center; /* Vertically center content */
+     /* Remove placeholder text style here, let Stripe.js handle it */
+}
+#yprint-stripe-card-errors {
+     color: #fa755a;
+     margin-top: 5px;
+     font-size: 0.9em;
+}
+/* Style for the "Autofill" button if used */
+.credit-card-section .form-row:last-child button {
+     background-color: #072;
+     color: white;
+     border-radius: 0.75rem;
+     padding: 0.5rem 1rem;
+     border: none;
+     cursor: pointer;
+     flex-shrink: 0; /* Prevent shrinking */
+     margin-left: auto; /* Align right if in a flex row */
+     display: block; /* Ensure it's a block element */
+     margin-top: 5px; /* Space above the button */
+}
+
+
+/* Billing Checkbox Styling */
+.billing-checkbox { /* Used in the static example, not directly in PHP template */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+}
+ .billing-checkbox label {
+     font-weight: normal; /* Label not bold */
+     color: #111;
+     font-size: 1em; /* Normal size */
+ }
+
+
+/* Place Order Button Styling */
 .checkout-button {
     display: block;
     width: 100%;
-    padding: 15px;
-    background-color: #0073aa; /* Or your primary color */
-    color: #fff;
+    background-color: #0070f3; /* Example color */
+    color: white;
+    font-size: 1.2rem;
+    padding: 0.9rem 2.5rem;
     border: none;
-    border-radius: 4px;
-    font-size: 1.2em;
+    border-radius: 1.25rem;
     cursor: pointer;
-    transition: background-color 0.3s ease-in-out;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    margin-top: 30px; /* Space above the button */
 }
-
 .checkout-button:hover {
-    background-color: #005177; /* Darker shade on hover */
+    background-color: #0056b3; /* Darker color on hover */
 }
-
 .checkout-button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
@@ -454,6 +649,7 @@
     border-radius: 4px;
     padding: 15px;
     margin-bottom: 15px;
+    word-break: break-word; /* Prevent overflow */
 }
 
 .yprint-checkout-processing {
@@ -466,8 +662,17 @@
      text-align: center;
      font-weight: bold;
 }
+.yprint-checkout-success {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
 
-/* Validation Error Class */
+/* Validation Error Class (applied by JS) */
 .yprint-checkout-invalid {
     border-color: #fa755a !important; /* Highlight invalid fields */
 }
+
