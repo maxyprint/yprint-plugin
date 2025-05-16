@@ -58,50 +58,63 @@ $progress_percentage = (($current_step_number - 1) / (count($steps) - 1)) * 100;
     
     <!-- Checkout Header & Progress -->
     <div class="yprint-checkout-header">
-        <div class="yprint-progress-container">
-            <div class="yprint-progress-bar">
-                <div class="yprint-progress-track">
-                    <div class="yprint-progress-fill" style="width: <?php echo esc_attr($progress_percentage); ?>%"></div>
-                </div>
-            </div>
+    <div class="yprint-progress-container card">
+    <div class="yprint-progress-steps">
+        <?php foreach ($steps as $step_key => $step_number) : 
+            $step_active = ($current_step === $step_key) ? ' active' : '';
+            $step_completed = ($step_number < $current_step_number) ? ' completed' : '';
+            $step_class = 'yprint-progress-step' . $step_active . $step_completed;
+            $step_url = add_query_arg('step', $step_key);
             
-            <div class="yprint-progress-steps">
-                <?php foreach ($steps as $step_key => $step_number) : 
-                    $step_active = ($current_step === $step_key) ? ' active' : '';
-                    $step_completed = ($step_number < $current_step_number) ? ' completed' : '';
-                    $step_class = 'yprint-progress-step' . $step_active . $step_completed;
-                    $step_url = add_query_arg('step', $step_key);
-                    
-                    // Only make completed steps clickable
-                    $step_link = ($step_completed) ? $step_url : '#';
-                    $step_clickable = ($step_completed) ? '' : ' not-clickable';
-                ?>
-                <div class="<?php echo esc_attr($step_class . $step_clickable); ?>" data-step="<?php echo esc_attr($step_number); ?>">
-                    <a href="<?php echo esc_url($step_link); ?>" class="yprint-step-link">
-                        <div class="yprint-step-indicator"><?php echo esc_html($step_number); ?></div>
-                        <div class="yprint-step-label">
-                            <?php 
-                            switch ($step_key) {
-                                case 'address':
-                                    echo 'Adresse';
-                                    break;
-                                case 'payment':
-                                    echo 'Zahlung';
-                                    break;
-                                case 'confirmation':
-                                    echo 'Bestätigung';
-                                    break;
-                                default:
-                                    echo esc_html(ucfirst($step_key));
-                            }
-                            ?>
-                        </div>
-                    </a>
+            // Only make completed steps clickable
+            $step_link = ($step_completed) ? $step_url : '#';
+            $step_clickable = ($step_completed) ? '' : ' not-clickable';
+            
+            // Icon für jeden Schritt
+            $step_icon = '';
+            switch ($step_key) {
+                case 'address':
+                    $step_icon = '<i class="fas fa-map-marker-alt"></i>';
+                    break;
+                case 'payment':
+                    $step_icon = '<i class="fas fa-credit-card"></i>';
+                    break;
+                case 'confirmation':
+                    $step_icon = '<i class="fas fa-check-circle"></i>';
+                    break;
+            }
+        ?>
+        <div class="<?php echo esc_attr($step_class . $step_clickable); ?>" data-step="<?php echo esc_attr($step_number); ?>">
+            <a href="<?php echo esc_url($step_link); ?>" class="yprint-step-link">
+                <div class="yprint-step-circle">
+                    <?php if ($step_completed): ?>
+                        <i class="fas fa-check"></i>
+                    <?php else: ?>
+                        <?php echo $step_number; ?>
+                    <?php endif; ?>
                 </div>
-                <?php endforeach; ?>
-            </div>
+                <div class="yprint-step-label">
+                    <?php 
+                    switch ($step_key) {
+                        case 'address':
+                            echo 'Adresse';
+                            break;
+                        case 'payment':
+                            echo 'Zahlung';
+                            break;
+                        case 'confirmation':
+                            echo 'Bestätigung';
+                            break;
+                        default:
+                            echo esc_html(ucfirst($step_key));
+                    }
+                    ?>
+                </div>
+            </a>
         </div>
+        <?php endforeach; ?>
     </div>
+</div>
     
     <!-- Checkout Content -->
     <div class="yprint-checkout-content">
@@ -119,6 +132,18 @@ $progress_percentage = (($current_step_number - 1) / (count($steps) - 1)) * 100;
         
         <div class="yprint-checkout-sidebar">
             <?php include(YPRINT_PLUGIN_DIR . 'templates/partials/checkout-cart-summary.php'); ?>
+        </div>
+    </div>
+    
+    <!-- Checkout Footer -->
+    <div class="yprint-checkout-footer">
+        <div class="yprint-secure-info">
+            <i class="fas fa-lock"></i> Sicherer Checkout mit SSL-Verschlüsselung
+        </div>
+        <div class="yprint-footer-links">
+            <a href="<?php echo esc_url(get_permalink(wc_get_page_id('terms'))); ?>">AGB</a> |
+            <a href="<?php echo esc_url(get_privacy_policy_url()); ?>">Datenschutz</a> |
+            <a href="<?php echo esc_url(get_permalink(get_page_by_path('faq'))); ?>">FAQ</a>
         </div>
     </div>
 </div>

@@ -765,3 +765,21 @@ class YPrint_Stripe_Checkout_Shortcode {
 
 // Initialize the class
 YPrint_Stripe_Checkout_Shortcode::get_instance();
+
+// Register and enqueue FontAwesome
+wp_register_style(
+    'font-awesome',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css',
+    array(),
+    '5.15.4'
+);
+wp_enqueue_style('font-awesome');
+
+// Register and enqueue our styles
+wp_register_style(
+    'yprint-checkout',
+    YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout.css',
+    array('font-awesome'),
+    YPRINT_PLUGIN_VERSION
+);
+wp_enqueue_style('yprint-checkout');

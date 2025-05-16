@@ -20,45 +20,46 @@
 
 /* Header and Progress Styles */
 .yprint-checkout-header {
-    margin-bottom: 40px;
+    margin-bottom: 30px;
 }
 
 .yprint-progress-container {
-    position: relative;
-    padding: 0 20px;
-}
-
-.yprint-progress-bar {
-    margin: 40px 0 20px;
-}
-
-.yprint-progress-track {
-    position: relative;
-    height: 4px;
-    background-color: #e5e5e5;
-    border-radius: 2px;
-}
-
-.yprint-progress-fill {
-    position: absolute;
-    height: 100%;
-    background-color: #0079FF;
-    border-radius: 2px;
-    transition: width 0.3s ease;
-    width: 0%;
+    background-color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border-radius: 16px;
+    padding: 20px;
+    border: 1px solid #e5e5e5;
+    margin-bottom: 25px;
 }
 
 .yprint-progress-steps {
     display: flex;
     justify-content: space-between;
     position: relative;
-    margin-top: -12px;
 }
 
 .yprint-progress-step {
     flex: 1;
     text-align: center;
     position: relative;
+    z-index: 2;
+}
+
+/* Linie zwischen den Schritten */
+.yprint-progress-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 15px;
+    left: calc(50% + 15px);
+    width: calc(100% - 30px);
+    height: 2px;
+    background-color: #e5e5e5;
+    z-index: 1;
+}
+
+.yprint-progress-step.active:not(:last-child)::after,
+.yprint-progress-step.completed:not(:last-child)::after {
+    background-color: #0079FF;
 }
 
 .yprint-step-link {
@@ -74,7 +75,7 @@
     pointer-events: none;
 }
 
-.yprint-step-indicator {
+.yprint-step-circle {
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -84,14 +85,23 @@
     align-items: center;
     justify-content: center;
     font-weight: 600;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     transition: all 0.3s ease;
+    border: 2px solid transparent;
+    position: relative;
+    z-index: 2;
 }
 
-.yprint-progress-step.active .yprint-step-indicator,
-.yprint-progress-step.completed .yprint-step-indicator {
+.yprint-progress-step.active .yprint-step-circle {
     background-color: #0079FF;
     color: white;
+    border-color: #0079FF;
+}
+
+.yprint-progress-step.completed .yprint-step-circle {
+    background-color: #0079FF;
+    color: white;
+    border-color: #0079FF;
 }
 
 .yprint-step-label {
@@ -99,6 +109,7 @@
     font-size: 14px;
     font-weight: 500;
     transition: color 0.3s ease;
+    white-space: nowrap;
 }
 
 .yprint-progress-step.active .yprint-step-label {
@@ -108,6 +119,12 @@
 
 .yprint-progress-step.completed .yprint-step-label {
     color: #0079FF;
+}
+
+@media (max-width: 480px) {
+    .yprint-step-label {
+        font-size: 12px;
+    }
 }
 
 /* Main Content Layout */
