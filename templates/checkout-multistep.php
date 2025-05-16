@@ -352,50 +352,77 @@ add_filter( 'body_class', function( $classes ) {
 <div class="yprint-checkout-layout">
     <div class="yprint-checkout-main-content">
         <div class="card">
-            <?php // Lade den entsprechenden Schritt basierend auf $current_step_slug ?>
-            <?php
-            switch ($current_step_slug) {
-                case 'address':
-                    include( $partials_dir . 'checkout-step-address.php' );
-                    break;
-                    case 'payment':
-                        // Erzwinge einen einfachen Test-Output
-                        echo '<div class="checkout-step active" id="step-2">';
-                        echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('TEST: Zahlungsart wählen', 'yprint-checkout') . '</h2>';
-                        echo '<p class="mt-4">' . esc_html__('Dies ist ein Test-Ausgabe für den Zahlungsschritt.', 'yprint-checkout') . '</p>';
-                        
-                        // Debug-Info hinzufügen
-                        echo '<p class="bg-gray-100 p-4 mt-4 text-sm">';
-                        echo 'Partials Dir: ' . esc_html($partials_dir) . '<br>';
-                        echo 'File Exists: ' . (file_exists($partials_dir . 'checkout-step-payment.php') ? 'Ja' : 'Nein') . '<br>';
-                        echo 'Current Step: ' . esc_html($current_step_slug) . '<br>';
-                        echo '</p>';
-                        
-                        echo '</div>';
-                        
-                        error_log('Manual test output for payment step');
-                        break;
-                case 'confirmation':
-                    include( $partials_dir . 'checkout-step-confirmation.php' );
-                    break;
-                case 'thankyou':
-                    // Die "Danke"-Seite ist jetzt Teil der Haupt-Switch-Case Logik
-                    if (file_exists($partials_dir . 'checkout-step-thankyou.php')) {
-                        include( $partials_dir . 'checkout-step-thankyou.php' );
-                    } else {
-                        // Fallback für Danke-Seite, falls die Datei nicht existiert
-                        echo '<div id="step-4-thankyou" class="checkout-step active text-center">';
-                        echo '<i class="fas fa-check-circle text-6xl text-yprint-success mb-6"></i>';
-                        echo '<h2 class="text-3xl font-bold">' . esc_html__('Vielen Dank für Ihre Bestellung!', 'yprint-checkout') . '</h2>';
-                        echo '</div>';
-                    }
-                    break;
-                default:
-                    // Fallback, falls ein ungültiger Schritt angegeben wurde
-                    include( $partials_dir . 'checkout-step-address.php' );
-                    break;
-            }
-            ?>
+        <?php // Lade den entsprechenden Schritt basierend auf $current_step_slug ?>
+<?php
+// Debug-Information ausgeben
+$payment_file = $partials_dir . 'checkout-step-payment.php';
+$payment_file_exists = file_exists($payment_file);
+$payment_file_readable = is_readable($payment_file);
+
+error_log('Debug Checkout Steps:');
+error_log('Current Step: ' . $current_step_slug);
+error_log('Payment Step File: ' . $payment_file);
+error_log('Payment File Exists: ' . ($payment_file_exists ? 'Yes' : 'No'));
+error_log('Payment File Readable: ' . ($payment_file_readable ? 'Yes' : 'No'));
+
+// Output visible debug info (remove in production)
+echo '<!-- Debug Info: 
+Current Step: ' . $current_step_slug . '
+Payment Step File: ' . $payment_file . '
+File Exists: ' . ($payment_file_exists ? 'Yes' : 'No') . '
+-->';
+
+switch ($current_step_slug) {
+    case 'address':
+        include( $partials_dir . 'checkout-step-address.php' );
+        break;
+    case 'payment':
+        if ($payment_file_exists && $payment_file_readable) {
+            // Manuell den Inhalt einbinden und aktiv setzen
+            echo '<div id="step-2" class="checkout-step active">'; // Klasse 'active' explizit hinzufügen
+            include( $payment_file );
+            echo '</div>';
+        } else {
+            // Fallback-Inhalt anzeigen
+            echo '<div id="step-2" class="checkout-step active">';
+            echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('Zahlungsart wählen', 'yprint-checkout') . '</h2>';
+            echo '<p>Die Zahlungsoption konnte nicht geladen werden. Bitte versuche es später erneut oder kontaktiere den Support.</p>';
+            echo '<p class="text-sm text-red-600">Technische Information: Datei nicht gefunden oder nicht lesbar.</p>';
+            
+            // Buttons zum Navigieren trotzdem anbieten
+            echo '<div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">';
+            echo '<button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">';
+            echo '<i class="fas fa-arrow-left mr-2"></i> ' . esc_html__('Zurück zur Adresse', 'yprint-checkout');
+            echo '</button>';
+            echo '<button type="button" id="btn-to-confirmation" class="btn btn-primary w-full md:w-auto order-1 md:order-2">';
+            echo esc_html__('Weiter zur Bestätigung', 'yprint-checkout') . ' <i class="fas fa-arrow-right ml-2"></i>';
+            echo '</button>';
+            echo '</div>';
+            
+            echo '</div>';
+        }
+        break;
+    case 'confirmation':
+        include( $partials_dir . 'checkout-step-confirmation.php' );
+        break;
+    case 'thankyou':
+        // Die "Danke"-Seite ist jetzt Teil der Haupt-Switch-Case Logik
+        if (file_exists($partials_dir . 'checkout-step-thank-you.php')) {
+            include( $partials_dir . 'checkout-step-thank-you.php' );
+        } else {
+            // Fallback für Danke-Seite, falls die Datei nicht existiert
+            echo '<div id="step-4-thankyou" class="checkout-step active text-center">';
+            echo '<i class="fas fa-check-circle text-6xl text-yprint-success mb-6"></i>';
+            echo '<h2 class="text-3xl font-bold">' . esc_html__('Vielen Dank für Ihre Bestellung!', 'yprint-checkout') . '</h2>';
+            echo '</div>';
+        }
+        break;
+    default:
+        // Fallback, falls ein ungültiger Schritt angegeben wurde
+        include( $partials_dir . 'checkout-step-address.php' );
+        break;
+}
+?>
         </div>
     </div>
 
@@ -428,4 +455,31 @@ add_filter( 'body_class', function( $classes ) {
 <div id="loading-overlay" class="hidden">
     <div class="spinner"></div>
     <p class="text-lg text-yprint-black"><?php esc_html_e('Ihre Bestellung wird verarbeitet...', 'yprint-checkout'); ?></p>
+
+    <?php if (current_user_can('administrator') && isset($_GET['debug'])) : ?>
+<div style="margin-top: 30px; padding: 10px; background: #f8f8f8; border: 1px solid #ddd; font-family: monospace;">
+    <h3>Debug Info:</h3>
+    <p>Current Step: <?php echo esc_html($current_step_slug); ?></p>
+    <p>Partials Dir: <?php echo esc_html($partials_dir); ?></p>
+    <p>Payment Step File: <?php echo esc_html($partials_dir . 'checkout-step-payment.php'); ?></p>
+    <p>File Exists: <?php echo file_exists($partials_dir . 'checkout-step-payment.php') ? 'Yes' : 'No'; ?></p>
+    <h4>Active Steps:</h4>
+    <ul id="debug-steps"></ul>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const activeSteps = document.querySelectorAll('.checkout-step.active');
+            const debugList = document.getElementById('debug-steps');
+            if (activeSteps.length === 0) {
+                debugList.innerHTML = '<li>No active steps found!</li>';
+            } else {
+                activeSteps.forEach(step => {
+                    const li = document.createElement('li');
+                    li.textContent = `#${step.id} - Display: ${getComputedStyle(step).display}`;
+                    debugList.appendChild(li);
+                });
+            }
+        });
+    </script>
+</div>
+<?php endif; ?>
 </div>

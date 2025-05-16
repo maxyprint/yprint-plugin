@@ -357,3 +357,31 @@ body.yprint-checkout-page { /* Spezifische Klasse für Checkout-Seiten-Body */
 .checkout-step.active {
     display: block; /* Nur anzeigen, wenn aktiv */
 }
+
+/* Explizite Anzeige für den Zahlungsschritt */
+#step-2.active,
+#step-2.checkout-step.active {
+    display: block !important;
+}
+
+/* Allgemeine Debug-Hilfe */
+.debug-outline {
+    outline: 2px solid red !important;
+}
+
+/* Verbesserung für die Sichtbarkeit von Kontrollbereichen */
+.form-radio, .form-checkbox {
+    width: 20px !important;
+    height: 20px !important;
+    min-width: 20px !important;
+    min-height: 20px !important;
+}
+
+/* Sicherstellen, dass die Zahlungsmethoden-Labels klickbar sind */
+label.flex.items-center {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+label.flex.items-center:hover {
+    border-color: var(--yprint-blue) !important;
+}

@@ -48,85 +48,109 @@ $available_payment_methods = array(
 $default_payment_method = 'paypal'; // Standardmäßig vorausgewählt
 
 ?>
-<div id="step-2" class="checkout-step">  <?php // 'active' Klasse wird serverseitig oder per JS initial gesetzt ?>
-    <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
-    
-    <?php // Optional: Express Checkout Buttons (Apple Pay, Google Pay via Stripe Payment Request Button) ?>
-    <div id="payment-request-button" class="my-4">
-        <?php // Dieser Container wird von yprint-stripe-checkout.js befüllt, falls Express Checkout verfügbar ist. ?>
+<?php
+/**
+ * Partial Template: Schritt 2 - Zahlungsart wählen.
+ *
+ * Benötigt:
+ * $cart_totals_data (array) - Array mit Warenkorbsummen
+ */
+
+// Direktaufruf verhindern
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+// Debug-Ausgabe
+error_log('Loading payment step template from: ' . __FILE__);
+
+// $cart_totals_data sollte von checkout-multistep.php übergeben werden
+// oder hier direkt von WooCommerce geladen werden.
+if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
+    $cart_totals_data = array( /* Standard-Summen, siehe checkout-cart-summary.php */ );
+}
+
+// WICHTIG: Kein umschließendes div-Element mehr, da es bereits in checkout-multistep.php hinzugefügt wird
+?>
+<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
+
+<?php // Optional: Express Checkout Buttons (Apple Pay, Google Pay via Stripe Payment Request Button) ?>
+<div id="payment-request-button" class="my-4">
+    <?php // Dieser Container wird von yprint-stripe-checkout.js befüllt, falls Express Checkout verfügbar ist. ?>
+</div>
+
+<form id="payment-form" class="space-y-6 mt-6">
+    <div class="space-y-3">
+        <p class="font-medium"><?php esc_html_e('Verfügbare Zahlungsarten:', 'yprint-checkout'); ?></p>
+        
+        <!-- PayPal -->
+        <div>
+            <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
+                <input type="radio" name="payment_method" value="paypal" class="form-radio h-5 w-5 text-yprint-blue mr-3" checked>
+                <i class="fab fa-paypal fa-fw text-2xl mr-3 text-[#00457C]"></i>
+                PayPal
+            </label>
+        </div>
+        
+        <!-- Kreditkarte -->
+        <div>
+            <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
+                <input type="radio" name="payment_method" value="creditcard" class="form-radio h-5 w-5 text-yprint-blue mr-3">
+                <i class="fas fa-credit-card fa-fw text-2xl mr-3 text-gray-600"></i>
+                <?php esc_html_e('Kreditkarte', 'yprint-checkout'); ?>
+            </label>
+            <!-- Hier könnte ein spezieller Container für Stripe Card Elements sein -->
+        </div>
     </div>
 
-    <form id="payment-form" class="space-y-6 mt-6">
-        <div class="space-y-3">
-            <p class="font-medium"><?php esc_html_e('Verfügbare Zahlungsarten:', 'yprint-checkout'); ?></p>
-            <?php foreach ($available_payment_methods as $key => $method) : ?>
-                <div>
-                    <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
-                        <input type="radio" name="payment_method" value="<?php echo esc_attr($key); ?>" class="form-radio h-5 w-5 text-yprint-blue mr-3" <?php checked($key, $default_payment_method); ?>>
-                        <?php if (isset($method['icon_class'])) : ?>
-                            <i class="<?php echo esc_attr($method['icon_class']); ?> fa-fw text-2xl mr-3 <?php echo esc_attr($method['icon_color'] ?? ''); ?>"></i>
-                        <?php elseif (isset($method['svg_path'])) : ?>
-                            <svg viewBox="0 0 496 156" class="klarna-logo-svg" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="<?php echo esc_attr($method['svg_path']); ?>" fill="<?php echo esc_attr($method['svg_fill']); ?>"></path>
-                            </svg>
-                        <?php endif; ?>
-                        <?php echo esc_html($method['title']); ?>
-                    </label>
-                    <?php // Spezieller Container für Stripe Card Element, falls diese Methode gewählt wird ?>
-                    <?php if ($key === 'stripe_credit_card' && isset($method['element_id'])) : ?>
-                        <div id="<?php echo esc_attr($method['element_id']); ?>" class="stripe-payment-element-container mt-2 p-3 border border-yprint-border-gray rounded-lg <?php echo ($default_payment_method !== 'stripe_credit_card') ? 'hidden' : ''; ?>">
-                            <?php // Das Stripe Card Element wird hier von yprint-stripe-checkout.js gemountet. ?>
-                        </div>
-                        <div id="stripe-card-errors" role="alert" class="text-yprint-error text-sm mt-1"></div>
-                    <?php endif; ?>
-                </div>
-            <?php endforeach; ?>
+    <!-- Warenkorb-Zusammenfassung -->
+    <div class="mt-6 border-t border-yprint-medium-gray pt-6">
+        <h3 class="text-lg font-semibold mb-2"><?php esc_html_e('Gesamtübersicht', 'yprint-checkout'); ?></h3>
+        <!-- Preisdetails -->
+        <div class="flex justify-between text-lg">
+            <span><?php esc_html_e('Zwischensumme:', 'yprint-checkout'); ?></span>
+            <span id="subtotal-price">€<?php echo isset($cart_totals_data['subtotal']) ? esc_html(number_format_i18n($cart_totals_data['subtotal'], 2)) : '0,00'; ?></span>
         </div>
-
-        <div class="mt-6 border-t border-yprint-medium-gray pt-6">
-            <h3 class="text-lg font-semibold mb-2"><?php esc_html_e('Gesamtübersicht', 'yprint-checkout'); ?></h3>
-            <div class="flex justify-between text-lg">
-                <span><?php esc_html_e('Zwischensumme:', 'yprint-checkout'); ?></span>
-                <span id="subtotal-price">€<?php echo esc_html(number_format_i18n($cart_totals_data['subtotal'], 2)); ?></span>
-            </div>
-            <div class="flex justify-between text-lg">
-                <span><?php esc_html_e('Versandkosten:', 'yprint-checkout'); ?></span>
-                <span id="shipping-price">€<?php echo esc_html(number_format_i18n($cart_totals_data['shipping'], 2)); ?></span>
-            </div>
-            <?php if ($cart_totals_data['discount'] > 0) : ?>
-            <div class="flex justify-between text-lg text-yprint-success">
-                <span><?php esc_html_e('Rabatt:', 'yprint-checkout'); ?></span>
-                <span id="discount-price">-€<?php echo esc_html(number_format_i18n($cart_totals_data['discount'], 2)); ?></span>
-            </div>
-            <?php endif; ?>
-            <div class="flex justify-between text-xl font-bold mt-2 text-yprint-blue">
-                <span><?php esc_html_e('Gesamtpreis:', 'yprint-checkout'); ?></span>
-                <span id="total-price-payment">€<?php echo esc_html(number_format_i18n($cart_totals_data['total'], 2)); ?></span>
-            </div>
+        <div class="flex justify-between text-lg">
+            <span><?php esc_html_e('Versandkosten:', 'yprint-checkout'); ?></span>
+            <span id="shipping-price">€<?php echo isset($cart_totals_data['shipping']) ? esc_html(number_format_i18n($cart_totals_data['shipping'], 2)) : '0,00'; ?></span>
         </div>
-
-        <div class="mt-4">
-            <label for="voucher" class="form-label"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
-            <div class="flex">
-                <input type="text" id="voucher" name="voucher_code" class="form-input rounded-r-none" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
-                <button type="button" class="btn btn-secondary rounded-l-none whitespace-nowrap">
-                    <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
-                </button>
-            </div>
-            <p id="voucher-feedback" class="text-sm mt-1"></p>
+        <?php if (isset($cart_totals_data['discount']) && $cart_totals_data['discount'] > 0) : ?>
+        <div class="flex justify-between text-lg text-yprint-success">
+            <span><?php esc_html_e('Rabatt:', 'yprint-checkout'); ?></span>
+            <span id="discount-price">-€<?php echo esc_html(number_format_i18n($cart_totals_data['discount'], 2)); ?></span>
         </div>
-
-        <div class="mt-6 p-3 bg-yprint-info rounded-lg text-sm text-yprint-text-secondary">
-            <i class="fas fa-lock mr-2"></i> <?php esc_html_e('Ihre Daten werden SSL-verschlüsselt übertragen. Sicher einkaufen!', 'yprint-checkout'); ?>
+        <?php endif; ?>
+        <div class="flex justify-between text-xl font-bold mt-2 text-yprint-blue">
+            <span><?php esc_html_e('Gesamtpreis:', 'yprint-checkout'); ?></span>
+            <span id="total-price-payment">€<?php echo isset($cart_totals_data['total']) ? esc_html(number_format_i18n($cart_totals_data['total'], 2)) : '0,00'; ?></span>
         </div>
+    </div>
 
-        <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">
-                <i class="fas fa-arrow-left mr-2"></i> <?php esc_html_e('Zurück zur Adresse', 'yprint-checkout'); ?>
-            </button>
-            <button type="button" id="btn-to-confirmation" class="btn btn-primary w-full md:w-auto order-1 md:order-2">
-                <?php esc_html_e('Weiter zur Bestätigung', 'yprint-checkout'); ?> <i class="fas fa-arrow-right ml-2"></i>
+    <!-- Gutscheincode -->
+    <div class="mt-4">
+        <label for="voucher" class="form-label"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
+        <div class="flex">
+            <input type="text" id="voucher" name="voucher_code" class="form-input rounded-r-none" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
+            <button type="button" class="btn btn-secondary rounded-l-none whitespace-nowrap">
+                <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
             </button>
         </div>
-    </form>
-</div>
+        <p id="voucher-feedback" class="text-sm mt-1"></p>
+    </div>
+
+    <!-- Sicherheitshinweis -->
+    <div class="mt-6 p-3 bg-yprint-info rounded-lg text-sm text-yprint-text-secondary">
+        <i class="fas fa-lock mr-2"></i> <?php esc_html_e('Ihre Daten werden SSL-verschlüsselt übertragen. Sicher einkaufen!', 'yprint-checkout'); ?>
+    </div>
+
+    <!-- Navigation Buttons -->
+    <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">
+            <i class="fas fa-arrow-left mr-2"></i> <?php esc_html_e('Zurück zur Adresse', 'yprint-checkout'); ?>
+        </button>
+        <button type="button" id="btn-to-confirmation" class="btn btn-primary w-full md:w-auto order-1 md:order-2">
+            <?php esc_html_e('Weiter zur Bestätigung', 'yprint-checkout'); ?> <i class="fas fa-arrow-right ml-2"></i>
+        </button>
+    </div>
+</form>

@@ -99,9 +99,21 @@ document.addEventListener('DOMContentLoaded', function () {
      * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts.
      */
     function showStep(stepNumber) {
+        console.log("Showing step:", stepNumber); // Debugging
+        
+        // Aktiven Step setzen und sicherstellen, dass er sichtbar ist
         steps.forEach((stepEl, index) => {
-            stepEl.classList.toggle('active', index + 1 === stepNumber);
+            if (index + 1 === stepNumber) {
+                console.log("Activating step element:", stepEl.id);
+                stepEl.classList.add('active');
+                stepEl.style.display = 'block'; // Explizit auf 'block' setzen
+            } else {
+                stepEl.classList.remove('active');
+                stepEl.style.display = 'none'; // Explizit auf 'none' setzen
+            }
         });
+        
+        // Progress Bar aktualisieren
         progressSteps.forEach((pStep, index) => {
             pStep.classList.remove('active', 'completed');
             if (index < stepNumber - 1) {
@@ -110,8 +122,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 pStep.classList.add('active');
             }
         });
+        
+        // Aktuellen Schritt speichern
         currentStep = stepNumber;
-        window.scrollTo({ top: 0, behavior: 'smooth' }); // Sanft nach oben scrollen
+        
+        // Nach oben scrollen
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        // Debug: Ausgabe der aktiven Elemente nach dem Switch
+        console.log("Active elements:", document.querySelectorAll('.checkout-step.active'));
     }
 
     /**
