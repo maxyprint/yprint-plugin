@@ -68,15 +68,15 @@ $current_step_number = isset($checkout_steps_config[$current_step_slug]['number'
     width: 100%;
     max-width: 500px;
     margin: 0 auto;
-    padding: 20px 0;
+    padding: 15px 0;
     background-color: #fff;
     border-radius: 12px; /* Angepasst an andere Komponenten */
     border: 1px solid #DFDFDF; /* Einheitlicher Rahmen */
     --primary-color: #0079FF; /* Angepasst an YPrint-Blau */
     --completed-color: #28a745; /* Angepasst an YPrint-Success */
     --pending-color: #e5e5e5; /* Angepasst an YPrint-Medium-Gray */
-    --icon-bg-size: 60px;
-    --icon-font-size: 24px;
+    --icon-bg-size: 45px; /* Verkleinert von 60px */
+    --icon-font-size: 18px; /* Verkleinert von 24px */
 }
 
         .progress-step {
@@ -120,19 +120,19 @@ $current_step_number = isset($checkout_steps_config[$current_step_slug]['number'
         }
 
         .progress-label {
-            font-size: 0.75rem;
-            color: #333;
-            margin-top: 12px;
-            font-weight: 600;
-            opacity: 0.7;
-            transition: opacity 0.3s ease, color 0.3s ease;
-        }
+    font-size: 0.7rem; /* Verkleinert */
+    color: #333;
+    margin-top: 8px; /* Verkleinert von 12px */
+    font-weight: 600;
+    opacity: 0.7;
+    transition: opacity 0.3s ease, color 0.3s ease;
+}
 
-        /* Zustände */
-        .progress-step.completed .progress-circle {
-            background-color: var(--completed-color);
-            transform: scale(1.1);
-        }
+/* Zustände */
+.progress-step.completed .progress-circle {
+    background-color: var(--completed-color);
+    transform: scale(1.05); /* Reduziert von 1.1 */
+}
         .progress-step.completed .progress-circle i.fa-check {
             transform: scale(1.2);
         }
@@ -142,10 +142,10 @@ $current_step_number = isset($checkout_steps_config[$current_step_slug]['number'
         }
 
         .progress-step.active .progress-circle {
-            background-color: var(--primary-color);
-            transform: scale(1.2);
-            box-shadow: 0 0 15px rgba(var(--primary-color), 0.6);
-        }
+    background-color: var(--primary-color);
+    transform: scale(1.1); /* Reduziert von 1.2 */
+    box-shadow: 0 0 10px rgba(0, 121, 255, 0.4); /* Verkleinert und korrigiert */
+}
         .progress-step.active .progress-circle i {
             color: #fff;
         }

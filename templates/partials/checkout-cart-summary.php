@@ -32,15 +32,17 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 ?>
 
 <style>
-    /* Gesamtcontainer */
 .order-summary-bold-final {
     border: 1px solid #DFDFDF; /* Gleicher Rahmen wie andere Karten */
-    padding: 25px;
+    padding: 20px; /* Verkleinert von 25px */
     font-family: 'Roboto', sans-serif; /* Gleiche Schriftart wie der Rest des Checkouts */
     background-color: #ffffff; /* Hintergrund ist Weiß */
     border-radius: 12px; /* Gleicher Radius wie andere Karten */
     max-width: 350px; /* Optional: für bessere Lesbarkeit in einer Sidebar */
     margin: 0 auto; /* Optional: zum Zentrieren */
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 20px); /* Volle Höhe minus Margin */
 }
 
     /* Titel "Warenkorb" */
@@ -54,7 +56,7 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
     /* Container für Artikel */
     .items {
         margin-bottom: 20px;
-        max-height: 200px; /* Begrenzte Höhe für Scroll, falls viele Artikel */
+        max-height: 260px; /* Erhöht für bessere Anpassung an den Adressbereich */
         overflow-y: auto; /* Scrollbalken für viele Artikel */
         padding-right: 5px; /* Abstand für Scrollbalken, damit er nicht den Inhalt überlappt */
     }

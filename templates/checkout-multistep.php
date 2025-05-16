@@ -238,21 +238,24 @@ add_filter( 'body_class', function( $classes ) {
     }
 
     /* Layout spezifisches CSS */
-    .yprint-checkout-layout {
-        display: flex;
-        gap: 2rem; /* Abstand zwischen Hauptinhalt und Sidebar */
-        flex-wrap: wrap; /* Umbruch auf kleineren Bildschirmen */
-    }
+.yprint-checkout-layout {
+    display: flex;
+    gap: 2rem; /* Abstand zwischen Hauptinhalt und Sidebar */
+    flex-wrap: wrap; /* Umbruch auf kleineren Bildschirmen */
+    align-items: stretch; /* Gleiche Höhe für Kinder */
+}
 
-    .yprint-checkout-main-content {
-        flex: 2; /* Nimmt mehr Platz ein */
-        min-width: 300px; /* Mindestbreite, bevor der Umbruch erfolgt */
-    }
+.yprint-checkout-main-content {
+    flex: 2; /* Nimmt mehr Platz ein */
+    min-width: 300px; /* Mindestbreite, bevor der Umbruch erfolgt */
+}
 
-    .yprint-checkout-sidebar {
-        flex: 1; /* Nimmt weniger Platz ein */
-        min-width: 280px; /* Mindestbreite der Sidebar */
-    }
+.yprint-checkout-sidebar {
+    flex: 1; /* Nimmt weniger Platz ein */
+    min-width: 280px; /* Mindestbreite der Sidebar */
+    display: flex;
+    flex-direction: column;
+}
 
     /* Responsiveness für kleinere Bildschirme */
     @media (max-width: 768px) {
