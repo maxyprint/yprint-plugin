@@ -585,6 +585,7 @@ function updateCartTotalsDisplay(container) {
     `;
 }
 
+
 // Beispiel für ein globales Objekt für AJAX-Aufrufe (Platzhalter)
 // const YPrintAJAX = {
 //     saveAddress: function(shippingData, billingData) {

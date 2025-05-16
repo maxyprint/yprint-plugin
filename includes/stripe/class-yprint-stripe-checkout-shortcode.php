@@ -222,16 +222,165 @@ wp_enqueue_style(
     }
 
     /**
-     * AJAX handler for saving address
-     */
-    public function ajax_save_address() {
-        check_ajax_referer('yprint_checkout_nonce', 'nonce');
-        
-        // This is just a placeholder - implement the actual logic according to your needs
-        wp_send_json_success(array(
-            'message' => __('Address saved successfully', 'yprint-plugin')
+ * AJAX handler for saving address
+ */
+public function ajax_save_address() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    // Überprüfen, ob der Benutzer angemeldet ist
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array(
+            'message' => __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin')
         ));
+        return;
     }
+    
+    $user_id = get_current_user_id();
+    $action = isset($_POST['action_type']) ? sanitize_text_field($_POST['action_type']) : 'select';
+    
+    // Ausgewählte Adresse verarbeiten (Standard, gespeicherte oder neue)
+    if ($action === 'select') {
+        $address_id = isset($_POST['address_id']) ? sanitize_text_field($_POST['address_id']) : '';
+        
+        if (empty($address_id)) {
+            wp_send_json_error(array(
+                'message' => __('Keine Adresse ausgewählt.', 'yprint-plugin')
+            ));
+            return;
+        }
+        
+        // Adresse in der Checkout-Session speichern
+        WC()->session->set('chosen_shipping_address_id', $address_id);
+        
+        // Standardadresse
+        if ($address_id === 'standard') {
+            // Nichts zu tun - WC wird standardmäßig die Standardadresse verwenden
+            wp_send_json_success(array(
+                'message' => __('Standard-Lieferadresse ausgewählt.', 'yprint-plugin'),
+                'address_id' => 'standard'
+            ));
+            return;
+        }
+        
+        // Gespeicherte Adresse aus additional_shipping_addresses
+        if ($address_id !== 'new') {
+            $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+            
+            if (!is_array($additional_addresses) || !isset($additional_addresses[$address_id])) {
+                wp_send_json_error(array(
+                    'message' => __('Gespeicherte Adresse nicht gefunden.', 'yprint-plugin')
+                ));
+                return;
+            }
+            
+            $selected_address = $additional_addresses[$address_id];
+            
+            // Adresse als Checkout-Lieferadresse festlegen
+            WC()->customer->set_shipping_address_1($selected_address['address_1']);
+            WC()->customer->set_shipping_address_2($selected_address['address_2']);
+            WC()->customer->set_shipping_city($selected_address['city']);
+            WC()->customer->set_shipping_postcode($selected_address['postcode']);
+            WC()->customer->set_shipping_country($selected_address['country']);
+            WC()->customer->set_shipping_first_name($selected_address['first_name']);
+            WC()->customer->set_shipping_last_name($selected_address['last_name']);
+            if (isset($selected_address['company']) && !empty($selected_address['company'])) {
+                WC()->customer->set_shipping_company($selected_address['company']);
+            }
+            
+            // Sicherstellen, dass die Änderungen gespeichert werden
+            WC()->customer->save();
+            
+            // Als Standard festlegen, wenn angefordert
+            $set_default = isset($_POST['set_default']) && $_POST['set_default'] === 'true';
+            if ($set_default) {
+                update_user_meta($user_id, 'default_shipping_address', $address_id);
+            }
+            
+            wp_send_json_success(array(
+                'message' => __('Lieferadresse ausgewählt.', 'yprint-plugin'),
+                'address_id' => $address_id,
+                'is_default' => $set_default
+            ));
+            return;
+        }
+        
+        // Neue Adresse - nichts zu tun, das Formular wird angezeigt
+        wp_send_json_success(array(
+            'message' => __('Neue Adresse wird verwendet.', 'yprint-plugin'),
+            'address_id' => 'new'
+        ));
+        return;
+    }
+    
+    // Neue Adresse speichern
+    if ($action === 'save') {
+        $address_data = isset($_POST['address']) ? $_POST['address'] : array();
+        
+        if (empty($address_data)) {
+            wp_send_json_error(array(
+                'message' => __('Keine Adressdaten erhalten.', 'yprint-plugin')
+            ));
+            return;
+        }
+        
+        // Adressdaten sanitieren
+        $sanitized_address = array(
+            'id' => 'addr_' . uniqid(),
+            'name' => isset($address_data['name']) ? sanitize_text_field($address_data['name']) : __('Neue Adresse', 'yprint-plugin'),
+            'first_name' => isset($address_data['first_name']) ? sanitize_text_field($address_data['first_name']) : '',
+            'last_name' => isset($address_data['last_name']) ? sanitize_text_field($address_data['last_name']) : '',
+            'company' => isset($address_data['company']) ? sanitize_text_field($address_data['company']) : '',
+            'address_1' => isset($address_data['street']) ? sanitize_text_field($address_data['street']) : '',
+            'address_2' => isset($address_data['housenumber']) ? sanitize_text_field($address_data['housenumber']) : '',
+            'postcode' => isset($address_data['zip']) ? sanitize_text_field($address_data['zip']) : '',
+            'city' => isset($address_data['city']) ? sanitize_text_field($address_data['city']) : '',
+            'country' => isset($address_data['country']) ? sanitize_text_field($address_data['country']) : 'DE',
+            'is_company' => isset($address_data['is_company']) ? (bool)$address_data['is_company'] : false
+        );
+        
+        // Vorhandene Adressen laden und neue Adresse hinzufügen
+        $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+        if (!is_array($additional_addresses)) {
+            $additional_addresses = array();
+        }
+        
+        $additional_addresses[$sanitized_address['id']] = $sanitized_address;
+        update_user_meta($user_id, 'additional_shipping_addresses', $additional_addresses);
+        
+        // Als Standard festlegen, wenn angefordert
+        $set_default = isset($address_data['set_default']) && $address_data['set_default'] === 'true';
+        if ($set_default) {
+            update_user_meta($user_id, 'default_shipping_address', $sanitized_address['id']);
+        }
+        
+        // Adresse als Checkout-Lieferadresse festlegen
+        WC()->customer->set_shipping_address_1($sanitized_address['address_1']);
+        WC()->customer->set_shipping_address_2($sanitized_address['address_2']);
+        WC()->customer->set_shipping_city($sanitized_address['city']);
+        WC()->customer->set_shipping_postcode($sanitized_address['postcode']);
+        WC()->customer->set_shipping_country($sanitized_address['country']);
+        WC()->customer->set_shipping_first_name($sanitized_address['first_name']);
+        WC()->customer->set_shipping_last_name($sanitized_address['last_name']);
+        if (!empty($sanitized_address['company'])) {
+            WC()->customer->set_shipping_company($sanitized_address['company']);
+        }
+        
+        // Sicherstellen, dass die Änderungen gespeichert werden
+        WC()->customer->save();
+        
+        wp_send_json_success(array(
+            'message' => __('Neue Adresse gespeichert und ausgewählt.', 'yprint-plugin'),
+            'address_id' => $sanitized_address['id'],
+            'address' => $sanitized_address,
+            'is_default' => $set_default
+        ));
+        return;
+    }
+    
+    wp_send_json_error(array(
+        'message' => __('Ungültige Aktion.', 'yprint-plugin')
+    ));
+}
 
     /**
      * AJAX handler for setting payment method
