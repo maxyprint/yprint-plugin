@@ -30,72 +30,239 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
     );
 }
 ?>
-<h2 class="text-xl font-semibold mb-4"><?php esc_html_e('Warenkorb', 'yprint-checkout'); ?></h2>
 
-<div id="checkout-cart-summary-items" class="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
-    <?php if ( ! empty( $cart_items_data ) ) : ?>
-        <?php foreach ( $cart_items_data as $item ) : ?>
-            <div class="product-summary-item flex justify-between items-center py-2 border-b border-yprint-medium-gray last:border-b-0">
-                <div class="flex items-center">
-                    <?php if ( ! empty( $item['image'] ) ) : ?>
-                        <img src="<?php echo esc_url( $item['image'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" class="w-12 h-12 object-cover rounded mr-3">
-                    <?php endif; ?>
-                    <div>
-                        <p class="font-medium text-sm"><?php echo esc_html( $item['name'] ); ?></p>
-                        <p class="text-xs text-yprint-text-secondary">
-                            <?php esc_html_e('Menge:', 'yprint-checkout'); ?> <?php echo esc_html( $item['quantity'] ); ?>
-                        </p>
+<style>
+    /* Gesamtcontainer */
+    .order-summary-bold-final {
+        border: 2px solid #ccc; /* Hellgrauer Rahmen */
+        padding: 25px;
+        font-family: sans-serif;
+        background-color: #ffffff; /* Hintergrund ist Weiß */
+        border-radius: 20px; /* Abgerundete Ecken */
+        max-width: 350px; /* Optional: für bessere Lesbarkeit in einer Sidebar */
+        margin: 0 auto; /* Optional: zum Zentrieren */
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Leichter Schatten für Tiefe */
+    }
+
+    /* Titel "Warenkorb" */
+    .bold-header-final {
+        color: #333; /* Schwarzer Titel */
+        font-size: 1.5em;
+        margin-bottom: 20px;
+    }
+
+    /* Container für Artikel */
+    .items {
+        margin-bottom: 20px;
+        max-height: 200px; /* Begrenzte Höhe für Scroll, falls viele Artikel */
+        overflow-y: auto; /* Scrollbalken für viele Artikel */
+        padding-right: 5px; /* Abstand für Scrollbalken, damit er nicht den Inhalt überlappt */
+    }
+
+    /* Einzelner Artikel */
+    .item {
+        display: flex;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid #eee; /* Hellere Trennlinie zwischen Artikeln */
+    }
+
+    .item:last-child {
+        border-bottom: none; /* Keine Linie nach dem letzten Artikel */
+    }
+
+    /* Artikelbild */
+    .item-image {
+        width: 60px;
+        height: 60px;
+        object-fit: cover; /* Bildausschnitt anpassen */
+        border-radius: 4px; /* Leichte Rundung für Bilder */
+        margin-right: 15px;
+        flex-shrink: 0; /* Verhindert das Schrumpfen des Bildes */
+    }
+
+    /* Details (Name, Menge) */
+    .item-details {
+        flex-grow: 1; /* Nimmt den verbleibenden Platz ein */
+    }
+
+    .item-name {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 3px;
+        font-size: 0.95em;
+    }
+
+    .item-quantity {
+        font-size: 0.8em;
+        color: #666;
+    }
+
+    /* Artikelpreis */
+    .item-price {
+        font-weight: bold;
+        color: #333;
+        white-space: nowrap; /* Preis nicht umbrechen */
+        font-size: 0.95em;
+    }
+
+    /* Summen-Zeilen (Zwischensumme, Versandkosten, Rabatt) */
+    .totals div {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        font-size: 0.95em;
+        color: #555;
+    }
+
+    /* Rabatt-Zeile */
+    .discount {
+        color: #28a745; /* Grüne Farbe für Rabatt */
+    }
+
+    /* Trennlinie vor dem Gesamtbetrag */
+    .total-divider-final {
+        border: none;
+        border-top: 1px solid #ddd;
+        margin: 10px 0;
+    }
+
+    /* Gesamtbetrag */
+    .total-final {
+        font-weight: bold;
+        font-size: 1.3em;
+        color: #333; /* Schwarze Gesamtbetragsfarbe */
+        display: flex;
+        justify-content: space-between;
+        padding-top: 10px;
+    }
+
+    /* Gutscheincode-Bereich */
+    .voucher {
+        margin-top: 25px;
+    }
+
+    .voucher label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #555;
+        font-size: 0.95em;
+    }
+
+    /* Input-Gruppe für Gutschein (Input + Button) */
+    .voucher-input-group-final {
+        display: flex;
+        width: 100%;
+    }
+
+    .voucher-input-group-final input {
+        flex-grow: 1; /* Input nimmt den meisten Platz ein */
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px 0 0 5px; /* Links abgerundet */
+        outline: none;
+        font-size: 0.9em;
+    }
+
+    /* Einlösen-Button */
+    .voucher-button-final {
+        padding: 10px 15px;
+        background-color: #007bff; /* Ihr gewünschtes Blau */
+        color: white;
+        border: none;
+        border-radius: 0 5px 5px 0; /* Rechts abgerundet */
+        cursor: pointer;
+        font-size: 0.9em;
+        white-space: nowrap;
+        transition: background-color 0.2s ease; /* Sanfter Übergang beim Hover */
+    }
+
+    .voucher-button-final:hover {
+        background-color: #0056b3; /* Dunkleres Blau beim Hover */
+    }
+
+    /* Feedback-Text für Gutschein (optional, aus Original-Code) */
+    #cart-voucher-feedback {
+        font-size: 0.75em; /* text-xs */
+        margin-top: 5px; /* mt-1 */
+        color: #6c757d; /* text-yprint-text-secondary, angelehnt an Bootstrap text-muted */
+    }
+
+    /* Styling für leeren Warenkorb (optional, aus Original-Code) */
+    .text-yprint-text-secondary {
+        color: #6c757d; /* Dunkelgrau für Text */
+    }
+</style>
+
+<div class="order-summary-bold-final">
+    <h2 class="bold-header-final"><?php esc_html_e('Warenkorb', 'yprint-checkout'); ?></h2>
+
+    <div id="checkout-cart-summary-items" class="items">
+        <?php if ( ! empty( $cart_items_data ) ) : ?>
+            <?php foreach ( $cart_items_data as $item ) : ?>
+                <div class="item">
+                    <div style="display: flex; align-items: center;">
+                        <?php if ( ! empty( $item['image'] ) ) : ?>
+                            <img src="<?php echo esc_url( $item['image'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" class="item-image">
+                        <?php endif; ?>
+                        <div class="item-details">
+                            <p class="item-name"><?php echo esc_html( $item['name'] ); ?></p>
+                            <p class="item-quantity">
+                                <?php esc_html_e('Menge:', 'yprint-checkout'); ?> <?php echo esc_html( $item['quantity'] ); ?>
+                            </p>
+                        </div>
                     </div>
+                    <p class="item-price">
+                        €<?php echo esc_html( number_format_i18n( $item['price'] * $item['quantity'], 2 ) ); ?>
+                    </p>
                 </div>
-                <p class="font-medium text-sm">
-                    €<?php echo esc_html( number_format_i18n( $item['price'] * $item['quantity'], 2 ) ); ?>
-                </p>
-            </div>
-        <?php endforeach; ?>
-    <?php else : ?>
-        <p class="text-yprint-text-secondary"><?php esc_html_e('Ihr Warenkorb ist leer.', 'yprint-checkout'); ?></p>
-    <?php endif; ?>
-</div>
-
-<div id="checkout-cart-summary-totals">
-    <div class="flex justify-between text-sm mt-3">
-        <span><?php esc_html_e('Zwischensumme:', 'yprint-checkout'); ?></span>
-        <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['subtotal'], 2 ) ); ?></span>
-    </div>
-    <div class="flex justify-between text-sm">
-        <span><?php esc_html_e('Versandkosten:', 'yprint-checkout'); ?></span>
-        <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['shipping'], 2 ) ); ?></span>
+            <?php endforeach; ?>
+        <?php else : ?>
+            <p class="text-yprint-text-secondary"><?php esc_html_e('Ihr Warenkorb ist leer.', 'yprint-checkout'); ?></p>
+        <?php endif; ?>
     </div>
 
-    <?php if ( $cart_totals_data['discount'] > 0 ) : ?>
-    <div class="flex justify-between text-sm text-yprint-success">
-        <span><?php esc_html_e('Rabatt:', 'yprint-checkout'); ?></span>
-        <span>-€<?php echo esc_html( number_format_i18n( $cart_totals_data['discount'], 2 ) ); ?></span>
-    </div>
-    <?php endif; ?>
+    <div id="checkout-cart-summary-totals">
+        <div class="subtotal">
+            <span><?php esc_html_e('Zwischensumme:', 'yprint-checkout'); ?></span>
+            <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['subtotal'], 2 ) ); ?></span>
+        </div>
+        <div class="shipping">
+            <span><?php esc_html_e('Versandkosten:', 'yprint-checkout'); ?></span>
+            <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['shipping'], 2 ) ); ?></span>
+        </div>
 
-    <?php /* Optional: Anzeige der Mehrwertsteuer
-    <div class="flex justify-between text-sm">
-        <span><?php esc_html_e('MwSt. (19%):', 'yprint-checkout'); ?></span>
-        <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['vat'], 2 ) ); ?></span>
-    </div>
-    */ ?>
+        <?php if ( $cart_totals_data['discount'] > 0 ) : ?>
+        <div class="discount">
+            <span><?php esc_html_e('Rabatt:', 'yprint-checkout'); ?></span>
+            <span>-€<?php echo esc_html( number_format_i18n( $cart_totals_data['discount'], 2 ) ); ?></span>
+        </div>
+        <?php endif; ?>
 
-    <hr class="my-2 border-yprint-medium-gray">
+        <?php /* Optional: Anzeige der Mehrwertsteuer
+        <div class="flex justify-between text-sm">
+            <span><?php esc_html_e('MwSt. (19%):', 'yprint-checkout'); ?></span>
+            <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['vat'], 2 ) ); ?></span>
+        </div>
+        */ ?>
 
-    <div class="flex justify-between text-base font-bold mt-2 text-yprint-blue">
-        <span><?php esc_html_e('Gesamtbetrag:', 'yprint-checkout'); ?></span>
-        <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['total'], 2 ) ); ?></span>
-    </div>
-</div>
+        <hr class="total-divider-final">
 
-<div class="mt-6">
-    <label for="cart-voucher" class="form-label text-sm"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
-    <div class="flex">
-        <input type="text" id="cart-voucher" name="cart_voucher" class="form-input rounded-r-none text-sm py-2" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
-        <button type="button" class="btn btn-secondary rounded-l-none whitespace-nowrap text-sm py-2 px-3">
-            <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
-        </button>
+        <div class="total-final">
+            <span><?php esc_html_e('Gesamtbetrag:', 'yprint-checkout'); ?></span>
+            <span>€<?php echo esc_html( number_format_i18n( $cart_totals_data['total'], 2 ) ); ?></span>
+        </div>
     </div>
-    <p id="cart-voucher-feedback" class="text-xs mt-1"></p>
+
+    <div class="voucher">
+        <label for="cart-voucher"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
+        <div class="voucher-input-group-final">
+            <input type="text" id="cart-voucher" name="cart_voucher" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
+            <button type="button" class="voucher-button-final">
+                <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
+            </button>
+        </div>
+        <p id="cart-voucher-feedback" class="text-xs mt-1"></p>
+    </div>
 </div>
