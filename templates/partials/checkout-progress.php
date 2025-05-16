@@ -67,7 +67,7 @@ $current_step_number = isset($checkout_steps_config[$current_step_slug]['number'
     align-items: center;
     width: 100%;
     max-width: 500px;
-    margin: 40px auto;
+    margin: 0 auto;
     padding: 20px 0;
     background-color: #fff;
     border-radius: 12px; /* Angepasst an andere Komponenten */

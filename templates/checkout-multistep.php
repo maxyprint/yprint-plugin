@@ -320,9 +320,9 @@ add_filter( 'body_class', function( $classes ) {
 
     <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
 <?php if ($current_step_slug !== 'thankyou') : ?>
-    <div class="progress-bar-wrapper card mb-8">
-        <?php include( $partials_dir . 'checkout-progress.php' ); ?>
-    </div>
+    <div class="progress-bar-wrapper mb-8">
+    <?php include( $partials_dir . 'checkout-progress.php' ); ?>
+</div>
 <?php endif; ?>
 
 <div class="yprint-checkout-layout">
@@ -363,23 +363,16 @@ add_filter( 'body_class', function( $classes ) {
 
     <?php // Warenkorb-Zusammenfassung (Sidebar) nur anzeigen, wenn nicht auf der Danke-Seite ?>
     <?php if ($current_step_slug !== 'thankyou') : ?>
-        <aside class="yprint-checkout-sidebar">
-            <div class="checkout-cart-summary">
-                <?php
-                // Hier wird das Warenkorb-Zusammenfassungs-Partial geladen
-                // und die benötigten Daten übergeben.
-                $cart_items_data_for_summary = $cart_items_data; // Dummy-Daten
-                $cart_totals_data_for_summary = $cart_totals_data; // Dummy-Daten
-                
-                // Beachten Sie: checkout-cart-summary.php muss nun die neuen Styling-Klassen verwenden,
-                // die wir im letzten Schritt definiert haben, oder dieses Partial muss
-                // den gesamten HTML-Code und die dazugehörigen Styles enthalten.
-                // Da wir das in der vorherigen Runde bereits für `checkout-cart-summary.php` angepasst haben,
-                // sollte dies hier reibungslos funktionieren.
-                include( $partials_dir . 'checkout-cart-summary.php' ); ?>
-            </div>
-        </aside>
-    <?php endif; ?>
+    <aside class="yprint-checkout-sidebar">
+        <?php
+        // Hier wird das Warenkorb-Zusammenfassungs-Partial geladen
+        // und die benötigten Daten übergeben.
+        $cart_items_data_for_summary = $cart_items_data; // Dummy-Daten
+        $cart_totals_data_for_summary = $cart_totals_data; // Dummy-Daten
+        
+        include( $partials_dir . 'checkout-cart-summary.php' ); ?>
+    </aside>
+<?php endif; ?>
 </div>
 
     <?php // Footer-Bereich mit Links ?>
