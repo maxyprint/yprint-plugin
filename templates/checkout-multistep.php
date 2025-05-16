@@ -68,6 +68,14 @@ $cart_totals_data = array(
 // Pfad zum 'partials'-Ordner definieren
 $partials_dir = YPRINT_PLUGIN_DIR . 'templates/partials/';
 
+// Debug: Prüfe ob das Verzeichnis existiert und die Zahlung-Datei vorhanden ist
+if (!file_exists($partials_dir)) {
+    error_log('Partials directory not found at: ' . $partials_dir);
+}
+if (!file_exists($partials_dir . 'checkout-step-payment.php')) {
+    error_log('Payment step template not found at: ' . $partials_dir . 'checkout-step-payment.php');
+}
+
 // Body-Klasse hinzufügen, um spezifische Styles für die Checkout-Seite zu ermöglichen
 add_filter( 'body_class', function( $classes ) {
     $classes[] = 'yprint-checkout-page';
@@ -338,7 +346,16 @@ add_filter( 'body_class', function( $classes ) {
                     include( $partials_dir . 'checkout-step-address.php' );
                     break;
                 case 'payment':
-                    include( $partials_dir . 'checkout-step-payment.php' );
+                    // Prüfe ob die Datei existiert, bevor sie inkludiert wird
+                    if (file_exists($partials_dir . 'checkout-step-payment.php')) {
+                        include( $partials_dir . 'checkout-step-payment.php' );
+                    } else {
+                        echo '<div class="checkout-step active" id="step-2">';
+                        echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('Zahlungsart wählen', 'yprint-checkout') . '</h2>';
+                        echo '<p class="mt-4">' . esc_html__('Die Zahlungsoptionen werden geladen...', 'yprint-checkout') . '</p>';
+                        echo '</div>';
+                        error_log('Payment step template not found at: ' . $partials_dir . 'checkout-step-payment.php');
+                    }
                     break;
                 case 'confirmation':
                     include( $partials_dir . 'checkout-step-confirmation.php' );

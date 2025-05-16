@@ -11,6 +11,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+// Debug-Ausgabe
+error_log('Loading payment step template from: ' . __FILE__);
+
 // $cart_totals_data sollte von checkout-multistep.php übergeben werden
 // oder hier direkt von WooCommerce geladen werden.
 if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
