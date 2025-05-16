@@ -40,6 +40,11 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-admin.php'
 // Include the checkout shortcode
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout-shortcode.php';
 
+// Initialize Checkout Shortcode
+add_action('init', function() {
+    YPrint_Stripe_Checkout_Shortcode::init();
+});
+
 // Initialize Stripe Admin
 add_action('plugins_loaded', function() {
     YPrint_Stripe_Admin::get_instance();

@@ -74,7 +74,7 @@ add_filter( 'body_class', function( $classes ) {
 <div class="yprint-checkout-container w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
     <?php // Logo und Hauptüberschrift des Checkouts ?>
     <div class="mb-8 text-center">
-        <img src="<?php echo esc_url(YPRINT_PLUGIN_URL . 'assets/images/y-icon.svg'); ?>" alt="<?php esc_attr_e('YPrint Logo', 'yprint-checkout'); ?>" class="h-12 mx-auto mb-2">
+        <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="<?php esc_attr_e('YPrint Logo', 'yprint-checkout'); ?>" class="h-12 mx-auto mb-2">
         <h1 class="text-3xl font-bold text-yprint-black"><?php esc_html_e('Checkout', 'yprint-checkout'); ?></h1>
     </div>
 
@@ -131,7 +131,7 @@ add_filter( 'body_class', function( $classes ) {
                     <?php include( $partials_dir . 'checkout-cart-summary.php' ); ?>
                 </div>
                  <div class="text-center mt-4 text-sm text-yprint-text-secondary">
-                    <p><i class="fas fa-shield-alt mr-1"></i> <?php esc_html_e('100% sichere Zahlung', 'yprint-checkout'); ?> | <img src="<?php echo esc_url(YPRINT_PLUGIN_URL . 'assets/images/y-icon.svg'); ?>" alt="<?php esc_attr_e('YPrint Icon', 'yprint-checkout'); ?>" class="yprint-icon-inline"> <?php esc_html_e('YPrint Qualitätsversprechen', 'yprint-checkout'); ?></p>
+                    <p><i class="fas fa-shield-alt mr-1"></i> <?php esc_html_e('100% sichere Zahlung', 'yprint-checkout'); ?> | <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="<?php esc_attr_e('YPrint Icon', 'yprint-checkout'); ?>" class="yprint-icon-inline"> <?php esc_html_e('YPrint Qualitätsversprechen', 'yprint-checkout'); ?></p>
                 </div>
             </aside>
         <?php endif; ?>
