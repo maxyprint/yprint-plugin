@@ -18,14 +18,18 @@
     box-sizing: border-box;
 }
 
-/* Progress Indicator Styles */
-.yprint-checkout-progress {
+/* Header and Progress Styles */
+.yprint-checkout-header {
     margin-bottom: 40px;
 }
 
-.yprint-progress-bar {
+.yprint-progress-container {
     position: relative;
-    padding: 0 10px;
+    padding: 0 20px;
+}
+
+.yprint-progress-bar {
+    margin: 40px 0 20px;
 }
 
 .yprint-progress-track {
@@ -33,7 +37,6 @@
     height: 4px;
     background-color: #e5e5e5;
     border-radius: 2px;
-    margin: 30px 0;
 }
 
 .yprint-progress-fill {
@@ -45,32 +48,30 @@
     width: 0%;
 }
 
-/* Initial state - active step is 1 */
-.yprint-checkout-container[data-active-step="1"] .yprint-progress-fill {
-    width: 0%;
-}
-
-.yprint-checkout-container[data-active-step="2"] .yprint-progress-fill {
-    width: 50%;
-}
-
-.yprint-checkout-container[data-active-step="3"] .yprint-progress-fill {
-    width: 100%;
-}
-
 .yprint-progress-steps {
     display: flex;
     justify-content: space-between;
     position: relative;
+    margin-top: -12px;
 }
 
 .yprint-progress-step {
     flex: 1;
     text-align: center;
     position: relative;
+}
+
+.yprint-step-link {
     display: flex;
     flex-direction: column;
     align-items: center;
+    text-decoration: none;
+    color: inherit;
+}
+
+.yprint-progress-step.not-clickable .yprint-step-link {
+    cursor: default;
+    pointer-events: none;
 }
 
 .yprint-step-indicator {
@@ -84,8 +85,6 @@
     justify-content: center;
     font-weight: 600;
     margin-bottom: 10px;
-    position: absolute;
-    top: -55px;
     transition: all 0.3s ease;
 }
 
@@ -111,8 +110,8 @@
     color: #0079FF;
 }
 
-/* Main Checkout Layout */
-.yprint-checkout-layout {
+/* Main Content Layout */
+.yprint-checkout-content {
     display: flex;
     gap: 30px;
 }
@@ -127,9 +126,8 @@
     flex-shrink: 0;
 }
 
-/* Checkout Steps Styles */
+/* Checkout Step Styles */
 .yprint-checkout-step {
-    display: none;
     background-color: #ffffff;
     border-radius: 16px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
@@ -138,14 +136,10 @@
     margin-bottom: 20px;
 }
 
-.yprint-checkout-step.active {
-    display: block;
-}
-
 .yprint-checkout-step h2 {
     font-size: 24px;
     font-weight: 600;
-    margin: 0 0 15px 0;
+    margin: 0 0 10px 0;
     color: #1d1d1f;
 }
 
@@ -155,38 +149,384 @@
     margin-bottom: 25px;
 }
 
-/* Button Styles */
-.yprint-button {
-    display: inline-block;
-    padding: 12px 20px;
-    background-color: #0079FF;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 16px;
-    font-weight: 500;
-    cursor: pointer;
-    text-decoration: none;
-    transition: background-color 0.2s ease;
-}
-
-.yprint-button:hover {
-    background-color: #0056b3;
-}
-
-.yprint-back-button {
-    background-color: #f5f5f7;
+.yprint-checkout-step h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 25px 0 15px 0;
     color: #1d1d1f;
 }
 
-.yprint-back-button:hover {
-    background-color: #e5e5ea;
+/* Address Selection Styles */
+.yprint-address-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 15px;
 }
 
-.yprint-checkout-buttons {
+.yprint-address-card {
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 20px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.2s ease;
+    height: 100%;
+}
+
+.yprint-address-card:hover {
+    border-color: #0079FF;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.yprint-address-card.default {
+    border-color: #0079FF;
+    background-color: #F0F8FF;
+}
+
+.yprint-address-default-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #0079FF;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.yprint-address-content {
+    margin-bottom: 15px;
+}
+
+.yprint-address-card h4 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 10px 0;
+    color: #1d1d1f;
+}
+
+.yprint-address-details p {
+    margin: 4px 0;
+    font-size: 14px;
+    color: #6e6e73;
+}
+
+.yprint-address-actions {
+    margin-top: auto;
+}
+
+.yprint-address-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 120px;
+    color: #6e6e73;
+    text-align: center;
+}
+
+.yprint-address-icon {
+    font-size: 32px;
+    color: #0079FF;
+    margin-bottom: 10px;
+}
+
+.yprint-new-address {
+    border-style: dashed;
+    background-color: #f9f9fb;
+}
+
+/* Form Styles */
+.yprint-form-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.yprint-form-group {
+    flex: 1;
+}
+
+.yprint-form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1d1d1f;
+}
+
+.yprint-form-input,
+.yprint-form-select {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 16px;
+    border: 1px solid #d1d1d6;
+    border-radius: 10px;
+    background-color: #fff;
+    transition: all 0.2s ease;
+}
+
+.yprint-form-input:focus,
+.yprint-form-select:focus {
+    border-color: #0079FF;
+    box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.1);
+    outline: none;
+}
+
+.yprint-form-checkbox {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.yprint-form-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+}
+
+.yprint-form-actions {
     display: flex;
     justify-content: space-between;
-    margin-top: 30px;
+    margin-top: 20px;
+}
+
+/* Payment Method Styles */
+.yprint-express-checkout {
+    margin-bottom: 30px;
+}
+
+.yprint-express-buttons {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.yprint-express-button {
+    flex: 1;
+    height: 50px;
+    border-radius: 10px;
+    border: 1px solid #d1d1d6;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.yprint-express-button:hover {
+    border-color: #0079FF;
+}
+
+.yprint-express-button-content {
+    display: flex;
+    align-items: center;
+}
+
+.yprint-express-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 10px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.yprint-express-label {
+    font-weight: 500;
+}
+
+.yprint-payment-options {
+    margin-bottom: 25px;
+}
+
+.yprint-payment-option {
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 15px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.yprint-payment-option:hover {
+    border-color: #0079FF;
+}
+
+.yprint-payment-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.yprint-payment-option label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding-left: 30px;
+    position: relative;
+}
+
+.yprint-payment-option label:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 1px solid #d1d1d6;
+    border-radius: 50%;
+    background-color: #fff;
+}
+
+.yprint-payment-option input[type="radio"]:checked + label:before {
+    border-color: #0079FF;
+}
+
+.yprint-payment-option input[type="radio"]:checked + label:after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0079FF;
+}
+
+.yprint-payment-option-title {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.yprint-payment-option-description {
+    font-size: 14px;
+    color: #6e6e73;
+}
+
+.yprint-stripe-element {
+    border: 1px solid #d1d1d6;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    background-color: #fff;
+}
+
+.yprint-stripe-errors {
+    color: #dc3545;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.yprint-saved-payment-methods {
+    margin-top: 25px;
+    margin-bottom: 25px;
+}
+
+.yprint-saved-payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.yprint-saved-payment-option {
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    padding: 15px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.yprint-saved-payment-option:hover {
+    border-color: #0079FF;
+}
+
+.yprint-saved-payment-option.default {
+    border-color: #0079FF;
+    background-color: #F0F8FF;
+}
+
+.yprint-saved-payment-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+}
+
+.yprint-saved-payment-option label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding-left: 30px;
+    position: relative;
+}
+
+.yprint-saved-payment-option label:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: 1px solid #d1d1d6;
+    border-radius: 50%;
+    background-color: #fff;
+}
+
+.yprint-saved-payment-option input[type="radio"]:checked + label:before {
+    border-color: #0079FF;
+}
+
+.yprint-saved-payment-option input[type="radio"]:checked + label:after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #0079FF;
+}
+
+.yprint-payment-icon {
+    width: 40px;
+    height: 25px;
+    margin-right: 15px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.yprint-payment-details {
+    flex: 1;
+}
+
+.yprint-payment-name {
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+
+.yprint-payment-info {
+    font-size: 14px;
+    color: #6e6e73;
+}
+
+.yprint-payment-default-badge {
+    background-color: #0079FF;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: auto;
+}
+
+.yprint-save-payment-option {
+    margin: 15px 0;
 }
 
 /* Cart Summary Styles */
@@ -256,6 +596,16 @@
     text-overflow: ellipsis;
 }
 
+.yprint-cart-item-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.yprint-cart-item-meta {
+    display: flex;
+    flex-direction: column;
+}
+
 .yprint-cart-item-quantity,
 .yprint-cart-item-price {
     font-size: 14px;
@@ -284,29 +634,203 @@
     border-top: 1px solid #e5e5e5;
 }
 
-/* Loading Indicator */
-.yprint-loader {
-    display: inline-block;
-    width: 30px;
-    height: 30px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #0079FF;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto;
+.yprint-cart-coupon {
+    margin-top: 20px;
+    border-top: 1px solid #e5e5e5;
+    padding-top: 20px;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.yprint-coupon-form {
+    display: flex;
+    gap: 10px;
 }
 
-.yprint-address-loading,
-.yprint-totals-placeholder,
-.yprint-cart-placeholder {
-    text-align: center;
+.yprint-coupon-input {
+    flex: 1;
+}
+
+/* Confirmation Step Styles */
+.yprint-order-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.yprint-summary-section {
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
     padding: 20px;
+}
+
+.yprint-summary-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 15px 0;
+    color: #1d1d1f;
+    border-bottom: 1px solid #f5f5f7;
+    padding-bottom: 10px;
+}
+
+.yprint-summary-content {
+    position: relative;
+}
+
+.yprint-edit-link {
+    position: absolute;
+    top: 0;
+    right: 0;
+    color: #0079FF;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.yprint-edit-link:hover {
+    text-decoration: underline;
+}
+
+.yprint-address-name,
+.yprint-payment-method-name,
+.yprint-shipping-method-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.yprint-address-company,
+.yprint-address-street,
+.yprint-address-city,
+.yprint-address-country,
+.yprint-address-contact {
+    margin: 3px 0;
+    font-size: 14px;
+}
+
+.yprint-order-details {
+    margin-bottom: 30px;
+}
+
+.yprint-order-products {
+    margin-bottom: 20px;
+}
+
+.yprint-order-product {
+    display: flex;
+    padding: 15px 0;
+    border-bottom: 1px solid #f5f5f7;
+}
+
+.yprint-order-product:last-child {
+    border-bottom: none;
+}
+
+.yprint-product-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.yprint-product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.yprint-product-details {
+    flex: 1;
+}
+
+.yprint-product-name {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.yprint-product-info {
+    display: flex;
+    gap: 15px;
+    font-size: 14px;
     color: #6e6e73;
+}
+
+.yprint-order-totals {
+    background-color: #f9f9fb;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.yprint-total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.yprint-total-row.yprint-total {
+    font-weight: 600;
+    font-size: 18px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.yprint-terms-acceptance {
+    margin-bottom: 30px;
+    padding: 20px;
+    background-color: #f9f9fb;
+    border-radius: 10px;
+}
+
+.yprint-terms-acceptance label {
+    margin-left: 10px;
+}
+
+.yprint-terms-acceptance a {
+    color: #0079FF;
+    text-decoration: none;
+}
+
+.yprint-terms-acceptance a:hover {
+    text-decoration: underline;
+}
+
+/* Button Styles */
+.yprint-button {
+    display: inline-block;
+    padding: 12px 20px;
+    background-color: #0079FF;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.yprint-button:hover {
+    background-color: #0056b3;
+}
+
+.yprint-button-secondary {
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+}
+
+.yprint-button-secondary:hover {
+    background-color: #e5e5ea;
+}
+
+.yprint-button-small {
+    padding: 8px 15px;
+    font-size: 14px;
+}
+
+.yprint-step-navigation {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 30px;
 }
 
 /* Login & Empty Cart Messages */
@@ -318,6 +842,11 @@
     border-radius: 16px;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid #e5e5e5;
+}
+
+.yprint-checkout-message {
+    max-width: 500px;
+    margin: 0 auto;
 }
 
 .yprint-checkout-login-required h2,
@@ -332,21 +861,44 @@
     color: #6e6e73;
 }
 
-/* Placeholder for address selection */
-.yprint-address-placeholder,
-.yprint-payment-placeholder,
-.yprint-confirmation-placeholder {
-    background-color: #f9f9fb;
-    border-radius: 10px;
-    padding: 30px;
-    text-align: center;
-    color: #6e6e73;
-    margin: 20px 0;
+/* Loading States */
+.yprint-loading .yprint-button {
+    opacity: 0.7;
+    cursor: wait;
 }
 
-/* Responsive adjustments */
+.yprint-loader {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: yprint-spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+
+@keyframes yprint-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Error States */
+.yprint-error {
+    color: #dc3545;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.yprint-form-input.has-error,
+.yprint-form-select.has-error {
+    border-color: #dc3545;
+}
+
+/* Responsive Styles */
 @media (max-width: 991px) {
-    .yprint-checkout-layout {
+    .yprint-checkout-content {
         flex-direction: column;
     }
     
@@ -359,6 +911,10 @@
     .yprint-cart-summary {
         position: static; /* Remove sticky positioning on mobile */
     }
+    
+    .yprint-order-summary {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 767px) {
@@ -370,21 +926,64 @@
         padding: 20px;
     }
     
+    .yprint-form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
     .yprint-step-label {
         display: none; /* Hide step labels on very small screens */
     }
     
-    .yprint-checkout-buttons {
+    .yprint-step-navigation {
         flex-direction: column;
-        gap: 10px;
+        gap: 15px;
     }
     
-    .yprint-checkout-buttons .yprint-button {
+    .yprint-step-navigation .yprint-button {
         width: 100%;
         text-align: center;
     }
     
-    .yprint-back-button {
+    .yprint-button-secondary {
         order: 2;
     }
+    
+    .yprint-address-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .yprint-express-buttons {
+        flex-direction: column;
+    }
+}
+
+/* Payment Method Icons */
+.yprint-payment-option.stripe label:before,
+.yprint-saved-payment-option.visa .yprint-payment-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/visa-icon.svg');
+}
+
+.yprint-saved-payment-option.mastercard .yprint-payment-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/mastercard-icon.svg');
+}
+
+.yprint-saved-payment-option.paypal .yprint-payment-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/paypal-icon.svg');
+}
+
+.yprint-saved-payment-option.sepa .yprint-payment-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/sepa-icon.svg');
+}
+
+.apple-pay-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/apple-pay-icon.svg');
+}
+
+.google-pay-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/google-pay-icon.svg');
+}
+
+.new-card-icon {
+    background-image: url('https://yprint.de/wp-content/uploads/2025/03/add-card-icon.svg');
 }
