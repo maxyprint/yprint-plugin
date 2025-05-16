@@ -17,6 +17,12 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+// Debug-Ausgabe am Anfang von checkout-multistep.php
+error_log('Loading checkout-multistep.php');
+error_log('Current step: ' . $current_step_slug);
+error_log('Partials directory: ' . YPRINT_PLUGIN_DIR . 'templates/partials/');
+error_log('Payment step file exists: ' . (file_exists(YPRINT_PLUGIN_DIR . 'templates/partials/checkout-step-payment.php') ? 'Yes' : 'No'));
+
 // $cart_items_data und $cart_totals_data sollten von checkout-multistep.php übergeben werden
 // oder hier direkt von WooCommerce geladen werden.
 // Für dieses Beispiel nehmen wir an, sie sind bereits verfügbar.
@@ -38,6 +44,13 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 // Aktuellen Schritt bestimmen (Beispielhafte Logik)
 $possible_steps = array('address', 'payment', 'confirmation', 'thankyou');
 $current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_steps) ? sanitize_text_field($_GET['step']) : 'address';
+
+// Debug-Ausgabe
+error_log('Requested step from GET: ' . (isset($_GET['step']) ? $_GET['step'] : 'not set'));
+error_log('Current step after validation: ' . $current_step_slug);
+
+// Erzwinge Payment-Schritt für Test (entfernen nach dem Test)
+// $current_step_slug = 'payment';
 
 // Dummy-Warenkorbdaten für die Darstellung (sollten von WC()->cart kommen)
 $placeholder_cart_items = array(
@@ -345,18 +358,23 @@ add_filter( 'body_class', function( $classes ) {
                 case 'address':
                     include( $partials_dir . 'checkout-step-address.php' );
                     break;
-                case 'payment':
-                    // Prüfe ob die Datei existiert, bevor sie inkludiert wird
-                    if (file_exists($partials_dir . 'checkout-step-payment.php')) {
-                        include( $partials_dir . 'checkout-step-payment.php' );
-                    } else {
+                    case 'payment':
+                        // Erzwinge einen einfachen Test-Output
                         echo '<div class="checkout-step active" id="step-2">';
-                        echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('Zahlungsart wählen', 'yprint-checkout') . '</h2>';
-                        echo '<p class="mt-4">' . esc_html__('Die Zahlungsoptionen werden geladen...', 'yprint-checkout') . '</p>';
+                        echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('TEST: Zahlungsart wählen', 'yprint-checkout') . '</h2>';
+                        echo '<p class="mt-4">' . esc_html__('Dies ist ein Test-Ausgabe für den Zahlungsschritt.', 'yprint-checkout') . '</p>';
+                        
+                        // Debug-Info hinzufügen
+                        echo '<p class="bg-gray-100 p-4 mt-4 text-sm">';
+                        echo 'Partials Dir: ' . esc_html($partials_dir) . '<br>';
+                        echo 'File Exists: ' . (file_exists($partials_dir . 'checkout-step-payment.php') ? 'Ja' : 'Nein') . '<br>';
+                        echo 'Current Step: ' . esc_html($current_step_slug) . '<br>';
+                        echo '</p>';
+                        
                         echo '</div>';
-                        error_log('Payment step template not found at: ' . $partials_dir . 'checkout-step-payment.php');
-                    }
-                    break;
+                        
+                        error_log('Manual test output for payment step');
+                        break;
                 case 'confirmation':
                     include( $partials_dir . 'checkout-step-confirmation.php' );
                     break;

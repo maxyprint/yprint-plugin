@@ -350,3 +350,10 @@ body.yprint-checkout-page { /* Spezifische Klasse für Checkout-Seiten-Body */
     vertical-align: middle;
 }
 
+/* Prüfe diese Stile in yprint-checkout.css */
+.checkout-step {
+    display: none; /* Standardmäßig versteckt */
+}
+.checkout-step.active {
+    display: block; /* Nur anzeigen, wenn aktiv */
+}
