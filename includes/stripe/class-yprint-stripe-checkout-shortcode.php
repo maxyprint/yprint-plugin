@@ -89,17 +89,14 @@ public function render_checkout_shortcode($atts) {
         echo $this->get_debug_info();
     }
     
-    // Add inline styles for basic formatting in case external CSS fails
-    echo '<style>
-    .yprint-checkout-container {max-width: 1200px; margin: 0 auto; padding: 20px;}
-    .card {background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px;}
-    .form-input, .form-select {width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;}
-    .form-label {display: block; margin-bottom: 5px; font-weight: 500;}
-    .btn {padding: 10px 15px; border-radius: 5px; display: inline-block; cursor: pointer; text-align: center;}
-    .btn-primary {background: #0079FF; color: white;}
-    .checkout-step {display: none;}
-    .checkout-step.active {display: block;}
-    </style>';
+    // Add minimal inline styles for basic functionality in case external CSS fails
+echo '<style>
+.yprint-checkout-container {max-width: 1200px; margin: 0 auto; padding: 20px;}
+.form-input, .form-select {width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px;}
+.form-label {display: block; margin-bottom: 5px; font-weight: 500;}
+.checkout-step {display: none;}
+.checkout-step.active {display: block;}
+</style>';
     
     // Include the template
     $template_path = YPRINT_PLUGIN_DIR . 'templates/checkout-multistep.php';

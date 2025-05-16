@@ -74,14 +74,15 @@ add_filter( 'body_class', function( $classes ) {
 
 
     <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
-    <?php if ($current_step_slug !== 'thankyou') : ?>
-        <div class="progress-bar-wrapper card mb-8">
-            <?php include( $partials_dir . 'checkout-progress.php' ); ?>
-        </div>
-    <?php endif; ?>
+<?php if ($current_step_slug !== 'thankyou') : ?>
+    <div class="progress-bar-wrapper card mb-8">
+        <?php include( $partials_dir . 'checkout-progress.php' ); ?>
+    </div>
+<?php endif; ?>
 
-    <div class="yprint-checkout-layout">
-        <div class="yprint-checkout-main-content card">
+<div class="yprint-checkout-layout">
+    <div class="yprint-checkout-main-content">
+        <div class="card">
             <?php // Lade den entsprechenden Schritt basierend auf $current_step_slug ?>
             <?php
             switch ($current_step_slug) {
@@ -118,15 +119,17 @@ add_filter( 'body_class', function( $classes ) {
             }
             ?>
         </div>
-
-        <?php // Warenkorb-Zusammenfassung (Sidebar) nur anzeigen, wenn nicht auf der Danke-Seite ?>
-        <?php if ($current_step_slug !== 'thankyou') : ?>
-            <aside class="yprint-checkout-sidebar">
-                <div class="checkout-cart-summary card">
-                    <?php include( $partials_dir . 'checkout-cart-summary.php' ); ?>
-            </aside>
-        <?php endif; ?>
     </div>
+
+    <?php // Warenkorb-Zusammenfassung (Sidebar) nur anzeigen, wenn nicht auf der Danke-Seite ?>
+    <?php if ($current_step_slug !== 'thankyou') : ?>
+        <aside class="yprint-checkout-sidebar">
+            <div class="checkout-cart-summary">
+                <?php include( $partials_dir . 'checkout-cart-summary.php' ); ?>
+            </div>
+        </aside>
+    <?php endif; ?>
+</div>
 
     <?php // Footer-Bereich mit Links ?>
     <footer class="yprint-checkout-footer">

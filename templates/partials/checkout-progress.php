@@ -62,22 +62,22 @@ $current_step_number = isset($checkout_steps_config[$current_step_slug]['number'
         }
 
         .progress-bar-container-v3 {
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            width: 100%;
-            max-width: 500px;
-            margin: 40px auto;
-            padding: 20px 0;
-            background-color: #fff;
-            border-radius: 50px;
-            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.08);
-            --primary-color: #ff6b6b;
-            --completed-color: #4caf50;
-            --pending-color: #bdc3c7;
-            --icon-bg-size: 60px;
-            --icon-font-size: 24px;
-        }
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    max-width: 500px;
+    margin: 40px auto;
+    padding: 20px 0;
+    background-color: #fff;
+    border-radius: 12px; /* Angepasst an andere Komponenten */
+    border: 1px solid #DFDFDF; /* Einheitlicher Rahmen */
+    --primary-color: #0079FF; /* Angepasst an YPrint-Blau */
+    --completed-color: #28a745; /* Angepasst an YPrint-Success */
+    --pending-color: #e5e5e5; /* Angepasst an YPrint-Medium-Gray */
+    --icon-bg-size: 60px;
+    --icon-font-size: 24px;
+}
 
         .progress-step {
             display: flex;

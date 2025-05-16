@@ -33,23 +33,23 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 
 <style>
     /* Gesamtcontainer */
-    .order-summary-bold-final {
-        border: 2px solid #ccc; /* Hellgrauer Rahmen */
-        padding: 25px;
-        font-family: sans-serif;
-        background-color: #ffffff; /* Hintergrund ist Weiß */
-        border-radius: 20px; /* Abgerundete Ecken */
-        max-width: 350px; /* Optional: für bessere Lesbarkeit in einer Sidebar */
-        margin: 0 auto; /* Optional: zum Zentrieren */
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Leichter Schatten für Tiefe */
-    }
+.order-summary-bold-final {
+    border: 1px solid #DFDFDF; /* Gleicher Rahmen wie andere Karten */
+    padding: 25px;
+    font-family: 'Roboto', sans-serif; /* Gleiche Schriftart wie der Rest des Checkouts */
+    background-color: #ffffff; /* Hintergrund ist Weiß */
+    border-radius: 12px; /* Gleicher Radius wie andere Karten */
+    max-width: 350px; /* Optional: für bessere Lesbarkeit in einer Sidebar */
+    margin: 0 auto; /* Optional: zum Zentrieren */
+}
 
     /* Titel "Warenkorb" */
-    .bold-header-final {
-        color: #333; /* Schwarzer Titel */
-        font-size: 1.5em;
-        margin-bottom: 20px;
-    }
+.bold-header-final {
+    color: var(--yprint-black, #1d1d1f); /* Gleiche Farbe wie die Hauptüberschriften */
+    font-size: 1.25rem; /* 20px / 1.25rem = h3 im Rest des Designs */
+    font-weight: 600;
+    margin-bottom: 20px;
+}
 
     /* Container für Artikel */
     .items {
