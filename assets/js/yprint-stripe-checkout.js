@@ -1,302 +1,200 @@
-/**
- * YPrint Stripe Checkout JavaScript
- * 
- * Handles Stripe specific checkout functionality
- */
-jQuery(document).ready(function($) {
-    // Stripe client objects
-    let stripe = null;
-    let elements = null;
-    let cardElement = null;
-    let paymentRequest = null;
-    
-    /**
-     * Initialize Stripe for checkout
-     */
-    function initStripeCheckout() {
-        if (typeof Stripe === 'undefined' || !yprintStripe.public_key) {
-            console.error('Stripe not available or missing configuration');
-            return;
-        }
-        
-        // Initialize Stripe
-        stripe = Stripe(yprintStripe.public_key);
-        elements = stripe.elements();
-        
-        // Create card element
-        setupCardElement();
-        
-        // Setup payment request buttons (Apple Pay, Google Pay)
-        setupPaymentRequest();
+// YPrint Checkout JavaScript - Stripe-spezifische Funktionen
+// Dieses Skript sollte geladen werden, NACHDEM Stripe.js v3 geladen wurde.
+// z.B. <script src="https://js.stripe.com/v3/"></script>
+
+document.addEventListener('DOMContentLoaded', function () {
+    // Überprüfen, ob Stripe-Objekt vorhanden ist
+    if (typeof Stripe === 'undefined') {
+        console.error('Stripe.js wurde nicht geladen. Stripe-Funktionen sind nicht verfügbar.');
+        // Optional: Dem Nutzer eine Meldung anzeigen oder bestimmte UI-Elemente deaktivieren.
+        const stripePaymentElements = document.querySelectorAll('.stripe-payment-element-container'); // Beispielklasse
+        stripePaymentElements.forEach(el => {
+            el.innerHTML = '<p class="text-yprint-error">Fehler beim Laden der Zahlungsoption. Bitte versuchen Sie es später erneut.</p>';
+        });
+        return;
     }
-    
-    /**
-     * Setup Stripe card element
-     */
-    function setupCardElement() {
-        // Create and mount the card element
-        const cardElementContainer = document.getElementById('yprint-stripe-card-element');
-        
-        if (!cardElementContainer) {
-            return;
-        }
-        
-        // Card element options
-        const cardOptions = {
-            style: {
-                base: {
-                    color: '#1d1d1f',
-                    fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, sans-serif',
-                    fontSize: '16px',
-                    '::placeholder': {
-                        color: '#6e6e73'
-                    }
-                },
-                invalid: {
-                    color: '#dc3545',
-                    iconColor: '#dc3545'
+
+    // Stripe Publishable Key (sollte sicher übergeben werden, z.B. via wp_localize_script)
+    // const stripePublishableKey = yprint_stripe_vars.publishable_key;
+    const stripePublishableKey = 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY'; // NUR ZU TESTZWECKEN DIREKT HIER!
+
+    if (!stripePublishableKey || stripePublishableKey === 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY') {
+        console.warn('Stripe Publishable Key nicht konfiguriert oder ist der Standard-Testschlüssel.');
+        // Ggf. Stripe-Elemente nicht initialisieren oder Fehlermeldung anzeigen
+    }
+
+    const stripe = Stripe(stripePublishableKey);
+
+    // Beispiel: Initialisierung von Stripe Elements für ein Kreditkartenformular
+    // Dies ist nur ein Grundgerüst. Die tatsächliche Implementierung hängt stark
+    // von der gewählten Stripe-Integration ab (Payment Intents, Setup Intents, etc.)
+
+    const elements = stripe.elements();
+    const cardElementContainer = document.getElementById('stripe-card-element'); // Container im HTML für das Card Element
+
+    if (cardElementContainer) {
+        // Style für Stripe Elements (kann an YPrint CD angepasst werden)
+        const elementsStyle = {
+            base: {
+                color: '#1d1d1f', // --yprint-black
+                fontFamily: '"Roboto", sans-serif',
+                fontSmoothing: 'antialiased',
+                fontSize: '16px',
+                '::placeholder': {
+                    color: '#6e6e73' // --yprint-text-secondary
                 }
+            },
+            invalid: {
+                color: '#dc3545', // --yprint-error
+                iconColor: '#dc3545'
             }
         };
-        
-        // Create the card element
-        cardElement = elements.create('card', cardOptions);
-        cardElement.mount(cardElementContainer);
-        
-        // Handle card validation errors
-        cardElement.on('change', function(event) {
-            const displayError = document.getElementById('yprint-stripe-card-errors');
-            
-            if (event.error) {
-                displayError.textContent = event.error.message;
-            } else {
-                displayError.textContent = '';
-            }
-        });
-        
-        // Handle form submission to create payment method
-        $('#yprint-payment-form').on('submit', function(e) {
-            e.preventDefault();
-            
-            const paymentMethod = $('input[name="payment_method"]:checked').val();
-            
-            if (paymentMethod !== 'stripe') {
-                // If not using Stripe, handle normally
-                savePaymentMethod(paymentMethod);
-                return;
-            }
-            
-            const savedPaymentMethod = $('input[name="saved_payment_method"]:checked').val();
-            
-            if (savedPaymentMethod && savedPaymentMethod !== 'new') {
-                // Using a saved payment method
-                savePaymentMethod(paymentMethod, savedPaymentMethod);
-                return;
-            }
-            
-            // Using a new card
-            createStripePaymentMethod();
-        });
-    }
-    
-    /**
-     * Create a new Stripe payment method
-     */
-    function createStripePaymentMethod() {
-        // Show loading state
-        $('#yprint-payment-form').addClass('yprint-loading');
-        $('#yprint-stripe-card-errors').text('');
-        
-        // Create payment method
-        stripe.createPaymentMethod({
-            type: 'card',
-            card: cardElement,
-            billing_details: {
-                name: $('#billing_first_name').val() + ' ' + $('#billing_last_name').val(),
-                email: $('#billing_email').val()
-            }
-        }).then(function(result) {
-            if (result.error) {
-                // Show error
-                $('#yprint-stripe-card-errors').text(yprintStripe.card_error + result.error.message);
-                $('#yprint-payment-form').removeClass('yprint-loading');
-            } else {
-                // Payment method created successfully
-                const paymentMethodId = result.paymentMethod.id;
-                savePaymentMethod('stripe', null, paymentMethodId);
-            }
-        });
-    }
-    
-    /**
-     * Save the selected payment method
-     */
-    function savePaymentMethod(method, savedId = null, token = null) {
-        const paymentData = {
-            method: method,
-            saved_id: savedId,
-            token: token,
-            save: $('#save_payment_method').is(':checked')
-        };
-        
-        // Save payment method via AJAX
-        $.ajax({
-            url: yprintCheckout.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'yprint_set_payment_method',
-                security: yprintCheckout.checkout_nonce,
-                payment: paymentData
-            },
-            beforeSend: function() {
-                $('#yprint-payment-form').addClass('yprint-loading');
-            },
-            success: function(response) {
-                if (response.success) {
-                    // Go to next step
-                    window.location.href = window.location.pathname + '?step=confirmation';
+
+        const card = elements.create('card', { style: elementsStyle });
+        card.mount('#stripe-card-element'); // Mounten in den Container
+
+        // Fehlerbehandlung für das Card Element
+        card.on('change', function(event) {
+            const displayError = document.getElementById('stripe-card-errors'); // Ein Div zur Anzeige von Kartenfehlern
+            if (displayError) {
+                if (event.error) {
+                    displayError.textContent = event.error.message;
+                    displayError.classList.add('text-yprint-error', 'mt-2'); // Sichtbar machen
                 } else {
-                    alert(response.data.message || yprintStripe.generic_error);
+                    displayError.textContent = '';
+                    displayError.classList.remove('text-yprint-error', 'mt-2'); // Verstecken
                 }
-            },
-            error: function() {
-                alert(yprintStripe.generic_error);
-            },
-            complete: function() {
-                $('#yprint-payment-form').removeClass('yprint-loading');
             }
         });
-    }
-    
-    /**
-     * Setup Payment Request buttons (Apple Pay, Google Pay)
-     */
-    function setupPaymentRequest() {
-        // Check if Payment Request is available
-        if (!stripe || !stripe.paymentRequest) {
-            return;
+
+        // Event Listener für den "Jetzt kaufen" Button, um die Zahlung mit Stripe zu verarbeiten
+        // Dieser müsste mit der Logik in yprint-checkout.js koordiniert werden,
+        // z.B. erst wenn der Schritt "Bestätigung" erreicht ist und die Zahlungsart "Kreditkarte (Stripe)" gewählt wurde.
+        const form = document.getElementById('checkout-form'); // Das Haupt-Checkout-Formular
+        const buyNowButton = document.getElementById('btn-buy-now'); // Der "Jetzt Kaufen" Button
+
+        if (form && buyNowButton) {
+            // Dieser Event Listener ist ein Beispiel und muss ggf. angepasst werden,
+            // um nicht mit dem globalen 'btn-buy-now' Listener in yprint-checkout.js zu kollidieren.
+            // Eine Möglichkeit wäre, den globalen Listener zu modifizieren, um Stripe-spezifische
+            // Logik aufzurufen, wenn Stripe als Zahlungsart gewählt ist.
+
+            // buyNowButton.addEventListener('click', async function(event) {
+            //     event.preventDefault();
+            //     const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
+            //
+            //     if (selectedPaymentMethod === 'stripe_credit_card') { // Beispielwert für Stripe
+            //         // Deaktiviere den Button, um doppelte Klicks zu verhindern
+            //         buyNowButton.disabled = true;
+            //         document.getElementById('loading-overlay')?.classList.add('visible');
+            //
+            //         // Hier würde die Erstellung eines PaymentIntent auf dem Server erfolgen (via AJAX)
+            //         // const { clientSecret } = await fetch('/.netlify/functions/create-payment-intent', { // Beispiel-Endpunkt
+            //         //     method: 'POST',
+            //         //     headers: { 'Content-Type': 'application/json' },
+            //         //     body: JSON.stringify({ amount: 1000 }) // Betrag in Cent
+            //         // }).then(r => r.json());
+            //
+            //         // Dummy clientSecret für Demo
+            //         const clientSecret = "pi_123_secret_456"; // ERSETZEN DURCH ECHTEN CLIENT SECRET VOM SERVER
+            //
+            //         const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            //             payment_method: {
+            //                 card: card,
+            //                 // billing_details: { // Optional, kann serverseitig gesetzt werden
+            //                 //    name: document.getElementById('name_on_card').value,
+            //                 // },
+            //             }
+            //         });
+            //
+            //         if (error) {
+            //             console.error('Stripe confirmCardPayment Fehler:', error);
+            //             const displayError = document.getElementById('stripe-card-errors');
+            //             if (displayError) displayError.textContent = error.message;
+            //             buyNowButton.disabled = false; // Button wieder aktivieren
+            //             document.getElementById('loading-overlay')?.classList.remove('visible');
+            //         } else {
+            //             if (paymentIntent.status === 'succeeded') {
+            //                 console.log('Stripe Zahlung erfolgreich!', paymentIntent);
+            //                 // Hier die Logik nach erfolgreicher Zahlung:
+            //                 // - Bestellung in WordPress abschließen (via AJAX an ajax_process_checkout)
+            //                 // - Weiterleitung zur Danke-Seite
+            //                 // Die Logik aus yprint-checkout.js für showStep(4) etc. könnte hier getriggert werden.
+            //             } else {
+            //                 console.warn('Stripe Zahlung nicht abgeschlossen:', paymentIntent.status);
+            //                  const displayError = document.getElementById('stripe-card-errors');
+            //                 if (displayError) displayError.textContent = "Zahlung konnte nicht abgeschlossen werden: " + paymentIntent.status;
+            //                 buyNowButton.disabled = false;
+            //                 document.getElementById('loading-overlay')?.classList.remove('visible');
+            //             }
+            //         }
+            //     }
+            // });
         }
-        
-        // Get cart total
-        const cartTotal = parseFloat($('.yprint-cart-total span:last-child').text().replace(/[^0-9,.]/g, '').replace(',', '.'));
-        
-        if (isNaN(cartTotal) || cartTotal <= 0) {
-            return;
-        }
-        
-        // Create a Payment Request
-        paymentRequest = stripe.paymentRequest({
-            country: 'DE',
-            currency: 'eur',
-            total: {
-                label: 'YPrint Bestellung',
-                amount: Math.round(cartTotal * 100) // Convert to cents
-            },
-            requestPayerName: true,
-            requestPayerEmail: true,
-            requestPayerPhone: true,
-            requestShipping: true
-        });
-        
-        // Create Payment Request Button
-        const prButton = elements.create('paymentRequestButton', {
-            paymentRequest: paymentRequest,
-            style: {
-                paymentRequestButton: {
-                    type: 'default',
-                    theme: 'dark',
-                    height: '48px'
-                }
-            }
-        });
-        
-        // Check if Payment Request is supported
-        paymentRequest.canMakePayment().then(function(result) {
-            if (result) {
-                // Show relevant button
-                if (result.applePay) {
-                    $('#yprint-apple-pay-button').show();
-                }
-                if (result.googlePay) {
-                    $('#yprint-google-pay-button').show();
-                }
-                
-                // Mount the Payment Request Button
-                prButton.mount('#yprint-payment-request-button');
-            }
-        });
-        
-        // Handle Payment Request Button click
-        $('#yprint-apple-pay-button, #yprint-google-pay-button').on('click', function() {
-            paymentRequest.show();
-        });
-        
-        // Handle payment success
-        paymentRequest.on('paymentmethod', function(ev) {
-            // Process the payment method and confirm payment
-            processExpressPayment(ev.paymentMethod.id, ev);
-        });
-    }
-    
-    /**
-     * Process express payment (Apple Pay, Google Pay)
-     */
-    function processExpressPayment(paymentMethodId, ev) {
-        // Save express payment method and create order
-        $.ajax({
-            url: yprintCheckout.ajaxurl,
-            type: 'POST',
-            data: {
-                action: 'yprint_process_express_checkout',
-                security: yprintCheckout.checkout_nonce,
-                payment_method_id: paymentMethodId,
-                billing_details: {
-                    name: ev.payerName,
-                    email: ev.payerEmail,
-                    phone: ev.payerPhone
-                },
-                shipping_details: ev.shippingAddress
-            },
-            success: function(response) {
-                if (response.success) {
-                    if (response.data.requires_confirmation) {
-                        // Confirm the payment with Stripe
-                        stripe.confirmCardPayment(
-                            response.data.client_secret,
-                            { payment_method: paymentMethodId }
-                        ).then(function(result) {
-                            if (result.error) {
-                                ev.complete('fail');
-                                alert(result.error.message);
-                            } else {
-                                ev.complete('success');
-                                window.location.href = response.data.redirect;
-                            }
-                        });
-                    } else {
-                        // No confirmation needed
-                        ev.complete('success');
-                        window.location.href = response.data.redirect;
-                    }
-                } else {
-                    ev.complete('fail');
-                    alert(response.data.message || yprintStripe.generic_error);
-                }
-            },
-            error: function() {
-                ev.complete('fail');
-                alert(yprintStripe.generic_error);
-            }
-        });
-    }
-    
-    // Make Stripe initialization function available globally
-    window.initStripeCheckout = initStripeCheckout;
-    
-    // Initialize Stripe checkout
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        initStripeCheckout();
+
     } else {
-        document.addEventListener('DOMContentLoaded', initStripeCheckout);
+        console.log('Stripe Card Element Container (stripe-card-element) nicht gefunden.');
     }
+
+
+    // TODO: Implementierung für Express Checkout (Apple Pay, Google Pay)
+    // Dies erfordert die Stripe Payment Request Button API.
+    // 1. Prüfen, ob Payment Request API verfügbar ist.
+    // 2. Payment Request Objekt erstellen.
+    // 3. Payment Request Button erstellen und mounten.
+    // 4. Event Listener für 'paymentmethod' am Payment Request Objekt.
+    // 5. Zahlung mit dem erhaltenen PaymentMethod-Objekt bestätigen (serverseitig PaymentIntent erstellen).
+
+    // Beispielhafte Struktur (sehr vereinfacht):
+    // const paymentRequest = stripe.paymentRequest({
+    //    country: 'DE',
+    //    currency: 'eur',
+    //    total: {
+    //        label: 'YPrint Bestellung',
+    //        amount: 1000, // In Cent, dynamisch vom Warenkorb
+    //    },
+    //    requestPayerName: true,
+    //    requestPayerEmail: true,
+    // });
+    //
+    // const prButton = elements.create('paymentRequestButton', {
+    //    paymentRequest: paymentRequest,
+    // });
+    //
+    // // Prüfen, ob der Payment Request Button verwendet werden kann.
+    // paymentRequest.canMakePayment().then(function(result) {
+    //    if (result) {
+    //        const prButtonContainer = document.getElementById('payment-request-button'); // Container im HTML
+    //        if (prButtonContainer) {
+    //             prButton.mount('#payment-request-button');
+    //        } else {
+    //             console.log('Payment Request Button Container nicht gefunden.')
+    //        }
+    //    } else {
+    //        const prButtonContainer = document.getElementById('payment-request-button');
+    //        if (prButtonContainer) prButtonContainer.style.display = 'none'; // Button ausblenden, wenn nicht verfügbar
+    //        console.log('Apple Pay / Google Pay nicht verfügbar.');
+    //    }
+    // });
+    //
+    // paymentRequest.on('paymentmethod', async (ev) => {
+    //    // Bestätige den PaymentIntent auf dem Server mit ev.paymentMethod.id
+    //    // const { clientSecret } = await fetch('/create-payment-intent', { ... }).then(r => r.json());
+    //    // const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+    //    //    payment_method: ev.paymentMethod.id,
+    //    // }, { handleActions: false });
+    //    //
+    //    // if (error) {
+    //    //    ev.complete('fail'); return;
+    //    // }
+    //    // ev.complete('success');
+    //    // if (paymentIntent.status === 'requires_action') {
+    //    //    stripe.confirmCardPayment(clientSecret).then(function(result) { ... });
+    //    // } else {
+    //    //    // Zahlung erfolgreich -> Weiterleiten etc.
+    //    // }
+    // });
+
+    console.log('YPrint Stripe Checkout JS initialisiert.');
 });
+

@@ -1,169 +1,129 @@
 <?php
 /**
- * YPrint Checkout Payment Step
+ * Partial Template: Schritt 2 - Zahlungsart wählen.
  *
- * @package YPrint
+ * Benötigt:
+ * $cart_totals_data (array) - Array mit Warenkorbsummen
  */
 
-// Prevent direct access
-if (!defined('ABSPATH')) {
+// Direktaufruf verhindern
+if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Previous and next step URLs
-$prev_step_url = add_query_arg('step', 'address');
-$next_step_url = add_query_arg('step', 'confirmation');
+// $cart_totals_data sollte von checkout-multistep.php übergeben werden
+// oder hier direkt von WooCommerce geladen werden.
+if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
+    $cart_totals_data = array( /* Standard-Summen, siehe checkout-cart-summary.php */ );
+}
 
-// Get available payment gateways
-$available_gateways = WC()->payment_gateways()->get_available_payment_gateways();
+// Verfügbare Zahlungsmethoden (sollten dynamisch geladen werden, z.B. von WooCommerce)
+$available_payment_methods = array(
+    'paypal' => array(
+        'title' => 'PayPal',
+        'icon_class' => 'fab fa-paypal',
+        'icon_color' => 'text-[#00457C]' // PayPal Blau
+    ),
+    'applepay' => array(
+        'title' => 'Apple Pay',
+        'icon_class' => 'fab fa-apple-pay',
+        'icon_color' => 'text-black'
+    ),
+    'creditcard' => array( // Generische Kreditkarte, Stripe-spezifisch wäre anders
+        'title' => __('Kreditkarte', 'yprint-checkout'),
+        'icon_class' => 'fas fa-credit-card',
+        'icon_color' => 'text-gray-600'
+    ),
+    'klarna' => array(
+        'title' => 'Klarna',
+        'svg_path' => 'M248.291 31.0084C265.803 31.0084 280.21 37.1458 291.513 49.4206C302.888 61.6954 308.575 77.0417 308.575 95.4594C308.575 113.877 302.888 129.223 291.513 141.498C280.21 153.773 265.803 159.91 248.291 159.91H180.854V31.0084H248.291ZM213.956 132.621H248.291C258.57 132.621 267.076 129.68 273.808 123.798C280.612 117.844 284.014 109.177 284.014 97.7965C284.014 86.4158 280.612 77.7491 273.808 71.7947C267.076 65.8403 258.57 62.8992 248.291 62.8992H213.956V132.621ZM143.061 31.0084H109.959V159.91H143.061V31.0084ZM495.99 31.0084L445.609 159.91H408.009L378.571 79.1557L349.132 159.91H311.532L361.914 31.0084H399.514L428.952 112.661L458.39 31.0084H495.99ZM0 31.0084H33.1017V159.91H0V31.0084Z', // Gekürzt für Lesbarkeit, im JS wird es ersetzt
+        'svg_fill' => '#FFB3C7' // Klarna Pink
+    ),
+    // Hier Stripe Elements Container einfügen, falls Stripe als separate Option angezeigt wird
+    // 'stripe_credit_card' => array('title' => 'Kreditkarte (via Stripe)', 'element_id' => 'stripe-card-element')
+);
+$default_payment_method = 'paypal'; // Standardmäßig vorausgewählt
+
 ?>
-
-<div class="yprint-checkout-step yprint-payment-step">
-    <h2>Zahlungsmethode auswählen</h2>
-    <p class="yprint-step-description">Wähle deine bevorzugte Zahlungsmethode aus.</p>
+<div id="step-2" class="checkout-step">  <?php // 'active' Klasse wird serverseitig oder per JS initial gesetzt ?>
+    <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
     
-    <!-- Express Checkout Options -->
-    <div class="yprint-express-checkout">
-        <h3>Express-Zahlungsmethoden</h3>
-        <div class="yprint-express-buttons">
-            <div id="yprint-apple-pay-button" class="yprint-express-button yprint-apple-pay" style="display: none;">
-                <div class="yprint-express-button-content">
-                    <span class="yprint-express-icon apple-pay-icon"></span>
-                    <span class="yprint-express-label">Apple Pay</span>
+    <?php // Optional: Express Checkout Buttons (Apple Pay, Google Pay via Stripe Payment Request Button) ?>
+    <div id="payment-request-button" class="my-4">
+        <?php // Dieser Container wird von yprint-stripe-checkout.js befüllt, falls Express Checkout verfügbar ist. ?>
+    </div>
+
+    <form id="payment-form" class="space-y-6 mt-6">
+        <div class="space-y-3">
+            <p class="font-medium"><?php esc_html_e('Verfügbare Zahlungsarten:', 'yprint-checkout'); ?></p>
+            <?php foreach ($available_payment_methods as $key => $method) : ?>
+                <div>
+                    <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
+                        <input type="radio" name="payment_method" value="<?php echo esc_attr($key); ?>" class="form-radio h-5 w-5 text-yprint-blue mr-3" <?php checked($key, $default_payment_method); ?>>
+                        <?php if (isset($method['icon_class'])) : ?>
+                            <i class="<?php echo esc_attr($method['icon_class']); ?> fa-fw text-2xl mr-3 <?php echo esc_attr($method['icon_color'] ?? ''); ?>"></i>
+                        <?php elseif (isset($method['svg_path'])) : ?>
+                            <svg viewBox="0 0 496 156" class="klarna-logo-svg" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="<?php echo esc_attr($method['svg_path']); ?>" fill="<?php echo esc_attr($method['svg_fill']); ?>"></path>
+                            </svg>
+                        <?php endif; ?>
+                        <?php echo esc_html($method['title']); ?>
+                    </label>
+                    <?php // Spezieller Container für Stripe Card Element, falls diese Methode gewählt wird ?>
+                    <?php if ($key === 'stripe_credit_card' && isset($method['element_id'])) : ?>
+                        <div id="<?php echo esc_attr($method['element_id']); ?>" class="stripe-payment-element-container mt-2 p-3 border border-yprint-border-gray rounded-lg <?php echo ($default_payment_method !== 'stripe_credit_card') ? 'hidden' : ''; ?>">
+                            <?php // Das Stripe Card Element wird hier von yprint-stripe-checkout.js gemountet. ?>
+                        </div>
+                        <div id="stripe-card-errors" role="alert" class="text-yprint-error text-sm mt-1"></div>
+                    <?php endif; ?>
                 </div>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="mt-6 border-t border-yprint-medium-gray pt-6">
+            <h3 class="text-lg font-semibold mb-2"><?php esc_html_e('Gesamtübersicht', 'yprint-checkout'); ?></h3>
+            <div class="flex justify-between text-lg">
+                <span><?php esc_html_e('Zwischensumme:', 'yprint-checkout'); ?></span>
+                <span id="subtotal-price">€<?php echo esc_html(number_format_i18n($cart_totals_data['subtotal'], 2)); ?></span>
             </div>
-            
-            <div id="yprint-google-pay-button" class="yprint-express-button yprint-google-pay" style="display: none;">
-                <div class="yprint-express-button-content">
-                    <span class="yprint-express-icon google-pay-icon"></span>
-                    <span class="yprint-express-label">Google Pay</span>
-                </div>
+            <div class="flex justify-between text-lg">
+                <span><?php esc_html_e('Versandkosten:', 'yprint-checkout'); ?></span>
+                <span id="shipping-price">€<?php echo esc_html(number_format_i18n($cart_totals_data['shipping'], 2)); ?></span>
+            </div>
+            <?php if ($cart_totals_data['discount'] > 0) : ?>
+            <div class="flex justify-between text-lg text-yprint-success">
+                <span><?php esc_html_e('Rabatt:', 'yprint-checkout'); ?></span>
+                <span id="discount-price">-€<?php echo esc_html(number_format_i18n($cart_totals_data['discount'], 2)); ?></span>
+            </div>
+            <?php endif; ?>
+            <div class="flex justify-between text-xl font-bold mt-2 text-yprint-blue">
+                <span><?php esc_html_e('Gesamtpreis:', 'yprint-checkout'); ?></span>
+                <span id="total-price-payment">€<?php echo esc_html(number_format_i18n($cart_totals_data['total'], 2)); ?></span>
             </div>
         </div>
-    </div>
-    
-    <!-- Standard Payment Methods -->
-    <div class="yprint-payment-methods">
-        <h3>Standard-Zahlungsmethoden</h3>
-        
-        <form id="yprint-payment-form">
-            <?php if (!empty($available_gateways)) : ?>
-                <div class="yprint-payment-options">
-                    <?php foreach ($available_gateways as $gateway_id => $gateway) : ?>
-                    <div class="yprint-payment-option">
-                        <input type="radio" id="payment_method_<?php echo esc_attr($gateway_id); ?>" name="payment_method" value="<?php echo esc_attr($gateway_id); ?>" <?php checked($gateway_id, 'stripe'); ?>>
-                        <label for="payment_method_<?php echo esc_attr($gateway_id); ?>">
-                            <span class="yprint-payment-option-title"><?php echo esc_html($gateway->get_title()); ?></span>
-                            <?php if ($gateway->has_fields() || $gateway->get_description()) : ?>
-                                <span class="yprint-payment-option-description"><?php echo wp_kses_post($gateway->get_description()); ?></span>
-                            <?php endif; ?>
-                        </label>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                
-                <!-- Credit Card Fields for Stripe -->
-                <div id="yprint-stripe-card-element" class="yprint-stripe-element">
-                    <!-- Stripe Elements will be inserted here -->
-                </div>
-                <div id="yprint-stripe-card-errors" class="yprint-stripe-errors" role="alert"></div>
-                
-                <!-- Saved Payment Methods -->
-                <?php if (is_user_logged_in()) : 
-                    $user_id = get_current_user_id();
-                    
-                    // Get saved payment methods from custom table
-                    global $wpdb;
-                    $payment_methods = $wpdb->get_results(
-                        $wpdb->prepare(
-                            "SELECT * FROM {$wpdb->prefix}payment_methods WHERE user_id = %d ORDER BY is_default DESC",
-                            $user_id
-                        ),
-                        ARRAY_A
-                    );
-                    
-                    if (!empty($payment_methods)) : ?>
-                    <div class="yprint-saved-payment-methods">
-                        <h4>Gespeicherte Zahlungsmethoden</h4>
-                        
-                        <div class="yprint-saved-payment-options">
-                            <?php foreach ($payment_methods as $method) : 
-                                $method_data = json_decode($method['method_data'], true);
-                                $method_type = $method['method_type'];
-                                $method_class = '';
-                                $method_info = '';
-                                
-                                // Format display based on method type
-                                if ($method_type === 'card') {
-                                    $method_class = isset($method_data['card_type']) ? $method_data['card_type'] : 'unknown';
-                                    $last_four = substr($method_data['card_number'], -4);
-                                    $method_info = 'Karte endet auf ' . $last_four . ' • Gültig bis ' . $method_data['card_expiry'];
-                                } elseif ($method_type === 'paypal') {
-                                    $method_class = 'paypal';
-                                    $method_info = $method_data['paypal_email'];
-                                } elseif ($method_type === 'sepa') {
-                                    $method_class = 'sepa';
-                                    $iban = $method_data['sepa_iban'];
-                                    $last_four = substr($iban, -4);
-                                    $method_info = 'IBAN endet auf ' . $last_four;
-                                }
-                            ?>
-                            <div class="yprint-saved-payment-option <?php echo esc_attr($method_class); ?> <?php echo ($method['is_default'] == 1) ? 'default' : ''; ?>">
-                                <input type="radio" id="saved_payment_<?php echo esc_attr($method['id']); ?>" name="saved_payment_method" value="<?php echo esc_attr($method['id']); ?>" <?php checked($method['is_default'], 1); ?>>
-                                <label for="saved_payment_<?php echo esc_attr($method['id']); ?>">
-                                    <div class="yprint-payment-icon"></div>
-                                    <div class="yprint-payment-details">
-                                        <?php if ($method_type === 'card') : ?>
-                                            <div class="yprint-payment-name"><?php echo esc_html($method_data['card_name']); ?></div>
-                                        <?php elseif ($method_type === 'paypal') : ?>
-                                            <div class="yprint-payment-name">PayPal</div>
-                                        <?php elseif ($method_type === 'sepa') : ?>
-                                            <div class="yprint-payment-name"><?php echo esc_html($method_data['sepa_name']); ?></div>
-                                        <?php endif; ?>
-                                        
-                                        <div class="yprint-payment-info"><?php echo esc_html($method_info); ?></div>
-                                    </div>
-                                    
-                                    <?php if ($method['is_default'] == 1) : ?>
-                                    <div class="yprint-payment-default-badge">Standard</div>
-                                    <?php endif; ?>
-                                </label>
-                            </div>
-                            <?php endforeach; ?>
-                            
-                            <!-- Option for a new card -->
-                            <div class="yprint-saved-payment-option yprint-new-payment">
-                                <input type="radio" id="new_payment_method" name="saved_payment_method" value="new">
-                                <label for="new_payment_method">
-                                    <div class="yprint-payment-icon new-card-icon"></div>
-                                    <div class="yprint-payment-details">
-                                        <div class="yprint-payment-name">Neue Zahlungsmethode</div>
-                                        <div class="yprint-payment-info">Eine neue Kredit- oder Debitkarte hinzufügen</div>
-                                    </div>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                <?php endif; ?>
-                
-                <!-- Save Payment Method Option -->
-                <div class="yprint-save-payment-option">
-                    <input type="checkbox" id="save_payment_method" name="save_payment_method" checked>
-                    <label for="save_payment_method">Zahlungsmethode für zukünftige Bestellungen speichern</label>
-                </div>
-                
-            <?php else : ?>
-                <div class="yprint-no-payment-methods">
-                    <p>Es sind keine Zahlungsmethoden verfügbar. Bitte kontaktiere uns für Unterstützung.</p>
-                </div>
-            <?php endif; ?>
-        </form>
-    </div>
-    
-    <!-- Step Navigation -->
-    <div class="yprint-step-navigation">
-        <a href="<?php echo esc_url($prev_step_url); ?>" class="yprint-button yprint-button-secondary">Zurück zu Adresse</a>
-        <a href="<?php echo esc_url($next_step_url); ?>" class="yprint-button yprint-button-primary yprint-continue-button">Weiter zur Bestätigung</a>
-    </div>
+
+        <div class="mt-4">
+            <label for="voucher" class="form-label"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
+            <div class="flex">
+                <input type="text" id="voucher" name="voucher_code" class="form-input rounded-r-none" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
+                <button type="button" class="btn btn-secondary rounded-l-none whitespace-nowrap">
+                    <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
+                </button>
+            </div>
+            <p id="voucher-feedback" class="text-sm mt-1"></p>
+        </div>
+
+        <div class="mt-6 p-3 bg-yprint-info rounded-lg text-sm text-yprint-text-secondary">
+            <i class="fas fa-lock mr-2"></i> <?php esc_html_e('Ihre Daten werden SSL-verschlüsselt übertragen. Sicher einkaufen!', 'yprint-checkout'); ?>
+        </div>
+
+        <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">
+                <i class="fas fa-arrow-left mr-2"></i> <?php esc_html_e('Zurück zur Adresse', 'yprint-checkout'); ?>
+            </button>
+            <button type="button" id="btn-to-confirmation" class="btn btn-primary w-full md:w-auto order-1 md:order-2">
+                <?php esc_html_e('Weiter zur Bestätigung', 'yprint-checkout'); ?> <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+        </div>
+    </form>
 </div>

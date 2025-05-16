@@ -1,70 +1,80 @@
 <?php
 /**
- * YPrint Checkout Progress Template
+ * Partial Template: Fortschrittsbalken für den Checkout.
  *
- * @package YPrint
+ * Benötigt:
+ * $current_step_slug (string) - Slug des aktuellen Schritts (z.B. 'address', 'payment', 'confirmation')
  */
 
-// Prevent direct access
-if (!defined('ABSPATH')) {
+// Direktaufruf verhindern
+if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
-?>
 
-<div class="yprint-progress-container">
-    <div class="yprint-progress-steps">
-        <?php foreach ($steps as $step_key => $step_number) : 
-            $step_active = ($current_step === $step_key) ? ' active' : '';
-            $step_completed = ($step_number < $current_step_number) ? ' completed' : '';
-            $step_class = 'yprint-progress-step' . $step_active . $step_completed;
-            $step_url = add_query_arg('step', $step_key);
-            
-            // Only make completed steps clickable
-            $step_link = ($step_completed) ? $step_url : '#';
-            $step_clickable = ($step_completed) ? '' : ' not-clickable';
-            
-            // Icon für jeden Schritt
-            $step_icon = '';
-            switch ($step_key) {
-                case 'address':
-                    $step_icon = '<i class="fas fa-map-marker-alt"></i>';
-                    break;
-                case 'payment':
-                    $step_icon = '<i class="fas fa-credit-card"></i>';
-                    break;
-                case 'confirmation':
-                    $step_icon = '<i class="fas fa-check-circle"></i>';
-                    break;
-            }
+// Definition der Schritte und ihrer Reihenfolge
+$checkout_steps_config = array(
+    'address' => array(
+        'number' => 1,
+        'label' => __('Adresse', 'yprint-checkout'),
+        'icon' => 'fa-map-marker-alt' // Font Awesome Icon Klasse
+    ),
+    'payment' => array(
+        'number' => 2,
+        'label' => __('Zahlung', 'yprint-checkout'),
+        'icon' => 'fa-credit-card'
+    ),
+    'confirmation' => array(
+        'number' => 3,
+        'label' => __('Bestätigung', 'yprint-checkout'),
+        'icon' => 'fa-check-circle'
+    ),
+    // 'thankyou' wird hier nicht als sichtbarer Schritt in der Leiste dargestellt
+);
+
+// Sicherstellen, dass $current_step_slug gesetzt ist, Standard auf 'address'
+$current_step_slug = isset($current_step_slug) ? $current_step_slug : 'address';
+$current_step_number = isset($checkout_steps_config[$current_step_slug]['number']) ? $checkout_steps_config[$current_step_slug]['number'] : 1;
+
+?>
+<div class="progress-bar-container">
+    <?php foreach ($checkout_steps_config as $step_slug => $step_data) : ?>
+        <?php
+        $is_active = ($step_slug === $current_step_slug);
+        $is_completed = ($step_data['number'] < $current_step_number);
+        $step_class = 'progress-step';
+        if ($is_active) {
+            $step_class .= ' active';
+        } elseif ($is_completed) {
+            $step_class .= ' completed';
+        }
+
+        // URL zum Schritt (vereinfacht, für komplexere URLs anpassen)
+        // In einer echten WP-Anwendung würde man hier vielleicht get_permalink() oder add_query_arg() verwenden.
+        $step_url = add_query_arg('step', $step_slug, get_permalink()); // Annahme: Checkout ist auf einer Seite
         ?>
-        <div class="<?php echo esc_attr($step_class . $step_clickable); ?>" data-step="<?php echo esc_attr($step_number); ?>">
-            <a href="<?php echo esc_url($step_link); ?>" class="yprint-step-link">
-                <div class="yprint-step-circle">
-                    <?php if ($step_completed): ?>
+        <div class="<?php echo esc_attr($step_class); ?>" id="progress-step-<?php echo esc_attr($step_data['number']); ?>">
+            <?php // Klickbar machen, wenn abgeschlossen, aber nicht aktiv ?>
+            <?php if ($is_completed && !$is_active) : ?>
+                <a href="<?php echo esc_url($step_url); ?>" class="progress-step-link">
+                    <div class="progress-circle">
+                        <?php if ($is_completed): ?>
+                            <i class="fas fa-check"></i>
+                        <?php else: ?>
+                            <?php echo esc_html($step_data['number']); ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="progress-label"><?php echo esc_html($step_data['label']); ?></div>
+                </a>
+            <?php else: ?>
+                <div class="progress-circle">
+                     <?php if ($is_completed && !$is_active): // Sollte eigentlich nicht passieren wegen oberer if-Bedingung, aber zur Sicherheit ?>
                         <i class="fas fa-check"></i>
                     <?php else: ?>
-                        <?php echo $step_number; ?>
+                        <?php echo esc_html($step_data['number']); ?>
                     <?php endif; ?>
                 </div>
-                <div class="yprint-step-label">
-                    <?php 
-                    switch ($step_key) {
-                        case 'address':
-                            echo 'Adresse';
-                            break;
-                        case 'payment':
-                            echo 'Zahlung';
-                            break;
-                        case 'confirmation':
-                            echo 'Bestätigung';
-                            break;
-                        default:
-                            echo esc_html(ucfirst($step_key));
-                    }
-                    ?>
-                </div>
-            </a>
+                <div class="progress-label"><?php echo esc_html($step_data['label']); ?></div>
+            <?php endif; ?>
         </div>
-        <?php endforeach; ?>
-    </div>
+    <?php endforeach; ?>
 </div>

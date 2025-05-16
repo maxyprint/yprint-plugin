@@ -1,149 +1,155 @@
 <?php
 /**
- * YPrint Multistep Checkout Template
+ * Template für den mehrstufigen YPrint Checkout.
  *
- * @package YPrint
+ * Dieses Template wird vom Shortcode [yprint_checkout] geladen.
+ * Es enthält die Hauptstruktur des Checkouts, einschließlich Fortschrittsanzeige,
+ * Schritte und Warenkorb-Zusammenfassung.
+ *
+ * Verfügbare Variablen (Beispiele, müssen von der Shortcode-Funktion oder global gesetzt werden):
+ * $current_step_slug (string) - Slug des aktuellen Schritts (z.B. 'address', 'payment', 'confirmation', 'thankyou')
+ * $cart_items (array) - Array mit Warenkorbartikeln
+ * $cart_totals (array) - Array mit Warenkorbsummen
  */
 
-// Prevent direct access
-if (!defined('ABSPATH')) {
+// Direktaufruf verhindern
+if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-// Ensure user is logged in
-if (!is_user_logged_in()) {
-    ?>
-    <div class="yprint-checkout-login-required">
-        <div class="yprint-checkout-message">
-            <h2>Anmeldung erforderlich</h2>
-            <p>Bitte melde dich an, um mit dem Checkout fortzufahren.</p>
-            <a href="<?php echo esc_url(wc_get_page_permalink('myaccount')); ?>" class="yprint-button">Zum Login</a>
-        </div>
-    </div>
-    <?php
-    return;
+// Standardwerte setzen, falls Variablen nicht übergeben wurden
+// In einer echten Anwendung würden diese Daten dynamisch von WooCommerce oder einer anderen Warenkorb-Logik kommen.
+global $wp; // Zugriff auf globale WordPress-Variablen
+
+// Aktuellen Schritt bestimmen (Beispielhafte Logik)
+// In einer echten WP-Umgebung würde man dies vielleicht über Query Vars oder eine eigene Routing-Logik machen.
+$possible_steps = array('address', 'payment', 'confirmation', 'thankyou');
+$current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_steps) ? sanitize_text_field($_GET['step']) : 'address';
+
+// Wenn der Prozess abgeschlossen ist und eine Bestell-ID in der Session/GET ist, direkt zur Danke-Seite
+// if (isset($_GET['order_id']) && isset($_GET['thank_you'])) {
+// $current_step_slug = 'thankyou';
+// }
+
+
+// Dummy-Warenkorbdaten für die Darstellung (sollten von WC()->cart kommen)
+$placeholder_cart_items = array(
+    array( 'id' => 1, 'name' => 'Individuelles Fotobuch Premium', 'price' => 49.99, 'quantity' => 1, 'image' => 'https://placehold.co/100x100/0079FF/FFFFFF?text=Buch' ),
+    array( 'id' => 2, 'name' => 'Visitenkarten (250 Stk.)', 'price' => 19.50, 'quantity' => 2, 'image' => 'https://placehold.co/100x100/E3F2FD/1d1d1f?text=Karten' ),
+    array( 'id' => 3, 'name' => 'Großformat Poster A2', 'price' => 25.00, 'quantity' => 1, 'image' => 'https://placehold.co/100x100/CCCCCC/FFFFFF?text=Poster' ),
+);
+$cart_items_data = $placeholder_cart_items; // In WC: WC()->cart->get_cart();
+
+$subtotal_example = 0;
+foreach($cart_items_data as $item) {
+    $subtotal_example += $item['price'] * $item['quantity'];
 }
+$shipping_example = 4.99;
+$discount_example = 0; // Hier Gutscheinlogik einbauen
+$total_example = $subtotal_example + $shipping_example - $discount_example;
+$vat_example = $total_example * 0.19;
 
-// Check if cart is empty
-if (WC()->cart->is_empty()) {
-    ?>
-    <div class="yprint-checkout-empty-cart">
-        <div class="yprint-checkout-message">
-            <h2>Dein Warenkorb ist leer</h2>
-            <p>Bitte füge Produkte zu deinem Warenkorb hinzu, bevor du zur Kasse gehst.</p>
-            <a href="<?php echo esc_url(wc_get_page_permalink('shop')); ?>" class="yprint-button">Zum Shop</a>
-        </div>
-    </div>
-    <?php
-    return;
-}
-
-// Get current step from URL or default to 'address'
-$current_step = isset($_GET['step']) ? sanitize_text_field($_GET['step']) : 'address';
-
-// Available steps and their numbers
-$steps = array(
-    'address' => 1,
-    'payment' => 2,
-    'confirmation' => 3
+$cart_totals_data = array(
+    'subtotal' => $subtotal_example,
+    'shipping' => $shipping_example,
+    'discount' => $discount_example,
+    'vat'      => $vat_example,
+    'total'    => $total_example,
 );
 
-// Get current step number
-$current_step_number = isset($steps[$current_step]) ? $steps[$current_step] : 1;
 
-// Calculate progress percentage
-$progress_percentage = (($current_step_number - 1) / (count($steps) - 1)) * 100;
+// Pfad zum 'partials'-Ordner definieren
+$partials_dir = YPRINT_PLUGIN_DIR . 'templates/partials/';
+
+// Body-Klasse hinzufügen, um spezifische Styles für die Checkout-Seite zu ermöglichen
+add_filter( 'body_class', function( $classes ) {
+    $classes[] = 'yprint-checkout-page';
+    return $classes;
+} );
+
+// Hier könnten wp_head() und wp_footer() Aufrufe sein, wenn dies als eigenständige Seite gedacht ist.
+// Da es ein Shortcode ist, wird angenommen, dass dies innerhalb einer bestehenden WP-Seite läuft.
 ?>
-<div class="yprint-checkout-container" data-current-step="<?php echo esc_attr($current_step); ?>">
-    
-    <!-- Checkout Header & Progress -->
-    <div class="yprint-checkout-header">
-    <div class="yprint-progress-container card">
-    <div class="yprint-progress-steps">
-        <?php foreach ($steps as $step_key => $step_number) : 
-            $step_active = ($current_step === $step_key) ? ' active' : '';
-            $step_completed = ($step_number < $current_step_number) ? ' completed' : '';
-            $step_class = 'yprint-progress-step' . $step_active . $step_completed;
-            $step_url = add_query_arg('step', $step_key);
-            
-            // Only make completed steps clickable
-            $step_link = ($step_completed) ? $step_url : '#';
-            $step_clickable = ($step_completed) ? '' : ' not-clickable';
-            
-            // Icon für jeden Schritt
-            $step_icon = '';
-            switch ($step_key) {
+
+<div class="yprint-checkout-container w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+    <?php // Logo und Hauptüberschrift des Checkouts ?>
+    <div class="mb-8 text-center">
+        <img src="<?php echo esc_url(YPRINT_PLUGIN_URL . 'assets/images/y-icon.svg'); ?>" alt="<?php esc_attr_e('YPrint Logo', 'yprint-checkout'); ?>" class="h-12 mx-auto mb-2">
+        <h1 class="text-3xl font-bold text-yprint-black"><?php esc_html_e('Checkout', 'yprint-checkout'); ?></h1>
+    </div>
+
+    <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
+    <?php if ($current_step_slug !== 'thankyou') : ?>
+        <div class="progress-bar-wrapper card mb-8">
+            <?php include( $partials_dir . 'checkout-progress.php' ); ?>
+        </div>
+    <?php endif; ?>
+
+    <div class="yprint-checkout-layout">
+        <div class="yprint-checkout-main-content card">
+            <?php // Lade den entsprechenden Schritt basierend auf $current_step_slug ?>
+            <?php
+            switch ($current_step_slug) {
                 case 'address':
-                    $step_icon = '<i class="fas fa-map-marker-alt"></i>';
+                    include( $partials_dir . 'checkout-step-address.php' );
                     break;
                 case 'payment':
-                    $step_icon = '<i class="fas fa-credit-card"></i>';
+                    include( $partials_dir . 'checkout-step-payment.php' );
                     break;
                 case 'confirmation':
-                    $step_icon = '<i class="fas fa-check-circle"></i>';
+                    include( $partials_dir . 'checkout-step-confirmation.php' );
                     break;
-            }
-        ?>
-        <div class="<?php echo esc_attr($step_class . $step_clickable); ?>" data-step="<?php echo esc_attr($step_number); ?>">
-            <a href="<?php echo esc_url($step_link); ?>" class="yprint-step-link">
-                <div class="yprint-step-circle">
-                    <?php if ($step_completed): ?>
-                        <i class="fas fa-check"></i>
-                    <?php else: ?>
-                        <?php echo $step_number; ?>
-                    <?php endif; ?>
-                </div>
-                <div class="yprint-step-label">
-                    <?php 
-                    switch ($step_key) {
-                        case 'address':
-                            echo 'Adresse';
-                            break;
-                        case 'payment':
-                            echo 'Zahlung';
-                            break;
-                        case 'confirmation':
-                            echo 'Bestätigung';
-                            break;
-                        default:
-                            echo esc_html(ucfirst($step_key));
+                case 'thankyou':
+                    // Die "Danke"-Seite ist jetzt Teil der Haupt-Switch-Case Logik
+                    // und wird direkt im Hauptinhaltsbereich geladen.
+                    // Der Inhalt der Danke-Seite ist in checkout-step-thankyou.php (neu erstellt)
+                    // oder kann hier direkt eingebettet werden, wenn es einfacher ist.
+                    // Für Konsistenz:
+                    if (file_exists($partials_dir . 'checkout-step-thankyou.php')) {
+                        include( $partials_dir . 'checkout-step-thankyou.php' );
+                    } else {
+                        // Fallback für Danke-Seite, falls die Datei nicht existiert
+                        echo '<div id="step-4-thankyou" class="checkout-step active text-center">';
+                        echo '<i class="fas fa-check-circle text-6xl text-yprint-success mb-6"></i>';
+                        echo '<h2 class="text-3xl font-bold">' . esc_html__('Vielen Dank für Ihre Bestellung!', 'yprint-checkout') . '</h2>';
+                        // Weitere Details hier...
+                        echo '</div>';
                     }
-                    ?>
-                </div>
-            </a>
-        </div>
-        <?php endforeach; ?>
-    </div>
-</div>
-    
-    <!-- Checkout Content -->
-    <div class="yprint-checkout-content">
-        <div class="yprint-checkout-main">
-            <?php
-            // Load the template for the current step
-            $step_template = 'partials/checkout-step-' . $current_step . '.php';
-            if (file_exists(YPRINT_PLUGIN_DIR . 'templates/' . $step_template)) {
-                include(YPRINT_PLUGIN_DIR . 'templates/' . $step_template);
-            } else {
-                echo '<p>Template nicht gefunden: ' . esc_html($step_template) . '</p>';
+                    break;
+                default:
+                    // Fallback, falls ein ungültiger Schritt angegeben wurde
+                    include( $partials_dir . 'checkout-step-address.php' );
+                    break;
             }
             ?>
         </div>
-        
-        <div class="yprint-checkout-sidebar">
-            <?php include(YPRINT_PLUGIN_DIR . 'templates/partials/checkout-cart-summary.php'); ?>
-        </div>
+
+        <?php // Warenkorb-Zusammenfassung (Sidebar) nur anzeigen, wenn nicht auf der Danke-Seite ?>
+        <?php if ($current_step_slug !== 'thankyou') : ?>
+            <aside class="yprint-checkout-sidebar">
+                <div class="checkout-cart-summary card">
+                    <?php include( $partials_dir . 'checkout-cart-summary.php' ); ?>
+                </div>
+                 <div class="text-center mt-4 text-sm text-yprint-text-secondary">
+                    <p><i class="fas fa-shield-alt mr-1"></i> <?php esc_html_e('100% sichere Zahlung', 'yprint-checkout'); ?> | <img src="<?php echo esc_url(YPRINT_PLUGIN_URL . 'assets/images/y-icon.svg'); ?>" alt="<?php esc_attr_e('YPrint Icon', 'yprint-checkout'); ?>" class="yprint-icon-inline"> <?php esc_html_e('YPrint Qualitätsversprechen', 'yprint-checkout'); ?></p>
+                </div>
+            </aside>
+        <?php endif; ?>
     </div>
-    
-    <!-- Checkout Footer -->
-    <div class="yprint-checkout-footer">
-        <div class="yprint-secure-info">
-            <i class="fas fa-lock"></i> Sicherer Checkout mit SSL-Verschlüsselung
-        </div>
-        <div class="yprint-footer-links">
-            <a href="<?php echo esc_url(get_permalink(wc_get_page_id('terms'))); ?>">AGB</a> |
-            <a href="<?php echo esc_url(get_privacy_policy_url()); ?>">Datenschutz</a> |
-            <a href="<?php echo esc_url(get_permalink(get_page_by_path('faq'))); ?>">FAQ</a>
-        </div>
-    </div>
+
+    <?php // Footer-Bereich mit Links ?>
+    <footer class="yprint-checkout-footer">
+        <p class="mt-1">
+            <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('FAQ', 'yprint-checkout'); ?></a> |
+            <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('Rückgabe', 'yprint-checkout'); ?></a> |
+            <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('Datenschutz', 'yprint-checkout'); ?></a>
+        </p>
+    </footer>
+
+</div> <?php // Ende .yprint-checkout-container ?>
+
+<?php // Ladeanimation Overlay (global für alle Schritte) ?>
+<div id="loading-overlay" class="hidden">
+    <div class="spinner"></div>
+    <p class="text-lg text-yprint-black"><?php esc_html_e('Ihre Bestellung wird verarbeitet...', 'yprint-checkout'); ?></p>
 </div>
