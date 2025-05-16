@@ -19,13 +19,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Debug-Ausgabe am Anfang von checkout-multistep.php
 error_log('Loading checkout-multistep.php');
-error_log('Current step: ' . $current_step_slug);
-error_log('Partials directory: ' . YPRINT_PLUGIN_DIR . 'templates/partials/');
-error_log('Payment step file exists: ' . (file_exists(YPRINT_PLUGIN_DIR . 'templates/partials/checkout-step-payment.php') ? 'Yes' : 'No'));
-
-// $cart_items_data und $cart_totals_data sollten von checkout-multistep.php übergeben werden
-// oder hier direkt von WooCommerce geladen werden.
-// Für dieses Beispiel nehmen wir an, sie sind bereits verfügbar.
 
 // Fallback, falls Daten nicht korrekt übergeben wurden
 if ( !isset($cart_items_data) || !is_array($cart_items_data) ) {
@@ -41,16 +34,13 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
     );
 }
 
-// Aktuellen Schritt bestimmen (Beispielhafte Logik)
+// Aktuellen Schritt bestimmen
 $possible_steps = array('address', 'payment', 'confirmation', 'thankyou');
 $current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_steps) ? sanitize_text_field($_GET['step']) : 'address';
 
 // Debug-Ausgabe
 error_log('Requested step from GET: ' . (isset($_GET['step']) ? $_GET['step'] : 'not set'));
 error_log('Current step after validation: ' . $current_step_slug);
-
-// Erzwinge Payment-Schritt für Test (entfernen nach dem Test)
-// $current_step_slug = 'payment';
 
 // Dummy-Warenkorbdaten für die Darstellung (sollten von WC()->cart kommen)
 $placeholder_cart_items = array(
@@ -100,64 +90,61 @@ add_filter( 'body_class', function( $classes ) {
 
 <style>
     /* Anpassungen für die 'card'-Klasse */
-    /* Dies entfernt Rahmen und Füllung (setzt Hintergrund auf Weiß), behält aber den Schatten */
     .card {
-        border: none !important; /* Rahmen entfernen */
-        background-color: #ffffff !important; /* Füllung (Hintergrund) auf Weiß setzen */
-        /* padding und box-shadow bleiben, falls vom Framework gesetzt,
-           oder können hier explizit hinzugefügt werden, wenn nicht vorhanden */
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Leichter Schatten, um die "Card"-Form zu erhalten */
-        border-radius: 8px; /* Leichte Abrundung der Ecken */
-        padding: 20px; /* Standard-Polsterung, falls nicht vom Framework gesetzt */
+        border: none !important;
+        background-color: #ffffff !important;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 20px;
     }
 
     /* Das Styling für die Warenkorb-Zusammenfassung */
     .order-summary-bold-final {
-        border: 2px solid #ccc; /* Hellgrauer Rahmen */
+        border: 2px solid #ccc;
         padding: 25px;
         font-family: sans-serif;
-        background-color: #ffffff; /* Hintergrund ist Weiß */
-        border-radius: 20px; /* Abgerundete Ecken */
-        max-width: 350px; /* Optional: für bessere Lesbarkeit in einer Sidebar */
-        margin: 0 auto; /* Optional: zum Zentrieren */
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Leichter Schatten für Tiefe */
+        background-color: #ffffff;
+        border-radius: 20px;
+        max-width: 350px;
+        margin: 0 auto;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
     }
 
     .bold-header-final {
-        color: #333; /* Schwarzer Titel */
+        color: #333;
         font-size: 1.5em;
         margin-bottom: 20px;
     }
 
     .items {
         margin-bottom: 20px;
-        max-height: 200px; /* Begrenzte Höhe für Scroll, falls viele Artikel */
-        overflow-y: auto; /* Scrollbalken für viele Artikel */
-        padding-right: 5px; /* Abstand für Scrollbalken, damit er nicht den Inhalt überlappt */
+        max-height: 200px;
+        overflow-y: auto;
+        padding-right: 5px;
     }
 
     .item {
         display: flex;
         align-items: center;
         padding: 12px 0;
-        border-bottom: 1px solid #eee; /* Hellere Trennlinie zwischen Artikeln */
+        border-bottom: 1px solid #eee;
     }
 
     .item:last-child {
-        border-bottom: none; /* Keine Linie nach dem letzten Artikel */
+        border-bottom: none;
     }
 
     .item-image {
         width: 60px;
         height: 60px;
-        object-fit: cover; /* Bildausschnitt anpassen */
-        border-radius: 4px; /* Leichte Rundung für Bilder */
+        object-fit: cover;
+        border-radius: 4px;
         margin-right: 15px;
-        flex-shrink: 0; /* Verhindert das Schrumpfen des Bildes */
+        flex-shrink: 0;
     }
 
     .item-details {
-        flex-grow: 1; /* Nimmt den verbleibenden Platz ein */
+        flex-grow: 1;
     }
 
     .item-name {
@@ -175,7 +162,7 @@ add_filter( 'body_class', function( $classes ) {
     .item-price {
         font-weight: bold;
         color: #333;
-        white-space: nowrap; /* Preis nicht umbrechen */
+        white-space: nowrap;
         font-size: 0.95em;
     }
 
@@ -188,7 +175,7 @@ add_filter( 'body_class', function( $classes ) {
     }
 
     .discount {
-        color: #28a745; /* Grüne Farbe für Rabatt */
+        color: #28a745;
     }
 
     .total-divider-final {
@@ -200,7 +187,7 @@ add_filter( 'body_class', function( $classes ) {
     .total-final {
         font-weight: bold;
         font-size: 1.3em;
-        color: #333; /* Schwarze Gesamtbetragsfarbe */
+        color: #333;
         display: flex;
         justify-content: space-between;
         padding-top: 10px;
@@ -227,17 +214,17 @@ add_filter( 'body_class', function( $classes ) {
         flex-grow: 1;
         padding: 10px;
         border: 1px solid #ccc;
-        border-radius: 5px 0 0 5px; /* Links abgerundet */
+        border-radius: 5px 0 0 5px;
         outline: none;
         font-size: 0.9em;
     }
 
     .voucher-button-final {
         padding: 10px 15px;
-        background-color: #007bff; /* Ihr gewünschtes Blau */
+        background-color: #007bff;
         color: white;
         border: none;
-        border-radius: 0 5px 5px 0; /* Rechts abgerundet */
+        border-radius: 0 5px 5px 0;
         cursor: pointer;
         font-size: 0.9em;
         white-space: nowrap;
@@ -245,50 +232,50 @@ add_filter( 'body_class', function( $classes ) {
     }
 
     .voucher-button-final:hover {
-        background-color: #0056b3; /* Dunkleres Blau beim Hover */
+        background-color: #0056b3;
     }
 
     #cart-voucher-feedback {
-        font-size: 0.75em; /* text-xs */
-        margin-top: 5px; /* mt-1 */
-        color: #6c757d; /* text-yprint-text-secondary, angelehnt an Bootstrap text-muted */
+        font-size: 0.75em;
+        margin-top: 5px;
+        color: #6c757d;
     }
 
     .text-yprint-text-secondary {
-        color: #6c757d; /* Dunkelgrau für Text */
+        color: #6c757d;
     }
 
     /* Layout spezifisches CSS */
-.yprint-checkout-layout {
-    display: flex;
-    gap: 2rem; /* Abstand zwischen Hauptinhalt und Sidebar */
-    flex-wrap: wrap; /* Umbruch auf kleineren Bildschirmen */
-    align-items: stretch; /* Gleiche Höhe für Kinder */
-}
+    .yprint-checkout-layout {
+        display: flex;
+        gap: 2rem;
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
 
-.yprint-checkout-main-content {
-    flex: 2; /* Nimmt mehr Platz ein */
-    min-width: 300px; /* Mindestbreite, bevor der Umbruch erfolgt */
-}
+    .yprint-checkout-main-content {
+        flex: 2;
+        min-width: 300px;
+    }
 
-.yprint-checkout-sidebar {
-    flex: 1; /* Nimmt weniger Platz ein */
-    min-width: 280px; /* Mindestbreite der Sidebar */
-    display: flex;
-    flex-direction: column;
-}
+    .yprint-checkout-sidebar {
+        flex: 1;
+        min-width: 280px;
+        display: flex;
+        flex-direction: column;
+    }
 
     /* Responsiveness für kleinere Bildschirme */
     @media (max-width: 768px) {
         .yprint-checkout-layout {
-            flex-direction: column; /* Stapelt Spalten übereinander */
+            flex-direction: column;
             gap: 1.5rem;
         }
 
         .yprint-checkout-main-content,
         .yprint-checkout-sidebar {
-            flex: none; /* Setzt Flex-Werte zurück */
-            width: 100%; /* Volle Breite */
+            flex: none;
+            width: 100%;
             min-width: unset;
         }
     }
@@ -302,7 +289,7 @@ add_filter( 'body_class', function( $classes ) {
     }
 
     .yprint-checkout-footer a {
-        color: #007bff; /* Linkfarbe */
+        color: #007bff;
         text-decoration: none;
     }
 
@@ -366,11 +353,7 @@ error_log('Payment File Exists: ' . ($payment_file_exists ? 'Yes' : 'No'));
 error_log('Payment File Readable: ' . ($payment_file_readable ? 'Yes' : 'No'));
 
 // Output visible debug info (remove in production)
-echo '<!-- Debug Info: 
-Current Step: ' . $current_step_slug . '
-Payment Step File: ' . $payment_file . '
-File Exists: ' . ($payment_file_exists ? 'Yes' : 'No') . '
--->';
+echo '';
 
 switch ($current_step_slug) {
     case 'address':
@@ -388,7 +371,7 @@ switch ($current_step_slug) {
             echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('Zahlungsart wählen', 'yprint-checkout') . '</h2>';
             echo '<p>Die Zahlungsoption konnte nicht geladen werden. Bitte versuche es später erneut oder kontaktiere den Support.</p>';
             echo '<p class="text-sm text-red-600">Technische Information: Datei nicht gefunden oder nicht lesbar.</p>';
-            
+
             // Buttons zum Navigieren trotzdem anbieten
             echo '<div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">';
             echo '<button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">';
@@ -398,7 +381,7 @@ switch ($current_step_slug) {
             echo esc_html__('Weiter zur Bestätigung', 'yprint-checkout') . ' <i class="fas fa-arrow-right ml-2"></i>';
             echo '</button>';
             echo '</div>';
-            
+
             echo '</div>';
         }
         break;
@@ -434,7 +417,7 @@ switch ($current_step_slug) {
         // und die benötigten Daten übergeben.
         $cart_items_data_for_summary = $cart_items_data; // Dummy-Daten
         $cart_totals_data_for_summary = $cart_totals_data; // Dummy-Daten
-        
+
         include( $partials_dir . 'checkout-cart-summary.php' ); ?>
     </aside>
 <?php endif; ?>

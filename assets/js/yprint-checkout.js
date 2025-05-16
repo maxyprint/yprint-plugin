@@ -1,8 +1,8 @@
 // YPrint Checkout JavaScript - Allgemeine Funktionen
 // Stellt sicher, dass das DOM vollständig geladen ist, bevor das Skript ausgeführt wird.
 document.addEventListener('DOMContentLoaded', function () {
-    // Globale Variablen und Zustand
-    let currentStep = 1; // Aktueller Schritt im Checkout-Prozess
+    // Globale Variablen und Zustand für den Checkout-Prozess
+    let currentStep = 1; // Startet immer mit dem ersten Schritt als Standard
     const formData = { // Objekt zum Speichern der Formulardaten
         shipping: {},
         billing: {},
@@ -11,25 +11,25 @@ document.addEventListener('DOMContentLoaded', function () {
         isBillingSameAsShipping: true,
     };
 
-    // Dummy Produktdaten für den Warenkorb (sollten serverseitig geladen werden)
+    // Dummy Produktdaten für den Warenkorb (sollten in einer echten Anwendung serverseitig geladen werden)
     const cartItems = [
         { id: 1, name: "Individuelles Fotobuch Premium", price: 49.99, quantity: 1, image: "https://placehold.co/100x100/0079FF/FFFFFF?text=Buch" },
         { id: 2, name: "Visitenkarten (250 Stk.)", price: 19.50, quantity: 2, image: "https://placehold.co/100x100/E3F2FD/1d1d1f?text=Karten" },
         { id: 3, name: "Großformat Poster A2", price: 25.00, quantity: 1, image: "https://placehold.co/100x100/CCCCCC/FFFFFF?text=Poster" },
     ];
 
-    // DOM-Elemente auswählen
+    // DOM-Elemente auswählen (optimiert, falls Elemente nicht immer vorhanden sind)
     const steps = document.querySelectorAll(".checkout-step");
     const progressSteps = document.querySelectorAll(".progress-step");
     const btnToPayment = document.getElementById('btn-to-payment');
     const btnToConfirmation = document.getElementById('btn-to-confirmation');
-    const btnBackToAddress = document.getElementById('btn-back-to-address'); // In Step 2
-    const btnBackToPaymentFromConfirm = document.getElementById('btn-back-to-payment-from-confirm'); // In Step 3
+    const btnBackToAddress = document.getElementById('btn-back-to-address');
+    const btnBackToPaymentFromConfirm = document.getElementById('btn-back-to-payment-from-confirm');
     const btnBuyNow = document.getElementById('btn-buy-now');
     const btnContinueShopping = document.getElementById('btn-continue-shopping');
     const loadingOverlay = document.getElementById('loading-overlay');
     const billingSameAsShippingCheckbox = document.getElementById('billing-same-as-shipping');
-    const billingAddressFieldsContainer = document.getElementById('billing-address-fields'); // Container der abweichenden Rechnungsadresse
+    const billingAddressFieldsContainer = document.getElementById('billing-address-fields');
     const addressForm = document.getElementById('address-form');
 
     // Erforderliche Felder für die Adressvalidierung
@@ -47,22 +47,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         requiredAddressFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
-            if (field && !field.value.trim()) {
-                isValid = false;
-                field.classList.add('border-yprint-error');
-            } else if (field) {
-                field.classList.remove('border-yprint-error');
+            if (field) { // Prüfe, ob das Feld existiert
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('border-yprint-error');
+                } else {
+                    field.classList.remove('border-yprint-error');
+                }
             }
         });
 
         if (!formData.isBillingSameAsShipping && billingAddressFieldsContainer) {
             requiredBillingFields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
-                if (field && !field.value.trim()) {
-                    isValid = false;
-                    field.classList.add('border-yprint-error');
-                } else if (field) {
-                    field.classList.remove('border-yprint-error');
+                if (field) { // Prüfe, ob das Feld existiert
+                    if (!field.value.trim()) {
+                        isValid = false;
+                        field.classList.add('border-yprint-error');
+                    } else {
+                        field.classList.remove('border-yprint-error');
+                    }
                 }
             });
         }
@@ -82,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
         billingSameAsShippingCheckbox.addEventListener('change', () => {
             formData.isBillingSameAsShipping = billingSameAsShippingCheckbox.checked;
             billingAddressFieldsContainer.classList.toggle('hidden', formData.isBillingSameAsShipping);
+            // Setze 'required' Attribut basierend auf Sichtbarkeit
             const billingInputs = billingAddressFieldsContainer.querySelectorAll('input, select');
             billingInputs.forEach(input => input.required = !formData.isBillingSameAsShipping);
             validateAddressForm(); // Nach Änderung neu validieren
@@ -90,30 +95,36 @@ document.addEventListener('DOMContentLoaded', function () {
         billingAddressFieldsContainer.classList.toggle('hidden', billingSameAsShippingCheckbox.checked);
         const initialBillingInputs = billingAddressFieldsContainer.querySelectorAll('input, select');
         initialBillingInputs.forEach(input => input.required = !billingSameAsShippingCheckbox.checked);
-
     }
 
 
     /**
      * Zeigt den angegebenen Checkout-Schritt an und aktualisiert die Fortschrittsanzeige.
-     * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts.
+     * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts (1-basiert, z.B. 1 für Adresse, 2 für Zahlung).
      */
     function showStep(stepNumber) {
-        console.log("Showing step:", stepNumber); // Debugging
-        
-        // Aktiven Step setzen und sicherstellen, dass er sichtbar ist
-        steps.forEach((stepEl, index) => {
-            if (index + 1 === stepNumber) {
+        console.log("Showing step:", stepNumber);
+
+        // Konstruiere die erwartete ID für den aktiven Schritt (z.B. "step-2")
+        const targetStepId = `step-${stepNumber}`;
+
+        // WICHTIGE ÄNDERUNG HIER: Finde das Element über seine ID, nicht über den Index der NodeList.
+        // Das ist entscheidend, da PHP nur den HTML-Code des aktuell angefragten Schrittes ausgibt.
+        steps.forEach((stepEl) => {
+            if (stepEl.id === targetStepId) {
                 console.log("Activating step element:", stepEl.id);
                 stepEl.classList.add('active');
-                stepEl.style.display = 'block'; // Explizit auf 'block' setzen
+                stepEl.style.display = 'block'; // Explizit auf 'block' setzen, um CSS-Konflikte zu vermeiden
             } else {
+                // Diese Bedingung ist nur relevant, wenn mehrere Schritte im DOM vorhanden sind,
+                // was in dieser PHP-Setup-Konfiguration normalerweise nicht der Fall ist.
+                // Sie dient der Sicherheit, falls sich das HTML-Rendering ändert.
                 stepEl.classList.remove('active');
                 stepEl.style.display = 'none'; // Explizit auf 'none' setzen
             }
         });
-        
-        // Progress Bar aktualisieren
+
+        // Progress Bar aktualisieren (dieser Teil war bereits korrekt)
         progressSteps.forEach((pStep, index) => {
             pStep.classList.remove('active', 'completed');
             if (index < stepNumber - 1) {
@@ -122,22 +133,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 pStep.classList.add('active');
             }
         });
-        
-        // Aktuellen Schritt speichern
-        currentStep = stepNumber;
-        
-        // Nach oben scrollen
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        // Debug: Ausgabe der aktiven Elemente nach dem Switch
-        console.log("Active elements:", document.querySelectorAll('.checkout-step.active'));
+
+        currentStep = stepNumber; // Aktuellen Schritt speichern
+        window.scrollTo({ top: 0, behavior: 'smooth' }); // Nach oben scrollen
+
+        console.log("Active elements after showStep:", document.querySelectorAll('.checkout-step.active'));
     }
 
     /**
      * Sammelt die Adressdaten aus dem Formular.
      */
     function collectAddressData() {
-        if (!addressForm) return; // Überspringen, wenn kein Adressformular vorhanden
+        if (!addressForm) return;
 
         formData.shipping.street = document.getElementById('street')?.value || '';
         formData.shipping.housenumber = document.getElementById('housenumber')?.value || '';
@@ -155,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.billing.city = document.getElementById('billing_city')?.value || '';
             formData.billing.country = document.getElementById('billing_country')?.value || '';
         }
-        // Hier könnte ein AJAX Call an 'wp_ajax_yprint_save_address' erfolgen
+        // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_save_address' erfolgen
         console.log("Adressdaten gesammelt:", formData);
     }
 
@@ -171,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (voucherInput) {
             formData.voucher = voucherInput.value;
         }
-        // Hier könnte ein AJAX Call an 'wp_ajax_yprint_set_payment_method' erfolgen
+        // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_set_payment_method' erfolgen
         console.log("Zahlungsdaten gesammelt:", formData);
     }
 
@@ -195,7 +202,7 @@ document.addEventListener('DOMContentLoaded', function () {
             voucherFeedbackEl.textContent = 'Ungültiger Gutscheincode.';
             voucherFeedbackEl.className = 'text-sm mt-1 text-yprint-error';
         } else if (voucherFeedbackEl) {
-            voucherFeedbackEl.textContent = '';
+            voucherFeedbackEl.textContent = ''; // Feedback leeren, wenn Gutschein entfernt wird
         }
 
         let total = subtotal + shipping - discount;
@@ -220,7 +227,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Event Listener für Gutscheinfeld und Button, um Preise live zu aktualisieren
     const voucherInput = document.getElementById('voucher');
-    const voucherButton = document.querySelector('#voucher + button'); // Annahme: Button ist direkt daneben
+    // Annahme: Button ist direkt nach dem Input-Feld oder hat eine eindeutige ID
+    const voucherButton = document.querySelector('#voucher + button') || document.getElementById('apply-voucher-button');
 
     if (voucherInput) {
         voucherInput.addEventListener('input', () => {
@@ -363,6 +371,17 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleLoadingOverlay(show) {
         if (loadingOverlay) {
             loadingOverlay.classList.toggle('visible', show);
+            // Die Klasse 'hidden' steuert die display-Eigenschaft, 'visible' (oder keine) die Deckkraft/Pointer-Events
+            // Hier wird angenommen, dass die CSS-Regeln für 'visible' das Overlay korrekt sichtbar machen
+            // und dass standardmäßig (ohne 'visible') das Overlay 'display: none' oder 'opacity: 0' hat.
+            if (show) {
+                loadingOverlay.style.display = 'flex'; // Sicherstellen, dass es sichtbar ist
+            } else {
+                // Verzögere das Ausblenden des Overlays, damit die Animation abgespielt werden kann (optional)
+                setTimeout(() => {
+                    loadingOverlay.style.display = 'none';
+                }, 300); // Beispiel: Nach 300ms ausblenden (wenn CSS transition max. 300ms ist)
+            }
         }
     }
 
@@ -374,8 +393,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 collectAddressData();
                 updatePaymentStepSummary();
                 showStep(2);
-                 // In einer echten Anwendung würde hier ein AJAX Call erfolgen.
-                 // z.B. YPrintAJAX.saveAddress(formData.shipping, formData.billing);
+                // In einer echten Anwendung würde hier ein AJAX Call erfolgen.
+                // z.B. YPrintAJAX.saveAddress(formData.shipping, formData.billing);
             } else {
                 // Optional: Fokussiere das erste invalide Feld oder zeige eine generelle Nachricht
                 const firstError = addressForm.querySelector('.border-yprint-error');
@@ -433,40 +452,55 @@ document.addEventListener('DOMContentLoaded', function () {
     if (btnContinueShopping) {
         btnContinueShopping.addEventListener('click', () => {
             // Hier Weiterleitung zur Startseite oder Kategorieseite
-            // window.location.href = "/"; // Beispiel für Weiterleitung
-            alert("Weiterleitung zum Shop...");
+            window.location.href = "/"; // Beispiel für Weiterleitung
+            // alert("Weiterleitung zum Shop..."); // Nur für Demo-Zwecke
         });
     }
-    
+
     // Klarna Logo SVG Path Korrektur (falls im HTML gekürzt)
     // Stellt sicher, dass das Klarna-Logo korrekt angezeigt wird.
-    document.querySelectorAll('svg path[d^="M照明省略"]').forEach(path => {
+    document.querySelectorAll('svg path[d^="M248.291"]').forEach(path => {
         path.setAttribute('d', "M248.291 31.0084C265.803 31.0084 280.21 37.1458 291.513 49.4206C302.888 61.6954 308.575 77.0417 308.575 95.4594C308.575 113.877 302.888 129.223 291.513 141.498C280.21 153.773 265.803 159.91 248.291 159.91H180.854V31.0084H248.291ZM213.956 132.621H248.291C258.57 132.621 267.076 129.68 273.808 123.798C280.612 117.844 284.014 109.177 284.014 97.7965C284.014 86.4158 280.612 77.7491 273.808 71.7947C267.076 65.8403 258.57 62.8992 248.291 62.8992H213.956V132.621ZM143.061 31.0084H109.959V159.91H143.061V31.0084ZM495.99 31.0084L445.609 159.91H408.009L378.571 79.1557L349.132 159.91H311.532L361.914 31.0084H399.514L428.952 112.661L458.39 31.0084H495.99ZM0 31.0084H33.1017V159.91H0V31.0084Z");
-        // Die Fill-Farbe sollte idealerweise direkt im SVG oder per CSS Klasse gesetzt werden.
-        // path.setAttribute('fill', "#FFB3C7"); // Klarna Pink
+        // Die Fill-Farbe sollte idealerweise direkt im SVG oder per CSS Klasse gesetzt werden,
+        // hier für Konsistenz noch einmal gesetzt:
+        path.setAttribute('fill', "#FFB3C7"); // Klarna Pink
     });
 
 
-    // Initialisierung des ersten Schritts und der Validierung
-    // Bestimme den initialen Schritt basierend auf URL-Parametern (serverseitig in PHP besser)
+    // Initialisierung des ersten Schritts basierend auf URL-Parametern
     const urlParams = new URLSearchParams(window.location.search);
     const stepParam = urlParams.get('step');
     let initialStep = 1;
     if (stepParam === 'payment') initialStep = 2;
     if (stepParam === 'confirmation') initialStep = 3;
-    // if (stepParam === 'thankyou') initialStep = 4; // Danke-Seite wird meist nach Aktion geladen
+    if (stepParam === 'thankyou') initialStep = 4;
 
+    // Zeige den initialen Schritt an
     showStep(initialStep);
+
+    // Initialisiere Formulare und Zusammenfassungen basierend auf dem Startschritt
     if (initialStep === 1) {
-        validateAddressForm(); // Initial validieren, wenn auf Adress-Schritt gestartet wird
+        validateAddressForm();
     } else if (initialStep === 2) {
-        updatePaymentStepSummary(); // Preise laden, wenn auf Zahlungs-Schritt gestartet
+        // Annahme, dass Adressdaten vorhanden sind, wenn direkt zum Zahlungsschritt navigiert wird
+        // In einer echten Anwendung würden diese aus der Session oder dem Backend geladen.
+        collectAddressData();
+        updatePaymentStepSummary();
     } else if (initialStep === 3) {
-        // Daten müssten hier aus der Session/Backend geladen werden, um die Bestätigungsseite korrekt zu füllen
-        // Für Demo-Zwecke:
-        collectAddressData(); // Simuliert, dass Adressdaten vorhanden sind
-        collectPaymentData(); // Simuliert, dass Zahlungsdaten vorhanden sind
+        // Annahme, dass Adress- und Zahlungsdaten vorhanden sind
+        // In einer echten Anwendung würden diese aus der Session/Backend geladen.
+        collectAddressData();
+        collectPaymentData();
         populateConfirmation();
+    } else if (initialStep === 4) {
+        // Für die Danke-Seite
+        populateThankYouPage();
+        progressSteps.forEach(pStep => pStep.classList.add('completed'));
+        const lastProgressStep = document.getElementById('progress-step-3');
+        if (lastProgressStep) {
+            lastProgressStep.classList.remove('active');
+            lastProgressStep.classList.add('completed');
+        }
     }
 
     // Warenkorb-Zusammenfassung initial laden (falls vorhanden)
@@ -478,7 +512,6 @@ document.addEventListener('DOMContentLoaded', function () {
      if (cartTotalsContainer) {
         updateCartTotalsDisplay(cartTotalsContainer);
     }
-
 }); // Ende DOMContentLoaded
 
 /**
@@ -488,12 +521,10 @@ document.addEventListener('DOMContentLoaded', function () {
 function updateCartSummaryDisplay(container) {
     // Diese Funktion würde normalerweise von WooCommerce Hooks oder AJAX aktualisiert werden.
     // Hier eine einfache Demo basierend auf den `cartItems`.
-    // const cartItems = []; // Sollte global verfügbar sein oder als Parameter übergeben werden.
     // Annahme: cartItems ist global oder wird anderswoher bezogen.
-    // Für die Demo nehme ich die globale Variable aus dem oberen Scope.
     // In einer echten Anwendung würden die cartItems dynamisch geladen.
 
-    if (!container || typeof cartItems === 'undefined') return;
+    if (!container || typeof cartItems === 'undefined') return; // 'cartItems' ist im globalen Scope des DOMContentLoaded-Listeners
 
     container.innerHTML = ''; // Bestehende Elemente leeren
 
@@ -526,15 +557,12 @@ function updateCartSummaryDisplay(container) {
  */
 function updateCartTotalsDisplay(container) {
     // Auch diese Funktion würde von WC oder AJAX aktualisiert.
-    // Nutzt calculatePrices() für Konsistenz, obwohl calculatePrices() auch Gutscheine aus dem Hauptformular berücksichtigt.
-    // In einer echten Implementierung wären Gutscheine im Warenkorb-Widget separat.
+    // Nutzt calculatePrices() für Konsistenz.
     // Annahme: calculatePrices ist global verfügbar.
 
     if (!container || typeof calculatePrices === 'undefined') return;
 
-    const prices = calculatePrices(); // Verwendet formData.voucher, was hier ggf. nicht ideal ist.
-                                     // Besser wäre eine separate Berechnung für den reinen Warenkorb.
-                                     // Für die Demo ist es okay.
+    const prices = calculatePrices(); // Verwendet formData.voucher aus dem DOMContentLoaded-Scope
 
     container.innerHTML = `
         <div class="flex justify-between text-sm mt-3">
@@ -577,4 +605,3 @@ function updateCartTotalsDisplay(container) {
 //         });
 //     }
 // };
-
