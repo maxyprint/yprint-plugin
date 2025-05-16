@@ -72,12 +72,6 @@ add_filter( 'body_class', function( $classes ) {
 // Da es ein Shortcode ist, wird angenommen, dass dies innerhalb einer bestehenden WP-Seite läuft.
 ?>
 
-<div class="yprint-checkout-container w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
-    <?php // Logo und Hauptüberschrift des Checkouts ?>
-    <div class="mb-8 text-center">
-        <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="<?php esc_attr_e('YPrint Logo', 'yprint-checkout'); ?>" class="h-12 mx-auto mb-2">
-        <h1 class="text-3xl font-bold text-yprint-black"><?php esc_html_e('Checkout', 'yprint-checkout'); ?></h1>
-    </div>
 
     <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
     <?php if ($current_step_slug !== 'thankyou') : ?>
@@ -130,10 +124,6 @@ add_filter( 'body_class', function( $classes ) {
             <aside class="yprint-checkout-sidebar">
                 <div class="checkout-cart-summary card">
                     <?php include( $partials_dir . 'checkout-cart-summary.php' ); ?>
-                </div>
-                 <div class="text-center mt-4 text-sm text-yprint-text-secondary">
-                    <p><i class="fas fa-shield-alt mr-1"></i> <?php esc_html_e('100% sichere Zahlung', 'yprint-checkout'); ?> | <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="<?php esc_attr_e('YPrint Icon', 'yprint-checkout'); ?>" class="yprint-icon-inline"> <?php esc_html_e('YPrint Qualitätsversprechen', 'yprint-checkout'); ?></p>
-                </div>
             </aside>
         <?php endif; ?>
     </div>
