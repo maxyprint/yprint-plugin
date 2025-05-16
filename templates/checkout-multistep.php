@@ -64,6 +64,7 @@ $partials_dir = YPRINT_PLUGIN_DIR . 'templates/partials/';
 // Body-Klasse hinzufügen, um spezifische Styles für die Checkout-Seite zu ermöglichen
 add_filter( 'body_class', function( $classes ) {
     $classes[] = 'yprint-checkout-page';
+    $classes[] = 'bg-gray-50'; // Add Tailwind background class
     return $classes;
 } );
 
