@@ -35,8 +35,8 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 }
 
 // Aktuellen Schritt bestimmen
-$possible_steps = array('address', 'payment', 'confirmation', 'thankyou');
-$current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_steps) ? sanitize_text_field($_GET['step']) : 'address';
+$possible_steps_slugs = array('address', 'payment', 'confirmation', 'thankyou');
+$current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_steps_slugs) ? sanitize_text_field($_GET['step']) : 'address';
 
 // Debug-Ausgabe
 error_log('Requested step from GET: ' . (isset($_GET['step']) ? $_GET['step'] : 'not set'));
@@ -339,75 +339,77 @@ add_filter( 'body_class', function( $classes ) {
 <div class="yprint-checkout-layout">
     <div class="yprint-checkout-main-content">
         <div class="card">
-        <?php // Lade den entsprechenden Schritt basierend auf $current_step_slug ?>
-<?php
-// Debug-Information ausgeben
-$payment_file = $partials_dir . 'checkout-step-payment.php';
-$payment_file_exists = file_exists($payment_file);
-$payment_file_readable = is_readable($payment_file);
+        <?php
+        // Debug-Information ausgeben (kann in Produktion entfernt werden)
+        error_log('Debug Checkout Steps:');
+        error_log('Current Step: ' . $current_step_slug);
+        error_log('Partials Dir: ' . $partials_dir);
 
-error_log('Debug Checkout Steps:');
-error_log('Current Step: ' . $current_step_slug);
-error_log('Payment Step File: ' . $payment_file);
-error_log('Payment File Exists: ' . ($payment_file_exists ? 'Yes' : 'No'));
-error_log('Payment File Readable: ' . ($payment_file_readable ? 'Yes' : 'No'));
+        // Mapping von Schritt-Slug zu Step-ID für die 'active' Klasse
+        $step_slug_to_id = [
+            'address'      => 'step-1',
+            'payment'      => 'step-2',
+            'confirmation' => 'step-3',
+            'thankyou'     => 'step-4',
+        ];
+        $current_step_id = $step_slug_to_id[$current_step_slug] ?? 'step-1'; // Standard auf step-1 setzen, falls unbekannt
 
-// Output visible debug info (remove in production)
-echo '';
+        // Hier werden ALLE Schritte gerendert, aber nur der aktuelle ist "active"
+        // Jeder Schritt sollte in einer eigenen Partial-Datei liegen
+        ?>
 
-switch ($current_step_slug) {
-    case 'address':
-        include( $partials_dir . 'checkout-step-address.php' );
-        break;
-    case 'payment':
-        if ($payment_file_exists && $payment_file_readable) {
-            // Manuell den Inhalt einbinden und aktiv setzen
-            echo '<div id="step-2" class="checkout-step active">'; // Klasse 'active' explizit hinzufügen
-            include( $payment_file );
-            echo '</div>';
-        } else {
-            // Fallback-Inhalt anzeigen
-            echo '<div id="step-2" class="checkout-step active">';
-            echo '<h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i>' . esc_html__('Zahlungsart wählen', 'yprint-checkout') . '</h2>';
-            echo '<p>Die Zahlungsoption konnte nicht geladen werden. Bitte versuche es später erneut oder kontaktiere den Support.</p>';
-            echo '<p class="text-sm text-red-600">Technische Information: Datei nicht gefunden oder nicht lesbar.</p>';
-
-            // Buttons zum Navigieren trotzdem anbieten
-            echo '<div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">';
-            echo '<button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">';
-            echo '<i class="fas fa-arrow-left mr-2"></i> ' . esc_html__('Zurück zur Adresse', 'yprint-checkout');
-            echo '</button>';
-            echo '<button type="button" id="btn-to-confirmation" class="btn btn-primary w-full md:w-auto order-1 md:order-2">';
-            echo esc_html__('Weiter zur Bestätigung', 'yprint-checkout') . ' <i class="fas fa-arrow-right ml-2"></i>';
-            echo '</button>';
-            echo '</div>';
-
-            echo '</div>';
-        }
-        break;
-    case 'confirmation':
-        include( $partials_dir . 'checkout-step-confirmation.php' );
-        break;
-    case 'thankyou':
-        // Die "Danke"-Seite ist jetzt Teil der Haupt-Switch-Case Logik
-        if (file_exists($partials_dir . 'checkout-step-thank-you.php')) {
-            include( $partials_dir . 'checkout-step-thank-you.php' );
-        } else {
-            // Fallback für Danke-Seite, falls die Datei nicht existiert
-            echo '<div id="step-4-thankyou" class="checkout-step active text-center">';
-            echo '<i class="fas fa-check-circle text-6xl text-yprint-success mb-6"></i>';
-            echo '<h2 class="text-3xl font-bold">' . esc_html__('Vielen Dank für Ihre Bestellung!', 'yprint-checkout') . '</h2>';
-            echo '</div>';
-        }
-        break;
-    default:
-        // Fallback, falls ein ungültiger Schritt angegeben wurde
-        include( $partials_dir . 'checkout-step-address.php' );
-        break;
-}
-?>
+        <div id="step-1" class="checkout-step <?php echo ($current_step_id === 'step-1') ? 'active' : ''; ?>">
+            <?php
+            // Prüfe, ob die Partial-Datei existiert, bevor sie eingebunden wird
+            if (file_exists($partials_dir . 'checkout-step-address.php')) {
+                include($partials_dir . 'checkout-step-address.php');
+            } else {
+                echo '<p>Fehler: Adress-Schritt-Template nicht gefunden.</p>';
+            }
+            ?>
         </div>
-    </div>
+
+        <div id="step-2" class="checkout-step <?php echo ($current_step_id === 'step-2') ? 'active' : ''; ?>">
+            <?php
+            if (file_exists($partials_dir . 'checkout-step-payment.php')) {
+                include($partials_dir . 'checkout-step-payment.php');
+            } else {
+                echo '<p>Fehler: Zahlungs-Schritt-Template nicht gefunden.</p>';
+                // Fallback-Buttons für den Fall, dass die Datei nicht existiert
+                echo '<div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">';
+                echo '<button type="button" id="btn-back-to-address" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">';
+                echo '<i class="fas fa-arrow-left mr-2"></i> ' . esc_html__('Zurück zur Adresse', 'yprint-checkout');
+                echo '</button>';
+                echo '<button type="button" id="btn-to-confirmation" class="btn btn-primary w-full md:w-auto order-1 md:order-2">';
+                echo esc_html__('Weiter zur Bestätigung', 'yprint-checkout') . ' <i class="fas fa-arrow-right ml-2"></i>';
+                echo '</button>';
+                echo '</div>';
+            }
+            ?>
+        </div>
+
+        <div id="step-3" class="checkout-step <?php echo ($current_step_id === 'step-3') ? 'active' : ''; ?>">
+            <?php
+            if (file_exists($partials_dir . 'checkout-step-confirmation.php')) {
+                include($partials_dir . 'checkout-step-confirmation.php');
+            } else {
+                echo '<p>Fehler: Bestätigungs-Schritt-Template nicht gefunden.</p>';
+            }
+            ?>
+        </div>
+
+        <div id="step-4" class="checkout-step <?php echo ($current_step_id === 'step-4') ? 'active' : ''; ?>">
+            <?php
+            if (file_exists($partials_dir . 'checkout-step-thank-you.php')) {
+                include($partials_dir . 'checkout-step-thank-you.php');
+            } else {
+                echo '<p>Fehler: Danke-Seite-Template nicht gefunden.</p>';
+            }
+            ?>
+        </div>
+
+        </div> <?php // Ende .card ?>
+    </div> <?php // Ende .yprint-checkout-main-content ?>
 
     <?php // Warenkorb-Zusammenfassung (Sidebar) nur anzeigen, wenn nicht auf der Danke-Seite ?>
     <?php if ($current_step_slug !== 'thankyou') : ?>
@@ -421,7 +423,7 @@ switch ($current_step_slug) {
         include( $partials_dir . 'checkout-cart-summary.php' ); ?>
     </aside>
 <?php endif; ?>
-</div>
+</div> <?php // Ende .yprint-checkout-layout ?>
 
     <?php // Footer-Bereich mit Links ?>
     <footer class="yprint-checkout-footer">
@@ -431,8 +433,6 @@ switch ($current_step_slug) {
             <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('Datenschutz', 'yprint-checkout'); ?></a>
         </p>
     </footer>
-
-</div> <?php // Ende .yprint-checkout-container - Dies ist nicht Teil des übergebenen Codes. Entfernen oder anpassen. ?>
 
 <?php // Ladeanimation Overlay (global für alle Schritte) ?>
 <div id="loading-overlay" class="hidden">
