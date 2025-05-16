@@ -403,6 +403,197 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+// Event Listener für Adresskartenauswahl
+const addressCards = document.querySelectorAll('.address-card');
+const selectedAddressInput = document.getElementById('selected_shipping_address');
+const newAddressForm = document.getElementById('new-address-form');
+
+// Adressauswahl-Handler
+if (addressCards.length) {
+    addressCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const addressId = this.dataset.addressId;
+            
+            // Visuelle Markierung aktualisieren
+            addressCards.forEach(c => {
+                c.classList.remove('border-yprint-blue', 'ring-2', 'ring-yprint-blue');
+            });
+            this.classList.add('border-yprint-blue', 'ring-2', 'ring-yprint-blue');
+            
+            // Ausgewählte Adresse in Hidden Input speichern
+            if (selectedAddressInput) {
+                selectedAddressInput.value = addressId;
+            }
+            
+            // Formular anzeigen/ausblenden basierend auf Auswahl
+            if (newAddressForm) {
+                if (addressId === 'new') {
+                    newAddressForm.classList.remove('hidden');
+                } else {
+                    newAddressForm.classList.add('hidden');
+                }
+            }
+            
+            // AJAX-Anfrage senden, um die Adresse zu setzen
+            const formData = new FormData();
+            formData.append('action', 'yprint_save_address');
+            formData.append('nonce', yprint_checkout_params.nonce);
+            formData.append('action_type', 'select');
+            formData.append('address_id', addressId);
+            
+            fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Address selection response:', data);
+                if (data.success) {
+                    // Optional: UI-Feedback
+                    // z.B. temporäre Erfolgsmeldung anzeigen
+                } else {
+                    console.error('Error selecting address:', data.data.message);
+                    // Optional: Fehlermeldung anzeigen
+                }
+            })
+            .catch(error => {
+                console.error('AJAX error:', error);
+            });
+        });
+    });
+}
+
+// Event Listener für "Adresse speichern" Checkbox
+const saveAddressCheckbox = document.getElementById('save_address');
+const saveAddressOptions = document.querySelector('.save-address-options');
+
+if (saveAddressCheckbox && saveAddressOptions) {
+    saveAddressCheckbox.addEventListener('change', function() {
+        if (this.checked) {
+            saveAddressOptions.classList.remove('hidden');
+        } else {
+            saveAddressOptions.classList.add('hidden');
+        }
+    });
+}
+
+// Ersetze den vorhandenen Event Listener für den btnToPayment
+if (btnToPayment) {
+    btnToPayment.addEventListener('click', (e) => {
+        e.preventDefault(); // Verhindert Standard-Formular-Submit
+        
+        // Prüfen, ob eine gespeicherte Adresse ausgewählt wurde
+        const selectedAddressId = selectedAddressInput ? selectedAddressInput.value : 'new';
+        
+        if (selectedAddressId !== 'new' || validateAddressForm()) {
+            // Wenn gespeicherte Adresse oder gültiges Formular
+            collectAddressData();
+            
+            // Neue Adresse speichern, wenn gewünscht
+            if (selectedAddressId === 'new' && document.getElementById('save_address') && document.getElementById('save_address').checked) {
+                saveNewAddress().then(() => {
+                    updatePaymentStepSummary();
+                    showStep(2);
+                });
+            } else {
+                updatePaymentStepSummary();
+                showStep(2);
+            }
+        } else {
+            // Optional: Fokussiere das erste invalide Feld oder zeige eine generelle Nachricht
+            const firstError = addressForm.querySelector('.border-yprint-error');
+            if (firstError) firstError.focus();
+        }
+    });
+}
+
+/**
+ * Speichert eine neue Adresse über AJAX
+ * @returns {Promise} Ein Promise, das nach dem Speichern der Adresse aufgelöst wird
+ */
+function saveNewAddress() {
+    return new Promise((resolve, reject) => {
+        const addressData = {
+            name: document.getElementById('address_name') ? document.getElementById('address_name').value : 'Neue Adresse',
+            first_name: document.getElementById('shipping_first_name') ? document.getElementById('shipping_first_name').value : '',
+            last_name: document.getElementById('shipping_last_name') ? document.getElementById('shipping_last_name').value : '',
+            street: document.getElementById('street') ? document.getElementById('street').value : '',
+            housenumber: document.getElementById('housenumber') ? document.getElementById('housenumber').value : '',
+            zip: document.getElementById('zip') ? document.getElementById('zip').value : '',
+            city: document.getElementById('city') ? document.getElementById('city').value : '',
+            country: document.getElementById('country') ? document.getElementById('country').value : 'DE',
+            phone: document.getElementById('phone') ? document.getElementById('phone').value : '',
+            set_default: document.getElementById('set_as_default') && document.getElementById('set_as_default').checked ? 'true' : 'false'
+        };
+        
+        const formData = new FormData();
+        formData.append('action', 'yprint_save_address');
+        formData.append('nonce', yprint_checkout_params.nonce);
+        formData.append('action_type', 'save');
+        
+        // Adressdaten als JSON-String hinzufügen
+        formData.append('address', JSON.stringify(addressData));
+        
+        fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Save address response:', data);
+            if (data.success) {
+                // Optional: UI-Feedback
+                // z.B. temporäre Erfolgsmeldung anzeigen
+                resolve(data);
+            } else {
+                console.error('Error saving address:', data.data.message);
+                // Optional: Fehlermeldung anzeigen
+                reject(new Error(data.data.message));
+            }
+        })
+        .catch(error => {
+            console.error('AJAX error:', error);
+            reject(error);
+        });
+    });
+}
+
+/**
+ * Sammelt die Adressdaten aus dem Formular.
+ * Erweiterte Version, die auch die ausgewählte Adresse berücksichtigt.
+ */
+function collectAddressData() {
+    if (!addressForm) return;
+    
+    const selectedAddressId = selectedAddressInput ? selectedAddressInput.value : 'new';
+    
+    if (selectedAddressId === 'new') {
+        // Bei neuer Adresse: Daten aus dem Formular sammeln
+        formData.shipping.street = document.getElementById('street')?.value || '';
+        formData.shipping.housenumber = document.getElementById('housenumber')?.value || '';
+        formData.shipping.zip = document.getElementById('zip')?.value || '';
+        formData.shipping.city = document.getElementById('city')?.value || '';
+        formData.shipping.country = document.getElementById('country')?.value || '';
+        formData.shipping.phone = document.getElementById('phone')?.value || '';
+    } else {
+        // Bei gespeicherter Adresse: Daten wurden bereits per AJAX gesetzt
+        // Hier nur ein Platzhalter, um die Adresse im lokalen formData-Objekt zu speichern
+        formData.shipping.selected_address_id = selectedAddressId;
+    }
+
+    if (formData.isBillingSameAsShipping) {
+        formData.billing = { ...formData.shipping }; // Kopiert die Lieferadresse
+    } else {
+        formData.billing.street = document.getElementById('billing_street')?.value || '';
+        formData.billing.housenumber = document.getElementById('billing_housenumber')?.value || '';
+        formData.billing.zip = document.getElementById('billing_zip')?.value || '';
+        formData.billing.city = document.getElementById('billing_city')?.value || '';
+        formData.billing.country = document.getElementById('billing_country')?.value || '';
+    }
+    
+    console.log("Adressdaten gesammelt:", formData);
+}
+
     if (btnBackToAddress) {
         btnBackToAddress.addEventListener('click', (e) => {
             e.preventDefault();

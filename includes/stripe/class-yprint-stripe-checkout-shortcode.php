@@ -56,8 +56,15 @@ class YPrint_Stripe_Checkout_Shortcode {
         
         add_action('wp_ajax_yprint_process_checkout', array($instance, 'ajax_process_checkout'));
         add_action('wp_ajax_nopriv_yprint_process_checkout', array($instance, 'ajax_process_checkout'));
+
+        // Registriere Shortcode
+        add_shortcode('yprint_checkout', array($instance, 'render_checkout'));
+
+        // Rückgabe der Instanz für mögliche weitere Verwendung
+        return $instance;
     }
 
+    
     /**
      * Constructor
      */
@@ -429,5 +436,119 @@ private function get_debug_info() {
     $debug .= '</div>';
     
     return $debug;
+}
+
+/**
+ * Register AJAX handlers
+ */
+public function register_ajax_handlers() {
+    add_action('wp_ajax_yprint_save_address', array($this, 'ajax_save_address'));
+    add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'ajax_save_address'));
+    
+    add_action('wp_ajax_yprint_get_addresses', array($this, 'ajax_get_addresses'));
+    add_action('wp_ajax_nopriv_yprint_get_addresses', array($this, 'ajax_get_addresses'));
+}
+
+/**
+ * AJAX handler for retrieving user addresses
+ */
+public function ajax_get_addresses() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array(
+            'message' => __('Sie müssen angemeldet sein, um gespeicherte Adressen abzurufen.', 'yprint-plugin')
+        ));
+        return;
+    }
+    
+    $user_id = get_current_user_id();
+    $default_shipping_address_id = get_user_meta($user_id, 'default_shipping_address', true);
+    $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+    
+    // Standardadresse (aus WooCommerce Kundendaten)
+    $customer = new WC_Customer($user_id);
+    $standard_address = array(
+        'id' => 'standard',
+        'name' => __('Standard-Adresse', 'yprint-plugin'),
+        'first_name' => $customer->get_shipping_first_name(),
+        'last_name' => $customer->get_shipping_last_name(),
+        'company' => $customer->get_shipping_company(),
+        'address_1' => $customer->get_shipping_address_1(),
+        'address_2' => $customer->get_shipping_address_2(),
+        'postcode' => $customer->get_shipping_postcode(),
+        'city' => $customer->get_shipping_city(),
+        'country' => $customer->get_shipping_country(),
+        'is_company' => !empty($customer->get_shipping_company()),
+        'is_default' => empty($default_shipping_address_id)
+    );
+    
+    $addresses = array('standard' => $standard_address);
+    
+    // Zusätzliche Adressen hinzufügen
+    if (is_array($additional_addresses) && !empty($additional_addresses)) {
+        foreach ($additional_addresses as $address_id => $address) {
+            $address['is_default'] = ($address_id === $default_shipping_address_id);
+            $addresses[$address_id] = $address;
+        }
+    }
+    
+    wp_send_json_success(array(
+        'addresses' => $addresses,
+        'default_address_id' => empty($default_shipping_address_id) ? 'standard' : $default_shipping_address_id
+    ));
+}
+
+/**
+ * Enqueue necessary scripts and styles for checkout
+ */
+public function enqueue_scripts() {
+    $suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
+    
+    // Enqueue Stripe.js directly from Stripe
+    wp_enqueue_script('stripe-js', 'https://js.stripe.com/v3/', array(), null, false);
+    
+    // Enqueue our custom scripts
+    wp_enqueue_script('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout' . $suffix . '.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    wp_enqueue_script('yprint-stripe-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-checkout' . $suffix . '.js', array('jquery', 'stripe-js', 'yprint-checkout'), YPRINT_PLUGIN_VERSION, true);
+    
+    // Enqueue our custom styles
+    wp_enqueue_style('yprint-checkout-style', YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout.css', array(), YPRINT_PLUGIN_VERSION);
+    
+    // Localize scripts
+    wp_localize_script('yprint-checkout', 'yprint_checkout_params', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint_checkout_nonce'),
+        'home_url' => home_url(),
+        'is_user_logged_in' => is_user_logged_in(),
+        'currency_symbol' => get_woocommerce_currency_symbol(),
+        'i18n' => array(
+            'neue_adresse' => __('Neue Adresse', 'yprint-plugin'),
+            'adresse_gespeichert' => __('Adresse erfolgreich gespeichert', 'yprint-plugin'),
+            'fehler_adresse_speichern' => __('Fehler beim Speichern der Adresse', 'yprint-plugin')
+        )
+    ));
+    
+    // Stripe-specific parameters
+    $stripe_params = array(
+        'publishable_key' => $this->get_stripe_publishable_key(),
+        'account_country' => WC()->countries->get_base_country(),
+        'checkout_nonce' => wp_create_nonce('stripe_checkout_nonce')
+    );
+    wp_localize_script('yprint-stripe-checkout', 'yprint_stripe_params', $stripe_params);
+}
+
+/**
+ * Get Stripe publishable key
+ * 
+ * @return string Stripe publishable key
+ */
+private function get_stripe_publishable_key() {
+    $testmode = get_option('yprint_stripe_testmode') === 'yes';
+    if ($testmode) {
+        return get_option('yprint_stripe_test_publishable_key');
+    } else {
+        return get_option('yprint_stripe_publishable_key');
+    }
 }
 }
