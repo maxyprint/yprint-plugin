@@ -40,10 +40,11 @@ class YPrint_Address_Manager {
             // ... weitere Länder, die Sie unterstützen möchten
         );
 
-        // Beispiel-Hooks (falls Sie diese Funktionalitäten implementieren möchten)
-        // add_action('wp_enqueue_scripts', array($this, 'enqueue_styles_and_scripts'));
-        // add_action('wp_ajax_yprint_save_address', array($this, 'handle_save_address_ajax'));
-        // add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_address_ajax')); // Für nicht eingeloggte Benutzer, falls erforderlich
+        // In der __construct() oder init() Methode hinzufügen:
+add_action('wp_ajax_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
+add_action('wp_ajax_yprint_get_address_details', array($this, 'ajax_get_address_details'));
+add_action('wp_ajax_yprint_delete_address', array($this, 'ajax_delete_address'));
+add_action('wp_ajax_yprint_set_default_address', array($this, 'ajax_set_default_address'));
     }
 
     /**
@@ -553,4 +554,96 @@ class YPrint_Address_Manager {
         //    'nonce' => wp_create_nonce('yprint_save_address_action')
         // ));
     }
+
+    /**
+ * AJAX-Handler für das Abrufen gespeicherter Adressen
+ */
+public function ajax_get_saved_addresses() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+    
+    $addresses = $this->get_user_addresses(get_current_user_id());
+    
+    wp_send_json_success(array('addresses' => $addresses));
+}
+
+/**
+ * AJAX-Handler für das Abrufen von Adressdetails
+ */
+public function ajax_get_address_details() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+    
+    $address_id = sanitize_text_field($_POST['address_id']);
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
+    
+    if (isset($addresses[$address_id])) {
+        wp_send_json_success(array('address' => $addresses[$address_id]));
+    } else {
+        wp_send_json_error(array('message' => 'Adresse nicht gefunden'));
+    }
+}
+
+/**
+ * AJAX-Handler für das Löschen einer Adresse
+ */
+public function ajax_delete_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+    
+    $address_id = sanitize_text_field($_POST['address_id']);
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
+    
+    if (isset($addresses[$address_id])) {
+        unset($addresses[$address_id]);
+        update_user_meta($user_id, 'additional_shipping_addresses', $addresses);
+        wp_send_json_success(array('message' => 'Adresse gelöscht'));
+    } else {
+        wp_send_json_error(array('message' => 'Adresse nicht gefunden'));
+    }
+}
+
+/**
+ * AJAX-Handler für das Setzen einer Standard-Adresse
+ */
+public function ajax_set_default_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+    
+    $address_id = sanitize_text_field($_POST['address_id']);
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
+    
+    // Alle Adressen als nicht-Standard markieren
+    foreach ($addresses as $id => $address) {
+        $addresses[$id]['is_default'] = false;
+    }
+    
+    // Gewählte Adresse als Standard markieren
+    if (isset($addresses[$address_id])) {
+        $addresses[$address_id]['is_default'] = true;
+        update_user_meta($user_id, 'additional_shipping_addresses', $addresses);
+        wp_send_json_success(array('message' => 'Standard-Adresse gesetzt'));
+    } else {
+        wp_send_json_error(array('message' => 'Adresse nicht gefunden'));
+    }
+}
 }

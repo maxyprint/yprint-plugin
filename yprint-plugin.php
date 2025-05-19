@@ -64,14 +64,32 @@ add_action('plugins_loaded', function() {
 function yprint_enqueue_scripts() {
     // Enqueue CSS
     wp_enqueue_style('yprint-styles', YPRINT_PLUGIN_URL . 'assets/css/yprint-styles.css', array(), YPRINT_PLUGIN_VERSION);
+    wp_enqueue_style('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout.css', array(), YPRINT_PLUGIN_VERSION);
     
     // Enqueue JS
     wp_enqueue_script('yprint-scripts', YPRINT_PLUGIN_URL . 'assets/js/yprint-scripts.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    wp_enqueue_script('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
     
-    // Add AJAX URL
+    // Add AJAX URL and Nonces
     wp_localize_script('yprint-scripts', 'yprint_ajax', array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('yprint-ajax-nonce')
+    ));
+    
+    // Add address-specific AJAX settings
+    wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint_save_address_action'),
+        'messages' => array(
+            'set_as_default' => __('Als Standard setzen', 'yprint-plugin'),
+            'delete_address' => __('Adresse löschen', 'yprint-plugin'),
+            'confirm_delete' => __('Diese Adresse wirklich löschen?', 'yprint-plugin'),
+            'address_saved' => __('Adresse erfolgreich gespeichert', 'yprint-plugin'),
+            'address_deleted' => __('Adresse gelöscht', 'yprint-plugin'),
+            'error_saving' => __('Fehler beim Speichern der Adresse', 'yprint-plugin'),
+            'error_deleting' => __('Fehler beim Löschen der Adresse', 'yprint-plugin')
+        )
     ));
 }
 add_action('wp_enqueue_scripts', 'yprint_enqueue_scripts');

@@ -36,15 +36,15 @@ if ( ! defined( 'ABSPATH' ) ) {
         <?php // wp_nonce_field( 'yprint_save_address_action', 'yprint_address_nonce' ); ?>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-                <label for="street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
-                <input type="text" id="street" name="shipping_street" class="form-input" required autocomplete="shipping street-address" value="<?php /* echo esc_attr(WC()->customer->get_shipping_address_1()); */ ?>">
-            </div>
-            <div>
-                <label for="housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
-                <input type="text" id="housenumber" name="shipping_housenumber" class="form-input" required autocomplete="shipping address-line2" value="<?php /* echo esc_attr(WC()->customer->get_shipping_address_2()); */ ?>">
-            </div>
-        </div>
+    <div>
+        <label for="street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
+        <input type="text" id="street" name="shipping_address_1" class="form-input" required autocomplete="shipping street-address">
+    </div>
+    <div>
+        <label for="housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
+        <input type="text" id="housenumber" name="shipping_address_2" class="form-input" required autocomplete="shipping address-line2">
+    </div>
+</div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>

@@ -585,6 +585,46 @@ function updateCartTotalsDisplay(container) {
     `;
 }
 
+// Nach der Zeile: let currentStep = 1;
+let selectedAddress = null;
+
+// Neue Funktionen für Adressverwaltung hinzufügen
+function populateAddressFields(addressData, type = 'shipping') {
+    const prefix = type === 'shipping' ? '' : 'billing_';
+    
+    document.getElementById(prefix + 'street')?.setAttribute('value', addressData.address_1 || '');
+    document.getElementById(prefix + 'housenumber')?.setAttribute('value', addressData.address_2 || '');
+    document.getElementById(prefix + 'zip')?.setAttribute('value', addressData.postcode || '');
+    document.getElementById(prefix + 'city')?.setAttribute('value', addressData.city || '');
+    document.getElementById(prefix + 'country')?.setAttribute('value', addressData.country || 'DE');
+    
+    // Trigger validation
+    validateAddressForm();
+}
+
+// Event-Listener für Adressauswahl hinzufügen
+document.addEventListener('change', function(e) {
+    if (e.target.name === 'selected_address') {
+        const addressData = e.target.getAttribute('data-address-data');
+        if (addressData) {
+            try {
+                const parsedData = JSON.parse(addressData);
+                populateAddressFields(parsedData, 'shipping');
+                
+                // Wenn Rechnungsadresse gleich Lieferadresse
+                const billingSameCheckbox = document.getElementById('billing-same-as-shipping');
+                if (billingSameCheckbox && billingSameCheckbox.checked) {
+                    populateAddressFields(parsedData, 'billing');
+                }
+                
+                selectedAddress = parsedData;
+            } catch (error) {
+                console.error('Error parsing address data:', error);
+            }
+        }
+    }
+});
+
 // Beispiel für ein globales Objekt für AJAX-Aufrufe (Platzhalter)
 // const YPrintAJAX = {
 //     saveAddress: function(shippingData, billingData) {
