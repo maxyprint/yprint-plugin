@@ -14,6 +14,8 @@
             
             // DOM Elements
             this.modal = $('#new-address-modal');
+            this.addressContainer = $('.yprint-saved-addresses');
+            this.loadingIndicator = this.addressContainer.find('.loading-addresses');
             
             // Events binden
             this.bindEvents();
@@ -21,6 +23,9 @@
             // Gespeicherte Adressen laden wenn eingeloggt
             if (this.isUserLoggedIn()) {
                 this.loadSavedAddresses();
+            } else {
+                this.addressContainer.hide();
+                $('#address-form').show();
             }
         },
         
@@ -93,6 +98,10 @@
         loadSavedAddresses: function() {
             const self = this;
             
+            self.addressContainer.show();
+            self.loadingIndicator.show();
+            self.addressContainer.find('.address-cards-grid').hide();
+            
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
@@ -103,12 +112,27 @@
                 success: function(response) {
                     if (response.success) {
                         self.renderAddresses(response.data.addresses);
+                        if (Object.keys(response.data.addresses).length === 0) {
+                            self.addressContainer.hide();
+                            $('#address-form').show();
+                        } else {
+                            self.addressContainer.find('.address-cards-grid').show();
+                        }
                     } else {
                         console.error('Error loading addresses:', response.data);
+                        self.showMessage(response.data.message || 'Fehler beim Laden der Adressen.', 'error');
+                        self.addressContainer.hide();
+                        $('#address-form').show();
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error loading addresses:', error);
+                    self.showMessage('AJAX Fehler beim Laden der Adressen: ' + error, 'error');
+                    self.addressContainer.hide();
+                    $('#address-form').show();
+                },
+                complete: function() {
+                    self.loadingIndicator.hide();
                 }
             });
         },
@@ -233,27 +257,36 @@
             
             this.selectedAddressId = addressId;
             
-            // Adressdetails abrufen und Formular füllen
+            // Adresse für Checkout setzen und Formular füllen
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'yprint_get_address_details',
+                    action: 'yprint_set_checkout_address',
                     nonce: yprint_address_ajax.nonce,
                     address_id: addressId
                 },
                 success: function(response) {
                     if (response.success) {
-                        self.fillAddressForm(response.data.address);
-                        self.showMessage('Adresse ausgewählt', 'success');
+                        self.fillAddressForm(response.data.address_data);
+                        self.showMessage('Adresse ausgewählt und für Checkout gesetzt.', 'success');
+                        self.closeAddressSelectionView();
                     } else {
-                        self.showMessage(response.data.message || 'Fehler beim Laden der Adresse', 'error');
+                        self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
                     }
                 },
                 error: function() {
-                    self.showMessage('Fehler beim Laden der Adresse', 'error');
+                    self.showMessage('Fehler beim Setzen der Adresse für Checkout', 'error');
                 }
             });
+        },
+        
+        closeAddressSelectionView: function() {
+            this.addressContainer.slideUp();
+            $('#address-form').slideDown();
+            this.showChangeAddressLink();
+            // Validierung des Hauptformulars triggern
+            $('#address-form input').trigger('input');
         },
         
         fillAddressForm: function(address) {

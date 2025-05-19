@@ -41,10 +41,12 @@ class YPrint_Address_Manager {
         );
 
         // In der __construct() oder init() Methode hinzufügen:
-add_action('wp_ajax_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
-add_action('wp_ajax_yprint_get_address_details', array($this, 'ajax_get_address_details'));
-add_action('wp_ajax_yprint_delete_address', array($this, 'ajax_delete_address'));
-add_action('wp_ajax_yprint_set_default_address', array($this, 'ajax_set_default_address'));
+        add_action('wp_ajax_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
+        add_action('wp_ajax_yprint_get_address_details', array($this, 'ajax_get_address_details'));
+        add_action('wp_ajax_yprint_save_new_address', array($this, 'handle_save_address_ajax'));
+        add_action('wp_ajax_yprint_delete_address', array($this, 'ajax_delete_address'));
+        add_action('wp_ajax_yprint_set_default_address', array($this, 'ajax_set_default_address'));
+        add_action('wp_ajax_yprint_set_checkout_address', array($this, 'ajax_set_checkout_address'));
 
 // In der __construct() Methode hinzufügen:
 add_action('wp_ajax_yprint_save_address', array($this, 'handle_save_address_ajax'));
@@ -67,16 +69,21 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
                     </button>
                 </div>
                 <div class="address-modal-body">
-                    <form class="address-form" method="post">
-                        <?php wp_nonce_field('yprint_save_address_action', 'yprint_address_nonce'); ?>
-                        <input type="hidden" name="action" value="yprint_save_address">
-                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                            <div>
-                                <label for="new_first_name" class="form-label">
-                                    <?php _e('Vorname', 'yprint-plugin'); ?> <span class="required">*</span>
-                                </label>
-                                <input type="text" id="new_first_name" name="first_name" class="form-input" required>
-                            </div>
+                <form id="new-address-form" class="space-y-4">
+                <div>
+                    <label for="new_address_name" class="form-label">
+                        <?php _e('Name der Adresse (z.B. Zuhause, Büro)', 'yprint-plugin'); ?> <span class="required">*</span>
+                    </label>
+                    <input type="text" id="new_address_name" name="name" class="form-input" required>
+                    <input type="hidden" id="new_address_edit_id" name="address_id_for_edit" value="">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="new_address_first_name" class="form-label">
+                            <?php _e('Vorname', 'yprint-plugin'); ?> <span class="required">*</span>
+                        </label>
+                        <input type="text" id="new_address_first_name" name="first_name" class="form-input" required>
+                    </div>
                             <div>
                                 <label for="new_last_name" class="form-label">
                                     <?php _e('Nachname', 'yprint-plugin'); ?> <span class="required">*</span>
@@ -175,12 +182,12 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
     public function validate_address_data($data) {
         $errors = array();
 
-        // Pflichtfelder
         $required_fields = array(
+            'name' => __('Name der Adresse', 'yprint-plugin'),
             'first_name' => __('Vorname', 'yprint-plugin'),
             'last_name' => __('Nachname', 'yprint-plugin'),
-            'address_1' => __('Straße und Hausnummer', 'yprint-plugin'),
-            'postcode' => __('PLZ', 'yprint-plugin'),
+            'address_1' => __('Straße', 'yprint-plugin'),
+            'postcode' => __('Postleitzahl', 'yprint-plugin'),
             'city' => __('Stadt', 'yprint-plugin'),
             'country' => __('Land', 'yprint-plugin')
         );
@@ -239,7 +246,7 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
     public function sanitize_address_data($data) {
         $sanitized = array();
 
-        $text_fields = array('first_name', 'last_name', 'company', 'address_1', 'address_2', 'city', 'postcode');
+        $text_fields = array('name', 'first_name', 'last_name', 'company', 'address_1', 'address_2', 'city', 'postcode');
         foreach ($text_fields as $field) {
             $sanitized[$field] = isset($data[$field]) ? sanitize_text_field($data[$field]) : '';
         }
@@ -324,13 +331,29 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
 
         $existing_addresses = $this->get_user_addresses($user_id);
 
-        // Generiere eine eindeutige ID für die neue Adresse
-        $new_address_id = 'addr_' . time() . '_' . wp_rand(1000, 9999);
-        $sanitized_address['id'] = $new_address_id; // Speichern der ID in den Adressdaten
+        // Begrenzung auf 3 Adressen prüfen
+        $max_addresses = 3;
+        $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
+        
+        if (!$is_editing && count($existing_addresses) >= $max_addresses) {
+            return new WP_Error('address_limit_exceeded', sprintf(__('Sie können maximal %d Adressen speichern. Bitte löschen Sie eine alte Adresse, um eine neue hinzuzufügen.', 'yprint-plugin'), $max_addresses));
+        }
 
-        $existing_addresses[] = $sanitized_address;
+        // Generiere eine eindeutige ID für die neue Adresse oder nutze vorhandene bei Bearbeitung
+        $address_id = $is_editing ? sanitize_text_field($address_data['id']) : ('addr_' . time() . '_' . wp_rand(1000, 9999));
+        $sanitized_address['id'] = $address_id;
+
+        // Speichere als assoziatives Array mit ID als Schlüssel
+        $existing_addresses[$address_id] = $sanitized_address;
 
         update_user_meta($user_id, 'additional_shipping_addresses', $existing_addresses);
+
+        return array(
+            'success' => true,
+            'message' => __('Adresse erfolgreich gespeichert.', 'yprint-plugin'),
+            'address_id' => $address_id,
+            'address_data' => $sanitized_address
+        );
 
         return array(
             'success' => true,
@@ -636,6 +659,8 @@ public function ajax_set_default_address() {
         wp_send_json_error(array('message' => 'Nicht eingeloggt'));
         return;
     }
+
+    
     
     $address_id = sanitize_text_field($_POST['address_id']);
     $user_id = get_current_user_id();
@@ -653,6 +678,53 @@ public function ajax_set_default_address() {
         wp_send_json_success(array('message' => 'Standard-Adresse gesetzt'));
     } else {
         wp_send_json_error(array('message' => 'Adresse nicht gefunden'));
+    }
+}
+
+public function ajax_set_checkout_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+
+    $address_id = sanitize_text_field($_POST['address_id']);
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
+    $address_to_set = null;
+
+    if ($address_id === 'wc_default') {
+        if (function_exists('WC') && WC()->customer) {
+            $address_to_set = array(
+                'first_name' => WC()->customer->get_shipping_first_name(),
+                'last_name'  => WC()->customer->get_shipping_last_name(),
+                'company'    => WC()->customer->get_shipping_company(),
+                'address_1'  => WC()->customer->get_shipping_address_1(),
+                'address_2'  => WC()->customer->get_shipping_address_2(),
+                'postcode'   => WC()->customer->get_shipping_postcode(),
+                'city'       => WC()->customer->get_shipping_city(),
+                'country'    => WC()->customer->get_shipping_country(),
+                'phone'      => WC()->customer->get_billing_phone(),
+            );
+        }
+    } elseif (isset($addresses[$address_id])) {
+        $address_to_set = $addresses[$address_id];
+    } else {
+        wp_send_json_error(array('message' => 'Ausgewählte Adresse nicht gefunden.'));
+        return;
+    }
+
+    if ($address_to_set) {
+        $this->update_woocommerce_customer_data($address_to_set, 'shipping');
+        $this->update_woocommerce_customer_data($address_to_set, 'billing');
+
+        wp_send_json_success(array(
+            'message' => 'Adresse erfolgreich für den Checkout gesetzt.',
+            'address_data' => $address_to_set
+        ));
+    } else {
+        wp_send_json_error(array('message' => 'Fehler beim Setzen der Checkout-Adresse.'));
     }
 }
 }

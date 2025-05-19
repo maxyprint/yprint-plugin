@@ -15,21 +15,40 @@ if ( ! defined( 'ABSPATH' ) ) {
 <div id="step-1" class="checkout-step active">
     <h2 class="flex items-center"><i class="fas fa-map-marker-alt mr-2 text-yprint-blue"></i><?php esc_html_e('Lieferadresse', 'yprint-checkout'); ?></h2>
     
-    <?php
-    // Zeige gespeicherte Adressen für eingeloggte Benutzer
-    if (is_user_logged_in() && class_exists('YPrint_Address_Manager')) {
-        try {
-            $address_manager = YPrint_Address_Manager::get_instance();
-            echo $address_manager->render_address_selection('shipping');
-        } catch (Exception $e) {
-            // Debug information for admins
-            if (current_user_can('administrator')) {
-                echo '<div class="notice notice-error"><p>Address Manager Error: ' . esc_html($e->getMessage()) . '</p></div>';
+    <?php if (is_user_logged_in()) : ?>
+        <div class="yprint-saved-addresses mt-6" style="display: none;">
+            <h3 class="saved-addresses-title">
+                <i class="fas fa-map-marker-alt mr-2"></i>
+                <?php _e('Gespeicherte Adressen', 'yprint-plugin'); ?>
+            </h3>
+            <div class="address-cards-grid">
+                <div class="address-card add-new-address-card cursor-pointer">
+                    <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue add-new-address-content">
+                        <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                        <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
+                    </div>
+                </div>
+            </div>
+            <div class="loading-addresses text-center py-4">
+                <i class="fas fa-spinner fa-spin text-yprint-blue text-2xl"></i>
+                <p><?php esc_html_e('Adressen werden geladen...', 'yprint-checkout'); ?></p>
+            </div>
+        </div>
+        <?php
+        // Modal HTML bereitstellen
+        if (class_exists('YPrint_Address_Manager')) {
+            try {
+                $address_manager = YPrint_Address_Manager::get_instance();
+                echo $address_manager->get_address_modal_html();
+            } catch (Exception $e) {
+                if (current_user_can('administrator')) {
+                    echo '<div class="notice notice-error"><p>Address Modal Error: ' . esc_html($e->getMessage()) . '</p></div>';
+                }
+                error_log('YPrint Address Modal Error: ' . $e->getMessage());
             }
-            error_log('YPrint Address Manager Error: ' . $e->getMessage());
         }
-    }
-    ?>
+        ?>
+    <?php endif; ?>
     
     <form id="address-form" class="space-y-6 mt-6">
         <?php // Nonce-Feld für Sicherheit (wird von wp_localize_script bereitgestellt und per JS hinzugefügt oder hier manuell) ?>
