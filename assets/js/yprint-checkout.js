@@ -752,6 +752,27 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 }); // Ende DOMContentLoaded
 
+// Debug-Button hinzufügen (nur wenn im Debug-Modus)
+if (window.location.search.includes('debug=1') || localStorage.getItem('yprint_debug') === 'true') {
+    const debugButton = $('<button type="button" class="btn btn-secondary debug-button" style="position: fixed; top: 10px; right: 10px; z-index: 10000;">Debug Info</button>');
+    $('body').append(debugButton);
+    
+    debugButton.on('click', function() {
+        console.log('=== MANUAL DEBUG TRIGGER ===');
+        if (window.YPrintAddressManager) {
+            window.YPrintAddressManager.debugDOMState();
+            window.YPrintAddressManager.debugUserState();
+            window.YPrintAddressManager.debugAjaxConfig();
+        } else {
+            console.log('YPrintAddressManager not available');
+        }
+        console.log('Current Step:', currentStep);
+        console.log('Form Data:', formData);
+        console.log('Cart Items:', cartItems);
+        console.log('=== END MANUAL DEBUG ===');
+    });
+}
+
 /**
  * Aktualisiert die Anzeige der Produkte im Warenkorb-Widget.
  * @param {HTMLElement} container - Das HTML-Element, in das die Produktliste gerendert wird.

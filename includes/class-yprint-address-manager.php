@@ -591,16 +591,45 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
  * AJAX-Handler für das Abrufen gespeicherter Adressen
  */
 public function ajax_get_saved_addresses() {
-    check_ajax_referer('yprint_save_address_action', 'nonce');
+    // Debug-Informationen loggen
+    error_log('YPrint Debug: ajax_get_saved_addresses called');
+    error_log('YPrint Debug: POST data: ' . print_r($_POST, true));
+    error_log('YPrint Debug: User logged in: ' . (is_user_logged_in() ? 'Yes' : 'No'));
+    error_log('YPrint Debug: Current user ID: ' . get_current_user_id());
+    
+    // Nonce-Prüfung mit detailliertem Error-Logging
+    $nonce_check = wp_verify_nonce($_POST['nonce'] ?? '', 'yprint_save_address_action');
+    error_log('YPrint Debug: Nonce check result: ' . ($nonce_check ? 'Valid' : 'Invalid'));
+    error_log('YPrint Debug: Provided nonce: ' . ($_POST['nonce'] ?? 'Not provided'));
+    error_log('YPrint Debug: Expected action: yprint_save_address_action');
+    
+    if (!$nonce_check) {
+        error_log('YPrint Debug: Nonce verification failed');
+        wp_send_json_error(array('message' => 'Sicherheitsprüfung fehlgeschlagen'));
+        return;
+    }
     
     if (!is_user_logged_in()) {
+        error_log('YPrint Debug: User not logged in');
         wp_send_json_error(array('message' => 'Nicht eingeloggt'));
         return;
     }
     
-    $addresses = $this->get_user_addresses(get_current_user_id());
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
     
-    wp_send_json_success(array('addresses' => $addresses));
+    error_log('YPrint Debug: Retrieved addresses for user ' . $user_id . ': ' . print_r($addresses, true));
+    error_log('YPrint Debug: Number of addresses: ' . count($addresses));
+    
+    wp_send_json_success(array(
+        'addresses' => $addresses,
+        'user_id' => $user_id,
+        'debug_info' => array(
+            'timestamp' => current_time('mysql'),
+            'addresses_count' => count($addresses),
+            'user_meta_raw' => get_user_meta($user_id, 'additional_shipping_addresses', true)
+        )
+    ));
 }
 
 /**

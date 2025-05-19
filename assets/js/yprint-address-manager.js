@@ -10,23 +10,47 @@
         selectedAddressId: null,
         
         init: function() {
-            console.log('YPrint Address Manager: Initializing...');
+            console.log('=== YPrint Address Manager: Starting Initialization ===');
+            console.log('Current URL:', window.location.href);
+            console.log('User Agent:', navigator.userAgent);
             
             // DOM Elements
             this.modal = $('#new-address-modal');
             this.addressContainer = $('.yprint-saved-addresses');
             this.loadingIndicator = this.addressContainer.find('.loading-addresses');
             
+            console.log('DOM Elements found:');
+            console.log('  - Modal:', this.modal.length, this.modal);
+            console.log('  - Address Container:', this.addressContainer.length, this.addressContainer);
+            console.log('  - Loading Indicator:', this.loadingIndicator.length, this.loadingIndicator);
+            console.log('  - Container initial visibility:', this.addressContainer.is(':visible'));
+            console.log('  - Container CSS display:', this.addressContainer.css('display'));
+            
+            // Check for required dependencies
+            if (typeof yprint_address_ajax === 'undefined') {
+                console.error('ERROR: yprint_address_ajax object not found! Check wp_localize_script.');
+                return;
+            }
+            console.log('AJAX Config:', yprint_address_ajax);
+            
             // Events binden
             this.bindEvents();
+            console.log('Events bound successfully');
             
             // Gespeicherte Adressen laden wenn eingeloggt
-            if (this.isUserLoggedIn()) {
+            const isLoggedIn = this.isUserLoggedIn();
+            console.log('User logged in check:', isLoggedIn);
+            
+            if (isLoggedIn) {
+                console.log('User is logged in - loading saved addresses...');
                 this.loadSavedAddresses();
             } else {
+                console.log('User not logged in - hiding address container and showing form');
                 this.addressContainer.hide();
                 $('#address-form').show();
             }
+            
+            console.log('=== YPrint Address Manager: Initialization Complete ===');
         },
         
         bindEvents: function() {
@@ -98,44 +122,90 @@
         loadSavedAddresses: function() {
             const self = this;
             
-            // Container erst anzeigen, wenn wir wissen, dass Adressen vorhanden sind
+            console.log('=== Loading Saved Addresses ===');
+            console.log('Container before AJAX:');
+            console.log('  - Exists:', self.addressContainer.length);
+            console.log('  - Visible:', self.addressContainer.is(':visible'));
+            console.log('  - Display CSS:', self.addressContainer.css('display'));
+            console.log('  - Grid element:', self.addressContainer.find('.address-cards-grid').length);
+            
+            // Container-Status vor AJAX-Call
             self.loadingIndicator.show();
             self.addressContainer.find('.address-cards-grid').hide();
-            self.addressContainer.show(); // Jetzt sichtbar machen
+            self.addressContainer.show();
+            
+            console.log('Container after show():');
+            console.log('  - Visible:', self.addressContainer.is(':visible'));
+            console.log('  - Display CSS:', self.addressContainer.css('display'));
+            console.log('  - Loading indicator visible:', self.loadingIndicator.is(':visible'));
+            
+            const ajaxData = {
+                action: 'yprint_get_saved_addresses',
+                nonce: yprint_address_ajax.nonce
+            };
+            console.log('AJAX Request Data:', ajaxData);
+            console.log('AJAX URL:', yprint_address_ajax.ajax_url);
             
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
-                data: {
-                    action: 'yprint_get_saved_addresses',
-                    nonce: yprint_address_ajax.nonce
+                data: ajaxData,
+                beforeSend: function(xhr, settings) {
+                    console.log('AJAX beforeSend - URL:', settings.url);
+                    console.log('AJAX beforeSend - Data:', settings.data);
                 },
                 success: function(response) {
-                    if (response.success) {
-                        self.renderAddresses(response.data.addresses);
-                        if (Object.keys(response.data.addresses).length === 0) {
+                    console.log('AJAX Success - Raw response:', response);
+                    console.log('Response type:', typeof response);
+                    
+                    if (response && response.success) {
+                        console.log('Success: Address data received:', response.data);
+                        console.log('Number of addresses:', Object.keys(response.data.addresses || {}).length);
+                        
+                        self.renderAddresses(response.data.addresses || {});
+                        
+                        if (Object.keys(response.data.addresses || {}).length === 0) {
+                            console.log('No addresses found - hiding container, showing form');
                             self.addressContainer.hide();
                             $('#address-form').show();
                         } else {
+                            console.log('Addresses found - showing grid');
                             self.addressContainer.find('.address-cards-grid').show();
                         }
                     } else {
-                        console.error('Error loading addresses:', response.data);
-                        self.showMessage(response.data.message || 'Fehler beim Laden der Adressen.', 'error');
+                        console.error('AJAX Success but response.success is false');
+                        console.error('Response:', response);
+                        const errorMsg = (response && response.data && response.data.message) || 'Fehler beim Laden der Adressen.';
+                        console.error('Error message:', errorMsg);
+                        self.showMessage(errorMsg, 'error');
                         self.addressContainer.hide();
                         $('#address-form').show();
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('AJAX Error loading addresses:', error);
+                    console.error('=== AJAX Error ===');
+                    console.error('Status:', status);
+                    console.error('Error:', error);
+                    console.error('XHR Status:', xhr.status);
+                    console.error('XHR Response Text:', xhr.responseText);
+                    console.error('XHR Ready State:', xhr.readyState);
+                    
                     self.showMessage('AJAX Fehler beim Laden der Adressen: ' + error, 'error');
                     self.addressContainer.hide();
                     $('#address-form').show();
                 },
-                complete: function() {
+                complete: function(xhr, status) {
+                    console.log('AJAX Complete - Status:', status);
+                    console.log('Final container state:');
+                    console.log('  - Visible:', self.addressContainer.is(':visible'));
+                    console.log('  - Grid visible:', self.addressContainer.find('.address-cards-grid').is(':visible'));
+                    console.log('  - Loading hidden:', !self.loadingIndicator.is(':visible'));
+                    
                     self.loadingIndicator.hide();
                 }
             });
+            
+            console.log('=== AJAX Request Sent ===');
         },
         
         renderAddresses: function(addresses) {
@@ -166,6 +236,60 @@
             
             console.log('Rendered addresses:', addresses.length, 'Container visible:', container.is(':visible'));
         },
+
+        // Debug-Methoden
+debugDOMState: function() {
+    console.log('=== Debug DOM State ===');
+    console.log('Address Container:');
+    console.log('  - Length:', this.addressContainer.length);
+    console.log('  - Visible:', this.addressContainer.is(':visible'));
+    console.log('  - Display:', this.addressContainer.css('display'));
+    console.log('  - Opacity:', this.addressContainer.css('opacity'));
+    console.log('  - Height:', this.addressContainer.height());
+    console.log('  - Classes:', this.addressContainer.attr('class'));
+    
+    console.log('Address Cards Grid:');
+    const grid = this.addressContainer.find('.address-cards-grid');
+    console.log('  - Length:', grid.length);
+    console.log('  - Visible:', grid.is(':visible'));
+    console.log('  - Display:', grid.css('display'));
+    console.log('  - Children:', grid.children().length);
+    
+    console.log('Loading Indicator:');
+    console.log('  - Length:', this.loadingIndicator.length);
+    console.log('  - Visible:', this.loadingIndicator.is(':visible'));
+    console.log('  - Display:', this.loadingIndicator.css('display'));
+    
+    console.log('Address Form:');
+    const form = $('#address-form');
+    console.log('  - Length:', form.length);
+    console.log('  - Visible:', form.is(':visible'));
+    console.log('  - Display:', form.css('display'));
+    
+    console.log('Body Classes:', $('body').attr('class'));
+    console.log('=== End Debug DOM State ===');
+},
+
+debugUserState: function() {
+    console.log('=== Debug User State ===');
+    console.log('isUserLoggedIn():', this.isUserLoggedIn());
+    console.log('Body has logged-in class:', $('body').hasClass('logged-in'));
+    console.log('WP Admin Bar exists:', $('#wpadminbar').length > 0);
+    console.log('Current user (if available):', typeof current_user !== 'undefined' ? current_user : 'Not defined');
+    console.log('=== End Debug User State ===');
+},
+
+debugAjaxConfig: function() {
+    console.log('=== Debug AJAX Config ===');
+    console.log('yprint_address_ajax defined:', typeof yprint_address_ajax !== 'undefined');
+    if (typeof yprint_address_ajax !== 'undefined') {
+        console.log('AJAX URL:', yprint_address_ajax.ajax_url);
+        console.log('Nonce:', yprint_address_ajax.nonce);
+        console.log('Messages:', yprint_address_ajax.messages);
+    }
+    console.log('jQuery version:', $.fn.jquery);
+    console.log('=== End Debug AJAX Config ===');
+},
         
         createAddressCard: function(address) {
             const isDefault = address.is_default;
