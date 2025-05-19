@@ -78,19 +78,21 @@ function yprint_enqueue_scripts() {
     ));
     
     // Add address-specific AJAX settings
-    wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('yprint_save_address_action'),
-        'messages' => array(
-            'set_as_default' => __('Als Standard setzen', 'yprint-plugin'),
-            'delete_address' => __('Adresse löschen', 'yprint-plugin'),
-            'confirm_delete' => __('Diese Adresse wirklich löschen?', 'yprint-plugin'),
-            'address_saved' => __('Adresse erfolgreich gespeichert', 'yprint-plugin'),
-            'address_deleted' => __('Adresse gelöscht', 'yprint-plugin'),
-            'error_saving' => __('Fehler beim Speichern der Adresse', 'yprint-plugin'),
-            'error_deleting' => __('Fehler beim Löschen der Adresse', 'yprint-plugin')
-        )
-    ));
+wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
+    'ajax_url' => admin_url('admin-ajax.php'),
+    'nonce' => wp_create_nonce('yprint_save_address_action'),
+    'messages' => array(
+        'set_as_default' => __('Als Standard setzen', 'yprint-plugin'),
+        'delete_address' => __('Adresse löschen', 'yprint-plugin'),
+        'confirm_delete' => __('Diese Adresse wirklich löschen?', 'yprint-plugin'),
+        'address_saved' => __('Adresse erfolgreich gespeichert', 'yprint-plugin'),
+        'address_deleted' => __('Adresse gelöscht', 'yprint-plugin'),
+        'error_saving' => __('Fehler beim Speichern der Adresse', 'yprint-plugin'),
+        'error_deleting' => __('Fehler beim Löschen der Adresse', 'yprint-plugin'),
+        'standard_address' => __('Standard-Adresse', 'yprint-plugin'),
+        'loading_addresses' => __('Adressen werden geladen...', 'yprint-plugin')
+    )
+));
 }
 add_action('wp_enqueue_scripts', 'yprint_enqueue_scripts');
 

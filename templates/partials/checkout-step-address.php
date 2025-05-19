@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     <h2 class="flex items-center"><i class="fas fa-map-marker-alt mr-2 text-yprint-blue"></i><?php esc_html_e('Lieferadresse', 'yprint-checkout'); ?></h2>
     
     <?php if (is_user_logged_in()) : ?>
-        <div class="yprint-saved-addresses mt-6" style="display: none;">
+        <div class="yprint-saved-addresses mt-6">
             <h3 class="saved-addresses-title">
                 <i class="fas fa-map-marker-alt mr-2"></i>
                 <?php _e('Gespeicherte Adressen', 'yprint-plugin'); ?>

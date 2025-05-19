@@ -98,9 +98,10 @@
         loadSavedAddresses: function() {
             const self = this;
             
-            self.addressContainer.show();
+            // Container erst anzeigen, wenn wir wissen, dass Adressen vorhanden sind
             self.loadingIndicator.show();
             self.addressContainer.find('.address-cards-grid').hide();
+            self.addressContainer.show(); // Jetzt sichtbar machen
             
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
@@ -147,6 +148,9 @@
             // Bestehende Adresskarten entfernen
             grid.find('.address-card:not(.add-new-address-card)').remove();
             
+            // WooCommerce Standard-Adresse hinzufügen falls vorhanden
+            this.addWooCommerceDefaultAddress(grid);
+            
             // Neue Adresskarten hinzufügen
             addresses.forEach(address => {
                 const card = this.createAddressCard(address);
@@ -156,10 +160,11 @@
             // "Neue Adresse" Karte wieder hinzufügen
             grid.append(addNewCard);
             
-            // Container anzeigen wenn Adressen vorhanden
-            if (addresses.length > 0) {
-                container.show();
-            }
+            // Container und Grid anzeigen
+            container.show();
+            grid.show();
+            
+            console.log('Rendered addresses:', addresses.length, 'Container visible:', container.is(':visible'));
         },
         
         createAddressCard: function(address) {
@@ -216,6 +221,50 @@
             `);
         },
         
+/**
+ * Fügt WooCommerce Standard-Adresse zur Auswahl hinzu
+ */
+addWooCommerceDefaultAddress: function(grid) {
+    // Prüfe ob WooCommerce-Daten in den Feldern vorhanden sind
+    const wcAddress = {
+        address_1: $('#street').val() || '',
+        address_2: $('#housenumber').val() || '',
+        postcode: $('#zip').val() || '',
+        city: $('#city').val() || '',
+        country: $('#country').val() || 'DE',
+        phone: $('#phone').val() || '',
+        first_name: '', // Könnte aus anderen Feldern kommen
+        last_name: '',
+        company: ''
+    };
+    
+    // Nur hinzufügen wenn mindestens Straße oder Stadt vorhanden
+    if (wcAddress.address_1 || wcAddress.city) {
+        const card = $(`
+            <div class="address-card">
+                <label class="cursor-pointer">
+                    <input type="radio" name="selected_address" value="wc_default" 
+                           data-address-type="wc_default" 
+                           data-address-data='${JSON.stringify(wcAddress)}' 
+                           class="sr-only">
+                    <div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="font-semibold">${yprint_address_ajax.messages.standard_address || 'Standard-Adresse'}</h4>
+                            <i class="fas fa-check text-blue-500 opacity-0 address-selected-icon"></i>
+                        </div>
+                        <div class="text-sm text-gray-600">
+                            ${wcAddress.address_1} ${wcAddress.address_2}<br>
+                            ${wcAddress.postcode} ${wcAddress.city}<br>
+                            ${wcAddress.country}
+                        </div>
+                    </div>
+                </label>
+            </div>
+        `);
+        grid.prepend(card);
+    }
+},
+
         formatAddressDisplay: function(address) {
             let formatted = '';
             
