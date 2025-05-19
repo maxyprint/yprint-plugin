@@ -42,6 +42,7 @@ class YPrint_Address_Manager {
 
         // In der __construct() oder init() Methode hinzufügen:
         add_action('wp_ajax_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
+        add_action('wp_ajax_nopriv_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
         add_action('wp_ajax_yprint_get_address_details', array($this, 'ajax_get_address_details'));
         add_action('wp_ajax_yprint_save_new_address', array($this, 'handle_save_address_ajax'));
         add_action('wp_ajax_yprint_delete_address', array($this, 'ajax_delete_address'));
@@ -59,7 +60,7 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
     public function get_address_modal_html() {
         ob_start();
         ?>
-        <div class="address-modal" style="display: none;">
+        <div class="address-modal" id="new-address-modal" style="display: none;">
             <div class="address-modal-overlay"></div>
             <div class="address-modal-content">
                 <div class="address-modal-header">
@@ -591,45 +592,57 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
  * AJAX-Handler für das Abrufen gespeicherter Adressen
  */
 public function ajax_get_saved_addresses() {
-    // Debug-Informationen loggen
-    error_log('YPrint Debug: ajax_get_saved_addresses called');
+    // Verbessertes Debug-Logging
+    error_log('=== YPrint Debug: ajax_get_saved_addresses START ===');
     error_log('YPrint Debug: POST data: ' . print_r($_POST, true));
     error_log('YPrint Debug: User logged in: ' . (is_user_logged_in() ? 'Yes' : 'No'));
     error_log('YPrint Debug: Current user ID: ' . get_current_user_id());
     
-    // Nonce-Prüfung mit detailliertem Error-Logging
-    $nonce_check = wp_verify_nonce($_POST['nonce'] ?? '', 'yprint_save_address_action');
+    // Nonce-Prüfung
+    $nonce = $_POST['nonce'] ?? '';
+    $nonce_check = wp_verify_nonce($nonce, 'yprint_save_address_action');
     error_log('YPrint Debug: Nonce check result: ' . ($nonce_check ? 'Valid' : 'Invalid'));
-    error_log('YPrint Debug: Provided nonce: ' . ($_POST['nonce'] ?? 'Not provided'));
-    error_log('YPrint Debug: Expected action: yprint_save_address_action');
+    error_log('YPrint Debug: Provided nonce: ' . $nonce);
     
     if (!$nonce_check) {
-        error_log('YPrint Debug: Nonce verification failed');
-        wp_send_json_error(array('message' => 'Sicherheitsprüfung fehlgeschlagen'));
+        error_log('YPrint Debug: FAILED - Nonce verification failed');
+        wp_send_json_error(array('message' => 'Sicherheitsprüfung fehlgeschlagen', 'debug' => 'nonce_failed'));
         return;
     }
     
     if (!is_user_logged_in()) {
-        error_log('YPrint Debug: User not logged in');
-        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        error_log('YPrint Debug: FAILED - User not logged in');
+        wp_send_json_error(array('message' => 'Nicht eingeloggt', 'debug' => 'not_logged_in'));
         return;
     }
     
     $user_id = get_current_user_id();
+    error_log('YPrint Debug: Getting addresses for user ID: ' . $user_id);
+    
+    // Raw user meta abrufen für Debugging
+    $raw_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+    error_log('YPrint Debug: Raw user meta: ' . print_r($raw_addresses, true));
+    error_log('YPrint Debug: Raw meta type: ' . gettype($raw_addresses));
+    
+    // Über unsere Methode abrufen
     $addresses = $this->get_user_addresses($user_id);
-    
-    error_log('YPrint Debug: Retrieved addresses for user ' . $user_id . ': ' . print_r($addresses, true));
+    error_log('YPrint Debug: Processed addresses: ' . print_r($addresses, true));
     error_log('YPrint Debug: Number of addresses: ' . count($addresses));
+    error_log('YPrint Debug: Addresses type: ' . gettype($addresses));
     
+    // Erfolgreiche Antwort senden
     wp_send_json_success(array(
         'addresses' => $addresses,
         'user_id' => $user_id,
         'debug_info' => array(
             'timestamp' => current_time('mysql'),
             'addresses_count' => count($addresses),
-            'user_meta_raw' => get_user_meta($user_id, 'additional_shipping_addresses', true)
+            'raw_meta_count' => is_array($raw_addresses) ? count($raw_addresses) : 0,
+            'raw_meta_type' => gettype($raw_addresses)
         )
     ));
+    
+    error_log('=== YPrint Debug: ajax_get_saved_addresses END ===');
 }
 
 /**
@@ -755,5 +768,50 @@ public function ajax_set_checkout_address() {
     } else {
         wp_send_json_error(array('message' => 'Fehler beim Setzen der Checkout-Adresse.'));
     }
+}
+
+/**
+ * DEBUG: Erstellt Test-Adressen für einen Benutzer
+ */
+public function create_test_addresses($user_id) {
+    if (!current_user_can('administrator')) {
+        return false;
+    }
+    
+    $test_addresses = array(
+        'addr_test_1' => array(
+            'id' => 'addr_test_1',
+            'name' => 'Zuhause',
+            'first_name' => 'Max',
+            'last_name' => 'Mustermann',
+            'company' => '',
+            'address_1' => 'Musterstraße 123',
+            'address_2' => '',
+            'postcode' => '12345',
+            'city' => 'Berlin',
+            'country' => 'DE',
+            'is_company' => false,
+            'is_default' => true
+        ),
+        'addr_test_2' => array(
+            'id' => 'addr_test_2',
+            'name' => 'Büro',
+            'first_name' => 'Max',
+            'last_name' => 'Mustermann',
+            'company' => 'YPrint GmbH',
+            'address_1' => 'Geschäftsstraße 456',
+            'address_2' => '2. OG',
+            'postcode' => '54321',
+            'city' => 'München',
+            'country' => 'DE',
+            'is_company' => true,
+            'is_default' => false
+        )
+    );
+    
+    $result = update_user_meta($user_id, 'additional_shipping_addresses', $test_addresses);
+    error_log('YPrint Debug: Test addresses created for user ' . $user_id . ': ' . ($result ? 'Success' : 'Failed'));
+    
+    return $result;
 }
 }
