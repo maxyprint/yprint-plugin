@@ -97,6 +97,244 @@ document.addEventListener('DOMContentLoaded', function () {
         initialBillingInputs.forEach(input => input.required = !billingSameAsShippingCheckbox.checked);
     }
 
+    // Adressauswahl-Handler
+function handleAddressSelection() {
+    const addressCards = document.querySelectorAll('.address-card input[type="radio"]');
+    
+    addressCards.forEach(radio => {
+        radio.addEventListener('change', function() {
+            // Alle Karten deselektieren
+            document.querySelectorAll('.address-card-content').forEach(card => {
+                card.classList.remove('border-blue-500', 'bg-blue-50');
+                card.classList.add('border-gray-200');
+            });
+            
+            document.querySelectorAll('.address-selected-icon').forEach(icon => {
+                icon.classList.add('opacity-0');
+            });
+            
+            if (this.checked) {
+                // Gewählte Karte markieren
+                const cardContent = this.parentElement.querySelector('.address-card-content');
+                const selectedIcon = this.parentElement.querySelector('.address-selected-icon');
+                
+                cardContent.classList.remove('border-gray-200');
+                cardContent.classList.add('border-blue-500', 'bg-blue-50');
+                selectedIcon.classList.remove('opacity-0');
+                
+                const addressType = this.dataset.addressType;
+                
+                if (addressType === 'new') {
+                    // Neue Adresse - Modal öffnen
+                    const modal = document.getElementById('new-address-modal');
+                    if (modal) {
+                        modal.classList.add('active');
+                        document.body.style.overflow = 'hidden';
+                    }
+                    // Checkout-Felder leeren
+                    clearCheckoutFields();
+                } else {
+                    // Gespeicherte oder WC-Adresse - Felder füllen
+                    const addressData = JSON.parse(this.dataset.addressData);
+                    populateCheckoutFields(addressData);
+                }
+            }
+        });
+    });
+}
+
+// Checkout-Felder mit Adressdaten füllen
+function populateCheckoutFields(addressData) {
+    const streetField = document.getElementById('street');
+    const housenumberField = document.getElementById('housenumber');
+    const zipField = document.getElementById('zip');
+    const cityField = document.getElementById('city');
+    const countryField = document.getElementById('country');
+    const phoneField = document.getElementById('phone');
+    
+    if (streetField) streetField.value = addressData.address_1 || '';
+    if (housenumberField) housenumberField.value = addressData.address_2 || '';
+    if (zipField) zipField.value = addressData.postcode || '';
+    if (cityField) cityField.value = addressData.city || '';
+    if (countryField) countryField.value = addressData.country || 'DE';
+    if (phoneField) phoneField.value = addressData.phone || '';
+    
+    // Trigger input events für Validierung
+    const fieldsToTrigger = [streetField, housenumberField, zipField, cityField, countryField];
+    fieldsToTrigger.forEach(field => {
+        if (field) {
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    
+    // Rechnungsadresse synchronisieren wenn gewünscht
+    const billingSameCheckbox = document.getElementById('billing-same-as-shipping');
+    if (billingSameCheckbox && billingSameCheckbox.checked) {
+        syncBillingWithShipping();
+    }
+    
+    // Adressformular-Bereich ausblenden nach Auswahl
+    const addressForm = document.getElementById('address-form');
+    if (addressForm) {
+        addressForm.style.marginTop = '1rem';
+    }
+}
+
+// Checkout-Felder leeren
+function clearCheckoutFields() {
+    const fields = ['street', 'housenumber', 'zip', 'city', 'phone'];
+    fields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+            field.value = '';
+            field.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+    
+    const countryField = document.getElementById('country');
+    if (countryField) {
+        countryField.value = 'DE';
+        countryField.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
+
+// Rechnungsadresse mit Lieferadresse synchronisieren
+function syncBillingWithShipping() {
+    const shippingFields = ['street', 'housenumber', 'zip', 'city', 'country'];
+    const billingFields = ['billing_street', 'billing_housenumber', 'billing_zip', 'billing_city', 'billing_country'];
+    
+    shippingFields.forEach((shippingId, index) => {
+        const shippingField = document.getElementById(shippingId);
+        const billingField = document.getElementById(billingFields[index]);
+        
+        if (shippingField && billingField) {
+            billingField.value = shippingField.value;
+        }
+    });
+}
+
+// Modal-Handler für neue Adresse
+function handleNewAddressModal() {
+    const modal = document.getElementById('new-address-modal');
+    const closeButtons = modal?.querySelectorAll('.btn-close-modal, .btn-cancel-address');
+    const saveButton = modal?.querySelector('.btn-save-address');
+    const form = modal?.querySelector('#new-address-form');
+    
+    // Modal schließen
+    closeButtons?.forEach(button => {
+        button.addEventListener('click', () => {
+            modal.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            
+            // Radio-Button zurücksetzen
+            const newAddressRadio = document.querySelector('input[name="selected_address"][value="new_address"]');
+            if (newAddressRadio) {
+                newAddressRadio.checked = false;
+            }
+            
+            // Erste verfügbare Adresse auswählen
+            const firstAddressRadio = document.querySelector('input[name="selected_address"]:not([value="new_address"])');
+            if (firstAddressRadio) {
+                firstAddressRadio.checked = true;
+                firstAddressRadio.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+    
+    // ESC-Taste zum Schließen
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal?.classList.contains('active')) {
+            closeButtons[0]?.click();
+        }
+    });
+    
+    // Neue Adresse speichern
+    saveButton?.addEventListener('click', (e) => {
+        e.preventDefault();
+        
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        formData.append('action', 'yprint_save_address');
+        formData.append('yprint_address_nonce', yprint_address_ajax.nonce);
+        
+        // Loading state
+        saveButton.disabled = true;
+        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...';
+        
+        fetch(yprint_address_ajax.ajax_url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Modal schließen
+                modal.classList.remove('active');
+                document.body.style.overflow = 'auto';
+                
+                // Neue Adresse in Checkout-Felder eintragen
+                const newAddressData = data.data.address_data;
+                populateCheckoutFields(newAddressData);
+                
+                // Erfolgsmeldung anzeigen
+                showMessage('Adresse erfolgreich gespeichert!', 'success');
+                
+                // Optional: Seite neu laden um die neue Adresse in der Liste anzuzeigen
+                // window.location.reload();
+            } else {
+                showMessage(data.data.message || 'Fehler beim Speichern der Adresse', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showMessage('Ein Fehler ist aufgetreten', 'error');
+        })
+        .finally(() => {
+            // Loading state zurücksetzen
+            saveButton.disabled = false;
+            saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>Adresse speichern';
+        });
+    });
+}
+
+// Nachrichten anzeigen
+function showMessage(message, type = 'info') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `checkout-message ${type} fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50`;
+    messageDiv.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+            ${message}
+        </div>
+    `;
+    
+    document.body.appendChild(messageDiv);
+    
+    // Nach 5 Sekunden automatisch entfernen
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+
+// Nach dem DOMContentLoaded Event hinzufügen:
+document.addEventListener('DOMContentLoaded', function () {
+    // ... bestehender Code ...
+    
+    // Adressauswahl initialisieren
+    handleAddressSelection();
+    handleNewAddressModal();
+    
+    // Erste Adresse automatisch auswählen wenn keine ausgewählt ist
+    const selectedAddress = document.querySelector('input[name="selected_address"]:checked');
+    if (!selectedAddress) {
+        const firstAddress = document.querySelector('input[name="selected_address"]:not([value="new_address"])');
+        if (firstAddress) {
+            firstAddress.checked = true;
+            firstAddress.dispatchEvent(new Event('change'));
+        }
+    }
+});
 
     /**
      * Zeigt den angegebenen Checkout-Schritt an und aktualisiert die Fortschrittsanzeige.
