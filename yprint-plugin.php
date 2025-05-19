@@ -48,6 +48,11 @@ add_action('init', function() {
     YPrint_Stripe_Checkout_Shortcode::init();
 });
 
+// Initialize Address Manager
+add_action('plugins_loaded', function() {
+    YPrint_Address_Manager::get_instance();
+});
+
 // Initialize Stripe Admin
 add_action('plugins_loaded', function() {
     YPrint_Stripe_Admin::get_instance();

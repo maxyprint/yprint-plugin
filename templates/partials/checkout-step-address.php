@@ -17,9 +17,17 @@ if ( ! defined( 'ABSPATH' ) ) {
     
     <?php
     // Zeige gespeicherte Adressen für eingeloggte Benutzer
-    if (is_user_logged_in()) {
-        $address_manager = YPrint_Address_Manager::get_instance();
-        echo $address_manager->render_address_selection('shipping');
+    if (is_user_logged_in() && class_exists('YPrint_Address_Manager')) {
+        try {
+            $address_manager = YPrint_Address_Manager::get_instance();
+            echo $address_manager->render_address_selection('shipping');
+        } catch (Exception $e) {
+            // Debug information for admins
+            if (current_user_can('administrator')) {
+                echo '<div class="notice notice-error"><p>Address Manager Error: ' . esc_html($e->getMessage()) . '</p></div>';
+            }
+            error_log('YPrint Address Manager Error: ' . $e->getMessage());
+        }
     }
     ?>
     
