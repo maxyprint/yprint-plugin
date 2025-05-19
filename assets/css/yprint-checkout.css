@@ -385,3 +385,430 @@ label.flex.items-center {
 label.flex.items-center:hover {
     border-color: var(--yprint-blue) !important;
 }
+
+/* YPrint Address Manager Styles */
+
+/* Basis-Styling für gespeicherte Adressen */
+.yprint-saved-addresses {
+    margin-bottom: 2rem;
+}
+
+.saved-addresses-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--yprint-black);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.saved-addresses-title i {
+    color: var(--yprint-blue);
+}
+
+/* Grid für Adresskarten */
+.address-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Adresskarten-Design */
+.address-card {
+    background: var(--yprint-white);
+    border: 2px solid var(--yprint-medium-gray);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.address-card:hover {
+    border-color: var(--yprint-blue);
+    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+.address-card.selected {
+    border-color: var(--yprint-blue);
+    background-color: #f8fafe;
+    box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.2);
+}
+
+/* Header einer Adresskarte */
+.address-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.address-card-title {
+    font-weight: 600;
+    color: var(--yprint-black);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.default-badge {
+    background: var(--yprint-blue);
+    color: var(--yprint-white);
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.default-badge i {
+    font-size: 0.7rem;
+}
+
+/* Aktionsbuttons */
+.address-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-address-action {
+    background: none;
+    border: none;
+    color: var(--yprint-text-secondary);
+    padding: 0.25rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-address-action:hover {
+    background-color: var(--yprint-light-gray);
+    color: var(--yprint-black);
+}
+
+.btn-set-default:hover {
+    color: var(--yprint-blue);
+}
+
+.btn-delete-address:hover {
+    color: var(--yprint-error);
+}
+
+/* Inhalt einer Adresskarte */
+.address-card-content {
+    color: var(--yprint-text-secondary);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+}
+
+/* Footer einer Adresskarte */
+.address-card-footer {
+    margin-top: auto;
+}
+
+.btn-select-address {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Neue Adresse hinzufügen Karte */
+.add-new-address-card {
+    border: 2px dashed var(--yprint-medium-gray);
+    background: var(--yprint-light-gray);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 160px;
+    transition: all 0.2s ease;
+}
+
+.add-new-address-card:hover {
+    border-color: var(--yprint-blue);
+    background-color: #f8fafe;
+    transform: translateY(-2px);
+}
+
+.add-new-address-content {
+    text-align: center;
+    color: var(--yprint-text-secondary);
+    transition: color 0.2s ease;
+}
+
+.add-new-address-card:hover .add-new-address-content {
+    color: var(--yprint-blue);
+}
+
+.add-new-address-content i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+/* Modal Styling */
+.address-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.address-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.address-modal-content {
+    position: relative;
+    background: var(--yprint-white);
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.address-modal-header {
+    padding: 1.5rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--yprint-medium-gray);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.address-modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--yprint-black);
+}
+
+.btn-close-modal {
+    background: none;
+    border: none;
+    color: var(--yprint-text-secondary);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.btn-close-modal:hover {
+    background-color: var(--yprint-light-gray);
+    color: var(--yprint-black);
+}
+
+.address-modal-body {
+    padding: 1.5rem;
+}
+
+.address-modal-footer {
+    padding: 1rem 1.5rem 1.5rem;
+    border-top: 1px solid var(--yprint-medium-gray);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* Formularstyles im Modal */
+.address-form-errors {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+}
+
+.address-form-errors ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.address-form-errors li {
+    margin-bottom: 0.25rem;
+}
+
+/* Required/Optional Labels */
+.required {
+    color: var(--yprint-error);
+}
+
+.optional {
+    color: var(--yprint-text-secondary);
+    font-weight: normal;
+    font-size: 0.875rem;
+}
+
+/* Grid Classes für das Modal */
+.grid {
+    display: grid;
+}
+
+.grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.col-span-full {
+    grid-column: 1 / -1;
+}
+
+.gap-4 {
+    gap: 1rem;
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Loading States */
+.btn-save-address.loading {
+    position: relative;
+    color: transparent;
+}
+
+.btn-save-address.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin: -8px 0 0 -8px;
+    border: 2px solid transparent;
+    border-top-color: var(--yprint-white);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Success/Error Messages */
+.address-success-message {
+    background: #f0f9ff;
+    border: 1px solid #38bdf8;
+    color: #0369a1;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.address-error-message {
+    background: #fef2f2;
+    border: 1px solid #fca5a5;
+    color: #dc2626;
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Mobile Optimierungen */
+@media (max-width: 640px) {
+    .address-cards-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .address-modal-content {
+        margin: 1rem;
+        max-height: calc(100vh - 2rem);
+    }
+    
+    .address-modal-header,
+    .address-modal-body,
+    .address-modal-footer {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .address-modal-footer {
+        flex-direction: column;
+    }
+    
+    .address-modal-footer .btn {
+        width: 100%;
+    }
+}
+
+/* Integration mit bestehenden Checkout-Styles */
+.yprint-checkout-page .yprint-saved-addresses {
+    margin-top: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Versteckte Fallback-Formulare */
+.address-form-fallback {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background: var(--yprint-light-gray);
+    border-radius: 8px;
+    border: 1px solid var(--yprint-medium-gray);
+}
+
+.address-form-fallback h4 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--yprint-black);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* Utility Classes */
+.text-center { text-align: center; }
+.hidden { display: none !important; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-2 { gap: 0.5rem; }
+.gap-4 { gap: 1rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mt-4 { margin-top: 1rem; }

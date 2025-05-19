@@ -12,16 +12,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 // $user_addresses = (is_user_logged_in()) ? get_user_meta(get_current_user_id(), 'user_addresses', true) : array();
 // $selected_address_id = WC()->session->get('selected_shipping_address_id'); // Beispiel
 ?>
-<div id="step-1" class="checkout-step active"> <?php // 'active' Klasse wird serverseitig oder per JS initial gesetzt ?>
+<div id="step-1" class="checkout-step active">
     <h2 class="flex items-center"><i class="fas fa-map-marker-alt mr-2 text-yprint-blue"></i><?php esc_html_e('Lieferadresse', 'yprint-checkout'); ?></h2>
     
-    <?php /* Hier könnte eine Auswahl für gespeicherte Adressen für eingeloggte Benutzer sein */ ?>
-    <?php /*
-    if (is_user_logged_in() && !empty($user_addresses)) {
-        // Dropdown oder Radio-Buttons zur Auswahl einer gespeicherten Adresse
+    <?php
+    // Zeige gespeicherte Adressen für eingeloggte Benutzer
+    if (is_user_logged_in()) {
+        $address_manager = YPrint_Address_Manager::get_instance();
+        echo $address_manager->render_address_selection('shipping');
     }
-    */ ?>
-
+    ?>
+    
     <form id="address-form" class="space-y-6 mt-6">
         <?php // Nonce-Feld für Sicherheit (wird von wp_localize_script bereitgestellt und per JS hinzugefügt oder hier manuell) ?>
         <?php // wp_nonce_field( 'yprint_save_address_action', 'yprint_address_nonce' ); ?>
