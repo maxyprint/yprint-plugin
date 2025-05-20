@@ -808,7 +808,7 @@ saveNewAddress: function() {
     
     // Prüfen, ob wir im Bearbeitungs-Modus sind
     const addressId = self.modal.data('editing-address-id');
-    const isEditing = !!addressId;
+    const isEditing = !!addressId; // true, wenn addressId einen Wert hat; false sonst
     
     const formData = {
         action: 'yprint_save_new_address',
@@ -825,9 +825,10 @@ saveNewAddress: function() {
         is_company: $('#new_is_company').is(':checked')
     };
     
-    // Wenn wir eine bestehende Adresse bearbeiten, füge ID hinzu
+    // Wenn wir eine bestehende Adresse bearbeiten, füge die ID hinzu.
+    // DIESE ID MUSS IM PHP-BACKEND AUSGEWERTET WERDEN!
     if (isEditing) {
-        formData.id = addressId; // Hier wird die ID für das Backend hinzugefügt
+        formData.id = addressId; 
     }
     
     // Loading state
@@ -842,8 +843,8 @@ saveNewAddress: function() {
         success: function(response) {
             if (response.success) {
                 self.closeAddressModal(); // Schließt das Modal bei Erfolg
-                self.loadSavedAddresses(); // Lädt die Adressen neu (hier muss das Backend die richtige Adresse aktualisieren)
-                self.showMessage(isEditing ? 'Adresse aktualisiert' : 'Adresse gespeichert', 'success');
+                self.loadSavedAddresses(); // Lädt die Adressen neu, um Änderungen anzuzeigen
+                self.showMessage(isEditing ? 'Adresse erfolgreich aktualisiert!' : 'Adresse erfolgreich gespeichert!', 'success');
             } else {
                 self.showFormError(response.data.message || 'Fehler beim Speichern');
             }
