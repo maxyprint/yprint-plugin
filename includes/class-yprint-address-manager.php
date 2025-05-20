@@ -373,57 +373,58 @@ public function get_user_addresses($user_id) {
 }
 
     /**
-     * Speichert eine neue Adresse für den aktuellen Benutzer.
-     *
-     * @param array $address_data Die zu speichernden Adressdaten.
-     * @return array|WP_Error Array mit Erfolgsmeldung und ID der neuen Adresse oder WP_Error bei Fehlern.
-     */
-    public function save_new_user_address($address_data) {
-        if (!is_user_logged_in()) {
-            return new WP_Error('not_logged_in', __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin'));
-        }
-
-        $user_id = get_current_user_id();
-        $sanitized_address = $this->sanitize_address_data($address_data);
-        $errors = $this->validate_address_data($sanitized_address);
-
-        if (!empty($errors)) {
-            return new WP_Error('validation_error', implode('<br>', $errors));
-        }
-
-        $existing_addresses = $this->get_user_addresses($user_id);
-
-        // Begrenzung auf 3 Adressen prüfen
-        $max_addresses = 3;
-        $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
-
-        if (!$is_editing && count($existing_addresses) >= $max_addresses) {
-            return new WP_Error('address_limit_exceeded', sprintf(__('Sie können maximal %d Adressen speichern. Bitte löschen Sie eine alte Adresse, um eine neue hinzuzufügen.', 'yprint-plugin'), $max_addresses));
-        }
-
-        // Generiere eine eindeutige ID für die neue Adresse oder nutze vorhandene bei Bearbeitung
-        $address_id = $is_editing ? sanitize_text_field($address_data['id']) : ('addr_' . time() . '_' . wp_rand(1000, 9999));
-        $sanitized_address['id'] = $address_id;
-
-        // Speichere als assoziatives Array mit ID als Schlüssel
-        $existing_addresses[$address_id] = $sanitized_address;
-
-        update_user_meta($user_id, 'additional_shipping_addresses', $existing_addresses);
-
-        return array(
-            'success' => true,
-            'message' => __('Adresse erfolgreich gespeichert.', 'yprint-plugin'),
-            'address_id' => $address_id,
-            'address_data' => $sanitized_address
-        );
-
-        return array(
-            'success' => true,
-            'message' => __('Adresse erfolgreich gespeichert.', 'yprint-plugin'),
-            'address_id' => $new_address_id,
-            'address_data' => $sanitized_address // Rückgabe der gespeicherten Adresse
-        );
+ * Speichert eine neue Adresse oder aktualisiert eine bestehende für den aktuellen Benutzer.
+ *
+ * @param array $address_data Die zu speichernden Adressdaten.
+ * @return array|WP_Error Array mit Erfolgsmeldung und ID der Adresse oder WP_Error bei Fehlern.
+ */
+public function save_new_user_address($address_data) {
+    if (!is_user_logged_in()) {
+        return new WP_Error('not_logged_in', __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin'));
     }
+
+    $user_id = get_current_user_id();
+    $sanitized_address = $this->sanitize_address_data($address_data);
+    $errors = $this->validate_address_data($sanitized_address);
+
+    if (!empty($errors)) {
+        return new WP_Error('validation_error', implode('<br>', $errors));
+    }
+
+    $existing_addresses = $this->get_user_addresses($user_id);
+
+    // Prüfen, ob wir eine bestehende Adresse bearbeiten
+    $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
+
+    // Begrenzung auf 3 Adressen prüfen, aber nur wenn es eine neue Adresse ist
+    $max_addresses = 3;
+    if (!$is_editing && count($existing_addresses) >= $max_addresses) {
+        return new WP_Error('address_limit_exceeded', sprintf(__('Sie können maximal %d Adressen speichern. Bitte löschen Sie eine alte Adresse, um eine neue hinzuzufügen.', 'yprint-plugin'), $max_addresses));
+    }
+
+    // Generiere eine eindeutige ID für die neue Adresse oder nutze vorhandene bei Bearbeitung
+    $address_id = $is_editing ? sanitize_text_field($address_data['id']) : ('addr_' . time() . '_' . wp_rand(1000, 9999));
+    $sanitized_address['id'] = $address_id;
+
+    // Speichere als assoziatives Array mit ID als Schlüssel
+    $existing_addresses[$address_id] = $sanitized_address;
+    
+    // Log für Debug-Zwecke
+    error_log('YPrint Debug: ' . ($is_editing ? 'Updating' : 'Adding') . ' address with ID: ' . $address_id);
+    error_log('YPrint Debug: Address data: ' . print_r($sanitized_address, true));
+
+    update_user_meta($user_id, 'additional_shipping_addresses', $existing_addresses);
+
+    return array(
+        'success' => true,
+        'message' => $is_editing 
+            ? __('Adresse erfolgreich aktualisiert.', 'yprint-plugin') 
+            : __('Adresse erfolgreich gespeichert.', 'yprint-plugin'),
+        'address_id' => $address_id,
+        'address_data' => $sanitized_address,
+        'is_editing' => $is_editing
+    );
+}
 
     /**
      * Rendert HTML für die Auswahl bestehender Adressen des Benutzers im Checkout.
