@@ -1,6 +1,8 @@
 // YPrint Checkout JavaScript - Allgemeine Funktionen
-// Stellt sicher, dass das DOM vollständig geladen ist, bevor das Skript ausgeführt wird.
-document.addEventListener('DOMContentLoaded', function () {
+// WordPress-kompatibles jQuery Wrapping
+(function($) {
+    'use strict';
+    
     // Globale Variablen und Zustand für den Checkout-Prozess
     let currentStep = 1; // Startet immer mit dem ersten Schritt als Standard
     const formData = { // Objekt zum Speichern der Formulardaten
@@ -405,33 +407,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
             // AJAX-Call zum Speichern der Adresse
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_checkout_address',
-                    nonce: yprint_address_ajax.nonce,
-                    first_name: formData.shipping.first_name || '',
-                    last_name: formData.shipping.last_name || '',
-                    company: formData.shipping.company || '',
-                    address_1: formData.shipping.street || '',
-                    address_2: formData.shipping.housenumber || '',
-                    postcode: formData.shipping.zip || '',
-                    city: formData.shipping.city || '',
-                    country: formData.shipping.country || 'DE'
-                },
-                success: function(response) {
-                    console.log('Address saved:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error saving address:', error);
-                }
-            });
-        }
-
-        if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
-            // AJAX-Call zum Speichern der Adresse
-            $.ajax({
+            jQuery.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
                 data: {
@@ -802,7 +778,53 @@ document.addEventListener('DOMContentLoaded', function () {
      if (cartTotalsContainer) {
         updateCartTotalsDisplay(cartTotalsContainer);
     }
-}); // Ende DOMContentLoaded
+// Initialisierung wenn DOM geladen ist
+    $(document).ready(function() {
+        // Hier alle Initialisierungen aufrufen, die beim Seitenstart ausgeführt werden sollen
+        // z.B. validateAddressForm(), showStep(initialStep), etc.
+        
+        // Zeige den initialen Schritt an
+        const urlParams = new URLSearchParams(window.location.search);
+        const stepParam = urlParams.get('step');
+        let initialStep = 1;
+        if (stepParam === 'payment') initialStep = 2;
+        if (stepParam === 'confirmation') initialStep = 3;
+        if (stepParam === 'thankyou') initialStep = 4;
+        
+        showStep(initialStep);
+        
+        // Weitere Initialisierungen je nach aktuellem Schritt
+        if (initialStep === 1) {
+            validateAddressForm();
+        } else if (initialStep === 2) {
+            collectAddressData();
+            updatePaymentStepSummary();
+        } else if (initialStep === 3) {
+            collectAddressData();
+            collectPaymentData();
+            populateConfirmation();
+        } else if (initialStep === 4) {
+            populateThankYouPage();
+            progressSteps.forEach(pStep => pStep.classList.add('completed'));
+            const lastProgressStep = document.getElementById('progress-step-3');
+            if (lastProgressStep) {
+                lastProgressStep.classList.remove('active');
+                lastProgressStep.classList.add('completed');
+            }
+        }
+        
+        // Warenkorb-Zusammenfassung initial laden (falls vorhanden)
+        const cartSummaryContainer = document.getElementById('checkout-cart-summary-items');
+        if (cartSummaryContainer) {
+            updateCartSummaryDisplay(cartSummaryContainer);
+        }
+        const cartTotalsContainer = document.getElementById('checkout-cart-summary-totals');
+        if (cartTotalsContainer) {
+            updateCartTotalsDisplay(cartTotalsContainer);
+        }
+    });
+    
+})(jQuery); // Ende jQuery Wrapper
 
 // Debug-Button hinzufügen (nur wenn im Debug-Modus)
 if (window.location.search.includes('debug=1') || localStorage.getItem('yprint_debug') === 'true') {

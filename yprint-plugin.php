@@ -66,7 +66,10 @@ function yprint_enqueue_scripts() {
     wp_enqueue_style('yprint-styles', YPRINT_PLUGIN_URL . 'assets/css/yprint-styles.css', array(), YPRINT_PLUGIN_VERSION);
     wp_enqueue_style('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout.css', array(), YPRINT_PLUGIN_VERSION);
     
-    // Enqueue JS
+    // Explicitly enqueue jQuery first
+    wp_enqueue_script('jquery');
+    
+    // Enqueue JS with proper dependencies
     wp_enqueue_script('yprint-scripts', YPRINT_PLUGIN_URL . 'assets/js/yprint-scripts.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
     wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
     wp_enqueue_script('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
