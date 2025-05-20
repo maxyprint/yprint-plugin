@@ -732,14 +732,20 @@ addWooCommerceDefaultAddress: function(grid) {
                 console.log('Opening modal for new address.'); // Debugging-Ausgabe
             }
             
-            // Modal anzeigen
+            // WICHTIG: Überschreibe den inline-display-Style explizit!
+            // 'block' ist der Standardwert für ein Div, aber es könnte auch 'flex' sein,
+            // wenn dein Modal ein Flexbox-Layout verwendet. Überprüfe dein CSS.
+            self.modal.css('display', 'block'); 
             self.modal.addClass('active');
+            
             $('body').css('overflow', 'hidden');
             console.log('Modal should now be active (CSS class added). Check computed styles for visibility.'); // Debugging-Ausgabe
         },
         
         closeAddressModal: function() {
             this.modal.removeClass('active');
+            // Optional: Wenn du sicherstellen möchtest, dass es auch inline auf 'none' gesetzt wird
+            // this.modal.css('display', 'none'); 
             $('body').css('overflow', 'auto');
         },
         
