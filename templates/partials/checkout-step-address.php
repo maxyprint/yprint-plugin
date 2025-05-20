@@ -56,6 +56,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
+        <label for="first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
+        <input type="text" id="first_name" name="shipping_first_name" class="form-input" required autocomplete="given-name">
+    </div>
+    <div>
+        <label for="last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
+        <input type="text" id="last_name" name="shipping_last_name" class="form-input" required autocomplete="family-name">
+    </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
         <label for="street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
         <input type="text" id="street" name="shipping_address_1" class="form-input" required autocomplete="shipping street-address">
     </div>
@@ -101,17 +111,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 
         <?php // Container für abweichende Rechnungsadresse, initial versteckt wenn Checkbox aktiv ?>
         <div id="billing-address-fields" class="hidden space-y-4 mt-4 border-t border-yprint-medium-gray pt-6">
-            <h3 class="text-lg font-semibold"><?php esc_html_e('Rechnungsadresse (falls abweichend)', 'yprint-checkout'); ?></h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="billing_street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
-                    <input type="text" id="billing_street" name="billing_street" class="form-input" autocomplete="billing street-address">
-                </div>
-                <div>
-                    <label for="billing_housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
-                    <input type="text" id="billing_housenumber" name="billing_housenumber" class="form-input" autocomplete="billing address-line2">
-                </div>
-            </div>
+    <h3 class="text-lg font-semibold"><?php esc_html_e('Rechnungsadresse (falls abweichend)', 'yprint-checkout'); ?></h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label for="billing_first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
+            <input type="text" id="billing_first_name" name="billing_first_name" class="form-input" autocomplete="billing given-name">
+        </div>
+        <div>
+            <label for="billing_last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
+            <input type="text" id="billing_last_name" name="billing_last_name" class="form-input" autocomplete="billing family-name">
+        </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label for="billing_street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
+            <input type="text" id="billing_street" name="billing_street" class="form-input" autocomplete="billing street-address">
+        </div>
+        <div>
+            <label for="billing_housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
+            <input type="text" id="billing_housenumber" name="billing_housenumber" class="form-input" autocomplete="billing address-line2">
+        </div>
+    </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label for="billing_zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>

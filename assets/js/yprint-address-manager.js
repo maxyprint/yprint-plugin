@@ -150,32 +150,48 @@
         
         },
 
-        /**
+/**
  * Speichert eine Adresse aus dem Checkout-Formular
  */
-        saveAddressFromForm: function() {
-            const self = this;
-            const saveButton = $('#save-address-button');
-            const feedbackElement = $('#save-address-feedback');
-        
-            // Verwende die vorhandene validateForm-Methode des addressManager-Objekts
-            if (!this.validateForm()) {
-                this.showMessage('Bitte füllen Sie alle Pflichtfelder aus.', 'error');
-                return;
-            }
+saveAddressFromForm: function() {
+    const self = this;
+    const saveButton = $('#save-address-button');
+    const feedbackElement = $('#save-address-feedback');
+
+    // Prüfe, ob die erforderlichen Felder vorhanden sind
+    const requiredFields = ['first_name', 'last_name', 'street', 'housenumber', 'zip', 'city', 'country'];
+    let isValid = true;
+    let missingFields = [];
+
+    requiredFields.forEach(field => {
+        const value = $('#' + field).val();
+        if (!value || !value.trim()) {
+            isValid = false;
+            missingFields.push(field);
+            $('#' + field).addClass('border-yprint-error');
+        } else {
+            $('#' + field).removeClass('border-yprint-error');
+        }
+    });
+
+    if (!isValid) {
+        const errorMessage = 'Bitte füllen Sie alle Pflichtfelder aus: ' + missingFields.join(', ');
+        feedbackElement.removeClass('hidden text-yprint-success').addClass('text-yprint-error').html(errorMessage);
+        return;
+    }
     
     // Sammle die Daten aus den Formularfeldern
     const addressData = {
         name: 'Adresse vom ' + new Date().toLocaleDateString('de-DE'),
-        first_name: $('#first_name, #shipping_first_name').val() || '',
-        last_name: $('#last_name, #shipping_last_name').val() || '',
-        company: $('#company, #shipping_company').val() || '',
-        address_1: $('#street, #shipping_address_1').val() || '',
-        address_2: $('#housenumber, #shipping_address_2').val() || '',
-        postcode: $('#zip, #shipping_postcode').val() || '',
-        city: $('#city, #shipping_city').val() || '',
-        country: $('#country, #shipping_country').val() || 'DE',
-        phone: $('#phone, #shipping_phone').val() || ''
+        first_name: $('#first_name').val(),
+        last_name: $('#last_name').val(),
+        company: $('#company').val() || '',
+        address_1: $('#street').val(),
+        address_2: $('#housenumber').val(),
+        postcode: $('#zip').val(),
+        city: $('#city').val(),
+        country: $('#country').val() || 'DE',
+        phone: $('#phone').val() || ''
     };
     
     // Aktualisiere Button und zeige Feedback

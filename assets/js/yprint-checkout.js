@@ -40,14 +40,40 @@
 
 
     /**
-     * Validiert das Adressformular.
-     * @returns {boolean} - True, wenn das Formular gültig ist, sonst false.
-     */
-    function validateAddressForm() {
-        if (!addressForm) return true; // Wenn kein Adressformular auf der Seite ist, überspringen.
-        let isValid = true;
+ * Validiert das Adressformular.
+ * @returns {boolean} - True, wenn das Formular gültig ist, sonst false.
+ */
+function validateAddressForm() {
+    if (!addressForm) return true; // Wenn kein Adressformular auf der Seite ist, überspringen.
+    let isValid = true;
 
-        requiredAddressFields.forEach(fieldId => {
+    // Erweiterte Liste der erforderlichen Felder, einschließlich Namensfelder
+    const requiredFields = [
+        'first_name', 'last_name', 'street', 'housenumber', 'zip', 'city', 'country'
+    ];
+
+    requiredFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) { // Prüfe, ob das Feld existiert
+            if (!field.value.trim()) {
+                isValid = false;
+                field.classList.add('border-yprint-error');
+            } else {
+                field.classList.remove('border-yprint-error');
+            }
+        } else {
+            // Debug-Ausgabe: Wenn ein Feld nicht gefunden wird
+            console.warn(`Pflichtfeld '${fieldId}' wurde nicht gefunden.`);
+        }
+    });
+
+    if (!formData.isBillingSameAsShipping && billingAddressFieldsContainer) {
+        const requiredBillingFields = [
+            'billing_first_name', 'billing_last_name', 'billing_street', 'billing_housenumber', 
+            'billing_zip', 'billing_city', 'billing_country'
+        ];
+        
+        requiredBillingFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) { // Prüfe, ob das Feld existiert
                 if (!field.value.trim()) {
@@ -56,27 +82,16 @@
                 } else {
                     field.classList.remove('border-yprint-error');
                 }
+            } else {
+                console.warn(`Pflichtfeld '${fieldId}' wurde nicht gefunden.`);
             }
         });
-
-        if (!formData.isBillingSameAsShipping && billingAddressFieldsContainer) {
-            requiredBillingFields.forEach(fieldId => {
-                const field = document.getElementById(fieldId);
-                if (field) { // Prüfe, ob das Feld existiert
-                    if (!field.value.trim()) {
-                        isValid = false;
-                        field.classList.add('border-yprint-error');
-                    } else {
-                        field.classList.remove('border-yprint-error');
-                    }
-                }
-            });
-        }
-        if (btnToPayment) {
-            btnToPayment.disabled = !isValid;
-        }
-        return isValid;
     }
+    if (btnToPayment) {
+        btnToPayment.disabled = !isValid;
+    }
+    return isValid;
+}
 
     // Event Listener für das Adressformular zur Live-Validierung
     if (addressForm) {
@@ -381,29 +396,34 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Sammelt die Adressdaten aus dem Formular.
-     */
-    function collectAddressData() {
-        if (!addressForm) return;
+ * Sammelt die Adressdaten aus dem Formular.
+ */
+function collectAddressData() {
+    if (!addressForm) return;
 
-        formData.shipping.street = document.getElementById('street')?.value || '';
-        formData.shipping.housenumber = document.getElementById('housenumber')?.value || '';
-        formData.shipping.zip = document.getElementById('zip')?.value || '';
-        formData.shipping.city = document.getElementById('city')?.value || '';
-        formData.shipping.country = document.getElementById('country')?.value || '';
-        formData.shipping.phone = document.getElementById('phone')?.value || '';
+    // Sammle Lieferadressdaten, einschließlich Vor- und Nachname
+    formData.shipping.first_name = document.getElementById('first_name')?.value || '';
+    formData.shipping.last_name = document.getElementById('last_name')?.value || '';
+    formData.shipping.street = document.getElementById('street')?.value || '';
+    formData.shipping.housenumber = document.getElementById('housenumber')?.value || '';
+    formData.shipping.zip = document.getElementById('zip')?.value || '';
+    formData.shipping.city = document.getElementById('city')?.value || '';
+    formData.shipping.country = document.getElementById('country')?.value || '';
+    formData.shipping.phone = document.getElementById('phone')?.value || '';
 
-        if (formData.isBillingSameAsShipping) {
-            formData.billing = { ...formData.shipping }; // Kopiert die Lieferadresse
-        } else {
-            formData.billing.street = document.getElementById('billing_street')?.value || '';
-            formData.billing.housenumber = document.getElementById('billing_housenumber')?.value || '';
-            formData.billing.zip = document.getElementById('billing_zip')?.value || '';
-            formData.billing.city = document.getElementById('billing_city')?.value || '';
-            formData.billing.country = document.getElementById('billing_country')?.value || '';
-        }
-        // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_save_address' erfolgen
-        console.log("Adressdaten gesammelt:", formData);
+    if (formData.isBillingSameAsShipping) {
+        formData.billing = { ...formData.shipping }; // Kopiert die Lieferadresse
+    } else {
+        formData.billing.first_name = document.getElementById('billing_first_name')?.value || '';
+        formData.billing.last_name = document.getElementById('billing_last_name')?.value || '';
+        formData.billing.street = document.getElementById('billing_street')?.value || '';
+        formData.billing.housenumber = document.getElementById('billing_housenumber')?.value || '';
+        formData.billing.zip = document.getElementById('billing_zip')?.value || '';
+        formData.billing.city = document.getElementById('billing_city')?.value || '';
+        formData.billing.country = document.getElementById('billing_country')?.value || '';
+    }
+    // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_save_address' erfolgen
+    console.log("Adressdaten gesammelt:", formData);
 
         if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
             // AJAX-Call zum Speichern der Adresse
