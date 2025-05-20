@@ -744,8 +744,8 @@ addWooCommerceDefaultAddress: function(grid) {
         
         closeAddressModal: function() {
             this.modal.removeClass('active');
-            // Optional: Wenn du sicherstellen möchtest, dass es auch inline auf 'none' gesetzt wird
-            // this.modal.css('display', 'none'); 
+            // WICHTIG: Diese Zeile stellt sicher, dass das Modal explizit wieder ausgeblendet wird.
+            this.modal.css('display', 'none'); 
             $('body').css('overflow', 'auto');
         },
         
@@ -827,7 +827,7 @@ saveNewAddress: function() {
     
     // Wenn wir eine bestehende Adresse bearbeiten, füge ID hinzu
     if (isEditing) {
-        formData.id = addressId;
+        formData.id = addressId; // Hier wird die ID für das Backend hinzugefügt
     }
     
     // Loading state
@@ -841,8 +841,8 @@ saveNewAddress: function() {
         data: formData,
         success: function(response) {
             if (response.success) {
-                self.closeAddressModal();
-                self.loadSavedAddresses();
+                self.closeAddressModal(); // Schließt das Modal bei Erfolg
+                self.loadSavedAddresses(); // Lädt die Adressen neu (hier muss das Backend die richtige Adresse aktualisieren)
                 self.showMessage(isEditing ? 'Adresse aktualisiert' : 'Adresse gespeichert', 'success');
             } else {
                 self.showFormError(response.data.message || 'Fehler beim Speichern');
