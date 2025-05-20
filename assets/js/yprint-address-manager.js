@@ -359,8 +359,12 @@ saveAddressFromForm: function() {
             // Durch alle Adressen iterieren und Karten hinzufügen
             Object.entries(addresses).forEach(([addressId, address]) => {
                 const isDefault = address.is_default || false;
+                
+                // Aktualisierter Standard-Badge mit Icon
                 const defaultBadge = isDefault ? 
-                    '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Standard</span>' : '';
+                    `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">
+                        <i class="fas fa-star mr-1"></i>Standard
+                    </span>` : '';
                 
                 // Adressdaten als JSON für die Bearbeitung
                 const addressDataJson = encodeURIComponent(JSON.stringify(address));
@@ -377,6 +381,9 @@ saveAddressFromForm: function() {
                                     `<button type="button" class="btn-address-action btn-set-default" title="Als Standard setzen">
                                         <i class="fas fa-star"></i>
                                     </button>` : ''}
+                                <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten">
+                                    <i class="fas fa-edit"></i>
+                                </button>
                                 <button type="button" class="btn-address-action btn-delete-address" title="Adresse löschen">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -389,10 +396,6 @@ saveAddressFromForm: function() {
                             <button type="button" class="btn btn-primary btn-select-address">
                                 <i class="fas fa-check mr-2"></i>
                                 Diese Adresse verwenden
-                            </button>
-                            <button type="button" class="btn btn-secondary btn-edit-address">
-                                <i class="fas fa-edit mr-2"></i>
-                                Bearbeiten
                             </button>
                         </div>
                     </div>
@@ -473,6 +476,9 @@ debugAjaxConfig: function() {
                         <button type="button" class="btn-address-action btn-set-default" 
                                 title="${yprint_address_ajax.messages.set_as_default || 'Als Standard setzen'}">
                             <i class="fas fa-star"></i>
+                        </button>
+                        <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten">
+                            <i class="fas fa-edit"></i>
                         </button>
                         <button type="button" class="btn-address-action btn-delete-address" 
                                 title="${yprint_address_ajax.messages.delete_address || 'Adresse löschen'}">
@@ -559,7 +565,6 @@ addWooCommerceDefaultAddress: function(grid) {
         grid.prepend(card);
     }
 },
-
         formatAddressDisplay: function(address) {
             let formatted = '';
             
