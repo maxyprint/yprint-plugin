@@ -9,15 +9,44 @@
         currentAddressType: 'shipping',
         selectedAddressId: null,
         
+        // Neue Elements-Eigenschaft hinzufügen
+        elements: {
+            modal: null,
+            addressContainer: null,
+            loadingIndicator: null,
+            shippingFieldsContainer: null,
+            billingFieldsContainer: null,
+            addNewAddressButton: null,
+            saveAddressToggle: null
+        },
+        
         init: function() {
             console.log('=== YPrint Address Manager: Starting Initialization ===');
             console.log('Current URL:', window.location.href);
             console.log('User Agent:', navigator.userAgent);
             
             // DOM Elements
-            this.modal = $('#new-address-modal');
-            this.addressContainer = $('.yprint-saved-addresses');
-            this.loadingIndicator = this.addressContainer.find('.loading-addresses');
+            this.elements.modal = $('#new-address-modal');
+            this.elements.addressContainer = $('.yprint-saved-addresses');
+            this.elements.loadingIndicator = this.elements.addressContainer.find('.loading-addresses');
+            this.elements.shippingFieldsContainer = $('#address-form'); // Anpassen an deine ID
+            this.elements.billingFieldsContainer = $('#billing-address-fields'); // Anpassen an deine ID
+            this.elements.addNewAddressButton = $('.add-new-address-card');
+            this.elements.saveAddressToggle = $('#yprint_save_new_address');
+            
+            // Lokale Referenzen für Rückwärtskompatibilität
+            this.modal = this.elements.modal;
+            this.addressContainer = this.elements.addressContainer;
+            this.loadingIndicator = this.elements.loadingIndicator;
+            
+            console.log('DOM Elements found:');
+            console.log('  - Modal:', this.elements.modal.length, this.elements.modal);
+            console.log('  - Address Container:', this.elements.addressContainer.length, this.elements.addressContainer);
+            console.log('  - Loading Indicator:', this.elements.loadingIndicator.length, this.elements.loadingIndicator);
+            console.log('  - Shipping Fields:', this.elements.shippingFieldsContainer.length);
+            console.log('  - Billing Fields:', this.elements.billingFieldsContainer.length);
+            console.log('  - Add New Button:', this.elements.addNewAddressButton.length);
+            console.log('  - Save Toggle:', this.elements.saveAddressToggle.length);
             
             console.log('DOM Elements found:');
             console.log('  - Modal:', this.modal.length, this.modal);
@@ -531,6 +560,38 @@ addWooCommerceDefaultAddress: function(grid) {
             $('.btn-save-address').prop('disabled', !isValid);
             return isValid;
         },
+
+        // NEU: Funktion zum Anzeigen des "Neue Adresse hinzufügen"-Formulars
+openNewAddressForm: function() {
+    console.log('YPrint Debug: Opening new address form');
+    this.elements.addressContainer.hide(); // Gespeicherte Adressen ausblenden
+    
+    // Adressfelder anzeigen
+    if (this.elements.shippingFieldsContainer.length > 0) {
+        this.elements.shippingFieldsContainer.show();
+    }
+    
+    // Rechnungsadressfelder nur anzeigen, wenn sie nicht durch die "Rechnungsadresse identisch" Checkbox versteckt werden
+    const isBillingSameAsShipping = $('#billing-same-as-shipping').is(':checked');
+    if (this.elements.billingFieldsContainer.length > 0 && !isBillingSameAsShipping) {
+        this.elements.billingFieldsContainer.show();
+    }
+    
+    // Speichern-Toggle anzeigen
+    if (this.elements.saveAddressToggle.length > 0) {
+        this.elements.saveAddressToggle.closest('.form-row').show();
+    }
+    
+    // Fokus auf das erste Feld der neuen Adresse setzen (optional für UX)
+    if (this.elements.shippingFieldsContainer.length > 0) {
+        this.elements.shippingFieldsContainer.find('input[type="text"]:first').focus();
+    }
+},
+
+// NEU: Methode, um den Status des "Adresse speichern"-Schalters abzufragen
+shouldSaveNewAddress: function() {
+    return this.elements.saveAddressToggle.length > 0 && this.elements.saveAddressToggle.is(':checked');
+},
         
         saveNewAddress: function() {
             const self = this;

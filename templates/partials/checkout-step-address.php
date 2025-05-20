@@ -132,6 +132,12 @@ if ( ! defined( 'ABSPATH' ) ) {
                 </select>
             </div>
         </div>
+        <div class="form-row yprint-save-address-toggle mt-4">
+    <label class="flex items-center cursor-pointer">
+        <input type="checkbox" id="yprint_save_new_address" name="yprint_save_new_address" class="form-checkbox" value="1" checked="checked">
+        <span class="text-sm ml-2"><?php esc_html_e('Adresse für zukünftige Bestellungen speichern', 'yprint-checkout'); ?></span>
+    </label>
+</div>
         <div class="pt-6 text-right">
             <?php // Der Button-Typ ist "button", da die Navigation per JS erfolgt und AJAX verwendet wird. ?>
             <?php // Für Formular-Fallback ohne JS könnte es "submit" sein, dann müsste die PHP-Logik anders sein. ?>
