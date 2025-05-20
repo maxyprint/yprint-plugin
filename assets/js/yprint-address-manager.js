@@ -44,7 +44,7 @@
             console.log('  - Address Container:', this.elements.addressContainer.length, this.elements.addressContainer);
             console.log('  - Loading Indicator:', this.elements.loadingIndicator.length, this.elements.loadingIndicator);
             console.log('  - Shipping Fields:', this.elements.shippingFieldsContainer.length);
-            console.log('  - Billing Fields:', this.elements.billingFieldsContainer.length);
+            console.log('  - Billing Fields: ', this.elements.billingFieldsContainer.length);
             console.log('  - Add New Button:', this.elements.addNewAddressButton.length);
             console.log('  - Save Toggle:', this.elements.saveAddressToggle.length);
             
@@ -120,7 +120,7 @@
             
             // NEU: Event für das Bearbeiten einer Adresse
             $(document).on('click', '.btn-edit-address', function(e) {
-                console.log('Bearbeiten button clicked!'); // Debugging-Ausgabe
+                console.log('Bearbeiten button clicked! Attempting to open modal.'); // Debugging-Ausgabe
                 e.preventDefault();
                 const addressCard = $(this).closest('.address-card');
                 const addressId = addressCard.data('address-id');
@@ -130,7 +130,7 @@
                     const addressData = JSON.parse(decodeURIComponent(addressDataStr));
                     self.openAddressModal(addressId, addressData);
                 } catch (error) {
-                    console.error('Error parsing address data:', error);
+                    console.error('Error parsing address data from card:', error);
                     self.showMessage('Fehler beim Laden der Adresse', 'error');
                 }
             });
@@ -683,6 +683,9 @@ addWooCommerceDefaultAddress: function(grid) {
         openAddressModal: function(addressId = null, addressData = null) {
             const self = this;
             
+            // Debugging-Ausgabe: Zeigt an, dass die Funktion aufgerufen wird und welche Daten sie empfängt
+            console.log('openAddressModal called. addressId:', addressId, 'addressData:', addressData);
+            
             // Formular zurücksetzen
             $('#new-address-form')[0].reset();
             $('.address-form-errors').hide();
@@ -721,14 +724,18 @@ addWooCommerceDefaultAddress: function(grid) {
                 $('#new_is_company').prop('checked', isCompany);
                 $('#new_company').val(addressData.company || '');
                 $('#new_company_field').toggle(isCompany);
+
+                console.log('Modal fields populated with address data.'); // Debugging-Ausgabe
             } else {
                 // Neue Adresse - ID entfernen
                 self.modal.removeData('editing-address-id');
+                console.log('Opening modal for new address.'); // Debugging-Ausgabe
             }
             
             // Modal anzeigen
             self.modal.addClass('active');
             $('body').css('overflow', 'hidden');
+            console.log('Modal should now be active (CSS class added). Check computed styles for visibility.'); // Debugging-Ausgabe
         },
         
         closeAddressModal: function() {
