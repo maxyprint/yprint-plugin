@@ -153,16 +153,16 @@
         /**
  * Speichert eine Adresse aus dem Checkout-Formular
  */
-saveAddressFromForm: function() {
-    const self = this;
-    const saveButton = $('#save-address-button');
-    const feedbackElement = $('#save-address-feedback');
-    
-    // Validiere das Formular
-    if (!validateAddressForm || (validateAddressForm && !validateAddressForm())) {
-        this.showMessage('Bitte füllen Sie alle Pflichtfelder aus.', 'error');
-        return;
-    }
+        saveAddressFromForm: function() {
+            const self = this;
+            const saveButton = $('#save-address-button');
+            const feedbackElement = $('#save-address-feedback');
+        
+            // Verwende die vorhandene validateForm-Methode des addressManager-Objekts
+            if (!this.validateForm()) {
+                this.showMessage('Bitte füllen Sie alle Pflichtfelder aus.', 'error');
+                return;
+            }
     
     // Sammle die Daten aus den Formularfeldern
     const addressData = {
