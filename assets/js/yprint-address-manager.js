@@ -120,6 +120,7 @@
             
             // NEU: Event für das Bearbeiten einer Adresse
             $(document).on('click', '.btn-edit-address', function(e) {
+                console.log('Bearbeiten button clicked!'); // Debugging-Ausgabe
                 e.preventDefault();
                 const addressCard = $(this).closest('.address-card');
                 const addressId = addressCard.data('address-id');
