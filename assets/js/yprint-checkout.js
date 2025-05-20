@@ -402,6 +402,32 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_save_address' erfolgen
         console.log("Adressdaten gesammelt:", formData);
+
+        if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
+            // AJAX-Call zum Speichern der Adresse
+            $.ajax({
+                url: yprint_address_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'yprint_save_checkout_address',
+                    nonce: yprint_address_ajax.nonce,
+                    first_name: formData.shipping.first_name || '',
+                    last_name: formData.shipping.last_name || '',
+                    company: formData.shipping.company || '',
+                    address_1: formData.shipping.street || '',
+                    address_2: formData.shipping.housenumber || '',
+                    postcode: formData.shipping.zip || '',
+                    city: formData.shipping.city || '',
+                    country: formData.shipping.country || 'DE'
+                },
+                success: function(response) {
+                    console.log('Address saved:', response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error saving address:', error);
+                }
+            });
+        }
     }
 
     /**

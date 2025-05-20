@@ -227,28 +227,3 @@ function yprint_plugin_deactivation() {
     wp_clear_scheduled_hook('yprint_cleanup_recovery_tokens');
 }
 
-/**
- * Test-Adressen für Benutzer erstellen (über URL-Parameter aufrufbar)
- */
-function yprint_create_test_addresses() {
-    if (!isset($_GET['create_test_addresses']) || !current_user_can('administrator')) {
-        return;
-    }
-    
-    $user_id = get_current_user_id();
-    
-    // Nur ausführen, wenn ein Benutzer eingeloggt ist
-    if (!$user_id) {
-        return;
-    }
-    
-    $address_manager = YPrint_Address_Manager::get_instance();
-    $result = $address_manager->create_test_addresses($user_id);
-    
-    if ($result) {
-        echo '<script>console.log("Test addresses created!");</script>';
-    } else {
-        echo '<script>console.log("Error creating test addresses!");</script>';
-    }
-}
-add_action('wp_head', 'yprint_create_test_addresses');

@@ -44,15 +44,49 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
         add_action('wp_ajax_nopriv_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
         add_action('wp_ajax_yprint_get_address_details', array($this, 'ajax_get_address_details'));
-        add_action('wp_ajax_yprint_save_new_address', array($this, 'handle_save_address_ajax'));
+        add_action('wp_action_yprint_save_new_address', array($this, 'handle_save_address_ajax')); // Beachten Sie, dass hier 'wp_action' steht, sollte 'wp_ajax' sein, wenn es ein AJAX-Call ist.
         add_action('wp_ajax_yprint_delete_address', array($this, 'ajax_delete_address'));
         add_action('wp_ajax_yprint_set_default_address', array($this, 'ajax_set_default_address'));
         add_action('wp_ajax_yprint_set_checkout_address', array($this, 'ajax_set_checkout_address'));
 
-// In der __construct() Methode hinzufügen:
-add_action('wp_ajax_yprint_save_address', array($this, 'handle_save_address_ajax'));
-add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_address_ajax'));
+        // In der __construct() Methode hinzufügen:
+        add_action('wp_ajax_yprint_save_address', array($this, 'handle_save_address_ajax'));
+        add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_address_ajax'));
+
+        add_action('wp_ajax_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
+        add_action('wp_ajax_nopriv_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
     }
+
+/**
+ * AJAX-Handler zum Speichern einer Adresse während des Checkouts
+ */
+public function ajax_save_checkout_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin')));
+        return;
+    }
+    
+    $address_data = array(
+        'first_name' => sanitize_text_field($_POST['first_name'] ?? ''),
+        'last_name' => sanitize_text_field($_POST['last_name'] ?? ''),
+        'company' => sanitize_text_field($_POST['company'] ?? ''),
+        'address_1' => sanitize_text_field($_POST['address_1'] ?? ''),
+        'address_2' => sanitize_text_field($_POST['address_2'] ?? ''),
+        'postcode' => sanitize_text_field($_POST['postcode'] ?? ''),
+        'city' => sanitize_text_field($_POST['city'] ?? ''),
+        'country' => sanitize_text_field($_POST['country'] ?? 'DE'),
+    );
+    
+    $result = $this->save_checkout_address($address_data);
+    
+    if (is_wp_error($result)) {
+        wp_send_json_error(array('message' => $result->get_error_message()));
+    } else {
+        wp_send_json_success($result);
+    }
+}
 
     /**
      * Generiert den HTML-Code für das Adress-Modal zum Hinzufügen einer neuen Adresse.
@@ -307,20 +341,20 @@ public function get_user_addresses($user_id) {
     if (!$user_id) {
         return [];
     }
-    
+
     // Debug-Informationen hinzufügen
     error_log('YPrint Debug get_user_addresses: Getting addresses for user ' . $user_id);
-    
+
     $addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
-    
+
     // Sicherstellen, dass wir ein Array zurückgeben und korrigieren, falls es nicht existiert
     if (empty($addresses) || !is_array($addresses)) {
         error_log('YPrint Debug get_user_addresses: No addresses found or not an array for user ' . $user_id);
         return [];
     }
-    
+
     error_log('YPrint Debug get_user_addresses: Found ' . count($addresses) . ' addresses');
-    
+
     return $addresses;
 }
 
@@ -348,7 +382,7 @@ public function get_user_addresses($user_id) {
         // Begrenzung auf 3 Adressen prüfen
         $max_addresses = 3;
         $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
-        
+
         if (!$is_editing && count($existing_addresses) >= $max_addresses) {
             return new WP_Error('address_limit_exceeded', sprintf(__('Sie können maximal %d Adressen speichern. Bitte löschen Sie eine alte Adresse, um eine neue hinzuzufügen.', 'yprint-plugin'), $max_addresses));
         }
@@ -387,14 +421,14 @@ public function get_user_addresses($user_id) {
         if (!is_user_logged_in()) {
             return '';
         }
-        
+
         $user_id = get_current_user_id();
         $addresses = $this->get_user_addresses($user_id);
-        
+
         $html = '<div class="yprint-saved-addresses mt-6">';
         $html .= '<h3 class="saved-addresses-title"><i class="fas fa-map-marker-alt mr-2"></i>' . __('Gespeicherte Adressen', 'yprint-plugin') . '</h3>';
         $html .= '<div class="address-cards-grid">';
-        
+
         // WooCommerce Standard-Adresse als erste Option
         $wc_address = array(
             'address_1' => WC()->customer->get_shipping_address_1(),
@@ -406,7 +440,7 @@ public function get_user_addresses($user_id) {
             'last_name' => WC()->customer->get_shipping_last_name(),
             'company' => WC()->customer->get_shipping_company()
         );
-        
+
         // Nur anzeigen wenn WC-Adresse existiert
         if (!empty($wc_address['address_1']) || !empty($wc_address['city'])) {
             $html .= '<div class="address-card">';
@@ -434,7 +468,7 @@ public function get_user_addresses($user_id) {
             $html .= '</label>';
             $html .= '</div>';
         }
-        
+
         // Gespeicherte Adressen
         foreach ($addresses as $address_id => $address) {
             $html .= '<div class="address-card">';
@@ -467,9 +501,9 @@ public function get_user_addresses($user_id) {
             $html .= '</label>';
             $html .= '</div>';
         }
-        
+
         // "Neue Adresse" Karte
-        $html .= '<div class="address-card">';
+        $html .= '<div class="address-card add-new-address-card">'; // 'add-new-address-card' Klasse hinzugefügt
         $html .= '<label class="cursor-pointer">';
         $html .= '<input type="radio" name="selected_address" value="new_address" data-address-type="new" class="sr-only">';
         $html .= '<div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-blue-500">';
@@ -478,13 +512,13 @@ public function get_user_addresses($user_id) {
         $html .= '</div>';
         $html .= '</label>';
         $html .= '</div>';
-        
+
         $html .= '</div>';
         $html .= '</div>';
-        
+
         // Modal HTML hinzufügen
         $html .= $this->get_address_modal_html();
-        
+
         return $html;
     }
 
@@ -610,80 +644,45 @@ public function ajax_get_saved_addresses() {
     error_log('YPrint Debug: POST data: ' . print_r($_POST, true));
     error_log('YPrint Debug: User logged in: ' . (is_user_logged_in() ? 'Yes' : 'No'));
     error_log('YPrint Debug: Current user ID: ' . get_current_user_id());
-    
+
     // Nonce-Prüfung
     $nonce = $_POST['nonce'] ?? '';
     $nonce_check = wp_verify_nonce($nonce, 'yprint_save_address_action');
     error_log('YPrint Debug: Nonce check result: ' . ($nonce_check ? 'Valid' : 'Invalid'));
     error_log('YPrint Debug: Provided nonce: ' . $nonce);
-    
+
     if (!$nonce_check) {
         error_log('YPrint Debug: FAILED - Nonce verification failed');
         wp_send_json_error(array('message' => 'Sicherheitsprüfung fehlgeschlagen', 'debug' => 'nonce_failed'));
         return;
     }
-    
+
     if (!is_user_logged_in()) {
         error_log('YPrint Debug: FAILED - User not logged in');
         wp_send_json_error(array('message' => 'Nicht eingeloggt', 'debug' => 'not_logged_in'));
         return;
     }
-    
+
     $user_id = get_current_user_id();
     error_log('YPrint Debug: Getting addresses for user ID: ' . $user_id);
-    
+
     // Raw user meta abrufen für Debugging
     $raw_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
     error_log('YPrint Debug: Raw user meta: ' . print_r($raw_addresses, true));
     error_log('YPrint Debug: Raw meta type: ' . gettype($raw_addresses));
-    
-    // Wenn keine Test-Adressen in der Datenbank sind, erstellen wir sie
+
+    // **HIER WURDE DER TEMPORÄRE TESTDATEN-BLOCK ENTFERNT**
     if (empty($raw_addresses) || !is_array($raw_addresses)) {
-        // Erstelle Test-Adressen für Debugging
-        $test_addresses = array(
-            'addr_test_1' => array(
-                'id' => 'addr_test_1',
-                'name' => 'Zuhause',
-                'first_name' => 'Max',
-                'last_name' => 'Mustermann',
-                'company' => '',
-                'address_1' => 'Musterstraße 123',
-                'address_2' => '',
-                'postcode' => '12345',
-                'city' => 'Berlin',
-                'country' => 'DE',
-                'is_company' => false,
-                'is_default' => true
-            ),
-            'addr_test_2' => array(
-                'id' => 'addr_test_2',
-                'name' => 'Büro',
-                'first_name' => 'Max',
-                'last_name' => 'Mustermann',
-                'company' => 'YPrint GmbH',
-                'address_1' => 'Geschäftsstraße 456',
-                'address_2' => '2. OG',
-                'postcode' => '54321',
-                'city' => 'München',
-                'country' => 'DE',
-                'is_company' => true,
-                'is_default' => false
-            )
-        );
-        
-        // Speichere die Test-Adressen in der Datenbank
-        update_user_meta($user_id, 'additional_shipping_addresses', $test_addresses);
-        
-        error_log('YPrint Debug: Created test addresses for user: ' . $user_id);
-        $raw_addresses = $test_addresses;
+        $raw_addresses = []; // Sicherstellen, dass es ein leeres Array ist, wenn keine Adressen gefunden wurden
+        error_log('YPrint Debug: No addresses found for user: ' . $user_id);
     }
-    
+
     // Über unsere Methode abrufen
     $addresses = $this->get_user_addresses($user_id);
     error_log('YPrint Debug: Processed addresses: ' . print_r($addresses, true));
     error_log('YPrint Debug: Number of addresses: ' . count($addresses));
     error_log('YPrint Debug: Addresses type: ' . gettype($addresses));
-    
+
     // Erfolgreiche Antwort senden
     wp_send_json_success(array(
         'addresses' => $addresses,
@@ -695,25 +694,26 @@ public function ajax_get_saved_addresses() {
             'raw_meta_type' => gettype($raw_addresses)
         )
     ));
-    
+
     error_log('=== YPrint Debug: ajax_get_saved_addresses END ===');
 }
+
 
 /**
  * AJAX-Handler für das Abrufen von Adressdetails
  */
 public function ajax_get_address_details() {
     check_ajax_referer('yprint_save_address_action', 'nonce');
-    
+
     if (!is_user_logged_in()) {
         wp_send_json_error(array('message' => 'Nicht eingeloggt'));
         return;
     }
-    
+
     $address_id = sanitize_text_field($_POST['address_id']);
     $user_id = get_current_user_id();
     $addresses = $this->get_user_addresses($user_id);
-    
+
     if (isset($addresses[$address_id])) {
         wp_send_json_success(array('address' => $addresses[$address_id]));
     } else {
@@ -726,16 +726,16 @@ public function ajax_get_address_details() {
  */
 public function ajax_delete_address() {
     check_ajax_referer('yprint_save_address_action', 'nonce');
-    
+
     if (!is_user_logged_in()) {
         wp_send_json_error(array('message' => 'Nicht eingeloggt'));
         return;
     }
-    
+
     $address_id = sanitize_text_field($_POST['address_id']);
     $user_id = get_current_user_id();
     $addresses = $this->get_user_addresses($user_id);
-    
+
     if (isset($addresses[$address_id])) {
         unset($addresses[$address_id]);
         update_user_meta($user_id, 'additional_shipping_addresses', $addresses);
@@ -750,23 +750,23 @@ public function ajax_delete_address() {
  */
 public function ajax_set_default_address() {
     check_ajax_referer('yprint_save_address_action', 'nonce');
-    
+
     if (!is_user_logged_in()) {
         wp_send_json_error(array('message' => 'Nicht eingeloggt'));
         return;
     }
 
-    
-    
+
+
     $address_id = sanitize_text_field($_POST['address_id']);
     $user_id = get_current_user_id();
     $addresses = $this->get_user_addresses($user_id);
-    
+
     // Alle Adressen als nicht-Standard markieren
     foreach ($addresses as $id => $address) {
         $addresses[$id]['is_default'] = false;
     }
-    
+
     // Gewählte Adresse als Standard markieren
     if (isset($addresses[$address_id])) {
         $addresses[$address_id]['is_default'] = true;
@@ -824,50 +824,76 @@ public function ajax_set_checkout_address() {
     }
 }
 
+// **DIESE FUNKTION WIRD ENTFERNT, DA SIE NUR ZU DEBUGGING-ZWECKEN DIENTE**
+// public function create_test_addresses($user_id) {
+//     if (!current_user_can('administrator')) {
+//         return false;
+//     }
+//
+//     $test_addresses = array(
+//         'addr_test_1' => array(
+//             'id' => 'addr_test_1',
+//             'name' => 'Zuhause',
+//             'first_name' => 'Max',
+//             'last_name' => 'Mustermann',
+//             'company' => '',
+//             'address_1' => 'Musterstraße 123',
+//             'address_2' => '',
+//             'postcode' => '12345',
+//             'city' => 'Berlin',
+//             'country' => 'DE',
+//             'is_company' => false,
+//             'is_default' => true
+//         ),
+//         'addr_test_2' => array(
+//             'id' => 'addr_test_2',
+//             'name' => 'Büro',
+//             'first_name' => 'Max',
+//             'last_name' => 'Mustermann',
+//             'company' => 'YPrint GmbH',
+//             'address_1' => 'Geschäftsstraße 456',
+//             'address_2' => '2. OG',
+//             'postcode' => '54321',
+//             'city' => 'München',
+//             'country' => 'DE',
+//             'is_company' => true,
+//             'is_default' => false
+//         )
+//     );
+//
+//     $result = update_user_meta($user_id, 'additional_shipping_addresses', $test_addresses);
+//     error_log('YPrint Debug: Test addresses created for user ' . $user_id . ': ' . ($result ? 'Success' : 'Failed'));
+//
+//     return $result;
+// }
+
 /**
- * DEBUG: Erstellt Test-Adressen für einen Benutzer
+ * Speichert eine Adresse aus dem Checkout-Formular
+ * 
+ * @param array $address_data Die Adressdaten aus dem Checkout-Formular
+ * @return array|WP_Error Ergebnis der Speicherung
  */
-public function create_test_addresses($user_id) {
-    if (!current_user_can('administrator')) {
-        return false;
+public function save_checkout_address($address_data) {
+    if (!is_user_logged_in()) {
+        return new WP_Error('not_logged_in', __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin'));
     }
     
-    $test_addresses = array(
-        'addr_test_1' => array(
-            'id' => 'addr_test_1',
-            'name' => 'Zuhause',
-            'first_name' => 'Max',
-            'last_name' => 'Mustermann',
-            'company' => '',
-            'address_1' => 'Musterstraße 123',
-            'address_2' => '',
-            'postcode' => '12345',
-            'city' => 'Berlin',
-            'country' => 'DE',
-            'is_company' => false,
-            'is_default' => true
-        ),
-        'addr_test_2' => array(
-            'id' => 'addr_test_2',
-            'name' => 'Büro',
-            'first_name' => 'Max',
-            'last_name' => 'Mustermann',
-            'company' => 'YPrint GmbH',
-            'address_1' => 'Geschäftsstraße 456',
-            'address_2' => '2. OG',
-            'postcode' => '54321',
-            'city' => 'München',
-            'country' => 'DE',
-            'is_company' => true,
-            'is_default' => false
-        )
+    // Adressdaten für das interne Format aufbereiten
+    $formatted_data = array(
+        'name' => sprintf(__('Adresse vom %s', 'yprint-plugin'), current_time('d.m.Y')),
+        'first_name' => $address_data['first_name'] ?? '',
+        'last_name' => $address_data['last_name'] ?? '',
+        'company' => $address_data['company'] ?? '',
+        'address_1' => $address_data['address_1'] ?? '',
+        'address_2' => $address_data['address_2'] ?? '',
+        'postcode' => $address_data['postcode'] ?? '',
+        'city' => $address_data['city'] ?? '',
+        'country' => $address_data['country'] ?? 'DE',
+        'is_company' => !empty($address_data['company'])
     );
     
-    $result = update_user_meta($user_id, 'additional_shipping_addresses', $test_addresses);
-    error_log('YPrint Debug: Test addresses created for user ' . $user_id . ': ' . ($result ? 'Success' : 'Failed'));
-    
-    return $result;
+    // Adresse speichern
+    return $this->save_new_user_address($formatted_data);
 }
-
 
 }
