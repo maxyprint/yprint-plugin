@@ -904,3 +904,30 @@ label.flex.items-center:hover {
         opacity: 1;
     }
 }
+
+/* Adress-Speichern Button und Feedback */
+.yprint-save-address-actions {
+    margin-top: 1.5rem;
+}
+
+#save-address-button {
+    padding: 10px 15px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+}
+
+#save-address-feedback {
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+#save-address-feedback.text-yprint-success {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+#save-address-feedback.text-yprint-error {
+    background-color: rgba(220, 53, 69, 0.1);
+}

@@ -68,15 +68,25 @@ public function ajax_save_checkout_address() {
         return;
     }
     
+    // Verbesserte Datenverarbeitung: Hole alle Daten aus dem address_data Array
+    $posted_data = isset($_POST['address_data']) ? $_POST['address_data'] : array();
+    
+    if (empty($posted_data)) {
+        wp_send_json_error(array('message' => __('Keine Adressdaten übermittelt.', 'yprint-plugin')));
+        return;
+    }
+    
     $address_data = array(
-        'first_name' => sanitize_text_field($_POST['first_name'] ?? ''),
-        'last_name' => sanitize_text_field($_POST['last_name'] ?? ''),
-        'company' => sanitize_text_field($_POST['company'] ?? ''),
-        'address_1' => sanitize_text_field($_POST['address_1'] ?? ''),
-        'address_2' => sanitize_text_field($_POST['address_2'] ?? ''),
-        'postcode' => sanitize_text_field($_POST['postcode'] ?? ''),
-        'city' => sanitize_text_field($_POST['city'] ?? ''),
-        'country' => sanitize_text_field($_POST['country'] ?? 'DE'),
+        'name' => sanitize_text_field($posted_data['name'] ?? ''),
+        'first_name' => sanitize_text_field($posted_data['first_name'] ?? ''),
+        'last_name' => sanitize_text_field($posted_data['last_name'] ?? ''),
+        'company' => sanitize_text_field($posted_data['company'] ?? ''),
+        'address_1' => sanitize_text_field($posted_data['address_1'] ?? ''),
+        'address_2' => sanitize_text_field($posted_data['address_2'] ?? ''),
+        'postcode' => sanitize_text_field($posted_data['postcode'] ?? ''),
+        'city' => sanitize_text_field($posted_data['city'] ?? ''),
+        'country' => sanitize_text_field($posted_data['country'] ?? 'DE'),
+        'phone' => sanitize_text_field($posted_data['phone'] ?? ''),
     );
     
     $result = $this->save_checkout_address($address_data);
@@ -84,7 +94,11 @@ public function ajax_save_checkout_address() {
     if (is_wp_error($result)) {
         wp_send_json_error(array('message' => $result->get_error_message()));
     } else {
-        wp_send_json_success($result);
+        wp_send_json_success(array(
+            'message' => __('Adresse erfolgreich gespeichert.', 'yprint-plugin'),
+            'address_id' => $result['address_id'] ?? '',
+            'address_data' => $result['address_data'] ?? $address_data
+        ));
     }
 }
 

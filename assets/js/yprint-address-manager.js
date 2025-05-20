@@ -84,12 +84,12 @@
         
         bindEvents: function() {
             const self = this;
-            
+        
             // Neue Adresse hinzufügen
             $(document).on('click', '.add-new-address-card', function() {
                 self.openAddressModal();
             });
-            
+        
             // Adresse auswählen
             $(document).on('click', '.btn-select-address', function(e) {
                 e.preventDefault();
@@ -97,7 +97,7 @@
                 const addressId = addressCard.data('address-id');
                 self.selectAddress(addressId);
             });
-            
+        
             // Standard-Adresse setzen
             $(document).on('click', '.btn-set-default', function(e) {
                 e.preventDefault();
@@ -106,7 +106,7 @@
                 const addressId = addressCard.data('address-id');
                 self.setDefaultAddress(addressId);
             });
-            
+        
             // Adresse löschen
             $(document).on('click', '.btn-delete-address', function(e) {
                 e.preventDefault();
@@ -115,33 +115,108 @@
                 const addressId = addressCard.data('address-id');
                 self.deleteAddress(addressId);
             });
-            
+        
             // Modal schließen
             $(document).on('click', '.btn-close-modal, .address-modal-overlay', function() {
                 self.closeAddressModal();
             });
-            
+        
             // Modal-Buttons
             $(document).on('click', '.btn-cancel-address', function() {
                 self.closeAddressModal();
             });
-            
+        
             $(document).on('click', '.btn-save-address', function() {
                 self.saveNewAddress();
             });
-            
+        
             // ESC-Taste zum Schließen
             $(document).on('keyup', function(e) {
                 if (e.key === 'Escape' && self.modal.hasClass('active')) {
                     self.closeAddressModal();
                 }
             });
-            
+        
             // Form-Validierung
             $('#new-address-form input').on('input', function() {
                 self.validateForm();
             });
+        
+        
+            // Adresse speichern Button für das Checkout-Formular
+            $(document).on('click', '#save-address-button', function() {
+                self.saveAddressFromForm();
+            });
+        
         },
+
+        /**
+ * Speichert eine Adresse aus dem Checkout-Formular
+ */
+saveAddressFromForm: function() {
+    const self = this;
+    const saveButton = $('#save-address-button');
+    const feedbackElement = $('#save-address-feedback');
+    
+    // Validiere das Formular
+    if (!validateAddressForm || (validateAddressForm && !validateAddressForm())) {
+        this.showMessage('Bitte füllen Sie alle Pflichtfelder aus.', 'error');
+        return;
+    }
+    
+    // Sammle die Daten aus den Formularfeldern
+    const addressData = {
+        name: 'Adresse vom ' + new Date().toLocaleDateString('de-DE'),
+        first_name: $('#first_name, #shipping_first_name').val() || '',
+        last_name: $('#last_name, #shipping_last_name').val() || '',
+        company: $('#company, #shipping_company').val() || '',
+        address_1: $('#street, #shipping_address_1').val() || '',
+        address_2: $('#housenumber, #shipping_address_2').val() || '',
+        postcode: $('#zip, #shipping_postcode').val() || '',
+        city: $('#city, #shipping_city').val() || '',
+        country: $('#country, #shipping_country').val() || 'DE',
+        phone: $('#phone, #shipping_phone').val() || ''
+    };
+    
+    // Aktualisiere Button und zeige Feedback
+    saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichern...');
+    feedbackElement.removeClass('text-yprint-success text-yprint-error').addClass('text-yprint-text-secondary').html('Adresse wird gespeichert...').removeClass('hidden');
+    
+    // AJAX-Request zum Speichern
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_save_checkout_address',
+            nonce: yprint_address_ajax.nonce,
+            address_data: addressData
+        },
+        success: function(response) {
+            if (response.success) {
+                feedbackElement.removeClass('text-yprint-text-secondary').addClass('text-yprint-success').html('<i class="fas fa-check-circle mr-1"></i>' + (response.data.message || 'Adresse erfolgreich gespeichert.'));
+                
+                // Optional: Lade gespeicherte Adressen neu
+                self.loadSavedAddresses();
+            } else {
+                feedbackElement.removeClass('text-yprint-text-secondary').addClass('text-yprint-error').html('<i class="fas fa-exclamation-circle mr-1"></i>' + (response.data.message || 'Fehler beim Speichern der Adresse.'));
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error saving address:', error);
+            feedbackElement.removeClass('text-yprint-text-secondary').addClass('text-yprint-error').html('<i class="fas fa-exclamation-circle mr-1"></i>Ein Fehler ist aufgetreten.');
+        },
+        complete: function() {
+            saveButton.prop('disabled', false).html('<i class="fas fa-save mr-2"></i>Adresse speichern');
+            
+            // Blende das Feedback nach 5 Sekunden aus
+            setTimeout(function() {
+                feedbackElement.fadeOut(function() {
+                    $(this).addClass('hidden').css('display', '');
+                });
+            }, 5000);
+        }
+    });
+},
         
         isUserLoggedIn: function() {
             // Prüfe ob User eingeloggt ist
