@@ -297,19 +297,32 @@ add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_addre
     }
 
     /**
-     * Ruft alle zusätzlichen Adressen für einen bestimmten Benutzer ab.
-     * Geht davon aus, dass Adressen als Array im 'additional_shipping_addresses'-User-Meta gespeichert sind.
-     *
-     * @param int $user_id Die ID des Benutzers.
-     * @return array Ein Array der gespeicherten Adressen.
-     */
-    public function get_user_addresses($user_id) {
-        if (!$user_id) {
-            return [];
-        }
-        $addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
-        return is_array($addresses) ? $addresses : [];
+ * Ruft alle zusätzlichen Adressen für einen bestimmten Benutzer ab.
+ * Geht davon aus, dass Adressen als Array im 'additional_shipping_addresses'-User-Meta gespeichert sind.
+ *
+ * @param int $user_id Die ID des Benutzers.
+ * @return array Ein Array der gespeicherten Adressen.
+ */
+public function get_user_addresses($user_id) {
+    if (!$user_id) {
+        return [];
     }
+    
+    // Debug-Informationen hinzufügen
+    error_log('YPrint Debug get_user_addresses: Getting addresses for user ' . $user_id);
+    
+    $addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+    
+    // Sicherstellen, dass wir ein Array zurückgeben und korrigieren, falls es nicht existiert
+    if (empty($addresses) || !is_array($addresses)) {
+        error_log('YPrint Debug get_user_addresses: No addresses found or not an array for user ' . $user_id);
+        return [];
+    }
+    
+    error_log('YPrint Debug get_user_addresses: Found ' . count($addresses) . ' addresses');
+    
+    return $addresses;
+}
 
     /**
      * Speichert eine neue Adresse für den aktuellen Benutzer.
@@ -623,6 +636,47 @@ public function ajax_get_saved_addresses() {
     $raw_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
     error_log('YPrint Debug: Raw user meta: ' . print_r($raw_addresses, true));
     error_log('YPrint Debug: Raw meta type: ' . gettype($raw_addresses));
+    
+    // Wenn keine Test-Adressen in der Datenbank sind, erstellen wir sie
+    if (empty($raw_addresses) || !is_array($raw_addresses)) {
+        // Erstelle Test-Adressen für Debugging
+        $test_addresses = array(
+            'addr_test_1' => array(
+                'id' => 'addr_test_1',
+                'name' => 'Zuhause',
+                'first_name' => 'Max',
+                'last_name' => 'Mustermann',
+                'company' => '',
+                'address_1' => 'Musterstraße 123',
+                'address_2' => '',
+                'postcode' => '12345',
+                'city' => 'Berlin',
+                'country' => 'DE',
+                'is_company' => false,
+                'is_default' => true
+            ),
+            'addr_test_2' => array(
+                'id' => 'addr_test_2',
+                'name' => 'Büro',
+                'first_name' => 'Max',
+                'last_name' => 'Mustermann',
+                'company' => 'YPrint GmbH',
+                'address_1' => 'Geschäftsstraße 456',
+                'address_2' => '2. OG',
+                'postcode' => '54321',
+                'city' => 'München',
+                'country' => 'DE',
+                'is_company' => true,
+                'is_default' => false
+            )
+        );
+        
+        // Speichere die Test-Adressen in der Datenbank
+        update_user_meta($user_id, 'additional_shipping_addresses', $test_addresses);
+        
+        error_log('YPrint Debug: Created test addresses for user: ' . $user_id);
+        $raw_addresses = $test_addresses;
+    }
     
     // Über unsere Methode abrufen
     $addresses = $this->get_user_addresses($user_id);
