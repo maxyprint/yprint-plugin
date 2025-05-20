@@ -844,8 +844,8 @@ function updateCartTotalsDisplay(container) {
     `;
 }
 
-// Nach der Zeile: let currentStep = 1;
-let selectedAddress = null;
+// Variable ist bereits global im DOMContentLoaded-Scope definiert, daher keine neue Deklaration nötig
+// selectedAddress wird bereits in der document.addEventListener('DOMContentLoaded', function () {...}) definiert
 
 // Neue Funktionen für Adressverwaltung hinzufügen
 function populateAddressFields(addressData, type = 'shipping') {

@@ -222,7 +222,7 @@
             this.addWooCommerceDefaultAddress(grid);
             
             // Neue Adresskarten hinzufügen
-            // >>> HIER IST IHRE ÄNDERUNG, UM ÜBER OBJEKTE ZU ITERIEREN <<<
+            // >>> HIER IST IHRE ÄNDERUNG, UM ÜBER OBJEKTE ZU ITERIEREN <
             Object.values(addresses).forEach(address => { 
                 const card = this.createAddressCard(address);
                 grid.append(card);
@@ -235,7 +235,7 @@
             container.show();
             grid.show();
             
-            console.log('Rendered addresses:', addresses.length, 'Container visible:', container.is(':visible'));
+            console.log('Rendered addresses:', Object.keys(addresses).length, 'Container visible:', container.is(':visible'));
         },
 
         // Debug-Methoden
