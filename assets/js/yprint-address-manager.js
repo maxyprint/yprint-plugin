@@ -87,7 +87,9 @@
         
             // Neue Adresse hinzufügen
             $(document).on('click', '.add-new-address-card', function() {
-                self.openAddressModal();
+                self.openAddressModal(); // Öffnet das Modal für eine neue Adresse
+                self.showAddressForm(true); // Zeigt das Adressformular
+                self.showSavedAddressesContainer(false); // Versteckt die gespeicherten Adressen
             });
         
             // Adresse auswählen
@@ -114,6 +116,22 @@
                 const addressCard = $(this).closest('.address-card');
                 const addressId = addressCard.data('address-id');
                 self.deleteAddress(addressId);
+            });
+            
+            // NEU: Event für das Bearbeiten einer Adresse
+            $(document).on('click', '.btn-edit-address', function(e) {
+                e.preventDefault();
+                const addressCard = $(this).closest('.address-card');
+                const addressId = addressCard.data('address-id');
+                // Adressdaten aus dem data-Attribut abrufen
+                try {
+                    const addressDataStr = addressCard.data('address-data');
+                    const addressData = JSON.parse(decodeURIComponent(addressDataStr));
+                    self.openAddressModal(addressId, addressData);
+                } catch (error) {
+                    console.error('Error parsing address data:', error);
+                    self.showMessage('Fehler beim Laden der Adresse', 'error');
+                }
             });
         
             // Modal schließen
@@ -142,12 +160,17 @@
                 self.validateForm();
             });
         
-        
             // Adresse speichern Button für das Checkout-Formular
             $(document).on('click', '#save-address-button', function() {
                 self.saveAddressFromForm();
             });
-        
+            
+            // Event für "Andere Adresse wählen" Link
+            $(document).on('click', '.change-address-link button', function() {
+                self.showSavedAddressesContainer(true);
+                $(this).closest('.change-address-link').remove();
+                self.showAddressForm(false);
+            });
         },
 
 /**
@@ -243,113 +266,140 @@ saveAddressFromForm: function() {
             const self = this;
             
             console.log('=== Loading Saved Addresses ===');
-            console.log('Container before AJAX:');
-            console.log('  - Exists:', self.addressContainer.length);
-            console.log('  - Visible:', self.addressContainer.is(':visible'));
-            console.log('  - Display CSS:', self.addressContainer.css('display'));
-            console.log('  - Grid element:', self.addressContainer.find('.address-cards-grid').length);
             
             // Container-Status vor AJAX-Call
             self.loadingIndicator.show();
             self.addressContainer.find('.address-cards-grid').hide();
             self.addressContainer.show();
             
-            console.log('Container after show():');
-            console.log('  - Visible:', self.addressContainer.is(':visible'));
-            console.log('  - Display CSS:', self.addressContainer.css('display'));
-            console.log('  - Loading indicator visible:', self.loadingIndicator.is(':visible'));
-            
             const ajaxData = {
                 action: 'yprint_get_saved_addresses',
                 nonce: yprint_address_ajax.nonce
             };
-            console.log('AJAX Request Data:', ajaxData);
-            console.log('AJAX URL:', yprint_address_ajax.ajax_url);
             
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
                 data: ajaxData,
-                beforeSend: function(xhr, settings) {
-                    console.log('AJAX beforeSend - URL:', settings.url);
-                    console.log('AJAX beforeSend - Data:', settings.data);
-                },
                 success: function(response) {
-                    console.log('AJAX Success - Raw response:', response);
-                    console.log('Response type:', typeof response);
-                    
                     if (response && response.success) {
-                        console.log('Success: Address data received:', response.data);
-                        console.log('Number of addresses:', Object.keys(response.data.addresses || {}).length);
+                        const addresses = response.data.addresses || {};
+                        const addressCount = Object.keys(addresses).length;
+                        console.log('Success: Address data received, count:', addressCount);
                         
-                        self.renderAddresses(response.data.addresses || {});
+                        // Adressen rendern
+                        self.renderAddresses(addresses);
                         
-                        if (Object.keys(response.data.addresses || {}).length === 0) {
+                        if (addressCount === 0) {
+                            // Keine gespeicherten Adressen
                             console.log('No addresses found - hiding container, showing form');
-                            self.addressContainer.hide();
-                            $('#address-form').show();
+                            self.showSavedAddressesContainer(false);
+                            self.showAddressForm(true);
                         } else {
-                            console.log('Addresses found - showing grid');
-                            self.addressContainer.find('.address-cards-grid').show();
+                            // Gespeicherte Adressen vorhanden
+                            console.log('Addresses found - showing grid, hiding form');
+                            self.showSavedAddressesContainer(true);
+                            self.showAddressForm(false);
+                            self.showChangeAddressLink();
                         }
                     } else {
-                        console.error('AJAX Success but response.success is false');
-                        console.error('Response:', response);
+                        // Fehler beim Laden
                         const errorMsg = (response && response.data && response.data.message) || 'Fehler beim Laden der Adressen.';
-                        console.error('Error message:', errorMsg);
+                        console.error('Error loading addresses:', errorMsg);
                         self.showMessage(errorMsg, 'error');
-                        self.addressContainer.hide();
-                        $('#address-form').show();
+                        self.showSavedAddressesContainer(false);
+                        self.showAddressForm(true);
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('=== AJAX Error ===');
-                    console.error('Status:', status);
-                    console.error('Error:', error);
-                    console.error('XHR Status:', xhr.status);
-                    console.error('XHR Response Text:', xhr.responseText);
-                    console.error('XHR Ready State:', xhr.readyState);
-                    
-                    self.showMessage('AJAX Fehler beim Laden der Adressen: ' + error, 'error');
-                    self.addressContainer.hide();
-                    $('#address-form').show();
+                    console.error('AJAX Error:', status, error);
+                    self.showMessage('Fehler beim Laden der Adressen: ' + error, 'error');
+                    self.showSavedAddressesContainer(false);
+                    self.showAddressForm(true);
                 },
-                complete: function(xhr, status) {
-                    console.log('AJAX Complete - Status:', status);
-                    console.log('Final container state:');
-                    console.log('  - Visible:', self.addressContainer.is(':visible'));
-                    console.log('  - Grid visible:', self.addressContainer.find('.address-cards-grid').is(':visible'));
-                    console.log('  - Loading hidden:', !self.loadingIndicator.is(':visible'));
-                    
+                complete: function() {
                     self.loadingIndicator.hide();
                 }
             });
-            
-            console.log('=== AJAX Request Sent ===');
         },
         
         renderAddresses: function(addresses) {
+            const self = this;
+            
+            // Referenz zum Container und Grid
             const container = $('.yprint-saved-addresses');
             if (container.length === 0) return;
             
             const grid = container.find('.address-cards-grid');
-            const addNewCard = grid.find('.add-new-address-card').detach();
             
             // Bestehende Adresskarten entfernen
             grid.find('.address-card:not(.add-new-address-card)').remove();
             
-            // WooCommerce Standard-Adresse hinzufügen falls vorhanden
-            this.addWooCommerceDefaultAddress(grid);
+            // "Neue Adresse" Kachel zuerst hinzufügen
+            const addNewCard = `
+                <div class="address-card add-new-address-card cursor-pointer">
+                    <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                        <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                        <h4 class="font-semibold text-gray-600">Neue Adresse hinzufügen</h4>
+                    </div>
+                </div>
+            `;
             
-            // Neue Adresskarten hinzufügen
-            // >>> HIER IST IHRE ÄNDERUNG, UM ÜBER OBJEKTE ZU ITERIEREN <
-            Object.values(addresses).forEach(address => { 
-                const card = this.createAddressCard(address);
+            // Grid leeren und neue Kachel hinzufügen
+            grid.html(addNewCard);
+            
+            // Wenn keine Adressen vorhanden sind, Funktion beenden
+            if (Object.keys(addresses).length === 0) {
+                console.log('No addresses found - showing add new card only');
+                container.show();
+                grid.show();
+                return;
+            }
+            
+            // Durch alle Adressen iterieren und Karten hinzufügen
+            Object.entries(addresses).forEach(([addressId, address]) => {
+                const isDefault = address.is_default || false;
+                const defaultBadge = isDefault ? 
+                    '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">Standard</span>' : '';
+                
+                // Adressdaten als JSON für die Bearbeitung
+                const addressDataJson = encodeURIComponent(JSON.stringify(address));
+                
+                const card = $(`
+                    <div class="address-card" data-address-id="${addressId}" data-address-data="${addressDataJson}">
+                        <div class="address-card-header">
+                            <div class="address-card-title">
+                                ${address.name || 'Gespeicherte Adresse'}
+                                ${defaultBadge}
+                            </div>
+                            <div class="address-card-actions">
+                                ${!isDefault ? 
+                                    `<button type="button" class="btn-address-action btn-set-default" title="Als Standard setzen">
+                                        <i class="fas fa-star"></i>
+                                    </button>` : ''}
+                                <button type="button" class="btn-address-action btn-delete-address" title="Adresse löschen">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="address-card-content">
+                            ${self.formatAddressDisplay(address)}
+                        </div>
+                        <div class="address-card-footer">
+                            <button type="button" class="btn btn-primary btn-select-address">
+                                <i class="fas fa-check mr-2"></i>
+                                Diese Adresse verwenden
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-edit-address">
+                                <i class="fas fa-edit mr-2"></i>
+                                Bearbeiten
+                            </button>
+                        </div>
+                    </div>
+                `);
+                
                 grid.append(card);
             });
-            
-            // "Neue Adresse" Karte wieder hinzufügen
-            grid.append(addNewCard);
             
             // Container und Grid anzeigen
             container.show();
@@ -624,10 +674,54 @@ addWooCommerceDefaultAddress: function(grid) {
             $('#step-1 .space-y-6').prepend(link);
         },
         
-        openAddressModal: function() {
-            this.modal.addClass('active');
+        openAddressModal: function(addressId = null, addressData = null) {
+            const self = this;
+            
+            // Formular zurücksetzen
             $('#new-address-form')[0].reset();
             $('.address-form-errors').hide();
+            
+            // Modal-Titel anpassen
+            const modalTitle = document.querySelector('.address-modal-header h3');
+            if (modalTitle) {
+                modalTitle.textContent = addressId ? 'Adresse bearbeiten' : 'Neue Adresse hinzufügen';
+            }
+            
+            // Button-Text anpassen
+            const saveButton = document.querySelector('.btn-save-address');
+            if (saveButton) {
+                saveButton.innerHTML = addressId ? 
+                    '<i class="fas fa-save mr-2"></i>Adresse aktualisieren' : 
+                    '<i class="fas fa-save mr-2"></i>Adresse speichern';
+            }
+            
+            // Wenn Adressdaten übergeben wurden (Bearbeiten-Modus)
+            if (addressId && addressData) {
+                // Speichere die ID für später
+                self.modal.data('editing-address-id', addressId);
+                
+                // Felder im Modal füllen
+                $('#new_address_name').val(addressData.name || '');
+                $('#new_address_first_name').val(addressData.first_name || '');
+                $('#new_last_name').val(addressData.last_name || '');
+                $('#new_address_1').val(addressData.address_1 || '');
+                $('#new_address_2').val(addressData.address_2 || '');
+                $('#new_postcode').val(addressData.postcode || '');
+                $('#new_city').val(addressData.city || '');
+                $('#new_country').val(addressData.country || 'DE');
+                
+                // Firma-Checkbox und -Feld setzen
+                const isCompany = !!addressData.company;
+                $('#new_is_company').prop('checked', isCompany);
+                $('#new_company').val(addressData.company || '');
+                $('#new_company_field').toggle(isCompany);
+            } else {
+                // Neue Adresse - ID entfernen
+                self.modal.removeData('editing-address-id');
+            }
+            
+            // Modal anzeigen
+            self.modal.addClass('active');
             $('body').css('overflow', 'hidden');
         },
         
@@ -684,54 +778,65 @@ shouldSaveNewAddress: function() {
     return this.elements.saveAddressToggle.length > 0 && this.elements.saveAddressToggle.is(':checked');
 },
         
-        saveNewAddress: function() {
-            const self = this;
-            const form = $('#new-address-form');
-            
-            if (!this.validateForm()) {
-                this.showFormError('Bitte füllen Sie alle Pflichtfelder aus.');
-                return;
+saveNewAddress: function() {
+    const self = this;
+    const form = $('#new-address-form');
+    
+    if (!this.validateForm()) {
+        this.showFormError('Bitte füllen Sie alle Pflichtfelder aus.');
+        return;
+    }
+    
+    // Prüfen, ob wir im Bearbeitungs-Modus sind
+    const addressId = self.modal.data('editing-address-id');
+    const isEditing = !!addressId;
+    
+    const formData = {
+        action: 'yprint_save_new_address',
+        nonce: yprint_address_ajax.nonce,
+        name: $('#new_address_name').val() || ('Adresse vom ' + new Date().toLocaleDateString('de-DE')),
+        first_name: $('#new_address_first_name').val(),
+        last_name: $('#new_last_name').val(),
+        company: $('#new_company').val(),
+        address_1: $('#new_address_1').val(),
+        address_2: $('#new_address_2').val(),
+        postcode: $('#new_postcode').val(),
+        city: $('#new_city').val(),
+        country: $('#new_country').val(),
+        is_company: $('#new_is_company').is(':checked')
+    };
+    
+    // Wenn wir eine bestehende Adresse bearbeiten, füge ID hinzu
+    if (isEditing) {
+        formData.id = addressId;
+    }
+    
+    // Loading state
+    const saveButton = $('.btn-save-address');
+    const originalText = saveButton.html();
+    saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...');
+    
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: formData,
+        success: function(response) {
+            if (response.success) {
+                self.closeAddressModal();
+                self.loadSavedAddresses();
+                self.showMessage(isEditing ? 'Adresse aktualisiert' : 'Adresse gespeichert', 'success');
+            } else {
+                self.showFormError(response.data.message || 'Fehler beim Speichern');
             }
-            
-            const formData = {
-                action: 'yprint_save_new_address',
-                nonce: yprint_address_ajax.nonce,
-                name: form.find('[name="name"]').val(),
-                first_name: form.find('[name="first_name"]').val(),
-                last_name: form.find('[name="last_name"]').val(),
-                company: form.find('[name="company"]').val(),
-                address_1: form.find('[name="address_1"]').val(),
-                address_2: form.find('[name="address_2"]').val(),
-                postcode: form.find('[name="postcode"]').val(),
-                city: form.find('[name="city"]').val(),
-                country: form.find('[name="country"]').val(),
-                is_company: form.find('[name="is_company"]').is(':checked')
-            };
-            
-            // Loading state
-            $('.btn-save-address').prop('disabled', true).html('Speichere...');
-            
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: formData,
-                success: function(response) {
-                    if (response.success) {
-                        self.closeAddressModal();
-                        self.loadSavedAddresses();
-                        self.showMessage(response.data.message || 'Adresse gespeichert', 'success');
-                    } else {
-                        self.showFormError(response.data.message || 'Fehler beim Speichern');
-                    }
-                },
-                error: function() {
-                    self.showFormError('Fehler beim Speichern der Adresse');
-                },
-                complete: function() {
-                    $('.btn-save-address').prop('disabled', false).html('<i class="fas fa-save mr-2"></i>Adresse speichern');
-                }
-            });
         },
+        error: function() {
+            self.showFormError('Fehler beim Speichern der Adresse');
+        },
+        complete: function() {
+            saveButton.prop('disabled', false).html(originalText);
+        }
+    });
+},
         
         deleteAddress: function(addressId) {
             const self = this;
@@ -806,6 +911,41 @@ shouldSaveNewAddress: function() {
                 messageEl.fadeOut(() => messageEl.remove());
             }, 5000);
         },
+
+        showAddressForm: function(show) {
+            const addressForm = $('#address-form');
+            if (show) {
+                addressForm.removeClass('hidden').show();
+            } else {
+                addressForm.addClass('hidden').hide();
+            }
+        },
+        
+        showSavedAddressesContainer: function(show) {
+            if (show) {
+                this.addressContainer.removeClass('hidden').show();
+            } else {
+                this.addressContainer.addClass('hidden').hide();
+            }
+        },
+        
+        showChangeAddressLink: function() {
+            // Entferne bestehenden Link falls vorhanden
+            $('.change-address-link').remove();
+            
+            // Neuen Link erstellen
+            const link = $(`
+                <div class="change-address-link mt-3">
+                    <button type="button" class="text-yprint-blue hover:underline">
+                        <i class="fas fa-edit mr-1"></i>
+                        Andere Adresse wählen
+                    </button>
+                </div>
+            `);
+            
+            // Link einfügen
+            $('#step-1 .space-y-6').prepend(link);
+        },
         
         showFormError: function(message) {
             const errorEl = $('.address-form-errors');
@@ -821,4 +961,6 @@ shouldSaveNewAddress: function() {
     // Global access for debugging
     window.YPrintAddressManager = addressManager;
 
+
+    
 })(jQuery);
