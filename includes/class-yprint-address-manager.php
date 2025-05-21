@@ -357,17 +357,32 @@ public function get_user_addresses($user_id) {
     }
 
     // Debug-Informationen hinzufügen
-    error_log('YPrint Debug get_user_addresses: Getting addresses for user ' . $user_id);
+    error_log('YPrint Debug (ID Handling): get_user_addresses called for user ' . $user_id);
 
     $addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
 
     // Sicherstellen, dass wir ein Array zurückgeben und korrigieren, falls es nicht existiert
     if (empty($addresses) || !is_array($addresses)) {
-        error_log('YPrint Debug get_user_addresses: No addresses found or not an array for user ' . $user_id);
+        error_log('YPrint Debug (ID Handling): No addresses found or not an array for user ' . $user_id);
         return [];
     }
 
-    error_log('YPrint Debug get_user_addresses: Found ' . count($addresses) . ' addresses');
+    error_log('YPrint Debug (ID Handling): Found ' . count($addresses) . ' addresses');
+    
+    // Prüfen ob die Adressen wirklich als assoziatives Array mit IDs als Schlüssel gespeichert sind
+    error_log('YPrint Debug (ID Handling): Address keys: ' . print_r(array_keys($addresses), true));
+    
+    // Erste Adresse zur Überprüfung der Struktur ausgeben
+    if (count($addresses) > 0) {
+        $first_address_key = array_keys($addresses)[0];
+        $first_address = $addresses[$first_address_key];
+        error_log('YPrint Debug (ID Handling): First address structure check - Key: ' . $first_address_key);
+        error_log('YPrint Debug (ID Handling): First address has own ID field: ' . (isset($first_address['id']) ? 'yes' : 'no'));
+        if (isset($first_address['id'])) {
+            error_log('YPrint Debug (ID Handling): First address ID field value: ' . $first_address['id']);
+            error_log('YPrint Debug (ID Handling): ID match with key: ' . ($first_address['id'] === $first_address_key ? 'yes' : 'no'));
+        }
+    }
 
     return $addresses;
 }
@@ -393,8 +408,14 @@ public function save_new_user_address($address_data) {
 
     $existing_addresses = $this->get_user_addresses($user_id);
     
+    // Debug-Logs für ID-Handling
+    error_log('YPrint Debug (ID Handling): Received address data ID: ' . (isset($address_data['id']) ? $address_data['id'] : 'keine ID'));
+    error_log('YPrint Debug (ID Handling): Existing address IDs: ' . print_r(array_keys($existing_addresses), true));
+    
     // Vereinfachte Prüfung: Existiert die Adresse bereits mit dieser ID?
     $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
+    
+    error_log('YPrint Debug (ID Handling): is_editing result: ' . ($is_editing ? 'true' : 'false'));
 
     // Begrenzung auf 3 Adressen prüfen, aber nur wenn es eine neue Adresse ist
     $max_addresses = 3;
@@ -405,11 +426,16 @@ public function save_new_user_address($address_data) {
     // Generiere eine eindeutige ID für die neue Adresse oder nutze vorhandene bei Bearbeitung
     $address_id = $is_editing ? sanitize_text_field($address_data['id']) : ('addr_' . time() . '_' . wp_rand(1000, 9999));
     $sanitized_address['id'] = $address_id;
+    
+    error_log('YPrint Debug (ID Handling): Final address_id being saved: ' . $address_id);
 
     // Speichere als assoziatives Array mit ID als Schlüssel
     $existing_addresses[$address_id] = $sanitized_address;
 
-    update_user_meta($user_id, 'additional_shipping_addresses', $existing_addresses);
+    error_log('YPrint Debug (ID Handling): Updating user meta with addresses: ' . print_r(array_keys($existing_addresses), true));
+    
+    $update_result = update_user_meta($user_id, 'additional_shipping_addresses', $existing_addresses);
+    error_log('YPrint Debug (ID Handling): update_user_meta result: ' . ($update_result ? 'success' : 'failed'));
 
     return array(
         'success' => true,
