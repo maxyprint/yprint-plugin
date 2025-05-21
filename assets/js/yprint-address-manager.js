@@ -816,15 +816,9 @@ saveNewAddress: function() {
     const addressId = self.modal.data('editing-address-id');
     const isEditing = !!addressId; // true, wenn addressId einen Wert hat; false sonst
     
-    console.log('saveNewAddress - editing mode check:', {
-        addressId: addressId,
-        isEditing: isEditing,
-        modalData: self.modal.data()
-    });
-    
     const formData = {
-        action: 'yprint_save_new_address',
-        nonce: yprint_address_ajax.nonce,
+        action: 'yprint_save_address',
+        yprint_address_nonce: yprint_address_ajax.nonce, // WICHTIG: Ursprünglicher Nonce-Name
         name: $('#new_address_name').val() || ('Adresse vom ' + new Date().toLocaleDateString('de-DE')),
         first_name: $('#new_address_first_name').val(),
         last_name: $('#new_last_name').val(),
@@ -840,11 +834,7 @@ saveNewAddress: function() {
     // Wenn wir eine bestehende Adresse bearbeiten, füge die ID hinzu.
     if (isEditing) {
         formData.id = addressId;
-        console.log('Adding ID to form data for editing:', addressId);
     }
-    
-    // Debug-Ausgabe des vollständigen formData-Objekts
-    console.log('Complete form data being sent:', formData);
     
     // Loading state
     const saveButton = $('.btn-save-address');
@@ -856,7 +846,6 @@ saveNewAddress: function() {
         type: 'POST',
         data: formData,
         success: function(response) {
-            console.log('AJAX response:', response);
             if (response.success) {
                 self.closeAddressModal(); // Schließt das Modal bei Erfolg
                 self.loadSavedAddresses(); // Lädt die Adressen neu, um Änderungen anzuzeigen
@@ -866,7 +855,6 @@ saveNewAddress: function() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('AJAX error:', {xhr: xhr, status: status, error: error});
             self.showFormError('Fehler beim Speichern der Adresse');
         },
         complete: function() {
