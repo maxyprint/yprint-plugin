@@ -120,12 +120,12 @@ public function ajax_save_checkout_address() {
                 <div class="address-modal-body">
                 <form id="new-address-form" class="space-y-4">
                 <div>
-                    <label for="new_address_name" class="form-label">
-                        <?php _e('Name der Adresse (z.B. Zuhause, Büro)', 'yprint-plugin'); ?> <span class="required">*</span>
-                    </label>
-                    <input type="text" id="new_address_name" name="name" class="form-input" required>
-                    <input type="hidden" id="new_address_edit_id" name="address_id_for_edit" value="">
-                </div>
+    <label for="new_address_name" class="form-label">
+        <?php _e('Name der Adresse (z.B. Zuhause, Büro)', 'yprint-plugin'); ?> <span class="required">*</span>
+    </label>
+    <input type="text" id="new_address_name" name="name" class="form-input" required>
+    <input type="hidden" id="new_address_edit_id" name="id" value="">
+</div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="new_address_first_name" class="form-label">
@@ -412,10 +412,17 @@ public function save_new_user_address($address_data) {
     error_log('YPrint Debug (ID Handling): Received address data ID: ' . (isset($address_data['id']) ? $address_data['id'] : 'keine ID'));
     error_log('YPrint Debug (ID Handling): Existing address IDs: ' . print_r(array_keys($existing_addresses), true));
     
-    // Vereinfachte Prüfung: Existiert die Adresse bereits mit dieser ID?
-    $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
+    // Prüfen, ob wir im Bearbeitungsmodus sind (existierende ID)
+    $is_editing = false;
+    $address_id = '';
     
-    error_log('YPrint Debug (ID Handling): is_editing result: ' . ($is_editing ? 'true' : 'false'));
+    if (isset($address_data['id']) && !empty($address_data['id'])) {
+        $address_id = sanitize_text_field($address_data['id']);
+        $is_editing = isset($existing_addresses[$address_id]);
+        error_log('YPrint Debug (ID Handling): Checking ID ' . $address_id . ' exists: ' . ($is_editing ? 'yes' : 'no'));
+    }
+    
+    error_log('YPrint Debug (ID Handling): is_editing final result: ' . ($is_editing ? 'true' : 'false'));
 
     // Begrenzung auf 3 Adressen prüfen, aber nur wenn es eine neue Adresse ist
     $max_addresses = 3;
@@ -424,7 +431,10 @@ public function save_new_user_address($address_data) {
     }
 
     // Generiere eine eindeutige ID für die neue Adresse oder nutze vorhandene bei Bearbeitung
-    $address_id = $is_editing ? sanitize_text_field($address_data['id']) : ('addr_' . time() . '_' . wp_rand(1000, 9999));
+    if (!$is_editing) {
+        $address_id = 'addr_' . time() . '_' . wp_rand(1000, 9999);
+    }
+    
     $sanitized_address['id'] = $address_id;
     
     error_log('YPrint Debug (ID Handling): Final address_id being saved: ' . $address_id);
@@ -651,12 +661,24 @@ public function save_new_user_address($address_data) {
         // Adressdaten aus dem AJAX-Request extrahieren
         $address_data = $_POST;
         
+        // Debug-Log für eingehende Daten
+        error_log('YPrint Debug (ID Handling): handle_save_address_ajax received data: ' . print_r($address_data, true));
+        
+        // Stelle sicher, dass die ID korrekt behandelt wird
+        if (isset($address_data['id']) && !empty($address_data['id'])) {
+            error_log('YPrint Debug (ID Handling): ID found in POST data: ' . $address_data['id']);
+        } else {
+            error_log('YPrint Debug (ID Handling): No ID in POST data, will create new address');
+        }
+        
         // Adresse speichern
         $result = $this->save_new_user_address($address_data);
         
         if (is_wp_error($result)) {
+            error_log('YPrint Debug (ID Handling): Error in save_new_user_address: ' . $result->get_error_message());
             wp_send_json_error(array('message' => $result->get_error_message()));
         } else {
+            error_log('YPrint Debug (ID Handling): Address saved successfully: ' . print_r($result, true));
             wp_send_json_success($result);
         }
     }

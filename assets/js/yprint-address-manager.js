@@ -710,11 +710,17 @@ addWooCommerceDefaultAddress: function(grid) {
             self.modal.removeData('editing-address-id');
             console.log('openAddressModal (ID Handling): Removed existing editing-address-id');
             
+            // Explizites Verstecken des hidden input-Feldes für die ID
+            $('#new_address_edit_id').val('');
+            
             // Wenn Adressdaten übergeben wurden (Bearbeiten-Modus)
             if (addressId && addressData) {
                 // Speichere die ID für später - WICHTIG: Hier wird die ID im modal-Objekt gespeichert
                 self.modal.data('editing-address-id', addressId);
                 console.log('openAddressModal (ID Handling): Set editing-address-id to:', addressId);
+                
+                // Speichere die ID auch in einem versteckten Input-Feld im Formular als Backup
+                $('#new_address_edit_id').val(addressId);
                 
                 // Felder im Modal füllen
                 $('#new_address_name').val(addressData.name || '');
@@ -736,6 +742,7 @@ addWooCommerceDefaultAddress: function(grid) {
                 
                 // Double-check ob die ID korrekt gesetzt wurde
                 console.log('openAddressModal (ID Handling): Checking if ID was properly set:', self.modal.data('editing-address-id'));
+                console.log('openAddressModal (ID Handling): Checking if ID in hidden input:', $('#new_address_edit_id').val());
             } else {
                 console.log('openAddressModal (ID Handling): Opening modal for new address (no ID)');
             }
@@ -802,22 +809,30 @@ shouldSaveNewAddress: function() {
     return this.elements.saveAddressToggle.length > 0 && this.elements.saveAddressToggle.is(':checked');
 },
     
+// Neuer Code (Ersatz) - Fortsetzung
 saveNewAddress: function() {
     const self = this;
     const form = $('#new-address-form');
-
+    
     if (!this.validateForm()) {
         this.showFormError('Bitte füllen Sie alle Pflichtfelder aus.');
         return;
     }
-
-    // Prüfen, ob wir im Bearbeitungs-Modus sind
-    const addressId = self.modal.data('editing-address-id');
+    
+    // Prüfen, ob wir im Bearbeitungs-Modus sind - ID aus beiden möglichen Quellen holen
+    let addressId = self.modal.data('editing-address-id');
+    
+    // Falls die jQuery data() Methode nichts zurückgibt, versuche es mit dem Hidden Input
+    if (!addressId) {
+        addressId = $('#new_address_edit_id').val();
+    }
+    
     const isEditing = !!addressId; // true, wenn addressId einen Wert hat; false sonst
-
-    console.log('saveNewAddress (Frontend Debug): Editing Mode:', isEditing);
-    console.log('saveNewAddress (Frontend Debug): Address ID from Modal:', addressId);
-
+    
+    console.log('saveNewAddress (ID Handling): isEditing:', isEditing, 'addressId:', addressId);
+    console.log('saveNewAddress (ID Handling): addressId from data():', self.modal.data('editing-address-id'));
+    console.log('saveNewAddress (ID Handling): addressId from hidden input:', $('#new_address_edit_id').val());
+    
     const formData = {
         action: 'yprint_save_address',
         yprint_address_nonce: yprint_address_ajax.nonce, // WICHTIG: Ursprünglicher Nonce-Name
@@ -832,28 +847,26 @@ saveNewAddress: function() {
         country: $('#new_country').val(),
         is_company: $('#new_is_company').is(':checked')
     };
-
+    
     // Wenn wir eine bestehende Adresse bearbeiten, füge die ID hinzu.
     if (isEditing) {
         formData.id = addressId;
-        console.log('saveNewAddress (Frontend Debug): Adding ID to formData:', addressId);
-    } else {
-        console.log('saveNewAddress (Frontend Debug): Creating new address (no ID in formData)');
+        console.log('saveNewAddress (ID Handling): Adding ID to formData:', addressId);
     }
-
-    console.log('saveNewAddress (Frontend Debug): Complete formData being sent:', formData);
-
+    
+    console.log('saveNewAddress (ID Handling): formData being sent:', formData);
+    
     // Loading state
     const saveButton = $('.btn-save-address');
     const originalText = saveButton.html();
     saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...');
-
+    
     $.ajax({
         url: yprint_address_ajax.ajax_url,
         type: 'POST',
         data: formData,
         success: function(response) {
-            console.log('saveNewAddress (Frontend Debug): AJAX response:', response);
+            console.log('saveNewAddress (ID Handling): AJAX response:', response);
             if (response.success) {
                 self.closeAddressModal(); // Schließt das Modal bei Erfolg
                 self.loadSavedAddresses(); // Lädt die Adressen neu, um Änderungen anzuzeigen
@@ -863,7 +876,7 @@ saveNewAddress: function() {
             }
         },
         error: function(xhr, status, error) {
-            console.error('saveNewAddress (Frontend Debug): AJAX error:', {xhr: xhr, status: status, error: error});
+            console.error('saveNewAddress (ID Handling): AJAX error:', {xhr: xhr, status: status, error: error});
             self.showFormError('Fehler beim Speichern der Adresse');
         },
         complete: function() {
