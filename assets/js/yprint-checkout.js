@@ -52,16 +52,19 @@ function validateAddressForm() {
         'first_name', 'last_name', 'street', 'housenumber', 'zip', 'city', 'country'
     ];
 
-    // Prüfen, ob eine gespeicherte Adresse ausgewählt wurde
-    // Wenn ja, müssen keine Felder validiert werden
-    const selectedAddress = $('.address-card.selected').length > 0;
-    if (selectedAddress) {
-        console.log('Eine gespeicherte Adresse ist ausgewählt. Überspringen der Validierung.');
-        if (btnToPayment) {
-            btnToPayment.disabled = false;
-        }
-        return true;
+    // Prüfen, ob eine gespeicherte Adresse ausgewählt wurde ODER ob die Felder bereits gefüllt sind
+// Wenn ja, validieren wir nicht jedes Feld individuell
+const selectedAddress = $('.address-card.selected').length > 0;
+const filledAddress = $('#street').val() && $('#zip').val() && $('#city').val();
+
+if (selectedAddress || filledAddress) {
+    console.log('Eine gespeicherte Adresse ist ausgewählt oder die Felder sind bereits gefüllt. Überspringen der Feldvalidierung.');
+    if (btnToPayment) {
+        console.log('Aktiviere "Weiter zur Zahlung"-Button, da Adressdaten vorliegen');
+        btnToPayment.disabled = false;
     }
+    return true;
+}
 
     requiredFields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
@@ -365,46 +368,58 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
     /**
-     * Zeigt den angegebenen Checkout-Schritt an und aktualisiert die Fortschrittsanzeige.
-     * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts (1-basiert, z.B. 1 für Adresse, 2 für Zahlung).
-     */
-    function showStep(stepNumber) {
-        console.log("Showing step:", stepNumber);
+ * Zeigt den angegebenen Checkout-Schritt an und aktualisiert die Fortschrittsanzeige.
+ * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts (1-basiert, z.B. 1 für Adresse, 2 für Zahlung).
+ */
+function showStep(stepNumber) {
+    console.log("Showing step:", stepNumber);
 
-        // Konstruiere die erwartete ID für den aktiven Schritt (z.B. "step-2")
-        const targetStepId = `step-${stepNumber}`;
+    // Konstruiere die erwartete ID für den aktiven Schritt (z.B. "step-2")
+    const targetStepId = `step-${stepNumber}`;
 
-        // WICHTIGE ÄNDERUNG HIER: Finde das Element über seine ID, nicht über den Index der NodeList.
-        // Das ist entscheidend, da PHP nur den HTML-Code des aktuell angefragten Schrittes ausgibt.
-        steps.forEach((stepEl) => {
-            if (stepEl.id === targetStepId) {
-                console.log("Activating step element:", stepEl.id);
-                stepEl.classList.add('active');
-                stepEl.style.display = 'block'; // Explizit auf 'block' setzen, um CSS-Konflikte zu vermeiden
-            } else {
-                // Diese Bedingung ist nur relevant, wenn mehrere Schritte im DOM vorhanden sind,
-                // was in dieser PHP-Setup-Konfiguration normalerweise nicht der Fall ist.
-                // Sie dient der Sicherheit, falls sich das HTML-Rendering ändert.
-                stepEl.classList.remove('active');
-                stepEl.style.display = 'none'; // Explizit auf 'none' setzen
-            }
-        });
+    // WICHTIGE ÄNDERUNG HIER: Finde das Element über seine ID, nicht über den Index der NodeList.
+    // Das ist entscheidend, da PHP nur den HTML-Code des aktuell angefragten Schrittes ausgibt.
+    steps.forEach((stepEl) => {
+        if (stepEl.id === targetStepId) {
+            console.log("Activating step element:", stepEl.id);
+            stepEl.classList.add('active');
+            stepEl.style.display = 'block'; // Explizit auf 'block' setzen, um CSS-Konflikte zu vermeiden
+        } else {
+            // Diese Bedingung ist nur relevant, wenn mehrere Schritte im DOM vorhanden sind,
+            // was in dieser PHP-Setup-Konfiguration normalerweise nicht der Fall ist.
+            // Sie dient der Sicherheit, falls sich das HTML-Rendering ändert.
+            stepEl.classList.remove('active');
+            stepEl.style.display = 'none'; // Explizit auf 'none' setzen
+        }
+    });
 
-        // Progress Bar aktualisieren (dieser Teil war bereits korrekt)
-        progressSteps.forEach((pStep, index) => {
-            pStep.classList.remove('active', 'completed');
-            if (index < stepNumber - 1) {
-                pStep.classList.add('completed');
-            } else if (index === stepNumber - 1) {
-                pStep.classList.add('active');
-            }
-        });
+    // Progress Bar aktualisieren (dieser Teil war bereits korrekt)
+    progressSteps.forEach((pStep, index) => {
+        pStep.classList.remove('active', 'completed');
+        if (index < stepNumber - 1) {
+            pStep.classList.add('completed');
+        } else if (index === stepNumber - 1) {
+            pStep.classList.add('active');
+        }
+    });
 
-        currentStep = stepNumber; // Aktuellen Schritt speichern
-        window.scrollTo({ top: 0, behavior: 'smooth' }); // Nach oben scrollen
+    currentStep = stepNumber; // Aktuellen Schritt speichern
+    window.scrollTo({ top: 0, behavior: 'smooth' }); // Nach oben scrollen
 
-        console.log("Active elements after showStep:", document.querySelectorAll('.checkout-step.active'));
+    // Sammle Daten wenn zum Zahlungsschritt gewechselt wird
+    if (stepNumber === 2) {
+        collectAddressData();
+        updatePaymentStepSummary();
+    } else if (stepNumber === 3) {
+        collectPaymentData();
+        populateConfirmation();
     }
+
+    console.log("Active elements after showStep:", document.querySelectorAll('.checkout-step.active'));
+}
+
+// Die showStep-Funktion global verfügbar machen
+window.showStep = showStep;
 
     /**
  * Sammelt die Adressdaten aus dem Formular.
@@ -964,6 +979,37 @@ function populateAddressFields(addressData, type = 'shipping') {
     
     // Trigger validation
     validateAddressForm();
+}
+
+// Nach der document.ready-Funktion hinzufügen
+$(document).on('click', '.address-card', function() {
+    console.log('Adresskarte angeklickt:', $(this).data('address-id'));
+    validateAddressForm(); // Sofort validieren, um Button-Status zu aktualisieren
+});
+
+// Debugging-Hilfsfunktion
+function logCheckoutState() {
+    console.log('=== CHECKOUT STATE ===');
+    console.log('Aktueller Schritt:', currentStep);
+    console.log('Formular-Gültigkeit:', validateAddressForm());
+    console.log('Button-Status:', $('#btn-to-payment').prop('disabled'));
+    console.log('Adressfelder:');
+    console.log('- Street:', $('#street').val());
+    console.log('- Housenumber:', $('#housenumber').val());
+    console.log('- ZIP:', $('#zip').val());
+    console.log('- City:', $('#city').val());
+    console.log('- Country:', $('#country').val());
+    console.log('====================');
+}
+
+// Rufe die Debug-Funktion initial auf
+setTimeout(logCheckoutState, 1000);
+
+// Debug-Button hinzufügen wenn im Entwicklungsmodus
+if (window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1') || window.location.search.includes('debug=1')) {
+    const debugButton = $('<button type="button" class="btn btn-secondary" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">Debug</button>');
+    $('body').append(debugButton);
+    debugButton.on('click', logCheckoutState);
 }
 
 // Event-Listener für Adressauswahl hinzufügen

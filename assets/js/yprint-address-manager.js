@@ -93,12 +93,25 @@
             });
         
             // Adresse auswählen
-            $(document).on('click', '.btn-select-address', function(e) {
-                e.preventDefault();
-                const addressCard = $(this).closest('.address-card');
-                const addressId = addressCard.data('address-id');
-                self.selectAddress(addressId);
-            });
+$(document).on('click', '.btn-select-address', function(e) {
+    e.preventDefault();
+    const addressCard = $(this).closest('.address-card');
+    const addressId = addressCard.data('address-id');
+    
+    // Lade-Status anzeigen
+    $(this).html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
+    $(this).prop('disabled', true);
+    
+    self.selectAddress(addressId);
+});
+
+// Die ganze Adresskarte anklickbar machen (für bessere UX)
+$(document).on('click', '.address-card', function(e) {
+    // Nur triggern, wenn nicht auf einen Button innerhalb der Karte geklickt wurde
+    if (!$(e.target).closest('button').length) {
+        $(this).find('.btn-select-address').trigger('click');
+    }
+});
         
             // Standard-Adresse setzen
             $(document).on('click', '.btn-set-default', function(e) {
@@ -628,15 +641,33 @@ addWooCommerceDefaultAddress: function(grid) {
                         self.closeAddressSelectionView();
                         
                         // Wichtige Änderung: Wir simulieren einen Klick auf den "Weiter zur Zahlung"-Button
-                        // nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
-                        setTimeout(function() {
-                            // Prüfen ob Formular gültig ist und Button nicht deaktiviert
-                            if ($('#btn-to-payment') && !$('#btn-to-payment').prop('disabled')) {
-                                $('#btn-to-payment').trigger('click');
-                            } else {
-                                console.log('Button nicht aktiv oder nicht gefunden');
-                            }
-                        }, 1000); // 1 Sekunde Verzögerung
+// nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
+setTimeout(function() {
+    // Prüfen ob Formular gültig ist und Button nicht deaktiviert
+    const toPaymentBtn = $('#btn-to-payment');
+    console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
+    
+    if (toPaymentBtn.length > 0) {
+        // Aktiviere den Button falls er deaktiviert ist
+        if (toPaymentBtn.prop('disabled')) {
+            console.log('Button war deaktiviert, wird aktiviert');
+            toPaymentBtn.prop('disabled', false);
+        }
+        
+        console.log('Klicke auf "Weiter zur Zahlung"-Button');
+        toPaymentBtn.trigger('click');
+    } else {
+        // Alternativer Ansatz: Direkt zum nächsten Schritt springen
+        console.log('Button nicht gefunden, versuche direkten Schrittwechsel');
+        if (window.showStep && typeof window.showStep === 'function') {
+            window.showStep(2); // Direkt zu Schritt 2 (Zahlung) wechseln
+        } else if (typeof showStep === 'function') {
+            showStep(2);
+        } else {
+            console.error('Weder Button noch showStep-Funktion gefunden');
+        }
+    }
+}, 1000); // 1 Sekunde Verzögerung
                     } else {
                         self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
                         btnSelectAddress.html(originalBtnText);
