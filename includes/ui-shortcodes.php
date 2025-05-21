@@ -478,3 +478,12 @@ function toggle_button_with_popup_shortcode() {
     return ob_get_clean();
 }
 add_shortcode('toggle_button_popup', 'toggle_button_with_popup_shortcode');
+
+
+
+function mobile_top_banner_shortcode() {
+    if (wp_is_mobile()) {
+        echo do_shortcode('[elementor-template id="2575"]');
+    }
+}
+add_action('wp_body_open', 'mobile_top_banner_shortcode');
