@@ -683,8 +683,11 @@ addWooCommerceDefaultAddress: function(grid) {
         openAddressModal: function(addressId = null, addressData = null) {
             const self = this;
             
-            // Debugging-Ausgabe: Zeigt an, dass die Funktion aufgerufen wird und welche Daten sie empfängt
-            console.log('openAddressModal called. addressId:', addressId, 'addressData:', addressData);
+            // Erweiterte Debugging-Ausgabe
+            console.log('=== openAddressModal called ===');
+            console.log('addressId:', addressId);
+            console.log('addressData:', addressData);
+            console.log('Previous modal data:', self.modal.data());
             
             // Formular zurücksetzen
             $('#new-address-form')[0].reset();
@@ -704,8 +707,13 @@ addWooCommerceDefaultAddress: function(grid) {
                     '<i class="fas fa-save mr-2"></i>Adresse speichern';
             }
             
+            // Immer zuerst alle Bearbeitungsdaten zurücksetzen
+            self.modal.removeData('editing-address-id');
+            
             // Wenn Adressdaten übergeben wurden (Bearbeiten-Modus)
             if (addressId && addressData) {
+                console.log('Editing mode detected. Setting address ID:', addressId);
+                
                 // Speichere die ID für später
                 self.modal.data('editing-address-id', addressId);
                 
@@ -724,22 +732,20 @@ addWooCommerceDefaultAddress: function(grid) {
                 $('#new_is_company').prop('checked', isCompany);
                 $('#new_company').val(addressData.company || '');
                 $('#new_company_field').toggle(isCompany);
-
-                console.log('Modal fields populated with address data.'); // Debugging-Ausgabe
+        
+                console.log('Modal fields populated with address data.'); 
+                console.log('Updated modal data:', self.modal.data());
             } else {
-                // Neue Adresse - ID entfernen
-                self.modal.removeData('editing-address-id');
-                console.log('Opening modal for new address.'); // Debugging-Ausgabe
+                console.log('Opening modal for new address.'); 
             }
             
             // WICHTIG: Überschreibe den inline-display-Style explizit!
-            // 'block' ist der Standardwert für ein Div, aber es könnte auch 'flex' sein,
-            // wenn dein Modal ein Flexbox-Layout verwendet. Überprüfe dein CSS.
             self.modal.css('display', 'block'); 
             self.modal.addClass('active');
             
             $('body').css('overflow', 'hidden');
-            console.log('Modal should now be active (CSS class added). Check computed styles for visibility.'); // Debugging-Ausgabe
+            console.log('Modal activated. Current modal data:', self.modal.data());
+            console.log('=== openAddressModal completed ===');
         },
         
         closeAddressModal: function() {
@@ -810,6 +816,12 @@ saveNewAddress: function() {
     const addressId = self.modal.data('editing-address-id');
     const isEditing = !!addressId; // true, wenn addressId einen Wert hat; false sonst
     
+    console.log('saveNewAddress - editing mode check:', {
+        addressId: addressId,
+        isEditing: isEditing,
+        modalData: self.modal.data()
+    });
+    
     const formData = {
         action: 'yprint_save_new_address',
         nonce: yprint_address_ajax.nonce,
@@ -826,10 +838,13 @@ saveNewAddress: function() {
     };
     
     // Wenn wir eine bestehende Adresse bearbeiten, füge die ID hinzu.
-    // DIESE ID MUSS IM PHP-BACKEND AUSGEWERTET WERDEN!
     if (isEditing) {
-        formData.id = addressId; 
+        formData.id = addressId;
+        console.log('Adding ID to form data for editing:', addressId);
     }
+    
+    // Debug-Ausgabe des vollständigen formData-Objekts
+    console.log('Complete form data being sent:', formData);
     
     // Loading state
     const saveButton = $('.btn-save-address');
@@ -841,6 +856,7 @@ saveNewAddress: function() {
         type: 'POST',
         data: formData,
         success: function(response) {
+            console.log('AJAX response:', response);
             if (response.success) {
                 self.closeAddressModal(); // Schließt das Modal bei Erfolg
                 self.loadSavedAddresses(); // Lädt die Adressen neu, um Änderungen anzuzeigen
@@ -849,7 +865,8 @@ saveNewAddress: function() {
                 self.showFormError(response.data.message || 'Fehler beim Speichern');
             }
         },
-        error: function() {
+        error: function(xhr, status, error) {
+            console.error('AJAX error:', {xhr: xhr, status: status, error: error});
             self.showFormError('Fehler beim Speichern der Adresse');
         },
         complete: function() {

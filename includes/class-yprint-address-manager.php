@@ -393,8 +393,18 @@ public function save_new_user_address($address_data) {
 
     $existing_addresses = $this->get_user_addresses($user_id);
 
-    // Prüfen, ob wir eine bestehende Adresse bearbeiten
-    $is_editing = isset($address_data['id']) && !empty($address_data['id']) && isset($existing_addresses[$address_data['id']]);
+    // VERBESSERT: Klare Identifikation ob wir im Bearbeitungsmodus sind
+    // Prüfe, ob eine ID übergeben wurde
+    $has_id = isset($address_data['id']) && !empty($address_data['id']);
+    // Prüfe, ob eine Adresse mit dieser ID bereits existiert
+    $is_editing = $has_id && isset($existing_addresses[$address_data['id']]);
+
+    error_log('YPrint Debug: Edit check - has_id: ' . ($has_id ? 'true' : 'false') . ', is_editing: ' . ($is_editing ? 'true' : 'false'));
+    
+    if ($has_id) {
+        error_log('YPrint Debug: Provided ID: ' . $address_data['id']);
+        error_log('YPrint Debug: Existing IDs: ' . implode(', ', array_keys($existing_addresses)));
+    }
 
     // Begrenzung auf 3 Adressen prüfen, aber nur wenn es eine neue Adresse ist
     $max_addresses = 3;
@@ -618,21 +628,47 @@ public function save_new_user_address($address_data) {
      * AJAX-Handler zum Speichern einer neuen Adresse.
      */
     public function handle_save_address_ajax() {
+        error_log('=== YPrint Debug: handle_save_address_ajax START ===');
+        
         if (!is_user_logged_in()) {
+            error_log('YPrint Debug: User not logged in!');
             wp_send_json_error(array('message' => __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin')));
+            return;
         }
-
-        check_ajax_referer('yprint_save_address_action', 'yprint_address_nonce');
-
-        $address_data = $_POST; // Daten aus dem AJAX-Request
-
+        
+        // Nonce-Prüfung
+        if (!check_ajax_referer('yprint_save_address_action', 'nonce', false)) {
+            error_log('YPrint Debug: Nonce verification failed! Provided nonce: ' . ($_POST['nonce'] ?? 'none'));
+            wp_send_json_error(array('message' => __('Sicherheitsprüfung fehlgeschlagen. Bitte laden Sie die Seite neu.', 'yprint-plugin')));
+            return;
+        }
+        
+        // Debug-Ausgabe der POST-Daten
+        error_log('YPrint Debug: Received POST data: ' . print_r($_POST, true));
+        
+        // Adressdaten aus dem AJAX-Request extrahieren
+        $address_data = $_POST;
+        
+        // Wichtig: Ausdrücklich prüfen, ob eine ID übergeben wurde
+        error_log('YPrint Debug: Checking for address ID in request...');
+        if (isset($address_data['id']) && !empty($address_data['id'])) {
+            error_log('YPrint Debug: Address ID found in request: ' . $address_data['id']);
+        } else {
+            error_log('YPrint Debug: No address ID found in request. This will create a new address.');
+        }
+        
+        // Adresse speichern
         $result = $this->save_new_user_address($address_data);
-
+        
         if (is_wp_error($result)) {
+            error_log('YPrint Debug: Error saving address: ' . $result->get_error_message());
             wp_send_json_error(array('message' => $result->get_error_message()));
         } else {
+            error_log('YPrint Debug: Address saved successfully. ID: ' . ($result['address_id'] ?? 'unknown'));
             wp_send_json_success($result);
         }
+        
+        error_log('=== YPrint Debug: handle_save_address_ajax END ===');
     }
 
     /**
