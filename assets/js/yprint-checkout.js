@@ -52,6 +52,17 @@ function validateAddressForm() {
         'first_name', 'last_name', 'street', 'housenumber', 'zip', 'city', 'country'
     ];
 
+    // Prüfen, ob eine gespeicherte Adresse ausgewählt wurde
+    // Wenn ja, müssen keine Felder validiert werden
+    const selectedAddress = $('.address-card.selected').length > 0;
+    if (selectedAddress) {
+        console.log('Eine gespeicherte Adresse ist ausgewählt. Überspringen der Validierung.');
+        if (btnToPayment) {
+            btnToPayment.disabled = false;
+        }
+        return true;
+    }
+
     requiredFields.forEach(fieldId => {
         const field = document.getElementById(fieldId);
         if (field) { // Prüfe, ob das Feld existiert

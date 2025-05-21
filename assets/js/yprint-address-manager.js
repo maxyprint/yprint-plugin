@@ -607,6 +607,11 @@ addWooCommerceDefaultAddress: function(grid) {
             
             this.selectedAddressId = addressId;
             
+            // Loading-Anzeige, optional
+            const btnSelectAddress = $(`.address-card[data-address-id="${addressId}"] .btn-select-address`);
+            const originalBtnText = btnSelectAddress.html();
+            btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
+            
             // Adresse für Checkout setzen und Formular füllen
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
@@ -621,12 +626,25 @@ addWooCommerceDefaultAddress: function(grid) {
                         self.fillAddressForm(response.data.address_data);
                         self.showMessage('Adresse ausgewählt und für Checkout gesetzt.', 'success');
                         self.closeAddressSelectionView();
+                        
+                        // Wichtige Änderung: Wir simulieren einen Klick auf den "Weiter zur Zahlung"-Button
+                        // nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
+                        setTimeout(function() {
+                            // Prüfen ob Formular gültig ist und Button nicht deaktiviert
+                            if ($('#btn-to-payment') && !$('#btn-to-payment').prop('disabled')) {
+                                $('#btn-to-payment').trigger('click');
+                            } else {
+                                console.log('Button nicht aktiv oder nicht gefunden');
+                            }
+                        }, 1000); // 1 Sekunde Verzögerung
                     } else {
                         self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
+                        btnSelectAddress.html(originalBtnText);
                     }
                 },
                 error: function() {
                     self.showMessage('Fehler beim Setzen der Adresse für Checkout', 'error');
+                    btnSelectAddress.html(originalBtnText);
                 }
             });
         },
