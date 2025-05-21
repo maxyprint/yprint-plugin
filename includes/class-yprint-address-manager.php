@@ -684,7 +684,7 @@ public function save_new_user_address($address_data) {
     }
 
     /**
-     * Enqueue styles and scripts for the address manager.
+     * Enqueue styles and scripts for the address manager
      */
     public function enqueue_styles_and_scripts() {
         // Beispiel: Laden Sie spezifische CSS/JS-Dateien, wenn das Modal verwendet wird
