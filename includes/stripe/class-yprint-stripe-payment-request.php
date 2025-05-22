@@ -445,32 +445,91 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
     }
     
     /**
-     * AJAX: Get cart details
-     */
-    public function ajax_get_cart_details() {
-        check_ajax_referer('yprint-stripe-get-cart-details', 'security');
-        
-        if (!defined('WOOCOMMERCE_CART')) {
-            define('WOOCOMMERCE_CART', true);
-        }
-        
-        WC()->cart->calculate_totals();
-        
-        $currency = get_woocommerce_currency();
-        
-        // Set mandatory payment details
-        $data = array(
-            'shipping_required' => WC()->cart->needs_shipping(),
-            'order_data' => array(
-                'currency' => strtolower($currency),
-                'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
-            ),
-        );
-        
-        $data['order_data'] += $this->build_display_items();
-        
-        wp_send_json_success($data);
+ * AJAX: Get cart details
+ */
+public function ajax_get_cart_details() {
+    check_ajax_referer('yprint-stripe-get-cart-details', 'security');
+    
+    if (!defined('WOOCOMMERCE_CART')) {
+        define('WOOCOMMERCE_CART', true);
     }
+    
+    WC()->cart->calculate_totals();
+    
+    $currency = get_woocommerce_currency();
+    
+    // Get default shipping address from Address Manager or WooCommerce
+    $default_address = $this->get_default_shipping_address();
+    
+    // Set mandatory payment details
+    $data = array(
+        'shipping_required' => WC()->cart->needs_shipping(),
+        'order_data' => array(
+            'currency' => strtolower($currency),
+            'country_code' => $default_address['country'] ?? substr(get_option('woocommerce_default_country'), 0, 2),
+        ),
+    );
+    
+    $data['order_data'] += $this->build_display_items();
+    
+    // Add default address data for pre-filling
+    if (!empty($default_address)) {
+        $data['default_address'] = $default_address;
+    }
+    
+    wp_send_json_success($data);
+}
+
+/**
+ * Get default shipping address from Address Manager
+ *
+ * @return array Default shipping address
+ */
+private function get_default_shipping_address() {
+    if (!is_user_logged_in()) {
+        return array();
+    }
+    
+    // Try to get from Address Manager first
+    if (class_exists('YPrint_Address_Manager')) {
+        $address_manager = YPrint_Address_Manager::get_instance();
+        $user_addresses = $address_manager->get_user_addresses(get_current_user_id());
+        
+        // Find default address
+        foreach ($user_addresses as $address) {
+            if (isset($address['is_default']) && $address['is_default']) {
+                return array(
+                    'first_name' => $address['first_name'] ?? '',
+                    'last_name' => $address['last_name'] ?? '',
+                    'company' => $address['company'] ?? '',
+                    'address_1' => $address['address_1'] ?? '',
+                    'address_2' => $address['address_2'] ?? '',
+                    'city' => $address['city'] ?? '',
+                    'postcode' => $address['postcode'] ?? '',
+                    'country' => $address['country'] ?? 'DE',
+                    'phone' => '', // Address Manager doesn't store phone
+                );
+            }
+        }
+    }
+    
+    // Fallback to WooCommerce customer data
+    if (WC()->customer) {
+        return array(
+            'first_name' => WC()->customer->get_shipping_first_name(),
+            'last_name' => WC()->customer->get_shipping_last_name(),
+            'company' => WC()->customer->get_shipping_company(),
+            'address_1' => WC()->customer->get_shipping_address_1(),
+            'address_2' => WC()->customer->get_shipping_address_2(),
+            'city' => WC()->customer->get_shipping_city(),
+            'postcode' => WC()->customer->get_shipping_postcode(),
+            'country' => WC()->customer->get_shipping_country(),
+            'phone' => WC()->customer->get_billing_phone(),
+        );
+    }
+    
+    return array();
+}
     
     /**
      * Build display items for payment request
