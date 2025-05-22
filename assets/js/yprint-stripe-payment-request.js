@@ -32,6 +32,81 @@
         // Store detected payment method type (apple_pay, google_pay, etc.)
         paymentMethodType: 'payment_request', // Default
 
+/**
+         * Get selected address from Address Manager
+         *
+         * @return object|null Selected address data or null
+         */
+getSelectedAddressFromManager: function() {
+    // Check if Address Manager is available
+    if (typeof window.YPrintAddressManager === 'undefined') {
+        console.log('YPrint Stripe Payment Request: Address Manager not available');
+        return null;
+    }
+    
+    // Get selected address ID from Address Manager
+    var selectedAddressId = window.YPrintAddressManager.selectedAddressId;
+    if (!selectedAddressId) {
+        console.log('YPrint Stripe Payment Request: No address selected in Address Manager');
+        return null;
+    }
+    
+    // Try to get address data from selected address radio button
+    var selectedRadio = document.querySelector('input[name="selected_address"]:checked');
+    if (selectedRadio && selectedRadio.dataset.addressData) {
+        try {
+            var addressData = JSON.parse(decodeURIComponent(selectedRadio.dataset.addressData));
+            console.log('YPrint Stripe Payment Request: Using address from Address Manager:', addressData);
+            return {
+                id: selectedAddressId,
+                data: addressData
+            };
+        } catch (e) {
+            console.error('YPrint Stripe Payment Request: Error parsing address data:', e);
+        }
+    }
+    
+    return null;
+},
+
+/**
+ * Update payment request with selected address
+ */
+updatePaymentRequestWithSelectedAddress: function() {
+    if (!this.paymentRequest) {
+        return;
+    }
+    
+    var selectedAddress = this.getSelectedAddressFromManager();
+    if (!selectedAddress || !selectedAddress.data) {
+        return;
+    }
+    
+    var address = selectedAddress.data;
+    
+    // Update shipping address in payment request if shipping is required
+    if (this.paymentRequest.shippingOptions) {
+        console.log('YPrint Stripe Payment Request: Updating shipping with selected address');
+        
+        // Trigger shipping address change to recalculate totals
+        var shippingAddress = {
+            country: address.country || 'DE',
+            region: '', // Address Manager doesn't store region/state
+            city: address.city || '',
+            postalCode: address.postcode || '',
+            addressLine: [address.address_1 || '', address.address_2 || ''].filter(Boolean)
+        };
+        
+        // This will trigger the shippingaddresschange event and update totals
+        this.updateShippingOptions({
+            shippingAddress: shippingAddress,
+            updateWith: function(result) {
+                console.log('YPrint Stripe Payment Request: Address updated, result:', result);
+            }
+        });
+    }
+},
+
         /**
          * Initialize Payment Request
          */
@@ -849,9 +924,13 @@ processPayment: function(paymentMethodId, event) {
         }
     };
 
+
+    
     // Initialize on document ready
     $(document).ready(function() {
+        
         YPrintStripePaymentRequest.init();
+        
     });
 
      // Make globally accessible for debugging
