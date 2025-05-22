@@ -244,8 +244,21 @@ $(document).on('click', '.address-card', function(e) {
             });
         
             $(document).on('click', '.btn-save-address', function() {
+                console.log('YPrint Debug: .btn-save-address wurde geklickt.');
+            
+                console.log('YPrint Debug: this (das geklickte Element):', this);
+                console.log('YPrint Debug: self (der Kontext des Address Managers):', self);
+                console.log('YPrint Debug: YPrintAddressManager Objekt:', YPrintAddressManager);
+            
+                console.log('YPrint Debug: Rufe self.saveNewAddress() auf...');
                 self.saveNewAddress();
+                console.log('YPrint Debug: self.saveNewAddress() wurde beendet.');
+            
+                console.log('YPrint Debug: Rufe YPrintAddressManager.triggerSaveNewAddress() auf...');
                 YPrintAddressManager.triggerSaveNewAddress();
+                console.log('YPrint Debug: YPrintAddressManager.triggerSaveNewAddress() wurde beendet.');
+            
+                console.log('YPrint Debug: Ende des .btn-save-address Klick-Event-Handlers.');
             });
         
             // ESC-Taste zum Schließen
