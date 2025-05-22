@@ -20,6 +20,91 @@
             saveAddressToggle: null
         },
         
+
+        triggerSaveNewAddress: function() {
+            const self = this;
+            const form = $('#new-address-form');
+            const saveButton = $('.btn-save-address');
+            const originalText = saveButton.html();
+        
+            console.log('YPrint Debug: triggerSaveNewAddress() wurde aufgerufen.');
+        
+            // Deaktiviere den Button und zeige einen Ladezustand
+            saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...');
+            console.log('YPrint Debug: Speichern-Button deaktiviert und Ladeanzeige aktiviert.');
+        
+            // Formularvalidierung
+            console.log('YPrint Debug: Starte Formularvalidierung.');
+            if (!this.validateForm()) {
+                console.log('YPrint Debug: Formularvalidierung fehlgeschlagen.');
+                this.showFormError('Bitte füllen Sie alle Pflichtfelder aus.');
+                saveButton.prop('disabled', false).html(originalText);
+                console.log('YPrint Debug: Speichern-Button wieder aktiviert.');
+                return;
+            }
+            console.log('YPrint Debug: Formularvalidierung erfolgreich.');
+        
+            // Prüfen, ob wir im Bearbeitungs-Modus sind (Vorhandensein einer Adress-ID im Modal-Data-Attribut oder im versteckten Feld)
+            let addressId = self.modal.data('editing-address-id') || $('#new_address_edit_id').val();
+            const isEditing = !!addressId;
+            console.log('YPrint Debug: Bearbeitungsmodus:', isEditing, 'Adress-ID:', addressId);
+        
+            // Sammle die Formulardaten
+            const formData = {
+                action: 'yprint_save_address',
+                yprint_address_nonce: yprint_address_ajax.nonce,
+                name: $('#new_address_name').val() || ('Adresse vom ' + new Date().toLocaleDateString('de-DE')),
+                first_name: $('#new_address_first_name').val(),
+                last_name: $('#new_last_name').val(),
+                company: $('#new_company').val(),
+                address_1: $('#new_address_1').val(),
+                address_2: $('#new_address_2').val(),
+                postcode: $('#new_postcode').val(),
+                city: $('#new_city').val(),
+                country: $('#new_country').val(),
+                is_company: $('#new_is_company').is(':checked' ? 1 : 0) // Sende 1 für true, 0 für false
+            };
+            console.log('YPrint Debug: Formulardaten gesammelt:', formData);
+        
+            // Füge die Adress-ID hinzu, wenn wir eine bestehende Adresse bearbeiten
+            if (isEditing) {
+                formData.id = addressId;
+                console.log('YPrint Debug: Adress-ID für Bearbeitung hinzugefügt:', addressId);
+            }
+        
+            // AJAX-Anfrage zum Speichern/Aktualisieren der Adresse
+            console.log('YPrint Debug: Starte AJAX-Anfrage zum Speichern/Aktualisieren.');
+            $.ajax({
+                url: yprint_address_ajax.ajax_url,
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    console.log('YPrint Debug: AJAX-Antwort erhalten:', response);
+                    if (response.success) {
+                        console.log('YPrint Debug: Speichern/Aktualisieren erfolgreich.');
+                        self.closeAddressModal(); // Schließe das Modal nach erfolgreicher Speicherung/Aktualisierung
+                        console.log('YPrint Debug: Adressmodal geschlossen.');
+                        self.loadSavedAddresses(); // Lade die aktualisierten Adressen neu
+                        console.log('YPrint Debug: loadSavedAddresses() aufgerufen, um Adressen neu zu laden.');
+                        self.showMessage(isEditing ? 'Adresse erfolgreich aktualisiert!' : 'Adresse erfolgreich gespeichert!', 'success');
+                        console.log('YPrint Debug: Erfolgsmeldung angezeigt.');
+                    } else {
+                        console.log('YPrint Debug: Fehler beim Speichern/Aktualisieren:', response.data.message);
+                        self.showFormError(response.data.message || 'Fehler beim Speichern der Adresse.');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('YPrint Debug: AJAX-Fehler beim Speichern der Adresse:', error);
+                    self.showFormError('Ein unerwarteter Fehler ist beim Speichern aufgetreten.');
+                },
+                complete: function() {
+                    // Reaktiviere den Button und setze den ursprünglichen Text zurück
+                    saveButton.prop('disabled', false).html(originalText);
+                    console.log('YPrint Debug: Speichern-Button wieder aktiviert.');
+                }
+            });
+        },
+
         init: function() {
             console.log('=== YPrint Address Manager: Starting Initialization ===');
             console.log('Current URL:', window.location.href);
@@ -935,89 +1020,6 @@ saveNewAddress: function() {
     });
 },
 
-triggerSaveNewAddress: function() {
-    const self = this;
-    const form = $('#new-address-form');
-    const saveButton = $('.btn-save-address');
-    const originalText = saveButton.html();
-
-    console.log('YPrint Debug: triggerSaveNewAddress() wurde aufgerufen.');
-
-    // Deaktiviere den Button und zeige einen Ladezustand
-    saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...');
-    console.log('YPrint Debug: Speichern-Button deaktiviert und Ladeanzeige aktiviert.');
-
-    // Formularvalidierung
-    console.log('YPrint Debug: Starte Formularvalidierung.');
-    if (!this.validateForm()) {
-        console.log('YPrint Debug: Formularvalidierung fehlgeschlagen.');
-        this.showFormError('Bitte füllen Sie alle Pflichtfelder aus.');
-        saveButton.prop('disabled', false).html(originalText);
-        console.log('YPrint Debug: Speichern-Button wieder aktiviert.');
-        return;
-    }
-    console.log('YPrint Debug: Formularvalidierung erfolgreich.');
-
-    // Prüfen, ob wir im Bearbeitungs-Modus sind (Vorhandensein einer Adress-ID im Modal-Data-Attribut oder im versteckten Feld)
-    let addressId = self.modal.data('editing-address-id') || $('#new_address_edit_id').val();
-    const isEditing = !!addressId;
-    console.log('YPrint Debug: Bearbeitungsmodus:', isEditing, 'Adress-ID:', addressId);
-
-    // Sammle die Formulardaten
-    const formData = {
-        action: 'yprint_save_address',
-        yprint_address_nonce: yprint_address_ajax.nonce,
-        name: $('#new_address_name').val() || ('Adresse vom ' + new Date().toLocaleDateString('de-DE')),
-        first_name: $('#new_address_first_name').val(),
-        last_name: $('#new_last_name').val(),
-        company: $('#new_company').val(),
-        address_1: $('#new_address_1').val(),
-        address_2: $('#new_address_2').val(),
-        postcode: $('#new_postcode').val(),
-        city: $('#new_city').val(),
-        country: $('#new_country').val(),
-        is_company: $('#new_is_company').is(':checked' ? 1 : 0) // Sende 1 für true, 0 für false
-    };
-    console.log('YPrint Debug: Formulardaten gesammelt:', formData);
-
-    // Füge die Adress-ID hinzu, wenn wir eine bestehende Adresse bearbeiten
-    if (isEditing) {
-        formData.id = addressId;
-        console.log('YPrint Debug: Adress-ID für Bearbeitung hinzugefügt:', addressId);
-    }
-
-    // AJAX-Anfrage zum Speichern/Aktualisieren der Adresse
-    console.log('YPrint Debug: Starte AJAX-Anfrage zum Speichern/Aktualisieren.');
-    $.ajax({
-        url: yprint_address_ajax.ajax_url,
-        type: 'POST',
-        data: formData,
-        success: function(response) {
-            console.log('YPrint Debug: AJAX-Antwort erhalten:', response);
-            if (response.success) {
-                console.log('YPrint Debug: Speichern/Aktualisieren erfolgreich.');
-                self.closeAddressModal(); // Schließe das Modal nach erfolgreicher Speicherung/Aktualisierung
-                console.log('YPrint Debug: Adressmodal geschlossen.');
-                self.loadSavedAddresses(); // Lade die aktualisierten Adressen neu
-                console.log('YPrint Debug: loadSavedAddresses() aufgerufen, um Adressen neu zu laden.');
-                self.showMessage(isEditing ? 'Adresse erfolgreich aktualisiert!' : 'Adresse erfolgreich gespeichert!', 'success');
-                console.log('YPrint Debug: Erfolgsmeldung angezeigt.');
-            } else {
-                console.log('YPrint Debug: Fehler beim Speichern/Aktualisieren:', response.data.message);
-                self.showFormError(response.data.message || 'Fehler beim Speichern der Adresse.');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('YPrint Debug: AJAX-Fehler beim Speichern der Adresse:', error);
-            self.showFormError('Ein unerwarteter Fehler ist beim Speichern aufgetreten.');
-        },
-        complete: function() {
-            // Reaktiviere den Button und setze den ursprünglichen Text zurück
-            saveButton.prop('disabled', false).html(originalText);
-            console.log('YPrint Debug: Speichern-Button wieder aktiviert.');
-        }
-    });
-},
         
         deleteAddress: function(addressId) {
             const self = this;
