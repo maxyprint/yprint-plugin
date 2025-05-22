@@ -78,8 +78,16 @@ public function render_checkout_shortcode($atts) {
         'debug' => 'no',
     ), $atts, 'yprint_checkout');
     
+    // Ensure WooCommerce is active and cart is not empty
+    if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
+        return '<div class="yprint-checkout-error"><p>' . __('Ihr Warenkorb ist leer. <a href="' . wc_get_page_permalink('shop') . '">Weiter einkaufen</a>', 'yprint-plugin') . '</p></div>';
+    }
+    
     // Ensure CSS is loaded for this page
     $this->enqueue_checkout_assets();
+    
+    // Prepare real cart data for templates
+    $this->prepare_cart_data_for_templates();
     
     // Start output buffer
     ob_start();
@@ -256,6 +264,90 @@ wp_enqueue_style(
             'message' => __('Checkout processed successfully', 'yprint-plugin'),
             'redirect_url' => home_url('/thank-you/'),
         ));
+    }
+
+/**
+     * Prepare real WooCommerce cart data for checkout templates
+     */
+    private function prepare_cart_data_for_templates() {
+        global $cart_items_data, $cart_totals_data;
+        
+        if (!WC()->cart || WC()->cart->is_empty()) {
+            $cart_items_data = array();
+            $cart_totals_data = array(
+                'subtotal' => 0,
+                'shipping' => 0,
+                'discount' => 0,
+                'vat' => 0,
+                'total' => 0
+            );
+            return;
+        }
+        
+        // Prepare cart items with design data
+        $cart_items_data = array();
+        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+            $_product = $cart_item['data'];
+            
+            if (!$_product || !$_product->exists()) {
+                continue;
+            }
+            
+            $item_data = array(
+                'id' => $cart_item['product_id'],
+                'name' => $_product->get_name(),
+                'price' => (float) $_product->get_price(),
+                'quantity' => $cart_item['quantity'],
+                'image' => wp_get_attachment_image_url($_product->get_image_id(), 'thumbnail'),
+                'cart_item_key' => $cart_item_key
+            );
+            
+            // Add design-specific data if available
+            if (isset($cart_item['print_design'])) {
+                $design = $cart_item['print_design'];
+                
+                // Override with design-specific data
+                $item_data['name'] = $design['name'] ?? $item_data['name'];
+                $item_data['design_id'] = $design['design_id'] ?? null;
+                $item_data['variation_name'] = $design['variation_name'] ?? '';
+                $item_data['size_name'] = $design['size_name'] ?? '';
+                
+                // Use design preview image if available
+                if (!empty($design['preview_url'])) {
+                    $item_data['image'] = $design['preview_url'];
+                }
+                
+                // Use calculated design price if available
+                if (!empty($design['calculated_price'])) {
+                    $item_data['price'] = (float) $design['calculated_price'];
+                }
+                
+                // Add design metadata for display
+                $item_data['is_design_product'] = true;
+                $item_data['design_details'] = array();
+                
+                if (!empty($design['variation_name'])) {
+                    $item_data['design_details'][] = __('Farbe: ', 'yprint-plugin') . $design['variation_name'];
+                }
+                
+                if (!empty($design['size_name'])) {
+                    $item_data['design_details'][] = __('Größe: ', 'yprint-plugin') . $design['size_name'];
+                }
+            }
+            
+            $cart_items_data[] = $item_data;
+        }
+        
+        // Calculate totals
+        WC()->cart->calculate_totals();
+        
+        $cart_totals_data = array(
+            'subtotal' => (float) WC()->cart->get_subtotal(),
+            'shipping' => (float) WC()->cart->get_shipping_total(),
+            'discount' => (float) WC()->cart->get_discount_total(),
+            'vat' => (float) WC()->cart->get_total_tax(),
+            'total' => (float) WC()->cart->get_total('edit')
+        );
     }
 
     /**
