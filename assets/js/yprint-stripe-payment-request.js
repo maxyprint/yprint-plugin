@@ -702,38 +702,42 @@
         },
 
         /**
-         * Process Payment
-         */
-        processPayment: function(paymentMethodId, event) {
-            var self = this;
-            var params = yprint_stripe_payment_request_params;
+ * Process Payment
+ */
+processPayment: function(paymentMethodId, event) {
+    var self = this;
+    var params = yprint_stripe_payment_request_params;
 
-             console.log('YPrint Stripe Payment Request: processPayment called with method ID:', paymentMethodId);
+     console.log('YPrint Stripe Payment Request: processPayment called with method ID:', paymentMethodId);
 
-             // Ensure nonce is available
-             if (!params.nonce || !params.nonce.payment) {
-                 console.error('YPrint Stripe Payment Request: Nonce for payment is missing.');
-                 event.complete('fail');
-                 // Optionally show an error message
-                 return;
-             }
+     // Ensure nonce is available
+     if (!params.nonce || !params.nonce.payment) {
+         console.error('YPrint Stripe Payment Request: Nonce for payment is missing.');
+         event.complete('fail');
+         return;
+     }
 
-            // Ensure AJAX URL is correctly formed
-            var ajaxUrl = params.ajax_url;
-             if (ajaxUrl.indexOf('%%endpoint%%') > -1) {
-                  ajaxUrl = ajaxUrl.replace('%%endpoint%%', 'yprint_stripe_process_payment');
-             } else {
-                  ajaxUrl = params.ajax_url + '?action=yprint_stripe_process_payment';
-             }
-             console.log('YPrint Stripe Payment Request: Calling processPayment AJAX endpoint:', ajaxUrl);
+    // Ensure AJAX URL is correctly formed
+    var ajaxUrl = params.ajax_url;
+     if (ajaxUrl.indexOf('%%endpoint%%') > -1) {
+          ajaxUrl = ajaxUrl.replace('%%endpoint%%', 'yprint_stripe_process_payment');
+     } else {
+          ajaxUrl = params.ajax_url + '?action=yprint_stripe_process_payment';
+     }
+     console.log('YPrint Stripe Payment Request: Calling processPayment AJAX endpoint:', ajaxUrl);
 
+    // Get selected address from Address Manager if available
+    var selectedAddress = this.getSelectedAddressFromManager();
 
-            // Gather payment and customer data
-            var paymentData = {
-                security: params.nonce.payment,
-                payment_method_id: paymentMethodId,
-                payment_request_type: this.paymentMethodType || 'payment_request'
-            };
+    // Gather payment and customer data
+    var paymentData = {
+        security: params.nonce.payment,
+        payment_method_id: paymentMethodId,
+        payment_request_type: this.paymentMethodType || 'payment_request',
+        // Include selected address from Address Manager
+        selected_address_id: selectedAddress ? selectedAddress.id : null,
+        use_address_manager: selectedAddress ? 'yes' : 'no'
+    };
 
             // Add billing details if available from the event
             if (event.payerName) {
