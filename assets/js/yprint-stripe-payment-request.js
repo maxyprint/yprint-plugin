@@ -179,6 +179,7 @@ updatePaymentRequestWithSelectedAddress: function() {
             this.initialized = true;
         },
 
+
         /**
          * Initialize Payment Request (Cart/Checkout or Product)
          */
@@ -273,7 +274,44 @@ updatePaymentRequestWithSelectedAddress: function() {
                      self.handlePaymentMethodReceived(event);
                 }
             });
+
+            // Initialize Payment Request
+            this.initPaymentRequest();
+
+            // Listen for Address Manager changes
+            this.bindAddressManagerEvents();
+
+            this.initialized = true;
         },
+
+        /**
+         * Bind events from Address Manager
+         */
+        bindAddressManagerEvents: function() {
+            var self = this;
+            
+            // Listen for address selection changes
+            $(document).on('change', 'input[name="selected_address"]', function() {
+                console.log('YPrint Stripe Payment Request: Address selection changed');
+                // Small delay to ensure Address Manager has updated
+                setTimeout(function() {
+                    self.updatePaymentRequestWithSelectedAddress();
+                }, 100);
+            });
+            
+            // Listen for when addresses are loaded
+            $(document).on('yprint_addresses_loaded', function() {
+                console.log('YPrint Stripe Payment Request: Addresses loaded, updating payment request');
+                self.updatePaymentRequestWithSelectedAddress();
+            });
+            
+            // Listen for address manager initialization
+            $(document).on('yprint_address_manager_ready', function() {
+                console.log('YPrint Stripe Payment Request: Address Manager ready');
+                self.updatePaymentRequestWithSelectedAddress();
+            });
+        },
+        
 
         /**
          * Setup Payment Request Button
