@@ -110,6 +110,16 @@
             console.log('Current URL:', window.location.href);
             console.log('User Agent:', navigator.userAgent);
             
+            // DEBUG: Event-Bubbling-Test
+            $(document).on('click', function (e) {
+                if ($(e.target).hasClass('btn-save-address') || $(e.target).closest('.btn-save-address').length) {
+                    console.log('🧪 document click reached for btn-save-address', e.target);
+                }
+            });
+            
+            // DEBUG: Shadow DOM Test
+            this.checkForShadowDOM();
+            
             // DOM Elements
             this.elements.modal = $('#new-address-modal');
             this.elements.addressContainer = $('.yprint-saved-addresses');
@@ -243,23 +253,37 @@ $(document).on('click', '.address-card', function(e) {
                 self.closeAddressModal();
             });
         
-            $(document).on('click', '.btn-save-address', function() {
-                console.log('YPrint Debug: .btn-save-address wurde geklickt.');
-            
-                console.log('YPrint Debug: this (das geklickte Element):', this);
-                console.log('YPrint Debug: self (der Kontext des Address Managers):', self);
-                console.log('YPrint Debug: YPrintAddressManager Objekt:', YPrintAddressManager);
-            
-                console.log('YPrint Debug: Rufe self.saveNewAddress() auf...');
-                self.saveNewAddress();
-                console.log('YPrint Debug: self.saveNewAddress() wurde beendet.');
-            
-                console.log('YPrint Debug: Rufe YPrintAddressManager.triggerSaveNewAddress() auf...');
-                YPrintAddressManager.triggerSaveNewAddress();
-                console.log('YPrint Debug: YPrintAddressManager.triggerSaveNewAddress() wurde beendet.');
-            
-                console.log('YPrint Debug: Ende des .btn-save-address Klick-Event-Handlers.');
-            });
+            // Mehrschichtiger Event-Binding-Ansatz
+$(document).on('click', '.btn-save-address', function(e) {
+    console.log('📢 Delegierter Click-Handler erreicht!', e.target);
+    e.preventDefault();
+    e.stopPropagation();
+    self.saveNewAddress();
+    self.triggerSaveNewAddress();
+});
+
+// Backup: Direkter Event-Handler für den Fall, dass Delegation fehlschlägt
+$(document).on('DOMNodeInserted', function(e) {
+    if ($(e.target).hasClass('btn-save-address') || $(e.target).find('.btn-save-address').length) {
+        console.log('🔄 Neue .btn-save-address Elemente erkannt, binde direkte Handler');
+        $('.btn-save-address').off('click.backup').on('click.backup', function(e) {
+            console.log('🎯 Backup direkter Click-Handler ausgelöst!');
+            e.preventDefault();
+            e.stopPropagation();
+            self.saveNewAddress();
+            self.triggerSaveNewAddress();
+        });
+    }
+});
+
+// Sofortige Bindung für bereits existierende Buttons
+$('.btn-save-address').off('click.direct').on('click.direct', function(e) {
+    console.log('🎯 Direkter Click-Handler ausgelöst!');
+    e.preventDefault();
+    e.stopPropagation();
+    self.saveNewAddress();
+    self.triggerSaveNewAddress();
+});
         
             // ESC-Taste zum Schließen
             $(document).on('keyup', function(e) {
@@ -578,6 +602,32 @@ debugAjaxConfig: function() {
     console.log('jQuery version:', $.fn.jquery);
     console.log('=== End Debug AJAX Config ===');
 },
+
+checkForShadowDOM: function() {
+    setTimeout(() => {
+        const btn = document.querySelector('.btn-save-address');
+        if (btn) {
+            let el = btn;
+            while (el) {
+                if (el instanceof ShadowRoot) {
+                    console.warn('👻 Button ist in einem Shadow DOM!');
+                    this.handleShadowDOMBinding(el);
+                    return;
+                }
+                el = el.parentNode || el.host;
+            }
+            console.log('✅ Button ist NICHT in einem Shadow DOM');
+        }
+    }, 1000);
+},
+
+handleShadowDOMBinding: function(shadowRoot) {
+    console.log('🔧 Binde Event-Listener im Shadow DOM');
+    $(shadowRoot).on('click', '.btn-save-address', (e) => {
+        console.log('📢 Shadow DOM Click-Handler erreicht!');
+        this.saveNewAddress();
+    });
+},
         
         createAddressCard: function(address) {
             const isDefault = address.is_default;
@@ -836,6 +886,21 @@ setTimeout(function() {
             if (addressData) {
                 console.log('openAddressModal (ID Handling): Address data:', JSON.stringify(addressData));
             }
+            
+            // Modal-spezifische Event-Bindung als zusätzliche Sicherheit
+            setTimeout(() => {
+                const modalSaveBtn = self.modal.find('.btn-save-address');
+                if (modalSaveBtn.length) {
+                    console.log('🔧 Binde Modal-spezifischen Save-Handler');
+                    modalSaveBtn.off('click.modal').on('click.modal', function(e) {
+                        console.log('🎯 Modal Save-Handler ausgelöst!');
+                        e.preventDefault();
+                        e.stopPropagation();
+                        self.saveNewAddress();
+                        self.triggerSaveNewAddress();
+                    });
+                }
+            }, 100);
             
             // Formular zurücksetzen
             $('#new-address-form')[0].reset();
