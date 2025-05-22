@@ -203,21 +203,46 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
     <div id="checkout-cart-summary-items" class="items">
         <?php if ( ! empty( $cart_items_data ) ) : ?>
             <?php foreach ( $cart_items_data as $item ) : ?>
-                <div class="item">
+                <div class="item <?php echo isset($item['is_design_product']) && $item['is_design_product'] ? 'design-product-item' : ''; ?>">
                     <div style="display: flex; align-items: center;">
-                        <?php if ( ! empty( $item['image'] ) ) : ?>
-                            <img src="<?php echo esc_url( $item['image'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" class="item-image">
-                        <?php endif; ?>
+                        <div class="item-image-container">
+                            <?php if ( ! empty( $item['image'] ) ) : ?>
+                                <img src="<?php echo esc_url( $item['image'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" class="item-image">
+                                <?php if ( isset($item['is_design_product']) && $item['is_design_product'] ) : ?>
+                                    <div class="design-badge" title="<?php esc_attr_e('Design-Produkt', 'yprint-checkout'); ?>">
+                                        <i class="fas fa-palette"></i>
+                                    </div>
+                                <?php endif; ?>
+                            <?php else : ?>
+                                <div class="item-image" style="background: var(--yprint-light-gray); display: flex; align-items: center; justify-content: center; color: var(--yprint-text-secondary);">
+                                    <i class="fas fa-image"></i>
+                                </div>
+                            <?php endif; ?>
+                        </div>
                         <div class="item-details">
                             <p class="item-name"><?php echo esc_html( $item['name'] ); ?></p>
                             <p class="item-quantity">
                                 <?php esc_html_e('Menge:', 'yprint-checkout'); ?> <?php echo esc_html( $item['quantity'] ); ?>
                             </p>
+                            <?php if ( isset($item['design_details']) && !empty($item['design_details']) ) : ?>
+                                <div class="design-details">
+                                    <?php foreach ($item['design_details'] as $detail) : ?>
+                                        <span class="design-detail"><?php echo esc_html($detail); ?></span>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
-                    <p class="item-price">
-                        €<?php echo esc_html( number_format_i18n( $item['price'] * $item['quantity'], 2 ) ); ?>
-                    </p>
+                    <div class="item-price-container">
+                        <p class="item-price">
+                            €<?php echo esc_html( number_format_i18n( $item['price'] * $item['quantity'], 2 ) ); ?>
+                        </p>
+                        <?php if ( $item['quantity'] > 1 ) : ?>
+                            <span class="unit-price">
+                                (€<?php echo esc_html( number_format_i18n( $item['price'], 2 ) ); ?> / Stk.)
+                            </span>
+                        <?php endif; ?>
+                    </div>
                 </div>
             <?php endforeach; ?>
         <?php else : ?>
