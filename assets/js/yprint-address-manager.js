@@ -245,6 +245,7 @@ $(document).on('click', '.address-card', function(e) {
         
             $(document).on('click', '.btn-save-address', function() {
                 self.saveNewAddress();
+                YPrintAddressManager.triggerSaveNewAddress();
             });
         
             // ESC-Taste zum Schließen
