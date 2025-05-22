@@ -74,9 +74,17 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 ?>
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
 
-<?php // Optional: Express Checkout Buttons (Apple Pay, Google Pay via Stripe Payment Request Button) ?>
-<div id="payment-request-button" class="my-4">
-    <?php // Dieser Container wird von yprint-stripe-checkout.js befüllt, falls Express Checkout verfügbar ist. ?>
+<?php // Express Checkout Buttons (Apple Pay, Google Pay via Stripe Payment Request Button) ?>
+<div id="yprint-stripe-express-checkout" class="mb-6">
+    <div id="yprint-stripe-payment-request-wrapper" style="display: none;">
+        <div id="yprint-stripe-payment-request-button">
+            <!-- Stripe Payment Request Button wird hier eingebunden -->
+        </div>
+    </div>
+    <div id="yprint-stripe-payment-request-separator" class="text-center my-4" style="display: none;">
+        <span class="bg-white px-4 text-gray-500 text-sm"><?php esc_html_e('ODER', 'yprint-plugin'); ?></span>
+        <hr class="border-gray-300 -mt-3 -z-10">
+    </div>
 </div>
 
 <form id="payment-form" class="space-y-6 mt-6">
