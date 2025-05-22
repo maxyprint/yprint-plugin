@@ -894,16 +894,11 @@ if (window.location.search.includes('debug=1') || localStorage.getItem('yprint_d
 }
 
 /**
- * Aktualisiert die Anzeige der Produkte im Warenkorb-Widget.
+ * Aktualisiert die Anzeige der Produkte im Warenkorb-Widget mit Design-Unterstützung.
  * @param {HTMLElement} container - Das HTML-Element, in das die Produktliste gerendert wird.
  */
 function updateCartSummaryDisplay(container) {
-    // Diese Funktion würde normalerweise von WooCommerce Hooks oder AJAX aktualisiert werden.
-    // Hier eine einfache Demo basierend auf den `cartItems`.
-    // Annahme: cartItems ist global oder wird anderswoher bezogen.
-    // In einer echten Anwendung würden die cartItems dynamisch geladen.
-
-    if (!container || typeof cartItems === 'undefined') return; // 'cartItems' ist im globalen Scope des DOMContentLoaded-Listeners
+    if (!container || typeof cartItems === 'undefined') return;
 
     container.innerHTML = ''; // Bestehende Elemente leeren
 
@@ -914,16 +909,51 @@ function updateCartSummaryDisplay(container) {
 
     cartItems.forEach(item => {
         const itemEl = document.createElement('div');
-        itemEl.className = 'product-summary-item flex justify-between items-center py-2 border-b border-yprint-medium-gray';
+        const isDesignProduct = item.is_design_product || false;
+        const designClass = isDesignProduct ? ' design-product-item' : '';
+        
+        itemEl.className = `product-summary-item flex justify-between items-center py-2 border-b border-yprint-medium-gray${designClass}`;
+        
+        // Design-Details aufbereiten
+        let designDetailsHtml = '';
+        if (item.design_details && item.design_details.length > 0) {
+            designDetailsHtml = `
+                <div class="design-details" style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px;">
+                    ${item.design_details.map(detail => 
+                        `<span class="design-detail" style="font-size: 0.7em; color: var(--yprint-blue); background: rgba(0, 121, 255, 0.1); padding: 2px 6px; border-radius: 10px; border: 1px solid rgba(0, 121, 255, 0.2);">${detail}</span>`
+                    ).join('')}
+                </div>
+            `;
+        }
+        
+        // Design-Badge für Design-Produkte
+        const designBadge = isDesignProduct ? 
+            `<div class="design-badge" style="position: absolute; top: -5px; right: -5px; background: var(--yprint-blue); color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 9px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Design-Produkt">
+                <i class="fas fa-palette"></i>
+            </div>` : '';
+        
+        // Stückpreis anzeigen wenn Menge > 1
+        const unitPrice = item.quantity > 1 ? 
+            `<span class="unit-price" style="font-size: 0.7em; color: var(--yprint-text-secondary); margin-left: 4px;">
+                (€${item.price.toFixed(2)} / Stk.)
+            </span>` : '';
+        
         itemEl.innerHTML = `
             <div class="flex items-center">
-                <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded mr-3">
+                <div class="item-image-container" style="position: relative; margin-right: 12px; flex-shrink: 0;">
+                    <img src="${item.image}" alt="${item.name}" class="w-12 h-12 object-cover rounded border border-gray-200 bg-white">
+                    ${designBadge}
+                </div>
                 <div>
-                    <p class="font-medium text-sm">${item.name}</p>
+                    <p class="font-medium text-sm" style="line-height: 1.3; color: var(--yprint-black);">${item.name}</p>
                     <p class="text-xs text-yprint-text-secondary">Menge: ${item.quantity}</p>
+                    ${designDetailsHtml}
                 </div>
             </div>
-            <p class="font-medium text-sm">€${(item.price * item.quantity).toFixed(2)}</p>
+            <div class="item-price-container" style="display: flex; flex-direction: column; align-items: flex-end; justify-content: center;">
+                <p class="font-medium text-sm">€${(item.price * item.quantity).toFixed(2)}</p>
+                ${unitPrice}
+            </div>
         `;
         container.appendChild(itemEl);
     });
