@@ -94,10 +94,12 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
             return;
         }
         
-        // Enqueue Stripe.js
-        wp_register_script('stripe', 'https://js.stripe.com/v3/', '', '3.0', true);
+        // Check if Stripe.js is already enqueued by another component
+        if (!wp_script_is('stripe', 'registered')) {
+            wp_register_script('stripe', 'https://js.stripe.com/v3/', '', '3.0', true);
+        }
         
-        // Register our script
+        // Register our script with dependency check
         wp_register_script(
             'yprint-stripe-payment-request', 
             YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-payment-request.js',
@@ -490,28 +492,38 @@ private function get_default_shipping_address() {
         return array();
     }
     
-    // Try to get from Address Manager first
-    if (class_exists('YPrint_Address_Manager')) {
-        $address_manager = YPrint_Address_Manager::get_instance();
-        $user_addresses = $address_manager->get_user_addresses(get_current_user_id());
-        
-        // Find default address
-        foreach ($user_addresses as $address) {
-            if (isset($address['is_default']) && $address['is_default']) {
-                return array(
-                    'first_name' => $address['first_name'] ?? '',
-                    'last_name' => $address['last_name'] ?? '',
-                    'company' => $address['company'] ?? '',
-                    'address_1' => $address['address_1'] ?? '',
-                    'address_2' => $address['address_2'] ?? '',
-                    'city' => $address['city'] ?? '',
-                    'postcode' => $address['postcode'] ?? '',
-                    'country' => $address['country'] ?? 'DE',
-                    'phone' => '', // Address Manager doesn't store phone
-                );
-            }
+    // Try to get from Address Manager first - with caching
+if (class_exists('YPrint_Address_Manager')) {
+    // Check for cached default address first
+    $cached_address = wp_cache_get('default_address_' . get_current_user_id(), 'yprint_addresses');
+    if ($cached_address !== false) {
+        return $cached_address;
+    }
+    
+    $address_manager = YPrint_Address_Manager::get_instance();
+    $user_addresses = $address_manager->get_user_addresses(get_current_user_id());
+    
+    // Find default address (optimized loop)
+    foreach ($user_addresses as $address) {
+        if (isset($address['is_default']) && $address['is_default']) {
+            $formatted_address = array(
+                'first_name' => $address['first_name'] ?? '',
+                'last_name' => $address['last_name'] ?? '',
+                'company' => $address['company'] ?? '',
+                'address_1' => $address['address_1'] ?? '',
+                'address_2' => $address['address_2'] ?? '',
+                'city' => $address['city'] ?? '',
+                'postcode' => $address['postcode'] ?? '',
+                'country' => $address['country'] ?? 'DE',
+                'phone' => '',
+            );
+            
+            // Cache for 5 minutes
+            wp_cache_set('default_address_' . get_current_user_id(), $formatted_address, 'yprint_addresses', 300);
+            return $formatted_address;
         }
     }
+}
     
     // Fallback to WooCommerce customer data
     if (WC()->customer) {

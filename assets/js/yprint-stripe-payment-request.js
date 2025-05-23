@@ -222,27 +222,33 @@ updatePaymentRequestWithSelectedAddress: function() {
             }
 
 
-            // Check if payment request is supported by the browser
-            this.paymentRequest.canMakePayment().then(function(result) {
-                if (result) {
-                    console.log('YPrint Stripe Payment Request: Payment Request is available:', result);
-                    self.setupPaymentRequestButton(result);
+            // Check if payment request is supported by the browser - with timeout
+Promise.race([
+    this.paymentRequest.canMakePayment(),
+    new Promise((resolve, reject) => {
+        setTimeout(() => reject(new Error('Timeout')), 3000); // 3 Sekunden Timeout
+    })
+]).then(function(result) {
+    if (result) {
+        console.log('YPrint Stripe Payment Request: Payment Request is available:', result);
+        self.setupPaymentRequestButton(result);
 
-                    // If on cart/checkout page, get cart details to update the total
-                    if (!isProductPage) {
-                         self.getCartDetails();
-                    }
+        // Defer cart details loading to not block initial page load
+        if (!isProductPage) {
+            setTimeout(function() {
+                self.getCartDetails();
+            }, 100); // Minimal delay to let page finish loading
+        }
 
-                } else {
-                    console.log('YPrint Stripe Payment Request: Payment Request is not available in your browser or no payment method saved.');
-                    // Hide the wrapper and separator completely for better UX
-                    self.hidePaymentRequestElements();
-                }
-            }).catch(function(error) {
-                console.error('YPrint Stripe Payment Request: Error checking Payment Request availability:', error);
-                // Hide the wrapper and separator if there's an error
-                self.hidePaymentRequestElements();
-            });
+    } else {
+        console.log('YPrint Stripe Payment Request: Payment Request is not available in your browser or no payment method saved.');
+        self.hidePaymentRequestElements();
+    }
+}).catch(function(error) {
+    console.warn('YPrint Stripe Payment Request: canMakePayment failed or timed out:', error);
+    // Don't block the page - just hide elements and continue
+    self.hidePaymentRequestElements();
+});
 
             // Handle shipping address changes
             if (paymentRequestOptions.requestShipping) {
@@ -964,12 +970,23 @@ processPayment: function(paymentMethodId, event) {
 
 
     
-    // Initialize on document ready
-    $(document).ready(function() {
-        
-        YPrintStripePaymentRequest.init();
-        
-    });
+    // Initialize only when payment step is active or when needed
+$(document).ready(function() {
+    // Check if we're on the payment step or if express checkout elements exist
+    if ($('#step-2').hasClass('active') || $('#yprint-stripe-payment-request-wrapper').length > 0) {
+        // Small delay to ensure page is fully loaded
+        setTimeout(function() {
+            YPrintStripePaymentRequest.init();
+        }, 500);
+    } else {
+        // Listen for step changes and initialize when payment step becomes active
+        $(document).on('checkout_step_changed', function(e, stepId) {
+            if (stepId === 'step-2' && !YPrintStripePaymentRequest.initialized) {
+                YPrintStripePaymentRequest.init();
+            }
+        });
+    }
+});
 
      // Make globally accessible for debugging
      window.YPrintStripePaymentRequest = YPrintStripePaymentRequest;

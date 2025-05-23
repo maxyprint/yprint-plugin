@@ -123,6 +123,23 @@ echo '<style>
      * Enqueue scripts and styles for checkout
      */
     public function enqueue_checkout_assets() {
+        
+
+        // Nur laden wenn Payment Request Button aktiviert ist
+$stripe_settings = YPrint_Stripe_API::get_stripe_settings();
+$payment_request_enabled = isset($stripe_settings['payment_request']) && 'yes' === $stripe_settings['payment_request'];
+
+if ($payment_request_enabled && $this->is_stripe_enabled()) {
+    // Stripe Payment Request Script
+    wp_enqueue_script(
+        'yprint-stripe-payment-request',
+        YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-payment-request.js',
+        array('jquery', 'stripe-js'),
+        YPRINT_PLUGIN_VERSION,
+        true
+    );
+}
+        
         // Only load on pages with our shortcode
         global $post;
         if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'yprint_checkout')) {
