@@ -62,7 +62,7 @@ public function init() {
     $this->total_label = apply_filters('yprint_stripe_payment_request_total_label', $this->total_label . ' (via YPrint)');
     
     // Register scripts
-    //add_action('wp_enqueue_scripts', array($this, 'scripts'));
+    add_action('wp_enqueue_scripts', array($this, 'scripts'));
     
     // Add payment request buttons to various locations
     add_action('woocommerce_after_add_to_cart_form', array($this, 'display_payment_request_button_html'), 1);
@@ -87,37 +87,40 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
 }
     
     /**
-     * Register and enqueue scripts
-     */
-    public function scripts() {
-        if (!$this->should_show_payment_request_button()) {
-            return;
-        }
-        
-        // Check if Stripe.js is already enqueued by another component
-        if (!wp_script_is('stripe', 'registered')) {
-            wp_register_script('stripe', 'https://js.stripe.com/v3/', '', '3.0', true);
-        }
-        
-        // Register our script with dependency check
-        wp_register_script(
-            'yprint-stripe-payment-request', 
-            YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-payment-request.js',
-            array('jquery', 'stripe'),
-            YPRINT_PLUGIN_VERSION,
-            true
-        );
-        
-        // Localize the script with the necessary data
-        wp_localize_script(
-            'yprint-stripe-payment-request',
-            'yprint_stripe_payment_request_params',
-            $this->get_javascript_params()
-        );
-        
-        // Enqueue our script
-        wp_enqueue_script('yprint-stripe-payment-request');
+ * Register and enqueue scripts
+ */
+public function scripts() {
+    // Temporär alles auskommentieren
+    //
+    if (!$this->should_show_payment_request_button()) {
+        return;
     }
+
+    // Check if Stripe.js is already enqueued by another component
+    if (!wp_script_is('stripe', 'registered')) {
+        wp_register_script('stripe', 'https://js.stripe.com/v3/', '', '3.0', true);
+    }
+
+    // Register our script with dependency check
+    wp_register_script(
+        'yprint-stripe-payment-request',
+        YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-payment-request.js',
+        array('jquery', 'stripe'),
+        YPRINT_PLUGIN_VERSION,
+        true
+    );
+
+    // Localize the script with the necessary data
+    wp_localize_script(
+        'yprint-stripe-payment-request',
+        'yprint_stripe_payment_request_params',
+        $this->get_javascript_params()
+    );
+
+    /* Enqueue our script
+    wp_enqueue_script('yprint-stripe-payment-request');
+    */
+}
     
     public function get_javascript_params() {
         $options = YPrint_Stripe_API::get_stripe_settings();
