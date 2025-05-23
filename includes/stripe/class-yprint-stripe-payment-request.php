@@ -62,7 +62,7 @@ public function init() {
     $this->total_label = apply_filters('yprint_stripe_payment_request_total_label', $this->total_label . ' (via YPrint)');
     
     // Register scripts
-    add_action('wp_enqueue_scripts', array($this, 'scripts'));
+    //add_action('wp_enqueue_scripts', array($this, 'scripts'));
     
     // Add payment request buttons to various locations
     add_action('woocommerce_after_add_to_cart_form', array($this, 'display_payment_request_button_html'), 1);
