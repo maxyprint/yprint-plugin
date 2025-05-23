@@ -146,10 +146,8 @@ public function get_javascript_params() {
             'height' => 48,
         ),
         'checkout' => array(
-    'needs_payer_phone' => 'yes',
-    'currency_code' => get_woocommerce_currency(),
-    'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
-
+            'needs_payer_phone' => 'yes',
+            'currency_code' => get_woocommerce_currency(),
 ),
     );
     
