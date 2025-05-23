@@ -851,47 +851,6 @@ public function ajax_process_payment() {
         ));
     }
 }
-
-/**
- * Get country code safely with fallback
- *
- * @return string
- */
-private function get_safe_country_code() {
-    try {
-        $default_country = get_option('woocommerce_default_country', 'DE:');
-        
-        // Handle formats like 'DE:BW' or just 'DE'
-        if (strpos($default_country, ':') !== false) {
-            return substr($default_country, 0, 2);
-        }
-        
-        return substr($default_country, 0, 2);
-    } catch (Exception $e) {
-        error_log('YPrint Stripe Payment Request: Error getting country code: ' . $e->getMessage());
-        return 'DE'; // Fallback für Deutschland
-    }
-}
-
-/**
- * Get total label safely with fallback
- *
- * @return string
- */
-private function get_safe_total_label() {
-    try {
-        if (isset($this->total_label) && !empty($this->total_label)) {
-            return $this->total_label;
-        }
-        
-        // Fallback: Blogname verwenden
-        $blogname = get_bloginfo('name');
-        return !empty($blogname) ? $blogname : 'YPrint';
-    } catch (Exception $e) {
-        error_log('YPrint Stripe Payment Request: Error getting total label: ' . $e->getMessage());
-        return 'YPrint'; // Hard-coded Fallback
-    }
-}
 }
 
 // Initialize the class
