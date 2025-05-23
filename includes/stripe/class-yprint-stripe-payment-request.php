@@ -141,16 +141,23 @@ public function get_javascript_params() {
         ),
         'is_product' => $this->is_product(),
         'button' => array(
-        'type' => 'default',
-        'theme' => 'dark',
-        'height' => 48,
-),
-
-'is_product' => $this->is_product(),
+            'type' => 'default',
+            'theme' => 'dark',
+            'height' => 48,
+        ),
+        'checkout' => array(
+            'url' => wc_get_checkout_url(),
+            'currency_code' => get_woocommerce_currency(),
+            'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
+            'needs_shipping' => 'unknown', // OPTIMIERUNG: Nicht sofort ermitteln
+            'needs_payer_phone' => 'yes',
+            'total_label' => $this->total_label,
+        ),
     );
     
     return $params;
 }
+
     
     /**
      * Get Stripe locale
