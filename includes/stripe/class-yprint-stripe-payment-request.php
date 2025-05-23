@@ -150,7 +150,8 @@ public function get_javascript_params() {
             'currency_code' => get_woocommerce_currency(),
             'needs_shipping' => 'unknown',
             'needs_payer_phone' => 'yes',
-            'total_label' => 'YPrint', // Nur diesen hartkodierten Wert hinzugefügt
+            'total_label' => 'YPrint', // Hartkodierter Wert
+            'country_code' => 'DE', // Hartkodierter Wert hinzugefügt
         ),
     );
 
