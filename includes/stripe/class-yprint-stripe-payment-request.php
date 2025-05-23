@@ -145,14 +145,7 @@ public function get_javascript_params() {
             'theme' => 'dark',
             'height' => 48,
         ),
-        'checkout' => array(
-            'url' => wc_get_checkout_url(),
-            'currency_code' => get_woocommerce_currency(),
-            'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
-            'needs_shipping' => 'unknown', // OPTIMIERUNG: Nicht sofort ermitteln
-            'needs_payer_phone' => 'yes',
-            'total_label' => $this->total_label,
-        ),
+        'checkout' => array(),
     );
     
     return $params;
