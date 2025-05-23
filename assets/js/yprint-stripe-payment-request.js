@@ -213,7 +213,7 @@ updatePaymentRequestWithSelectedAddress: function() {
 
 
             try {
-                this.paymentRequest = this.stripe.paymentRequest(paymentRequestOptions);
+                //this.paymentRequest = this.stripe.paymentRequest(paymentRequestOptions);
                  console.log('YPrint Stripe Payment Request: Payment Request object created with options:', paymentRequestOptions);
             } catch (error) {
                  console.error('YPrint Stripe Payment Request: Error creating Payment Request object:', error);
