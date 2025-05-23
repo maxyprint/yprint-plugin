@@ -149,6 +149,7 @@ public function get_javascript_params() {
             'needs_payer_phone' => 'yes',
             'currency_code' => get_woocommerce_currency(),
             'url' => wc_get_checkout_url(),
+            'total_label' => $this->total_label,
 ),
     );
     
