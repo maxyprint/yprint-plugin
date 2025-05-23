@@ -139,6 +139,7 @@ public function get_javascript_params() {
             'get_cart_details' => wp_create_nonce('yprint-stripe-get-cart-details'),
             'add_to_cart' => wp_create_nonce('yprint-stripe-add-to-cart'),
         ),
+        'is_product' => $this->is_product(),
     );
     
     return $params;
