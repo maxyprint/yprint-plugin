@@ -123,56 +123,27 @@ public function scripts() {
 }
     
 public function get_javascript_params() {
-    // Schritt 1: Nur absolut minimale Parameter
-    $params = array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-    );
-    
-    return $params;
-    
-    // ALLES ANDERE AUSKOMMENTIERT:
-    /*
+    // Schritt 2: Stripe Settings hinzufügen
     $options = YPrint_Stripe_API::get_stripe_settings();
     $testmode = isset($options['testmode']) && 'yes' === $options['testmode'];
     
     $params = array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'stripe' => array(
-            'key' => $testmode ? $options['test_publishable_key'] : $options['publishable_key'],
+            'key' => $testmode ? ($options['test_publishable_key'] ?? '') : ($options['publishable_key'] ?? ''),
             'locale' => $this->get_stripe_locale(),
-        ),
-        'nonce' => array(
-            'payment' => wp_create_nonce('yprint-stripe-payment-request'),
-            'shipping' => wp_create_nonce('yprint-stripe-payment-request-shipping'),
-            'update_shipping' => wp_create_nonce('yprint-stripe-update-shipping-method'),
-            'get_cart_details' => wp_create_nonce('yprint-stripe-get-cart-details'),
-            'add_to_cart' => wp_create_nonce('yprint-stripe-add-to-cart'),
-        ),
-        'button' => array(
-            'type' => 'default',
-            'theme' => 'dark',
-            'height' => 48,
-        ),
-        'is_product' => $this->is_product(),
-        'checkout' => array(
-            'url' => wc_get_checkout_url(),
-            'currency_code' => get_woocommerce_currency(),
-            'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
-            'needs_shipping' => WC()->cart->needs_shipping() ? 'yes' : 'no',
-            'needs_payer_phone' => 'yes',
-            'total_label' => $this->total_label,
         ),
     );
     
-    // Add product data if on product page
-    if ($this->is_product()) {
-        $product = $this->get_product();
-        if ($product) {
-            $params['product'] = $this->get_product_data($product);
-        }
-    }
+    return $params;
     
-    return apply_filters('yprint_stripe_payment_request_params', $params);
+    // REST WEITERHIN AUSKOMMENTIERT
+    /*
+    'nonce' => array( ... ),
+    'button' => array( ... ),
+    'is_product' => $this->is_product(),
+    'checkout' => array( ... ),
+    // etc.
     */
 }
     
