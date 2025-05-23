@@ -140,7 +140,11 @@ public function get_javascript_params() {
             'add_to_cart' => wp_create_nonce('yprint-stripe-add-to-cart'),
         ),
         'is_product' => $this->is_product(),
-        'button' => array(),
+        'button' => array(
+        'type' => 'default',
+        'theme' => 'dark',
+        'height' => 48,
+),
     );
     
     return $params;
