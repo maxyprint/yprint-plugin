@@ -148,10 +148,10 @@ public function get_javascript_params() {
         'checkout' => array(
     'url' => wc_get_checkout_url(),
     'currency_code' => get_woocommerce_currency(),
-    'country_code' => $this->get_safe_country_code(),
+    'country_code' => 'DE', // Hardcoded Fallback
     'needs_shipping' => 'unknown',
     'needs_payer_phone' => 'yes',
-    'total_label' => $this->get_safe_total_label(),
+    'total_label' => 'YPrint', // Hardcoded Fallback
 ),
     );
     
@@ -831,8 +831,6 @@ public function ajax_process_payment() {
         $order->add_order_note(
             sprintf(__('Order paid via %s (Stripe Payment Request)', 'yprint-plugin'), $payment_type_label)
         );
-
-        
         
         // Clear cart
         WC()->cart->empty_cart();
