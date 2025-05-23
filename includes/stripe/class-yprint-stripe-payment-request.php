@@ -145,7 +145,9 @@ public function get_javascript_params() {
             'theme' => 'dark',
             'height' => 48,
         ),
-        'checkout' => array(),
+        'checkout' => array(
+        'needs_payer_phone' => 'yes',
+        ),
     );
     
     return $params;
