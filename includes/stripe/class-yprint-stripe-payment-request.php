@@ -125,7 +125,7 @@ public function scripts() {
 public function get_javascript_params() {
     $options = YPrint_Stripe_API::get_stripe_settings();
     $testmode = isset($options['testmode']) && 'yes' === $options['testmode'];
-    
+
     $params = array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'stripe' => array(
@@ -146,15 +146,14 @@ public function get_javascript_params() {
             'height' => 48,
         ),
         'checkout' => array(
-    'url' => wc_get_checkout_url(),
-    'currency_code' => get_woocommerce_currency(),
-    'country_code' => 'DE', // Hardcoded Fallback
-    'needs_shipping' => 'unknown',
-    'needs_payer_phone' => 'yes',
-    'total_label' => 'YPrint', // Hardcoded Fallback
-),
+            'url' => wc_get_checkout_url(),
+            'currency_code' => get_woocommerce_currency(),
+            'needs_shipping' => 'unknown',
+            'needs_payer_phone' => 'yes',
+            'total_label' => 'YPrint', // Nur diesen hartkodierten Wert hinzugefügt
+        ),
     );
-    
+
     return $params;
 }
 
