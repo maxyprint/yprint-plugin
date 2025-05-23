@@ -145,6 +145,8 @@ public function get_javascript_params() {
         'theme' => 'dark',
         'height' => 48,
 ),
+
+'is_product' => $this->is_product(),
     );
     
     return $params;
