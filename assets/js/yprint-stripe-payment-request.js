@@ -72,7 +72,7 @@ getSelectedAddressFromManager: function() {
 /**
  * Update payment request with selected address
  */
-updatePaymentRequestWithSelectedAddress: function() {
+/*updatePaymentRequestWithSelectedAddress: function() {
     if (!this.paymentRequest) {
         return;
     }

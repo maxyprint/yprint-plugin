@@ -117,9 +117,9 @@ public function scripts() {
         $this->get_javascript_params()
     );
 
-    /* Enqueue our script
+    // Enqueue our script
     wp_enqueue_script('yprint-stripe-payment-request');
-    */
+    //
 }
     
     public function get_javascript_params() {
