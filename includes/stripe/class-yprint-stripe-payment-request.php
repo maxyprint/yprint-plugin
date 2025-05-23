@@ -123,7 +123,6 @@ public function scripts() {
 }
     
 public function get_javascript_params() {
-    // Schritt 2: Stripe Settings hinzufügen
     $options = YPrint_Stripe_API::get_stripe_settings();
     $testmode = isset($options['testmode']) && 'yes' === $options['testmode'];
     
@@ -133,18 +132,16 @@ public function get_javascript_params() {
             'key' => $testmode ? ($options['test_publishable_key'] ?? '') : ($options['publishable_key'] ?? ''),
             'locale' => $this->get_stripe_locale(),
         ),
+        'nonce' => array(
+            'payment' => wp_create_nonce('yprint-stripe-payment-request'),
+            'shipping' => wp_create_nonce('yprint-stripe-payment-request-shipping'),
+            'update_shipping' => wp_create_nonce('yprint-stripe-update-shipping-method'),
+            'get_cart_details' => wp_create_nonce('yprint-stripe-get-cart-details'),
+            'add_to_cart' => wp_create_nonce('yprint-stripe-add-to-cart'),
+        ),
     );
     
     return $params;
-    
-    // REST WEITERHIN AUSKOMMENTIERT
-    /*
-    'nonce' => array( ... ),
-    'button' => array( ... ),
-    'is_product' => $this->is_product(),
-    'checkout' => array( ... ),
-    // etc.
-    */
 }
     
     /**
