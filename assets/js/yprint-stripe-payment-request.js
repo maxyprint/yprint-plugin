@@ -37,7 +37,7 @@
          *
          * @return object|null Selected address data or null
          */
-getSelectedAddressFromManager: function() {
+/*getSelectedAddressFromManager: function() {
     // Check if Address Manager is available
     if (typeof window.YPrintAddressManager === 'undefined') {
         console.log('YPrint Stripe Payment Request: Address Manager not available');
@@ -72,7 +72,7 @@ getSelectedAddressFromManager: function() {
 /**
  * Update payment request with selected address
  */
-/*updatePaymentRequestWithSelectedAddress: function() {
+updatePaymentRequestWithSelectedAddress: function() {
     if (!this.paymentRequest) {
         return;
     }
