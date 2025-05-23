@@ -148,6 +148,8 @@ public function get_javascript_params() {
         'checkout' => array(
     'needs_payer_phone' => 'yes',
     'currency_code' => get_woocommerce_currency(),
+    'country_code' => substr(get_option('woocommerce_default_country'), 0, 2),
+    'url' => wc_get_checkout_url(),
 ),
     );
     
