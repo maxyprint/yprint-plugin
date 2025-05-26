@@ -1030,18 +1030,18 @@ label.flex.items-center:hover {
 
 /* Express Payment Styles */
 .yprint-express-payment-container {
-    margin: 20px 0;
-    padding: 20px;
-    border: 1px solid var(--yprint-border-gray);
-    border-radius: 12px;
-    background: var(--yprint-white);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin: 40px 0 30px 0; /* Mehr Abstand oben */
+    padding: 0; /* Kein Padding */
+    border: none; /* Kein Rahmen */
+    border-radius: 0; /* Kein Border-Radius */
+    background: transparent; /* Transparenter Hintergrund */
+    box-shadow: none; /* Kein Schatten */
     display: none; /* Standardmäßig versteckt, wird per JS angezeigt */
 }
 
 .express-payment-header {
     text-align: center;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 .express-payment-label {
@@ -1050,22 +1050,27 @@ label.flex.items-center:hover {
     color: var(--yprint-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 15px;
+    display: none; /* Label ausblenden für cleanes Design */
 }
 
+/* Falls du das Label doch anzeigen möchtest, ändere 'display: none' zu 'display: block' */
+
 .express-payment-buttons {
-    margin: 15px 0;
+    margin: 0 0 20px 0;
 }
 
 .yprint-express-button {
-    margin: 10px 0;
+    margin: 0;
     min-height: 48px;
     border-radius: 8px;
     overflow: hidden;
+    width: 100%;
 }
 
 .express-payment-separator {
     text-align: center;
-    margin: 20px 0;
+    margin: 25px 0;
     position: relative;
 }
 
@@ -1081,11 +1086,12 @@ label.flex.items-center:hover {
 
 .express-payment-separator span {
     background: var(--yprint-white);
-    padding: 0 15px;
+    padding: 0 20px;
     font-size: 0.875rem;
     color: var(--yprint-text-secondary);
     position: relative;
     z-index: 1;
+    font-weight: 500;
 }
 
 /* Payment Request Button Overrides */
@@ -1143,12 +1149,77 @@ label.flex.items-center:hover {
 
 /* Integration in Checkout Steps */
 .checkout-step .yprint-express-payment-container {
-    margin-top: 0;
+    margin-top: 30px; /* Mehr Abstand zum Titel */
+    margin-bottom: 35px; /* Mehr Abstand zu den normalen Zahlungsmethoden */
+}
+
+/* Spezifischer Abstand im Payment Step */
+#step-2 .yprint-express-payment-container {
+    margin-top: 40px;
+}
+
+/* Reduziere Abstand zwischen H2 und Express Payment */
+#step-2 h2 + .yprint-express-payment-container {
+    margin-top: 35px;
 }
 
 /* Hide container initially until JS determines availability */
 #yprint-express-payment-container {
     display: none;
+}
+
+/* Stripe Button spezifische Styles */
+#yprint-payment-request-button {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Apple Pay Button Overrides */
+.ApplePayButton {
+    width: 100% !important;
+    min-height: 48px !important;
+    border-radius: 8px !important;
+    margin: 0 !important;
+}
+
+/* Google Pay Button Overrides */
+.gpay-button {
+    width: 100% !important;
+    min-height: 48px !important;
+    border-radius: 8px !important;
+    margin: 0 !important;
+}
+
+/* Stripe Elements Container */
+.ElementsApp {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Payment Request Button in Stripe Elements */
+.StripeElement--paymentRequestButton {
+    height: 48px !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Remove any default Stripe container styling */
+.StripeElement {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
 }
 
 /* Design-Produkt spezifische Styles */
