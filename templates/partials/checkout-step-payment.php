@@ -74,10 +74,13 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 ?>
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
 
-<?php // Optional: Express Checkout Buttons (Apple Pay, Google Pay via Stripe Payment Request Button) ?>
-<div id="payment-request-button" class="my-4">
-    <?php // Dieser Container wird von yprint-stripe-checkout.js befüllt, falls Express Checkout verfügbar ist. ?>
-</div>
+<?php 
+// Express Checkout Buttons (Apple Pay, Google Pay)
+if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
+    $shortcode_instance = YPrint_Stripe_Checkout_Shortcode::get_instance();
+    echo $shortcode_instance->render_express_payment_buttons();
+}
+?>
 
 <form id="payment-form" class="space-y-6 mt-6">
     <div class="space-y-3">
