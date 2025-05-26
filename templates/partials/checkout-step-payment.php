@@ -75,10 +75,25 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
 
 <?php 
-// Express Checkout Buttons (Apple Pay, Google Pay)
+// Debug: Express Checkout Buttons (Apple Pay, Google Pay)
 if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
     $shortcode_instance = YPrint_Stripe_Checkout_Shortcode::get_instance();
-    echo $shortcode_instance->render_express_payment_buttons();
+    $express_buttons = $shortcode_instance->render_express_payment_buttons();
+    
+    if (current_user_can('administrator') && isset($_GET['debug'])) {
+        echo '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace;">';
+        echo '<strong>Debug Express Buttons:</strong><br>';
+        echo 'Stripe Enabled: ' . ($shortcode_instance->is_stripe_enabled() ? 'Yes' : 'No') . '<br>';
+        echo 'Express Buttons HTML Length: ' . strlen($express_buttons) . '<br>';
+        echo 'Stripe Settings: <pre>' . print_r(YPrint_Stripe_API::get_stripe_settings(), true) . '</pre>';
+        echo '</div>';
+    }
+    
+    echo $express_buttons;
+} else {
+    if (current_user_can('administrator')) {
+        echo '<div style="background: #ffeeee; padding: 10px; margin: 10px 0;">YPrint_Stripe_Checkout_Shortcode class not found!</div>';
+    }
 }
 ?>
 
