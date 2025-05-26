@@ -81,11 +81,16 @@ if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
     $express_buttons = $shortcode_instance->render_express_payment_buttons();
     
     if (current_user_can('administrator') && isset($_GET['debug'])) {
+        $settings = YPrint_Stripe_API::get_stripe_settings();
         echo '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace;">';
         echo '<strong>Debug Express Buttons:</strong><br>';
-        echo 'Stripe Enabled: ' . ($shortcode_instance->is_stripe_enabled() ? 'Yes' : 'No') . '<br>';
+        echo 'Stripe Enabled: ' . ($shortcode_instance->is_stripe_enabled_public() ? 'Yes' : 'No') . '<br>';
+        echo 'Payment Request Setting: ' . (isset($settings['payment_request']) ? $settings['payment_request'] : 'Not Set') . '<br>';
+        echo 'Live Keys Set: ' . ((!empty($settings['publishable_key']) && !empty($settings['secret_key'])) ? 'Yes' : 'No') . '<br>';
+        echo 'Test Keys Set: ' . ((!empty($settings['test_publishable_key']) && !empty($settings['test_secret_key'])) ? 'Yes' : 'No') . '<br>';
+        echo 'Is SSL: ' . (is_ssl() ? 'Yes' : 'No') . '<br>';
         echo 'Express Buttons HTML Length: ' . strlen($express_buttons) . '<br>';
-        echo 'Stripe Settings: <pre>' . print_r(YPrint_Stripe_API::get_stripe_settings(), true) . '</pre>';
+        echo 'Stripe Settings: <pre>' . print_r($settings, true) . '</pre>';
         echo '</div>';
     }
     

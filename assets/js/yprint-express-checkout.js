@@ -93,14 +93,15 @@
                 return;
             }
 
-            // Erstelle Payment Request Button
+            // Erstelle Payment Request Button mit Settings aus WordPress
+            const buttonSettings = yprint_express_payment_params.settings || {};
             this.prButton = this.stripe.elements().create('paymentRequestButton', {
                 paymentRequest: this.paymentRequest,
                 style: {
                     paymentRequestButton: {
-                        type: 'default', // 'default', 'book', 'buy', or 'donate'
-                        theme: 'dark', // 'dark', 'light', or 'light-outline'
-                        height: '48px',
+                        type: buttonSettings.button_type || 'default',
+                        theme: buttonSettings.button_theme || 'dark',
+                        height: (buttonSettings.button_height || '48') + 'px',
                     },
                 },
             });

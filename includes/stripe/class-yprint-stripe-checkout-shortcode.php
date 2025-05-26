@@ -214,7 +214,7 @@ wp_enqueue_style(
                         'nonce' => wp_create_nonce('yprint_express_checkout_nonce'),
                         'stripe' => array(
                             'publishable_key' => $publishable_key,
-                            'test_mode' => $testmode
+                            'test_mode' => $this->is_testmode($stripe_settings)
                         ),
                         'checkout' => array(
                             'country' => substr(get_option('woocommerce_default_country'), 0, 2),
@@ -224,6 +224,11 @@ wp_enqueue_style(
                         'cart' => array(
                             'total' => WC()->cart ? (int)(WC()->cart->get_total('edit') * 100) : 0, // In Cent
                             'needs_shipping' => WC()->cart ? WC()->cart->needs_shipping() : false
+                        ),
+                        'settings' => array(
+                            'button_type' => isset($stripe_settings['payment_request_button_type']) ? $stripe_settings['payment_request_button_type'] : 'default',
+                            'button_theme' => isset($stripe_settings['payment_request_button_theme']) ? $stripe_settings['payment_request_button_theme'] : 'dark',
+                            'button_height' => isset($stripe_settings['payment_request_button_height']) ? $stripe_settings['payment_request_button_height'] : '48'
                         ),
                         'i18n' => array(
                             'processing' => __('Processing payment...', 'yprint-plugin'),
@@ -260,7 +265,22 @@ wp_enqueue_style(
     private function is_stripe_enabled() {
         if (class_exists('YPrint_Stripe_API')) {
             $settings = YPrint_Stripe_API::get_stripe_settings();
-            return !empty($settings) && isset($settings['enabled']) && 'yes' === $settings['enabled'];
+            
+            // Prüfe ob grundlegende Stripe-Einstellungen vorhanden sind
+            if (empty($settings)) {
+                return false;
+            }
+            
+            // Prüfe ob API-Schlüssel gesetzt sind
+            $testmode = isset($settings['testmode']) && 'yes' === $settings['testmode'];
+            if ($testmode) {
+                $has_keys = !empty($settings['test_publishable_key']) && !empty($settings['test_secret_key']);
+            } else {
+                $has_keys = !empty($settings['publishable_key']) && !empty($settings['secret_key']);
+            }
+            
+            // Stripe ist aktiviert wenn API-Schlüssel vorhanden sind ODER explizit aktiviert
+            return $has_keys || (isset($settings['enabled']) && 'yes' === $settings['enabled']);
         }
         return false;
     }
@@ -272,6 +292,31 @@ wp_enqueue_style(
      */
     public function is_stripe_enabled_public() {
         return $this->is_stripe_enabled();
+    }
+
+    /**
+     * Determine if we're in test mode
+     *
+     * @param array $settings Stripe settings
+     * @return bool
+     */
+    private function is_testmode($settings) {
+        // Expliziter Testmode
+        if (isset($settings['testmode']) && 'yes' === $settings['testmode']) {
+            return true;
+        }
+        
+        // Erkenne anhand der API-Schlüssel
+        $live_key_set = !empty($settings['publishable_key']) && !empty($settings['secret_key']);
+        $test_key_set = !empty($settings['test_publishable_key']) && !empty($settings['test_secret_key']);
+        
+        // Wenn nur Test-Schlüssel gesetzt sind, verwende Testmode
+        if ($test_key_set && !$live_key_set) {
+            return true;
+        }
+        
+        // Standard: Live-Modus (da Live-Keys gesetzt sind)
+        return false;
     }
 
     /**
@@ -298,8 +343,10 @@ wp_enqueue_style(
             return '';
         }
         
+        // Erkenne Testmode basierend auf API-Schlüsseln
+        $testmode = $this->is_testmode($stripe_settings);
+        
         // Prüfe SSL-Anforderung (außer im Test-Modus)
-        $testmode = isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'];
         if (!$testmode && !is_ssl()) {
             return '';
         }
