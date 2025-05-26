@@ -1028,6 +1028,129 @@ label.flex.items-center:hover {
     line-height: 1.3;
 }
 
+/* Express Payment Styles */
+.yprint-express-payment-container {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid var(--yprint-border-gray);
+    border-radius: 12px;
+    background: var(--yprint-white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: none; /* Standardmäßig versteckt, wird per JS angezeigt */
+}
+
+.express-payment-header {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.express-payment-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--yprint-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.express-payment-buttons {
+    margin: 15px 0;
+}
+
+.yprint-express-button {
+    margin: 10px 0;
+    min-height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.express-payment-separator {
+    text-align: center;
+    margin: 20px 0;
+    position: relative;
+}
+
+.express-payment-separator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--yprint-medium-gray);
+}
+
+.express-payment-separator span {
+    background: var(--yprint-white);
+    padding: 0 15px;
+    font-size: 0.875rem;
+    color: var(--yprint-text-secondary);
+    position: relative;
+    z-index: 1;
+}
+
+/* Payment Request Button Overrides */
+#yprint-payment-request-button {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Stripe Payment Request Button Styling */
+.StripeElement--paymentRequestButton {
+    height: 48px !important;
+    border-radius: 8px !important;
+}
+
+/* Success Message für Demo */
+.yprint-express-success-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    animation: slideInRight 0.3s ease;
+}
+
+.yprint-express-success-message i {
+    font-size: 1.2em;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsive Anpassungen */
+@media (max-width: 640px) {
+    .yprint-express-payment-container {
+        margin: 15px 0;
+        padding: 15px;
+    }
+    
+    .yprint-express-button {
+        min-height: 44px;
+    }
+    
+    .StripeElement--paymentRequestButton {
+        height: 44px !important;
+    }
+}
+
+/* Integration in Checkout Steps */
+.checkout-step .yprint-express-payment-container {
+    margin-top: 0;
+}
+
+/* Hide container initially until JS determines availability */
+#yprint-express-payment-container {
+    display: none;
+}
+
 /* Design-Produkt spezifische Styles */
 .design-product-item {
     position: relative;
