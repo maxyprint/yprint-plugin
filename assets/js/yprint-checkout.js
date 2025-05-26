@@ -54,8 +54,8 @@ function validateAddressForm() {
 
     // Prüfen, ob eine gespeicherte Adresse ausgewählt wurde ODER ob die Felder bereits gefüllt sind
 // Wenn ja, validieren wir nicht jedes Feld individuell
-const selectedAddress = $('.address-card.selected').length > 0;
-const filledAddress = $('#street').val() && $('#zip').val() && $('#city').val();
+const selectedAddress = jQuery('.address-card.selected').length > 0;
+const filledAddress = jQuery('#street').val() && jQuery('#zip').val() && jQuery('#city').val();
 
 if (selectedAddress || filledAddress) {
     console.log('Eine gespeicherte Adresse ist ausgewählt oder die Felder sind bereits gefüllt. Überspringen der Feldvalidierung.');
@@ -1143,13 +1143,13 @@ function logCheckoutState() {
     console.log('=== CHECKOUT STATE ===');
     console.log('Aktueller Schritt:', currentStep);
     console.log('Formular-Gültigkeit:', validateAddressForm());
-    console.log('Button-Status:', $('#btn-to-payment').prop('disabled'));
+    console.log('Button-Status:', jQuery('#btn-to-payment').prop('disabled'));
     console.log('Adressfelder:');
-    console.log('- Street:', $('#street').val());
-    console.log('- Housenumber:', $('#housenumber').val());
-    console.log('- ZIP:', $('#zip').val());
-    console.log('- City:', $('#city').val());
-    console.log('- Country:', $('#country').val());
+    console.log('- Street:', jQuery('#street').val());
+    console.log('- Housenumber:', jQuery('#housenumber').val());
+    console.log('- ZIP:', jQuery('#zip').val());
+    console.log('- City:', jQuery('#city').val());
+    console.log('- Country:', jQuery('#country').val());
     console.log('====================');
 }
 
@@ -1262,7 +1262,7 @@ function detectPaymentMethod() {
     
     // Hier könnte später Logic für automatische Erkennung basierend auf ausgefüllten Feldern
     // implementiert werden
-    return $('#selected-payment-method').val();
+    return jQuery('#selected-payment-method').val();
 }
 
 // Initial state - Kreditkarte aktiv und Stripe Elements initialisieren
@@ -1306,7 +1306,7 @@ function initExpressPaymentIntegration() {
 }
 
 // Nach DOM Ready Express Payment integrieren
-$(document).ready(function() {
+jQuery(document).ready(function() {
     setTimeout(initExpressPaymentIntegration, 1000);
 });
 
@@ -1332,9 +1332,9 @@ jQuery(document).ready(function($) {
     setTimeout(initExpressPaymentIntegration, 1000);
 
     // Initial payment method check
-    const initialMethod = $('input[name="payment_method"]:checked').val();
+    const initialMethod = jQuery('input[name="payment_method"]:checked').val();
     if (initialMethod === 'yprint_stripe') {
-        $('#stripe-card-element-container').show();
+        jQuery('#stripe-card-element-container').show();
     }
 
     // Kreditkarte ist bereits als aktiv markiert im HTML
