@@ -995,8 +995,8 @@ if (cartTotalsContainer) {
 
 // Debug-Button hinzufügen (nur wenn im Debug-Modus)
 if (window.location.search.includes('debug=1') || localStorage.getItem('yprint_debug') === 'true') {
-    const debugButton = $('<button type="button" class="btn btn-secondary debug-button" style="position: fixed; top: 10px; right: 10px; z-index: 10000;">Debug Info</button>');
-    $('body').append(debugButton);
+    const debugButton = jQuery('<button type="button" class="btn btn-secondary debug-button" style="position: fixed; top: 10px; right: 10px; z-index: 10000;">Debug Info</button>');
+    jQuery('body').append(debugButton);
     
     debugButton.on('click', function() {
         console.log('=== MANUAL DEBUG TRIGGER ===');
@@ -1203,38 +1203,33 @@ function initPaymentSlider() {
     console.log('Payment slider initialized with', freshSliderOptions.length, 'options');
 }
 
-// jQuery Event-Handler (Haupthandler)
+// jQuery Alternative für Fallback
 jQuery(document).on('click', '.slider-option', function(e) {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('jQuery: Slider option clicked');
+    console.log('jQuery fallback: Slider option clicked');
     
-    const $this = jQuery(this);
-    if ($this.hasClass('active')) {
-        console.log('Option already active, skipping');
-        return;
-    }
+    if (jQuery(this).hasClass('active')) return;
     
-    const selectedMethod = $this.data('method');
+    const selectedMethod = jQuery(this).data('method');
     console.log('Payment method switched to (jQuery):', selectedMethod);
     
     // Update Slider UI
     jQuery('.slider-option').removeClass('active');
-    $this.addClass('active');
+    jQuery(this).addClass('active');
     
     // Update Indicator
-    const $indicator = jQuery('.slider-indicator');
+    const indicator = jQuery('.slider-indicator');
     if (selectedMethod === 'sepa') {
-        $indicator.addClass('sepa');
+        indicator.addClass('sepa');
     } else {
-        $indicator.removeClass('sepa');
+        indicator.removeClass('sepa');
     }
     
     // Update Hidden Input
     const methodValue = selectedMethod === 'card' ? 'yprint_stripe_card' : 'yprint_stripe_sepa';
     jQuery('#selected-payment-method').val(methodValue);
-    console.log('Updated payment method to:', methodValue);
     
     // Switch Payment Fields
     jQuery('.payment-input-fields').removeClass('active');
@@ -1271,7 +1266,7 @@ function detectPaymentMethod() {
 }
 
 // Initial state - Kreditkarte aktiv und Stripe Elements initialisieren
-$(document).ready(function() {
+jQuery(document).ready(function() {
     console.log('DOM ready - initializing payment systems');
     
     // Payment Slider initialisieren
@@ -1329,26 +1324,26 @@ function initExpressPaymentIntegration() {
 // jQuery ready function - korrekte WordPress-kompatible Syntax
 jQuery(document).ready(function($) {
     console.log('DOM ready - initializing payment systems');
-    
+
     // Payment Slider initialisieren
     initPaymentSlider();
-    
-    // Express Payment Integration
+
+    // Nach DOM Ready Express Payment integrieren
     setTimeout(initExpressPaymentIntegration, 1000);
-    
+
     // Initial payment method check
     const initialMethod = $('input[name="payment_method"]:checked').val();
     if (initialMethod === 'yprint_stripe') {
         $('#stripe-card-element-container').show();
     }
-    
+
     // Kreditkarte ist bereits als aktiv markiert im HTML
     setTimeout(() => {
         if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
             window.YPrintStripeCheckout.initCardElement();
         }
     }, 500);
-    
+
     // Debug: Prüfe vorhandene Elemente
     console.log('Payment slider elements found:', document.querySelectorAll('.slider-option').length);
     console.log('Payment fields found:', document.querySelectorAll('.payment-input-fields').length);
