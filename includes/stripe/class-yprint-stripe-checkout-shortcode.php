@@ -230,6 +230,54 @@ wp_enqueue_style(
     }
 
     /**
+     * Render express payment buttons (Apple Pay, Google Pay)
+     *
+     * @return string HTML for express payment buttons
+     */
+    public function render_express_payment_buttons() {
+        // Prüfe Stripe-Aktivierung
+        if (!$this->is_stripe_enabled()) {
+            return '';
+        }
+        
+        // Hole Stripe-Einstellungen
+        if (!class_exists('YPrint_Stripe_API')) {
+            return '';
+        }
+        
+        $stripe_settings = YPrint_Stripe_API::get_stripe_settings();
+        
+        // Prüfe ob Express Payments aktiviert sind
+        $express_enabled = isset($stripe_settings['express_payments']) && 'yes' === $stripe_settings['express_payments'];
+        if (!$express_enabled) {
+            return '';
+        }
+        
+        // Prüfe SSL-Anforderung (außer im Test-Modus)
+        $testmode = isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'];
+        if (!$testmode && !is_ssl()) {
+            return '';
+        }
+        
+        // Generiere HTML für Express Payment Buttons
+        ob_start();
+        ?>
+        <div class="yprint-express-payment-container" id="yprint-express-payment-container">
+            <div class="express-payment-header">
+                <span class="express-payment-label"><?php _e('Express Checkout', 'yprint-plugin'); ?></span>
+            </div>
+            <div class="express-payment-buttons">
+                <div id="yprint-payment-request-button" class="yprint-express-button"></div>
+            </div>
+            <div class="express-payment-separator">
+                <span><?php _e('ODER', 'yprint-plugin'); ?></span>
+            </div>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+
+    /**
      * AJAX handler for saving address
      */
     public function ajax_save_address() {
