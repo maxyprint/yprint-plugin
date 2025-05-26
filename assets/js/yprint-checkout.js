@@ -348,23 +348,146 @@ function showMessage(message, type = 'info') {
     }, 5000);
 }
 
-// Nach dem DOMContentLoaded Event hinzufügen:
-document.addEventListener('DOMContentLoaded', function () {
-    // ... bestehender Code ...
-    
-    // Adressauswahl initialisieren
-    handleAddressSelection();
-    handleNewAddressModal();
-    
-    // Erste Adresse automatisch auswählen wenn keine ausgewählt ist
-    const selectedAddress = document.querySelector('input[name="selected_address"]:checked');
-    if (!selectedAddress) {
-        const firstAddress = document.querySelector('input[name="selected_address"]:not([value="new_address"])');
-        if (firstAddress) {
-            firstAddress.checked = true;
-            firstAddress.dispatchEvent(new Event('change'));
+class YPrintStripeCheckout {
+    constructor() {
+        this.stripe = null;
+        this.elements = null;
+        this.cardElement = null;
+        this.initialized = false;
+        
+        this.init();
+    }
+
+    init() {
+        console.log('YPrint Stripe Checkout: Initializing...');
+        
+        // Überprüfen, ob Stripe-Objekt vorhanden ist
+        if (typeof Stripe === 'undefined') {
+            console.error('Stripe.js wurde nicht geladen. Stripe-Funktionen sind nicht verfügbar.');
+            this.showStripeError('Stripe.js konnte nicht geladen werden.');
+            return;
+        }
+
+        // Stripe Publishable Key von WordPress
+        if (typeof yprint_stripe_vars === 'undefined' || !yprint_stripe_vars.publishable_key) {
+            console.error('Stripe Publishable Key nicht verfügbar.');
+            this.showStripeError('Stripe-Konfiguration fehlt.');
+            return;
+        }
+
+        try {
+            this.stripe = Stripe(yprint_stripe_vars.publishable_key);
+            this.elements = this.stripe.elements();
+            console.log('YPrint Stripe Checkout: Stripe initialized successfully');
+            
+            // Card Element vorbereiten (aber noch nicht mounten)
+            this.prepareCardElement();
+            
+            this.initialized = true;
+        } catch (error) {
+            console.error('YPrint Stripe Checkout: Initialization failed:', error);
+            this.showStripeError('Stripe-Initialisierung fehlgeschlagen.');
         }
     }
+
+    prepareCardElement() {
+        const elementsStyle = {
+            base: {
+                color: '#1d1d1f',
+                fontFamily: '"Roboto", sans-serif',
+                fontSmoothing: 'antialiased',
+                fontSize: '16px',
+                '::placeholder': {
+                    color: '#6e6e73'
+                }
+            },
+            invalid: {
+                color: '#dc3545',
+                iconColor: '#dc3545'
+            }
+        };
+
+        this.cardElement = this.elements.create('card', { 
+            style: elementsStyle,
+            hidePostalCode: true // PLZ wird im Adressformular abgefragt
+        });
+
+        console.log('YPrint Stripe Checkout: Card element prepared');
+    }
+
+    initCardElement() {
+        if (!this.initialized || !this.cardElement) {
+            console.warn('YPrint Stripe Checkout: Not initialized or card element not available');
+            return;
+        }
+
+        const cardElementContainer = document.getElementById('stripe-card-element');
+        if (!cardElementContainer) {
+            console.error('YPrint Stripe Checkout: Card element container not found');
+            return;
+        }
+
+        try {
+            // Prüfen ob bereits gemounted
+            if (cardElementContainer.hasChildNodes()) {
+                console.log('YPrint Stripe Checkout: Card element already mounted');
+                return;
+            }
+
+            this.cardElement.mount('#stripe-card-element');
+            console.log('YPrint Stripe Checkout: Card element mounted successfully');
+
+            // Error handling
+            this.cardElement.on('change', (event) => {
+                const displayError = document.getElementById('stripe-card-errors');
+                if (displayError) {
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                        displayError.style.display = 'block';
+                    } else {
+                        displayError.textContent = '';
+                        displayError.style.display = 'none';
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('YPrint Stripe Checkout: Card element mount failed:', error);
+            this.showStripeError('Kartenelement konnte nicht geladen werden.');
+        }
+    }
+
+    showStripeError(message) {
+        const stripeContainers = document.querySelectorAll('#stripe-card-element, .stripe-payment-element-container');
+        stripeContainers.forEach(el => {
+            el.innerHTML = `<p class="text-red-600 text-sm">${message}</p>`;
+        });
+    }
+
+    // Öffentliche Methode für Payment Processing (Phase 3)
+    async createPaymentMethod() {
+        if (!this.initialized || !this.cardElement) {
+            throw new Error('Stripe not initialized');
+        }
+
+        const { paymentMethod, error } = await this.stripe.createPaymentMethod({
+            type: 'card',
+            card: this.cardElement,
+        });
+
+        if (error) {
+            throw error;
+        }
+
+        return paymentMethod;
+    }
+}
+
+// Global verfügbar machen
+window.YPrintStripeCheckout = new YPrintStripeCheckout();
+
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('YPrint Stripe Checkout JS loaded');
 });
 
     /**
