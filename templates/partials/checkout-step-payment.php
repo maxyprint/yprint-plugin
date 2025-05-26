@@ -103,9 +103,7 @@ if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
 ?>
 
 <form id="payment-form" class="space-y-6 mt-6">
-    <div class="space-y-3">
-        <p class="font-medium"><?php esc_html_e('Verfügbare Zahlungsarten:', 'yprint-checkout'); ?></p>
-        
+    <div class="space-y-6">
         <?php
         // Prüfe verfügbare Zahlungsmethoden
         $stripe_enabled = class_exists('YPrint_Stripe_Checkout_Shortcode') && 
@@ -114,51 +112,69 @@ if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
         ?>
         
         <?php if ($stripe_enabled) : ?>
-        <!-- Stripe Kreditkarte -->
-        <div>
-            <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
-                <input type="radio" name="payment_method" value="yprint_stripe_card" class="form-radio h-5 w-5 text-yprint-blue mr-3" checked>
-                <i class="fas fa-credit-card fa-fw text-2xl mr-3 text-blue-600"></i>
-                <?php esc_html_e('Kreditkarte', 'yprint-checkout'); ?>
-                <?php if (isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode']) : ?>
-                    <span class="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">TEST</span>
-                <?php endif; ?>
-            </label>
-            
-            <!-- Stripe Card Element Container -->
-            <div id="stripe-card-element-container" class="mt-3 p-4 border border-yprint-blue rounded-lg bg-blue-50 payment-fields">
-                <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-2"><?php esc_html_e('Kartendaten', 'yprint-checkout'); ?></label>
-                    <div id="stripe-card-element" class="p-3 bg-white border border-gray-300 rounded-md"></div>
-                    <div id="stripe-card-errors" class="text-red-600 text-sm mt-2"></div>
-                </div>
-                <div class="flex items-center">
-                    <input type="checkbox" id="save-card" class="form-checkbox h-4 w-4 text-yprint-blue">
-                    <label for="save-card" class="ml-2 text-sm text-gray-600"><?php esc_html_e('Karte für zukünftige Zahlungen speichern', 'yprint-checkout'); ?></label>
+        <!-- Intelligenter Payment Bereich -->
+        <div class="payment-method-container">
+            <!-- Payment Method Slider -->
+            <div class="payment-method-slider mb-4">
+                <div class="slider-container">
+                    <div class="slider-track">
+                        <div class="slider-option active" data-method="card">
+                            <i class="fas fa-credit-card"></i>
+                            <span><?php esc_html_e('Kreditkarte', 'yprint-checkout'); ?></span>
+                        </div>
+                        <div class="slider-option" data-method="sepa">
+                            <i class="fas fa-university"></i>
+                            <span><?php esc_html_e('SEPA-Lastschrift', 'yprint-checkout'); ?></span>
+                        </div>
+                    </div>
+                    <div class="slider-indicator"></div>
                 </div>
             </div>
-        </div>
 
-        <!-- SEPA Lastschrift -->
-        <div>
-            <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
-                <input type="radio" name="payment_method" value="yprint_stripe_sepa" class="form-radio h-5 w-5 text-yprint-blue mr-3">
-                <i class="fas fa-university fa-fw text-2xl mr-3 text-green-600"></i>
-                <?php esc_html_e('SEPA-Lastschrift', 'yprint-checkout'); ?>
-                <span class="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded"><?php esc_html_e('EUR', 'yprint-checkout'); ?></span>
-            </label>
-            
-            <!-- SEPA Element Container -->
-            <div id="stripe-sepa-element-container" class="mt-3 p-4 border border-yprint-blue rounded-lg bg-blue-50 payment-fields" style="display: none;">
-                <div class="mb-3">
-                    <label class="block text-sm font-medium text-gray-700 mb-2"><?php esc_html_e('IBAN', 'yprint-checkout'); ?></label>
-                    <div id="stripe-sepa-element" class="p-3 bg-white border border-gray-300 rounded-md"></div>
-                    <div id="stripe-sepa-errors" class="text-red-600 text-sm mt-2"></div>
+            <!-- Hidden Input für die gewählte Methode -->
+            <input type="hidden" name="payment_method" id="selected-payment-method" value="yprint_stripe_card">
+
+            <!-- Universeller Payment Eingabebereich -->
+            <div class="payment-input-container">
+                <div class="payment-fields-wrapper">
+                    
+                    <!-- Kreditkarten-Felder (Standard aktiv) -->
+                    <div id="card-payment-fields" class="payment-input-fields active">
+                        <div class="payment-field-group">
+                            <label class="payment-field-label"><?php esc_html_e('Kartendaten', 'yprint-checkout'); ?></label>
+                            <div id="stripe-card-element" class="payment-stripe-element"></div>
+                            <div id="stripe-card-errors" class="payment-error-display"></div>
+                        </div>
+                        <div class="payment-options">
+                            <label class="payment-checkbox-container">
+                                <input type="checkbox" id="save-card" class="payment-checkbox">
+                                <span class="payment-checkbox-label"><?php esc_html_e('Karte für zukünftige Zahlungen speichern', 'yprint-checkout'); ?></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- SEPA-Felder (initial versteckt) -->
+                    <div id="sepa-payment-fields" class="payment-input-fields">
+                        <div class="payment-field-group">
+                            <label class="payment-field-label"><?php esc_html_e('IBAN', 'yprint-checkout'); ?></label>
+                            <div id="stripe-sepa-element" class="payment-stripe-element"></div>
+                            <div id="stripe-sepa-errors" class="payment-error-display"></div>
+                        </div>
+                        <div class="sepa-info">
+                            <div class="sepa-info-content">
+                                <p><?php esc_html_e('Mit der Eingabe Ihrer IBAN erteilen Sie uns ein SEPA-Lastschriftmandat.', 'yprint-checkout'); ?></p>
+                                <p><?php esc_html_e('Der Betrag wird von Ihrem Konto abgebucht, nachdem wir Ihre Bestellung bearbeitet haben.', 'yprint-checkout'); ?></p>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
-                <div class="text-xs text-gray-600 mt-3">
-                    <p class="mb-2"><?php esc_html_e('Mit der Eingabe Ihrer IBAN erteilen Sie uns ein SEPA-Lastschriftmandat.', 'yprint-checkout'); ?></p>
-                    <p><?php esc_html_e('Der Betrag wird von Ihrem Konto abgebucht, nachdem wir Ihre Bestellung bearbeitet haben.', 'yprint-checkout'); ?></p>
-                </div>
+                
+                <?php if (isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode']) : ?>
+                    <div class="test-mode-indicator">
+                        <span class="test-badge"><?php esc_html_e('TEST-MODUS', 'yprint-checkout'); ?></span>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php else : ?>

@@ -1208,48 +1208,85 @@ function logCheckoutState() {
 // Rufe die Debug-Funktion initial auf
 setTimeout(logCheckoutState, 1000);
 
-// Payment Method Change Handler
-$(document).on('change', 'input[name="payment_method"]', function() {
-    const selectedMethod = $(this).val();
-    console.log('Payment method changed to:', selectedMethod);
+// Payment Method Slider Handler
+$(document).on('click', '.slider-option', function() {
+    if ($(this).hasClass('active')) return;
     
-    // Alle Zahlungsfelder verstecken
-    $('.payment-fields').slideUp(200);
+    const selectedMethod = $(this).data('method');
+    console.log('Payment method switched to:', selectedMethod);
     
-    // Entsprechende Felder anzeigen
-    if (selectedMethod === 'yprint_stripe_card') {
-        $('#stripe-card-element-container').slideDown(300);
-        // Trigger Stripe Card Element Initialisierung
+    // Update Slider UI
+    $('.slider-option').removeClass('active');
+    $(this).addClass('active');
+    
+    // Update Indicator
+    const indicator = $('.slider-indicator');
+    if (selectedMethod === 'sepa') {
+        indicator.addClass('sepa');
+    } else {
+        indicator.removeClass('sepa');
+    }
+    
+    // Update Hidden Input
+    const methodValue = selectedMethod === 'card' ? 'yprint_stripe_card' : 'yprint_stripe_sepa';
+    $('#selected-payment-method').val(methodValue);
+    
+    // Switch Payment Fields
+    $('.payment-input-fields').removeClass('active');
+    if (selectedMethod === 'card') {
+        $('#card-payment-fields').addClass('active');
+        // Initialize Stripe Card Element
         setTimeout(() => {
             if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
                 window.YPrintStripeCheckout.initCardElement();
             }
-        }, 350);
-    } else if (selectedMethod === 'yprint_stripe_sepa') {
-        $('#stripe-sepa-element-container').slideDown(300);
-        // Trigger SEPA Element Initialisierung
+        }, 300);
+    } else if (selectedMethod === 'sepa') {
+        $('#sepa-payment-fields').addClass('active');
+        // Initialize Stripe SEPA Element
         setTimeout(() => {
             if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
                 window.YPrintStripeCheckout.initSepaElement();
             }
-        }, 350);
+        }, 300);
     }
     
     // Update pricing if needed
     updatePaymentStepSummary();
 });
 
-// Initial state - zeige Felder für vorausgewählte Methode
+// Intelligente Zahlungsmethodenerkennung (für späteren Ausbau)
+function detectPaymentMethod() {
+    const cardElement = window.YPrintStripeCheckout?.cardElement;
+    const sepaElement = window.YPrintStripeCheckout?.sepaElement;
+    
+    // Hier könnte später Logic für automatische Erkennung basierend auf ausgefüllten Feldern
+    // implementiert werden
+    return $('#selected-payment-method').val();
+}
+
+// Initial state - Kreditkarte aktiv und Stripe Elements initialisieren
 $(document).ready(function() {
-    const initialMethod = $('input[name="payment_method"]:checked').val();
-    if (initialMethod === 'yprint_stripe_card') {
-        $('#stripe-card-element-container').show();
-        setTimeout(() => {
-            if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
-                window.YPrintStripeCheckout.initCardElement();
-            }
-        }, 500);
+    // Kreditkarte ist bereits als aktiv markiert im HTML
+    setTimeout(() => {
+        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
+            window.YPrintStripeCheckout.initCardElement();
+        }
+    }, 500);
+});
+
+// Express Payment Integration bleibt bestehen
+function initExpressPaymentIntegration() {
+    if (window.YPrintExpressCheckout) {
+        console.log('Express Checkout available, integrating with main checkout...');
+    } else {
+        console.log('Express Checkout not available');
     }
+}
+
+// Nach DOM Ready Express Payment integrieren
+$(document).ready(function() {
+    setTimeout(initExpressPaymentIntegration, 1000);
 });
 
 // Express Payment Integration

@@ -1228,6 +1228,215 @@ input[name="payment_method"]:checked + .payment-method-label {
     }
 }
 
+/* Payment Method Container */
+.payment-method-container {
+    border: 1px solid var(--yprint-border-gray);
+    border-radius: 12px;
+    background: var(--yprint-white);
+    overflow: hidden;
+}
+
+/* Payment Method Slider */
+.payment-method-slider {
+    background: var(--yprint-light-gray);
+    padding: 4px;
+    border-radius: 8px 8px 0 0;
+}
+
+.slider-container {
+    position: relative;
+    background: transparent;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.slider-track {
+    display: flex;
+    position: relative;
+    z-index: 2;
+}
+
+.slider-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: var(--yprint-text-secondary);
+    background: transparent;
+    border-radius: 6px;
+    position: relative;
+    z-index: 3;
+}
+
+.slider-option i {
+    font-size: 1.1em;
+}
+
+.slider-option.active {
+    color: var(--yprint-blue);
+}
+
+.slider-indicator {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: 50%;
+    background: var(--yprint-white);
+    border-radius: 6px;
+    transition: transform 0.3s ease;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider-indicator.sepa {
+    transform: translateX(100%);
+}
+
+/* Payment Input Container */
+.payment-input-container {
+    padding: 24px;
+    background: var(--yprint-white);
+}
+
+.payment-fields-wrapper {
+    position: relative;
+    min-height: 120px;
+}
+
+.payment-input-fields {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+}
+
+.payment-input-fields.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    position: relative;
+}
+
+/* Payment Field Groups */
+.payment-field-group {
+    margin-bottom: 16px;
+}
+
+.payment-field-label {
+    display: block;
+    font-weight: 500;
+    color: var(--yprint-black);
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.payment-stripe-element {
+    background: var(--yprint-white);
+    border: 2px solid var(--yprint-border-gray);
+    border-radius: 8px;
+    padding: 12px;
+    transition: border-color 0.2s ease;
+    min-height: 44px;
+}
+
+.payment-stripe-element:focus-within {
+    border-color: var(--yprint-blue);
+    box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+}
+
+.payment-error-display {
+    color: var(--yprint-error);
+    font-size: 0.85rem;
+    margin-top: 6px;
+    min-height: 20px;
+}
+
+/* Payment Options */
+.payment-options {
+    margin-top: 16px;
+}
+
+.payment-checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.payment-checkbox {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    accent-color: var(--yprint-blue);
+}
+
+.payment-checkbox-label {
+    font-size: 0.85rem;
+    color: var(--yprint-text-secondary);
+}
+
+/* SEPA Info */
+.sepa-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(34, 197, 94, 0.05);
+    border-left: 3px solid #22c55e;
+    border-radius: 0 6px 6px 0;
+}
+
+.sepa-info-content p {
+    margin: 0 0 6px 0;
+    font-size: 0.8rem;
+    color: var(--yprint-text-secondary);
+    line-height: 1.4;
+}
+
+.sepa-info-content p:last-child {
+    margin-bottom: 0;
+}
+
+/* Test Mode Indicator */
+.test-mode-indicator {
+    margin-top: 16px;
+    text-align: center;
+}
+
+.test-badge {
+    display: inline-block;
+    background: #fbbf24;
+    color: #92400e;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .slider-option {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .slider-option span {
+        display: none;
+    }
+    
+    .payment-input-container {
+        padding: 16px;
+    }
+}
+
 /* Hide container initially until JS determines availability */
 #yprint-express-payment-container {
     display: none;
