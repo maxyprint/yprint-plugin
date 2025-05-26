@@ -1035,11 +1035,69 @@ function logCheckoutState() {
 // Rufe die Debug-Funktion initial auf
 setTimeout(logCheckoutState, 1000);
 
+// Payment Method Change Handler
+$(document).on('change', 'input[name="payment_method"]', function() {
+    const selectedMethod = $(this).val();
+    console.log('Payment method changed to:', selectedMethod);
+    
+    // Stripe Card Element anzeigen/verstecken
+    const stripeCardContainer = $('#stripe-card-element-container');
+    if (selectedMethod === 'yprint_stripe') {
+        stripeCardContainer.slideDown();
+        // Trigger Stripe Card Element Initialisierung
+        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
+            window.YPrintStripeCheckout.initCardElement();
+        }
+    } else {
+        stripeCardContainer.slideUp();
+    }
+    
+    // Update pricing if needed
+    updatePaymentStepSummary();
+});
+
+// Express Payment Integration
+function initExpressPaymentIntegration() {
+    // Warte auf Express Checkout Initialisierung
+    if (window.YPrintExpressCheckout) {
+        console.log('Express Checkout available, integrating with main checkout...');
+        // Weitere Integration kann hier hinzugefügt werden
+    } else {
+        console.log('Express Checkout not available');
+    }
+}
+
+// Nach DOM Ready Express Payment integrieren
+$(document).ready(function() {
+    // Bestehende Initialisierung...
+    
+    // Express Payment Integration
+    setTimeout(initExpressPaymentIntegration, 1000);
+    
+    // Initial payment method check
+    const initialMethod = $('input[name="payment_method"]:checked').val();
+    if (initialMethod === 'yprint_stripe') {
+        $('#stripe-card-element-container').show();
+    }
+});
+
 // Debug-Button hinzufügen wenn im Entwicklungsmodus
 if (window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1') || window.location.search.includes('debug=1')) {
     const debugButton = $('<button type="button" class="btn btn-secondary" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">Debug</button>');
     $('body').append(debugButton);
-    debugButton.on('click', logCheckoutState);
+    debugButton.on('click', function() {
+        logCheckoutState();
+        
+        // Express Payment Debug
+        if (window.YPrintExpressCheckout) {
+            console.log('Express Checkout Instance:', window.YPrintExpressCheckout);
+        }
+        
+        // Stripe Debug
+        if (window.YPrintStripeCheckout) {
+            console.log('Stripe Checkout Instance:', window.YPrintStripeCheckout);
+        }
+    });
 }
 
 // Event-Listener für Adressauswahl hinzufügen
