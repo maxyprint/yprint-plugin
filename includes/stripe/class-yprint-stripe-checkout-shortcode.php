@@ -178,6 +178,15 @@ wp_enqueue_style(
                     true
                 );
                 
+                // Express Checkout JS (für Wallet Payments)
+                wp_enqueue_script(
+                    'yprint-express-checkout-js',
+                    YPRINT_PLUGIN_URL . 'assets/js/yprint-express-checkout.js',
+                    array('jquery', 'stripe-js', 'yprint-checkout-js'),
+                    YPRINT_PLUGIN_VERSION,
+                    true
+                );
+                
                 // Localize script with Stripe-specific data
                 $stripe_settings = YPrint_Stripe_API::get_stripe_settings();
                 $testmode = isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'];
@@ -193,6 +202,33 @@ wp_enqueue_style(
                         'is_test_mode' => $testmode ? 'yes' : 'no',
                         'processing_text' => __('Processing payment...', 'yprint-plugin'),
                         'card_error_text' => __('Card error: ', 'yprint-plugin'),
+                    )
+                );
+                
+                // Express Checkout spezifische Daten
+                wp_localize_script(
+                    'yprint-express-checkout-js',
+                    'yprint_express_payment_params',
+                    array(
+                        'ajax_url' => admin_url('admin-ajax.php'),
+                        'nonce' => wp_create_nonce('yprint_express_checkout_nonce'),
+                        'stripe' => array(
+                            'publishable_key' => $publishable_key,
+                            'test_mode' => $testmode
+                        ),
+                        'checkout' => array(
+                            'country' => substr(get_option('woocommerce_default_country'), 0, 2),
+                            'currency' => strtolower(get_woocommerce_currency()),
+                            'total_label' => get_bloginfo('name'),
+                        ),
+                        'cart' => array(
+                            'total' => WC()->cart ? (int)(WC()->cart->get_total('edit') * 100) : 0, // In Cent
+                            'needs_shipping' => WC()->cart ? WC()->cart->needs_shipping() : false
+                        ),
+                        'i18n' => array(
+                            'processing' => __('Processing payment...', 'yprint-plugin'),
+                            'error' => __('Payment failed. Please try again.', 'yprint-plugin'),
+                        )
                     )
                 );
             }
