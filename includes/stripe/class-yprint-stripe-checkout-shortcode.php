@@ -292,8 +292,8 @@ wp_enqueue_style(
         
         $stripe_settings = YPrint_Stripe_API::get_stripe_settings();
         
-        // Prüfe ob Express Payments aktiviert sind
-        $express_enabled = isset($stripe_settings['express_payments']) && 'yes' === $stripe_settings['express_payments'];
+        // Prüfe ob Express Payments aktiviert sind (Standard: ja, wenn nicht explizit deaktiviert)
+        $express_enabled = !isset($stripe_settings['express_payments']) || 'yes' === $stripe_settings['express_payments'];
         if (!$express_enabled) {
             return '';
         }
