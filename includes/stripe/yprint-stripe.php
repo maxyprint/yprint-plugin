@@ -350,6 +350,26 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-re
 YPrint_Stripe_Apple_Pay::get_instance();
 YPrint_Stripe_Webhook_Handler::get_instance();
 
+// Ensure default Stripe settings exist for testing
+add_action('init', function() {
+    $settings = YPrint_Stripe_API::get_stripe_settings();
+    if (empty($settings)) {
+        // Erstelle Standard-Einstellungen für Tests
+        $default_settings = array(
+            'enabled' => 'yes',
+            'testmode' => 'yes',
+            'test_publishable_key' => '', // Wird vom Admin gesetzt
+            'test_secret_key' => '', // Wird vom Admin gesetzt
+            'publishable_key' => '',
+            'secret_key' => '',
+            'express_payments' => 'yes'
+        );
+        
+        YPrint_Stripe_API::update_stripe_settings($default_settings);
+        error_log('YPrint: Default Stripe settings created');
+    }
+});
+
 // Add WooCommerce payment gateway
 add_filter('woocommerce_payment_gateways', 'yprint_add_stripe_gateway');
 
