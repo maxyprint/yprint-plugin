@@ -1248,12 +1248,13 @@ input[name="payment_method"]:checked + .payment-method-label {
     background: transparent;
     border-radius: 6px;
     overflow: hidden;
+    isolation: isolate; /* Neuer Stacking Context */
 }
 
 .slider-track {
     display: flex;
     position: relative;
-    z-index: 2;
+    z-index: 10; /* Höherer z-index */
 }
 
 .slider-option {
@@ -1271,6 +1272,18 @@ input[name="payment_method"]:checked + .payment-method-label {
     border-radius: 6px;
     position: relative;
     z-index: 3;
+    user-select: none;
+    pointer-events: auto;
+    border: none;
+    outline: none;
+}
+
+.slider-option:hover {
+    background-color: rgba(0, 121, 255, 0.05);
+}
+
+.slider-option:active {
+    transform: scale(0.98);
 }
 
 .slider-option i {
