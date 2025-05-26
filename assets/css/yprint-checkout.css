@@ -1163,6 +1163,71 @@ label.flex.items-center:hover {
     margin-top: 35px;
 }
 
+/* Payment Fields Styling */
+.payment-fields {
+    border-color: var(--yprint-blue) !important;
+    background-color: rgba(0, 121, 255, 0.05) !important;
+    transition: all 0.3s ease;
+}
+
+/* Stripe Elements in Payment Fields */
+.payment-fields #stripe-card-element,
+.payment-fields #stripe-sepa-element {
+    background: var(--yprint-white);
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 12px;
+    transition: border-color 0.2s ease;
+}
+
+.payment-fields #stripe-card-element:focus-within,
+.payment-fields #stripe-sepa-element:focus-within {
+    border-color: var(--yprint-blue);
+    box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+}
+
+/* Payment Method Labels */
+.payment-method-label {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.payment-method-label:hover {
+    border-color: var(--yprint-blue) !important;
+    background-color: rgba(0, 121, 255, 0.02);
+}
+
+/* Selected Payment Method */
+input[name="payment_method"]:checked + .payment-method-label {
+    border-color: var(--yprint-blue) !important;
+    background-color: rgba(0, 121, 255, 0.05);
+}
+
+/* SEPA Info Text */
+.sepa-info {
+    background-color: rgba(34, 197, 94, 0.05);
+    border-left: 3px solid #22c55e;
+    padding: 10px 15px;
+    margin-top: 15px;
+    border-radius: 0 6px 6px 0;
+}
+
+/* Animation für Feldwechsel */
+.payment-fields {
+    animation: slideInDown 0.3s ease;
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Hide container initially until JS determines availability */
 #yprint-express-payment-container {
     display: none;

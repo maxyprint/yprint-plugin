@@ -353,6 +353,7 @@ class YPrintStripeCheckout {
         this.stripe = null;
         this.elements = null;
         this.cardElement = null;
+        this.sepaElement = null;
         this.initialized = false;
         
         this.init();
@@ -412,7 +413,56 @@ class YPrintStripeCheckout {
             hidePostalCode: true // PLZ wird im Adressformular abgefragt
         });
 
-        console.log('YPrint Stripe Checkout: Card element prepared');
+        // SEPA Element vorbereiten
+        this.sepaElement = this.elements.create('iban', {
+            style: elementsStyle,
+            supportedCountries: ['SEPA'],
+            placeholderCountry: 'DE'
+        });
+
+        console.log('YPrint Stripe Checkout: Card and SEPA elements prepared');
+    }
+
+    initSepaElement() {
+        if (!this.initialized || !this.sepaElement) {
+            console.warn('YPrint Stripe Checkout: Not initialized or SEPA element not available');
+            return;
+        }
+
+        const sepaElementContainer = document.getElementById('stripe-sepa-element');
+        if (!sepaElementContainer) {
+            console.error('YPrint Stripe Checkout: SEPA element container not found');
+            return;
+        }
+
+        try {
+            // Prüfen ob bereits gemounted
+            if (sepaElementContainer.hasChildNodes()) {
+                console.log('YPrint Stripe Checkout: SEPA element already mounted');
+                return;
+            }
+
+            this.sepaElement.mount('#stripe-sepa-element');
+            console.log('YPrint Stripe Checkout: SEPA element mounted successfully');
+
+            // Error handling für SEPA
+            this.sepaElement.on('change', (event) => {
+                const displayError = document.getElementById('stripe-sepa-errors');
+                if (displayError) {
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                        displayError.style.display = 'block';
+                    } else {
+                        displayError.textContent = '';
+                        displayError.style.display = 'none';
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error('YPrint Stripe Checkout: SEPA element mount failed:', error);
+            this.showStripeError('SEPA-Element konnte nicht geladen werden.');
+        }
     }
 
     initCardElement() {
@@ -1163,20 +1213,43 @@ $(document).on('change', 'input[name="payment_method"]', function() {
     const selectedMethod = $(this).val();
     console.log('Payment method changed to:', selectedMethod);
     
-    // Stripe Card Element anzeigen/verstecken
-    const stripeCardContainer = $('#stripe-card-element-container');
-    if (selectedMethod === 'yprint_stripe') {
-        stripeCardContainer.slideDown();
+    // Alle Zahlungsfelder verstecken
+    $('.payment-fields').slideUp(200);
+    
+    // Entsprechende Felder anzeigen
+    if (selectedMethod === 'yprint_stripe_card') {
+        $('#stripe-card-element-container').slideDown(300);
         // Trigger Stripe Card Element Initialisierung
-        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
-            window.YPrintStripeCheckout.initCardElement();
-        }
-    } else {
-        stripeCardContainer.slideUp();
+        setTimeout(() => {
+            if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
+                window.YPrintStripeCheckout.initCardElement();
+            }
+        }, 350);
+    } else if (selectedMethod === 'yprint_stripe_sepa') {
+        $('#stripe-sepa-element-container').slideDown(300);
+        // Trigger SEPA Element Initialisierung
+        setTimeout(() => {
+            if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
+                window.YPrintStripeCheckout.initSepaElement();
+            }
+        }, 350);
     }
     
     // Update pricing if needed
     updatePaymentStepSummary();
+});
+
+// Initial state - zeige Felder für vorausgewählte Methode
+$(document).ready(function() {
+    const initialMethod = $('input[name="payment_method"]:checked').val();
+    if (initialMethod === 'yprint_stripe_card') {
+        $('#stripe-card-element-container').show();
+        setTimeout(() => {
+            if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
+                window.YPrintStripeCheckout.initCardElement();
+            }
+        }, 500);
+    }
 });
 
 // Express Payment Integration
