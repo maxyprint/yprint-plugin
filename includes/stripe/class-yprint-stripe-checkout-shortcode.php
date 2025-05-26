@@ -266,6 +266,15 @@ wp_enqueue_style(
     }
 
     /**
+     * Make is_stripe_enabled public for debugging
+     *
+     * @return bool
+     */
+    public function is_stripe_enabled_public() {
+        return $this->is_stripe_enabled();
+    }
+
+    /**
      * Render express payment buttons (Apple Pay, Google Pay)
      *
      * @return string HTML for express payment buttons
