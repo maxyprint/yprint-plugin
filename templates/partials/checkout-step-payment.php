@@ -101,23 +101,51 @@ if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
     <div class="space-y-3">
         <p class="font-medium"><?php esc_html_e('Verfügbare Zahlungsarten:', 'yprint-checkout'); ?></p>
         
-        <!-- PayPal -->
+        <?php
+        // Prüfe verfügbare Zahlungsmethoden
+        $stripe_enabled = class_exists('YPrint_Stripe_Checkout_Shortcode') && 
+                         YPrint_Stripe_Checkout_Shortcode::get_instance()->is_stripe_enabled_public();
+        $stripe_settings = $stripe_enabled ? YPrint_Stripe_API::get_stripe_settings() : array();
+        ?>
+        
+        <?php if ($stripe_enabled) : ?>
+        <!-- Stripe Kreditkarte -->
         <div>
             <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
-                <input type="radio" name="payment_method" value="paypal" class="form-radio h-5 w-5 text-yprint-blue mr-3" checked>
+                <input type="radio" name="payment_method" value="yprint_stripe" class="form-radio h-5 w-5 text-yprint-blue mr-3" checked>
+                <i class="fas fa-credit-card fa-fw text-2xl mr-3 text-blue-600"></i>
+                <?php esc_html_e('Kreditkarte (Stripe)', 'yprint-checkout'); ?>
+                <?php if (isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode']) : ?>
+                    <span class="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">TEST</span>
+                <?php endif; ?>
+            </label>
+            
+            <!-- Stripe Card Element Container -->
+            <div id="stripe-card-element-container" class="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50" style="display: none;">
+                <div id="stripe-card-element" class="mb-3"></div>
+                <div id="stripe-card-errors" class="text-red-600 text-sm"></div>
+            </div>
+        </div>
+        <?php endif; ?>
+        
+        <!-- PayPal (Fallback) -->
+        <div>
+            <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
+                <input type="radio" name="payment_method" value="paypal" class="form-radio h-5 w-5 text-yprint-blue mr-3" <?php echo !$stripe_enabled ? 'checked' : ''; ?>>
                 <i class="fab fa-paypal fa-fw text-2xl mr-3 text-[#00457C]"></i>
                 PayPal
             </label>
         </div>
         
-        <!-- Kreditkarte -->
+        <!-- Klarna (Fallback) -->
         <div>
             <label class="flex items-center p-3 border border-yprint-border-gray rounded-lg hover:border-yprint-blue cursor-pointer has-[:checked]:border-yprint-blue has-[:checked]:ring-2 has-[:checked]:ring-yprint-blue">
-                <input type="radio" name="payment_method" value="creditcard" class="form-radio h-5 w-5 text-yprint-blue mr-3">
-                <i class="fas fa-credit-card fa-fw text-2xl mr-3 text-gray-600"></i>
-                <?php esc_html_e('Kreditkarte', 'yprint-checkout'); ?>
+                <input type="radio" name="payment_method" value="klarna" class="form-radio h-5 w-5 text-yprint-blue mr-3">
+                <svg class="w-8 h-6 mr-3" viewBox="0 0 496 156" fill="#FFB3C7" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M248.291 31.0084C265.803 31.0084 280.21 37.1458 291.513 49.4206C302.888 61.6954 308.575 77.0417 308.575 95.4594C308.575 113.877 302.888 129.223 291.513 141.498C280.21 153.773 265.803 159.91 248.291 159.91H180.854V31.0084H248.291ZM213.956 132.621H248.291C258.57 132.621 267.076 129.68 273.808 123.798C280.612 117.844 284.014 109.177 284.014 97.7965C284.014 86.4158 280.612 77.7491 273.808 71.7947C267.076 65.8403 258.57 62.8992 248.291 62.8992H213.956V132.621Z"/>
+                </svg>
+                Klarna
             </label>
-            <!-- Hier könnte ein spezieller Container für Stripe Card Elements sein -->
         </div>
     </div>
 
