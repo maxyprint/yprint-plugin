@@ -1208,7 +1208,7 @@ function logCheckoutState() {
 // Rufe die Debug-Funktion initial auf
 setTimeout(logCheckoutState, 1000);
 
-// Payment Method Slider Handler mit Debug
+// Payment Method Slider Handler mit verbessertem Debug
 function initPaymentSlider() {
     console.log('Initializing payment slider...');
     
@@ -1218,122 +1218,87 @@ function initPaymentSlider() {
     
     if (sliderOptions.length === 0) {
         console.error('No slider options found!');
+        // Debug: Prüfe ob Container existiert
+        const container = document.querySelector('.payment-method-slider');
+        console.log('Payment method slider container found:', !!container);
+        if (container) {
+            console.log('Container innerHTML:', container.innerHTML);
+        }
         return;
     }
     
-    // Event-Listener für alle Slider-Optionen
+    // Entferne bestehende Event-Listener, um Duplikate zu vermeiden
     sliderOptions.forEach(option => {
+        const newOption = option.cloneNode(true);
+        option.parentNode.replaceChild(newOption, option);
+    });
+    
+    // Neue Event-Listener hinzufügen
+    const freshSliderOptions = document.querySelectorAll('.slider-option');
+    freshSliderOptions.forEach(option => {
         option.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
             
-            console.log('Slider option clicked:', this);
+            console.log('Native: Slider option clicked:', this.getAttribute('data-method'));
             
             if (this.classList.contains('active')) {
                 console.log('Option already active, skipping');
                 return;
             }
             
-            const selectedMethod = this.getAttribute('data-method');
-            console.log('Payment method switched to:', selectedMethod);
-            
-            // Update Slider UI
-            sliderOptions.forEach(opt => opt.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Update Indicator
-            const indicator = document.querySelector('.slider-indicator');
-            if (indicator) {
-                if (selectedMethod === 'sepa') {
-                    indicator.classList.add('sepa');
-                } else {
-                    indicator.classList.remove('sepa');
-                }
-            }
-            
-            // Update Hidden Input
-            const methodValue = selectedMethod === 'card' ? 'yprint_stripe_card' : 'yprint_stripe_sepa';
-            const hiddenInput = document.getElementById('selected-payment-method');
-            if (hiddenInput) {
-                hiddenInput.value = methodValue;
-                console.log('Updated payment method to:', methodValue);
-            }
-            
-            // Switch Payment Fields
-            const allFields = document.querySelectorAll('.payment-input-fields');
-            allFields.forEach(field => field.classList.remove('active'));
-            
-            if (selectedMethod === 'card') {
-                const cardFields = document.getElementById('card-payment-fields');
-                if (cardFields) {
-                    cardFields.classList.add('active');
-                    // Initialize Stripe Card Element
-                    setTimeout(() => {
-                        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
-                            window.YPrintStripeCheckout.initCardElement();
-                        }
-                    }, 300);
-                }
-            } else if (selectedMethod === 'sepa') {
-                const sepaFields = document.getElementById('sepa-payment-fields');
-                if (sepaFields) {
-                    sepaFields.classList.add('active');
-                    // Initialize Stripe SEPA Element
-                    setTimeout(() => {
-                        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
-                            window.YPrintStripeCheckout.initSepaElement();
-                        }
-                    }, 300);
-                }
-            }
-            
-            // Update pricing if needed
-            if (typeof updatePaymentStepSummary === 'function') {
-                updatePaymentStepSummary();
-            }
+            // Der jQuery Handler übernimmt die eigentliche Logik
+            // Dieser Handler dient nur als Fallback und Debug
         });
     });
+    
+    console.log('Payment slider initialized with', freshSliderOptions.length, 'options');
 }
 
-// jQuery Alternative für Fallback
-$(document).on('click', '.slider-option', function(e) {
+// jQuery Event-Handler (Haupthandler)
+jQuery(document).on('click', '.slider-option', function(e) {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('jQuery fallback: Slider option clicked');
+    console.log('jQuery: Slider option clicked');
     
-    if ($(this).hasClass('active')) return;
+    const $this = jQuery(this);
+    if ($this.hasClass('active')) {
+        console.log('Option already active, skipping');
+        return;
+    }
     
-    const selectedMethod = $(this).data('method');
+    const selectedMethod = $this.data('method');
     console.log('Payment method switched to (jQuery):', selectedMethod);
     
     // Update Slider UI
-    $('.slider-option').removeClass('active');
-    $(this).addClass('active');
+    jQuery('.slider-option').removeClass('active');
+    $this.addClass('active');
     
     // Update Indicator
-    const indicator = $('.slider-indicator');
+    const $indicator = jQuery('.slider-indicator');
     if (selectedMethod === 'sepa') {
-        indicator.addClass('sepa');
+        $indicator.addClass('sepa');
     } else {
-        indicator.removeClass('sepa');
+        $indicator.removeClass('sepa');
     }
     
     // Update Hidden Input
     const methodValue = selectedMethod === 'card' ? 'yprint_stripe_card' : 'yprint_stripe_sepa';
-    $('#selected-payment-method').val(methodValue);
+    jQuery('#selected-payment-method').val(methodValue);
+    console.log('Updated payment method to:', methodValue);
     
     // Switch Payment Fields
-    $('.payment-input-fields').removeClass('active');
+    jQuery('.payment-input-fields').removeClass('active');
     if (selectedMethod === 'card') {
-        $('#card-payment-fields').addClass('active');
+        jQuery('#card-payment-fields').addClass('active');
         setTimeout(() => {
             if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
                 window.YPrintStripeCheckout.initCardElement();
             }
         }, 300);
     } else if (selectedMethod === 'sepa') {
-        $('#sepa-payment-fields').addClass('active');
+        jQuery('#sepa-payment-fields').addClass('active');
         setTimeout(() => {
             if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
                 window.YPrintStripeCheckout.initSepaElement();
@@ -1377,12 +1342,15 @@ $(document).ready(function() {
     console.log('Slider indicator found:', document.querySelector('.slider-indicator') ? 'Yes' : 'No');
 });
 
-// Zusätzlicher Event-Listener für den Fall, dass jQuery zu spät lädt
+// Einmalige Initialisierung nach DOM Ready
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded - initializing payment slider');
-    setTimeout(() => {
-        initPaymentSlider();
-    }, 100);
+    console.log('DOMContentLoaded - backup initialization');
+    // Nur als Fallback, falls jQuery nicht verfügbar ist
+    if (typeof jQuery === 'undefined') {
+        setTimeout(() => {
+            initPaymentSlider();
+        }, 100);
+    }
 });
 
 // Express Payment Integration bleibt bestehen
@@ -1410,9 +1378,12 @@ function initExpressPaymentIntegration() {
     }
 }
 
-// Nach DOM Ready Express Payment integrieren
-$(document).ready(function() {
-    // Bestehende Initialisierung...
+// jQuery ready function - korrekte WordPress-kompatible Syntax
+jQuery(document).ready(function($) {
+    console.log('DOM ready - initializing payment systems');
+    
+    // Payment Slider initialisieren
+    initPaymentSlider();
     
     // Express Payment Integration
     setTimeout(initExpressPaymentIntegration, 1000);
@@ -1422,12 +1393,24 @@ $(document).ready(function() {
     if (initialMethod === 'yprint_stripe') {
         $('#stripe-card-element-container').show();
     }
+    
+    // Kreditkarte ist bereits als aktiv markiert im HTML
+    setTimeout(() => {
+        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
+            window.YPrintStripeCheckout.initCardElement();
+        }
+    }, 500);
+    
+    // Debug: Prüfe vorhandene Elemente
+    console.log('Payment slider elements found:', document.querySelectorAll('.slider-option').length);
+    console.log('Payment fields found:', document.querySelectorAll('.payment-input-fields').length);
+    console.log('Slider indicator found:', document.querySelector('.slider-indicator') ? 'Yes' : 'No');
 });
 
 // Debug-Button hinzufügen wenn im Entwicklungsmodus
-if (window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1') || window.location.search.includes('debug=1')) {
-    const debugButton = $('<button type="button" class="btn btn-secondary" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">Debug</button>');
-    $('body').append(debugButton);
+if (window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1') || window.location.search.includes('debug=1') || window.location.hostname.includes('yprint.de')) {
+    const debugButton = jQuery('<button type="button" class="btn btn-secondary" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">Debug Slider</button>');
+    jQuery('body').append(debugButton);
     debugButton.on('click', function() {
         logCheckoutState();
         
@@ -1438,16 +1421,13 @@ if (window.location.href.includes('localhost') || window.location.href.includes(
         console.log('Selected payment method value:', document.getElementById('selected-payment-method')?.value);
         console.log('Payment fields active:', document.querySelector('.payment-input-fields.active')?.id);
         
-        // Express Payment Debug
-        if (window.YPrintExpressCheckout) {
-            console.log('Express Checkout Instance:', window.YPrintExpressCheckout);
-        }
-        
-        // Stripe Debug
-        if (window.YPrintStripeCheckout) {
-            console.log('Stripe Checkout Instance:', window.YPrintStripeCheckout);
-            console.log('Card Element initialized:', !!window.YPrintStripeCheckout.cardElement);
-            console.log('SEPA Element initialized:', !!window.YPrintStripeCheckout.sepaElement);
+        // Test slider manually
+        const sepaOption = document.querySelector('.slider-option[data-method="sepa"]');
+        if (sepaOption) {
+            console.log('SEPA option found, triggering click...');
+            sepaOption.click();
+        } else {
+            console.error('SEPA option not found!');
         }
         
         console.log('=== END PAYMENT SLIDER DEBUG ===');
