@@ -75,29 +75,50 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
 
 <?php 
-// Debug: Express Checkout Buttons (Apple Pay, Google Pay)
+// Express Checkout Buttons (Apple Pay, Google Pay)
 if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
     $shortcode_instance = YPrint_Stripe_Checkout_Shortcode::get_instance();
-    $express_buttons = $shortcode_instance->render_express_payment_buttons();
     
-    if (current_user_can('administrator') && isset($_GET['debug'])) {
-        $settings = YPrint_Stripe_API::get_stripe_settings();
-        echo '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace;">';
-        echo '<strong>Debug Express Buttons:</strong><br>';
-        echo 'Stripe Enabled: ' . ($shortcode_instance->is_stripe_enabled_public() ? 'Yes' : 'No') . '<br>';
-        echo 'Payment Request Setting: ' . (isset($settings['payment_request']) ? $settings['payment_request'] : 'Not Set') . '<br>';
-        echo 'Live Keys Set: ' . ((!empty($settings['publishable_key']) && !empty($settings['secret_key'])) ? 'Yes' : 'No') . '<br>';
-        echo 'Test Keys Set: ' . ((!empty($settings['test_publishable_key']) && !empty($settings['test_secret_key'])) ? 'Yes' : 'No') . '<br>';
-        echo 'Is SSL: ' . (is_ssl() ? 'Yes' : 'No') . '<br>';
-        echo 'Express Buttons HTML Length: ' . strlen($express_buttons) . '<br>';
-        echo 'Stripe Settings: <pre>' . print_r($settings, true) . '</pre>';
-        echo '</div>';
+    // Prüfe explizit ob Stripe konfiguriert ist
+    if ($shortcode_instance->is_stripe_enabled_public()) {
+        $express_buttons = $shortcode_instance->render_express_payment_buttons();
+        
+        if (!empty($express_buttons)) {
+            echo $express_buttons;
+        } else {
+            // Fallback: Express-Zahlungen sind konfiguriert aber nicht verfügbar
+            echo '<div class="express-payment-notice" style="padding: 10px; background: #f8f8f8; border: 1px solid #ddd; border-radius: 8px; margin: 15px 0; text-align: center;">';
+            echo '<p style="margin: 0; color: #666; font-size: 14px;"><i class="fas fa-info-circle mr-2"></i>' . __('Express-Zahlungsmethoden werden auf unterstützten Geräten angezeigt', 'yprint-checkout') . '</p>';
+            echo '</div>';
+        }
+        
+        // Debug-Info nur für Administratoren
+        if (current_user_can('administrator') && isset($_GET['debug'])) {
+            $settings = YPrint_Stripe_API::get_stripe_settings();
+            echo '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">';
+            echo '<strong>Debug Express Buttons:</strong><br>';
+            echo 'Stripe Enabled: ' . ($shortcode_instance->is_stripe_enabled_public() ? 'Yes' : 'No') . '<br>';
+            echo 'Payment Request Setting: ' . (isset($settings['payment_request']) ? $settings['payment_request'] : 'Not Set') . '<br>';
+            echo 'Express Payments Setting: ' . (isset($settings['express_payments']) ? $settings['express_payments'] : 'Not Set') . '<br>';
+            echo 'Live Keys Set: ' . ((!empty($settings['publishable_key']) && !empty($settings['secret_key'])) ? 'Yes' : 'No') . '<br>';
+            echo 'Test Keys Set: ' . ((!empty($settings['test_publishable_key']) && !empty($settings['test_secret_key'])) ? 'Yes' : 'No') . '<br>';
+            echo 'Is SSL: ' . (is_ssl() ? 'Yes' : 'No') . '<br>';
+            echo 'Express Buttons HTML Length: ' . strlen($express_buttons) . '<br>';
+            echo '</div>';
+        }
+    } else {
+        // Stripe nicht konfiguriert
+        if (current_user_can('administrator')) {
+            echo '<div style="background: #fff3cd; padding: 10px; margin: 10px 0; border: 1px solid #ffeaa7; border-radius: 5px;">';
+            echo '<strong>Admin-Hinweis:</strong> Stripe ist nicht konfiguriert. Express-Zahlungen sind nicht verfügbar.';
+            echo '</div>';
+        }
     }
-    
-    echo $express_buttons;
 } else {
     if (current_user_can('administrator')) {
-        echo '<div style="background: #ffeeee; padding: 10px; margin: 10px 0;">YPrint_Stripe_Checkout_Shortcode class not found!</div>';
+        echo '<div style="background: #ffeeee; padding: 10px; margin: 10px 0; border: 1px solid #f5c6cb; border-radius: 5px;">';
+        echo '<strong>Fehler:</strong> YPrint_Stripe_Checkout_Shortcode Klasse nicht gefunden!';
+        echo '</div>';
     }
 }
 ?>
