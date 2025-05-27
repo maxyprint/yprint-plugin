@@ -1604,3 +1604,87 @@ input[name="payment_method"]:checked + .payment-method-label {
     color: var(--yprint-black);
     line-height: 1.3;
 }
+
+/* Express Payment Buttons Styling */
+.yprint-express-payment-container {
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid var(--yprint-medium-gray, #e5e5e5);
+    border-radius: 12px;
+    background: #ffffff;
+    text-align: center;
+}
+
+.express-payment-header {
+    margin-bottom: 15px;
+}
+
+.express-payment-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--yprint-text-secondary, #6e6e73);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.express-payment-buttons {
+    margin-bottom: 15px;
+}
+
+.yprint-express-button {
+    min-height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.express-payment-separator {
+    position: relative;
+    margin: 20px 0;
+    text-align: center;
+}
+
+.express-payment-separator:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--yprint-medium-gray, #e5e5e5);
+    z-index: 1;
+}
+
+.express-payment-separator span {
+    display: inline-block;
+    padding: 0 15px;
+    background: #ffffff;
+    color: var(--yprint-text-secondary, #6e6e73);
+    font-size: 12px;
+    font-weight: 600;
+    position: relative;
+    z-index: 2;
+}
+
+/* Express Payment Notice */
+.express-payment-notice {
+    font-size: 14px;
+    color: var(--yprint-text-secondary, #6e6e73);
+    font-style: italic;
+}
+
+/* Hidden state for express payment container */
+.yprint-express-payment-container[style*="display: none"] {
+    display: none !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .yprint-express-payment-container {
+        margin: 15px 0;
+        padding: 15px;
+    }
+    
+    .express-payment-separator {
+        margin: 15px 0;
+    }
+}

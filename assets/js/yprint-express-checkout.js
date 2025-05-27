@@ -227,9 +227,38 @@
     }
 
     // Global verfügbar machen für Integration
-    window.YPrintExpressCheckout = YPrintExpressCheckout;
+window.YPrintExpressCheckout = YPrintExpressCheckout;
 
-    // Automatisch initialisieren
-    new YPrintExpressCheckout();
+// Automatisch initialisieren
+const expressCheckoutInstance = new YPrintExpressCheckout();
+
+// Integration mit Hauptcheckout
+if (typeof window.showStep === 'function') {
+    // Hook in main checkout navigation
+    const originalShowStep = window.showStep;
+    window.showStep = function(stepNumber) {
+        originalShowStep(stepNumber);
+        
+        // Wenn Zahlungsschritt angezeigt wird, aktualisiere Express Payment Buttons
+        if (stepNumber === 2 && expressCheckoutInstance && expressCheckoutInstance.updateAmount) {
+            // Hole aktuelle Warenkorbsumme und aktualisiere Express Payment
+            if (typeof calculatePrices === 'function') {
+                const prices = calculatePrices();
+                const amountInCents = Math.round(prices.total * 100);
+                expressCheckoutInstance.updateAmount(amountInCents);
+            }
+        }
+    };
+}
+
+// Checkout-Integration für Warenkorb-Updates
+if (typeof jQuery !== 'undefined') {
+    jQuery(document).on('checkout_updated', function(event, data) {
+        if (expressCheckoutInstance && expressCheckoutInstance.updateAmount && data.total) {
+            const amountInCents = Math.round(parseFloat(data.total) * 100);
+            expressCheckoutInstance.updateAmount(amountInCents);
+        }
+    });
+}
 
 })(jQuery);
