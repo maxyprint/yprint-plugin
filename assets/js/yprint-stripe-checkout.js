@@ -14,16 +14,13 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
-    // Stripe Publishable Key (sollte sicher übergeben werden, z.B. via wp_localize_script)
-    // const stripePublishableKey = yprint_stripe_vars.publishable_key;
-    const stripePublishableKey = 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY'; // NUR ZU TESTZWECKEN DIREKT HIER!
+    // Prüfe ob yprint_stripe_vars verfügbar ist
+if (typeof yprint_stripe_vars === 'undefined' || !yprint_stripe_vars.publishable_key) {
+    console.error('Stripe Publishable Key nicht verfügbar. Stripe-Funktionen werden nicht initialisiert.');
+    return; // Beende die Initialisierung
+}
 
-    if (!stripePublishableKey || stripePublishableKey === 'pk_test_YOUR_STRIPE_PUBLISHABLE_KEY') {
-        console.warn('Stripe Publishable Key nicht konfiguriert oder ist der Standard-Testschlüssel.');
-        // Ggf. Stripe-Elemente nicht initialisieren oder Fehlermeldung anzeigen
-    }
-
-    const stripe = Stripe(stripePublishableKey);
+const stripe = Stripe(yprint_stripe_vars.publishable_key);
 
     // Beispiel: Initialisierung von Stripe Elements für ein Kreditkartenformular
     // Dies ist nur ein Grundgerüst. Die tatsächliche Implementierung hängt stark

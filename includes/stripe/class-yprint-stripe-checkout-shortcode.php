@@ -160,15 +160,30 @@ wp_enqueue_style(
                 true
             );
             
-            // Stripe JS (if needed)
-            if ($this->is_stripe_enabled()) {
-                wp_enqueue_script(
-                    'stripe-js',
-                    'https://js.stripe.com/v3/',
-                    array(),
-                    null,
-                    true
-                );
+            // Stripe JS (if needed) - Prüfe ob bereits geladen
+if ($this->is_stripe_enabled()) {
+    // Prüfe ob Stripe.js bereits von anderem Plugin geladen wurde
+    global $wp_scripts;
+    $stripe_already_loaded = false;
+    
+    if (isset($wp_scripts->registered)) {
+        foreach ($wp_scripts->registered as $handle => $script) {
+            if (strpos($script->src, 'js.stripe.com') !== false) {
+                $stripe_already_loaded = true;
+                break;
+            }
+        }
+    }
+    
+    if (!$stripe_already_loaded) {
+        wp_enqueue_script(
+            'stripe-js',
+            'https://js.stripe.com/v3/',
+            array(),
+            null,
+            true
+        );
+    }
                 
                 wp_enqueue_script(
                     'yprint-stripe-checkout-js',

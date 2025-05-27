@@ -4,7 +4,8 @@ jQuery(document).ready(function($) {
     'use strict';
     
     // Globale Variablen und Zustand für den Checkout-Prozess
-    let currentStep = 1; // Startet immer mit dem ersten Schritt als Standard
+window.currentStep = 1; // Startet immer mit dem ersten Schritt als Standard
+let currentStep = window.currentStep; // Lokale Referenz für Kompatibilität
     const formData = { // Objekt zum Speichern der Formulardaten
         shipping: {},
         billing: {},
@@ -436,13 +437,16 @@ class YPrintStripeCheckout {
         }
 
         try {
-            // Prüfen ob bereits gemounted
-            if (sepaElementContainer.hasChildNodes()) {
-                console.log('YPrint Stripe Checkout: SEPA element already mounted');
-                return;
-            }
+            // Prüfen ob bereits gemounted - bessere Prüfung
+if (sepaElementContainer.querySelector('.StripeElement')) {
+    console.log('YPrint Stripe Checkout: SEPA element already mounted');
+    return;
+}
 
-            this.sepaElement.mount('#stripe-sepa-element');
+// Container leeren bevor mounting
+sepaElementContainer.innerHTML = '';
+
+this.sepaElement.mount('#stripe-sepa-element');
             console.log('YPrint Stripe Checkout: SEPA element mounted successfully');
 
             // Error handling für SEPA
@@ -470,20 +474,23 @@ class YPrintStripeCheckout {
             console.warn('YPrint Stripe Checkout: Not initialized or card element not available');
             return;
         }
-
+    
         const cardElementContainer = document.getElementById('stripe-card-element');
         if (!cardElementContainer) {
             console.error('YPrint Stripe Checkout: Card element container not found');
             return;
         }
-
+    
         try {
-            // Prüfen ob bereits gemounted
-            if (cardElementContainer.hasChildNodes()) {
+            // Prüfen ob bereits gemounted - bessere Prüfung
+            if (cardElementContainer.querySelector('.StripeElement')) {
                 console.log('YPrint Stripe Checkout: Card element already mounted');
                 return;
             }
-
+    
+            // Container leeren bevor mounting
+            cardElementContainer.innerHTML = '';
+            
             this.cardElement.mount('#stripe-card-element');
             console.log('YPrint Stripe Checkout: Card element mounted successfully');
 
@@ -1141,7 +1148,7 @@ jQuery(document).on('click', '.address-card', function() {
 // Debugging-Hilfsfunktion
 function logCheckoutState() {
     console.log('=== CHECKOUT STATE ===');
-    console.log('Aktueller Schritt:', currentStep);
+    console.log('Aktueller Schritt:', window.currentStep || currentStep || 'undefined');
     console.log('Formular-Gültigkeit:', validateAddressForm());
     console.log('Button-Status:', jQuery('#btn-to-payment').prop('disabled'));
     console.log('Adressfelder:');
