@@ -531,3 +531,57 @@ add_action('wp_footer', function() {
         <?php
     }
 });
+
+add_action('wp_footer', function() {
+    if (wp_is_mobile()) {
+        ?>
+        <!-- 🚀 Fixierter Header nur mobil -->
+        <div id="mobile-top-bar" class="mobile-top-wrapper">
+            <?php echo do_shortcode('[elementor-template id="2575"]'); ?>
+        </div>
+
+        <style>
+        #mobile-top-bar.mobile-top-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            max-width: 100%;
+            z-index: 9999;
+            background: #fff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin: 0;
+            padding: 0;
+            display: none;
+        }
+
+        body.mobile-top-padding {
+            padding-top: 60px; /* Passe an die tatsächliche Höhe deines Templates an */
+        }
+
+        @media (max-width: 768px) {
+            #mobile-top-bar.mobile-top-wrapper {
+                display: block;
+            }
+        }
+        </style>
+
+        <script>
+        (function() {
+            const topBar = document.getElementById('mobile-top-bar');
+            if (!topBar) return;
+
+            const applyPadding = () => {
+                const height = topBar.offsetHeight;
+                document.body.classList.add('mobile-top-padding');
+                document.body.style.paddingTop = height + 'px';
+            };
+
+            window.addEventListener('resize', applyPadding);
+            window.addEventListener('orientationchange', applyPadding);
+            document.addEventListener('DOMContentLoaded', applyPadding);
+        })();
+        </script>
+        <?php
+    }
+});
