@@ -155,19 +155,33 @@ class YPrint_Order_Actions_Screenshot_Final {
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    transition: color 0.2s ease;
+    transition: all 0.2s ease;
     background: none;
     border: none;
-    padding: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    position: relative;
 }
 
 .yprint-last-order-action-btn:hover {
     color: #374151;
+    background-color: #f3f4f6;
+    transform: translateY(-1px);
+}
+
+.yprint-last-order-action-btn:active {
+    transform: translateY(0);
+    background-color: #e5e7eb;
 }
 
 .yprint-last-order-action-btn i {
     font-size: 16px;
     color: inherit;
+    transition: all 0.2s ease;
+}
+
+.yprint-last-order-action-btn:hover i {
+    transform: scale(1.1);
 }
 
 .yprint-last-order-arrow {
@@ -179,6 +193,13 @@ class YPrint_Order_Actions_Screenshot_Final {
 .yprint-last-order-action-btn.loading {
     opacity: 0.6;
     pointer-events: none;
+    transform: none !important;
+    background-color: transparent !important;
+}
+
+.yprint-last-order-action-btn.loading:hover {
+    transform: none !important;
+    background-color: transparent !important;
 }
 
 .yprint-last-order-action-btn.loading::after {
@@ -190,6 +211,10 @@ class YPrint_Order_Actions_Screenshot_Final {
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-left: 6px;
+}
+
+.yprint-last-order-action-btn.loading i {
+    transform: none !important;
 }
 
 @keyframes spin {
@@ -225,22 +250,45 @@ class YPrint_Order_Actions_Screenshot_Final {
     text-decoration: none;
     border-radius: 6px;
     font-size: 14px;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .yprint-share-option:hover {
     background-color: #f3f4f6;
+    color: #111827;
+    transform: translateX(2px);
+}
+
+.yprint-share-option:active {
+    background-color: #e5e7eb;
+    transform: translateX(0);
 }
 
 .yprint-share-option i {
     font-size: 16px;
     width: 16px;
     text-align: center;
+    transition: all 0.2s ease;
+}
+
+.yprint-share-option:hover i {
+    transform: scale(1.1);
 }
 
 /* Position relative for share button container */
 .yprint-last-order-action-btn.share {
     position: relative;
+}
+
+.yprint-last-order-action-btn.share:hover {
+    color: #374151;
+    background-color: #f3f4f6;
+    transform: translateY(-1px);
+}
+
+.yprint-last-order-action-btn.share.show {
+    background-color: #e5e7eb;
+    color: #374151;
 }
 
 @media (max-width: 600px) {
@@ -359,17 +407,19 @@ if (shareButton) {
         }
         
         // Desktop/fallback: toggle dropdown
-        if (shareDropdown) {
-            shareDropdown.classList.toggle('show');
-        }
+if (shareDropdown) {
+    shareDropdown.classList.toggle('show');
+    shareButton.classList.toggle('show');
+}
     });
 
     // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!shareButton.contains(e.target) && shareDropdown) {
-            shareDropdown.classList.remove('show');
-        }
-    });
+document.addEventListener('click', (e) => {
+    if (!shareButton.contains(e.target) && shareDropdown) {
+        shareDropdown.classList.remove('show');
+        shareButton.classList.remove('show');
+    }
+});
 }
 
 const handleShare = (platform, text, url) => {
@@ -430,9 +480,10 @@ shareOptions.forEach(option => {
         const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
 
         handleShare(platform, fullShareText, productUrl);
-        if (shareDropdown) {
-            shareDropdown.classList.remove('show');
-        }
+if (shareDropdown) {
+    shareDropdown.classList.remove('show');
+    shareButton.classList.remove('show');
+}
     });
 });
 
