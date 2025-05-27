@@ -361,18 +361,14 @@ class YPrintStripeCheckout {
     }
 
     init() {
-        console.log('YPrint Stripe Checkout: Initializing...');
-        
         // Überprüfen, ob Stripe-Objekt vorhanden ist
         if (typeof Stripe === 'undefined') {
-            console.error('Stripe.js wurde nicht geladen. Stripe-Funktionen sind nicht verfügbar.');
             this.showStripeError('Stripe.js konnte nicht geladen werden.');
             return;
         }
 
         // Stripe Publishable Key von WordPress
         if (typeof yprint_stripe_vars === 'undefined' || !yprint_stripe_vars.publishable_key) {
-            console.error('Stripe Publishable Key nicht verfügbar.');
             this.showStripeError('Stripe-Konfiguration fehlt.');
             return;
         }
@@ -380,14 +376,12 @@ class YPrintStripeCheckout {
         try {
             this.stripe = Stripe(yprint_stripe_vars.publishable_key);
             this.elements = this.stripe.elements();
-            console.log('YPrint Stripe Checkout: Stripe initialized successfully');
             
             // Card Element vorbereiten (aber noch nicht mounten)
             this.prepareCardElement();
             
             this.initialized = true;
         } catch (error) {
-            console.error('YPrint Stripe Checkout: Initialization failed:', error);
             this.showStripeError('Stripe-Initialisierung fehlgeschlagen.');
         }
     }
@@ -421,7 +415,7 @@ class YPrintStripeCheckout {
             placeholderCountry: 'DE'
         });
 
-        console.log('YPrint Stripe Checkout: Card and SEPA elements prepared');
+        // Card und SEPA Elements sind bereit
     }
 
     initSepaElement() {
@@ -492,7 +486,7 @@ this.sepaElement.mount('#stripe-sepa-element');
             cardElementContainer.innerHTML = '';
             
             this.cardElement.mount('#stripe-card-element');
-            console.log('YPrint Stripe Checkout: Card element mounted successfully');
+            // Card Element erfolgreich gemountet
 
             // Error handling
             this.cardElement.on('change', (event) => {
@@ -509,7 +503,6 @@ this.sepaElement.mount('#stripe-sepa-element');
             });
 
         } catch (error) {
-            console.error('YPrint Stripe Checkout: Card element mount failed:', error);
             this.showStripeError('Kartenelement konnte nicht geladen werden.');
         }
     }
@@ -552,28 +545,21 @@ document.addEventListener('DOMContentLoaded', function () {
  * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts (1-basiert, z.B. 1 für Adresse, 2 für Zahlung).
  */
 function showStep(stepNumber) {
-    console.log("Showing step:", stepNumber);
-
     // Konstruiere die erwartete ID für den aktiven Schritt (z.B. "step-2")
     const targetStepId = `step-${stepNumber}`;
 
-    // WICHTIGE ÄNDERUNG HIER: Finde das Element über seine ID, nicht über den Index der NodeList.
-    // Das ist entscheidend, da PHP nur den HTML-Code des aktuell angefragten Schrittes ausgibt.
+    // Finde das Element über seine ID, nicht über den Index der NodeList.
     steps.forEach((stepEl) => {
         if (stepEl.id === targetStepId) {
-            console.log("Activating step element:", stepEl.id);
             stepEl.classList.add('active');
-            stepEl.style.display = 'block'; // Explizit auf 'block' setzen, um CSS-Konflikte zu vermeiden
+            stepEl.style.display = 'block';
         } else {
-            // Diese Bedingung ist nur relevant, wenn mehrere Schritte im DOM vorhanden sind,
-            // was in dieser PHP-Setup-Konfiguration normalerweise nicht der Fall ist.
-            // Sie dient der Sicherheit, falls sich das HTML-Rendering ändert.
             stepEl.classList.remove('active');
-            stepEl.style.display = 'none'; // Explizit auf 'none' setzen
+            stepEl.style.display = 'none';
         }
     });
 
-    // Progress Bar aktualisieren (dieser Teil war bereits korrekt)
+    // Progress Bar aktualisieren
     progressSteps.forEach((pStep, index) => {
         pStep.classList.remove('active', 'completed');
         if (index < stepNumber - 1) {
@@ -583,8 +569,8 @@ function showStep(stepNumber) {
         }
     });
 
-    currentStep = stepNumber; // Aktuellen Schritt speichern
-    window.scrollTo({ top: 0, behavior: 'smooth' }); // Nach oben scrollen
+    currentStep = stepNumber;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Sammle Daten wenn zum Zahlungsschritt gewechselt wird
     if (stepNumber === 2) {
@@ -594,8 +580,6 @@ function showStep(stepNumber) {
         collectPaymentData();
         populateConfirmation();
     }
-
-    console.log("Active elements after showStep:", document.querySelectorAll('.checkout-step.active'));
 }
 
 // Die showStep-Funktion global verfügbar machen
@@ -628,10 +612,7 @@ function collectAddressData() {
         formData.billing.city = document.getElementById('billing_city')?.value || '';
         formData.billing.country = document.getElementById('billing_country')?.value || '';
     }
-    // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_save_address' erfolgen
-    console.log("Adressdaten gesammelt:", formData);
-
-        if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
+    if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
             // AJAX-Call zum Speichern der Adresse
             jQuery.ajax({
                 url: yprint_address_ajax.ajax_url,
@@ -647,12 +628,6 @@ function collectAddressData() {
                     postcode: formData.shipping.zip || '',
                     city: formData.shipping.city || '',
                     country: formData.shipping.country || 'DE'
-                },
-                success: function(response) {
-                    console.log('Address saved:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error saving address:', error);
                 }
             });
         }
@@ -670,8 +645,7 @@ function collectAddressData() {
         if (voucherInput) {
             formData.voucher = voucherInput.value;
         }
-        // In einer echten Anwendung würde hier ein AJAX Call an 'wp_ajax_yprint_set_payment_method' erfolgen
-        console.log("Zahlungsdaten gesammelt:", formData);
+        // Zahlungsdaten sind gesammelt und bereit für Verarbeitung
     }
 
     /**
@@ -1000,26 +974,7 @@ if (cartTotalsContainer) {
 }
 }); // Ende jQuery Document Ready
 
-// Debug-Button hinzufügen (nur wenn im Debug-Modus)
-if (window.location.search.includes('debug=1') || localStorage.getItem('yprint_debug') === 'true') {
-    const debugButton = jQuery('<button type="button" class="btn btn-secondary debug-button" style="position: fixed; top: 10px; right: 10px; z-index: 10000;">Debug Info</button>');
-    jQuery('body').append(debugButton);
-    
-    debugButton.on('click', function() {
-        console.log('=== MANUAL DEBUG TRIGGER ===');
-        if (window.YPrintAddressManager) {
-            window.YPrintAddressManager.debugDOMState();
-            window.YPrintAddressManager.debugUserState();
-            window.YPrintAddressManager.debugAjaxConfig();
-        } else {
-            console.log('YPrintAddressManager not available');
-        }
-        console.log('Current Step:', currentStep);
-        console.log('Form Data:', formData);
-        console.log('Cart Items:', cartItems);
-        console.log('=== END MANUAL DEBUG ===');
-    });
-}
+// Debug-Button entfernt
 
 /**
  * Aktualisiert die Anzeige der Produkte im Warenkorb-Widget mit Design-Unterstützung.
@@ -1141,7 +1096,6 @@ function populateAddressFields(addressData, type = 'shipping') {
 
 // Nach der document.ready-Funktion hinzufügen
 jQuery(document).on('click', '.address-card', function() {
-    console.log('Adresskarte angeklickt:', jQuery(this).data('address-id'));
     validateAddressForm(); // Sofort validieren, um Button-Status zu aktualisieren
 });
 
@@ -1333,32 +1287,7 @@ jQuery(document).ready(function($) {
     console.log('Slider indicator found:', document.querySelector('.slider-indicator') ? 'Yes' : 'No');
 });
 
-// Debug-Button hinzufügen wenn im Entwicklungsmodus
-if (window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1') || window.location.search.includes('debug=1') || window.location.hostname.includes('yprint.de')) {
-    const debugButton = jQuery('<button type="button" class="btn btn-secondary" style="position: fixed; bottom: 10px; right: 10px; z-index: 9999;">Debug Slider</button>');
-    jQuery('body').append(debugButton);
-    debugButton.on('click', function() {
-        logCheckoutState();
-        
-        // Payment Slider Debug
-        console.log('=== PAYMENT SLIDER DEBUG ===');
-        console.log('Slider options found:', document.querySelectorAll('.slider-option').length);
-        console.log('Active slider option:', document.querySelector('.slider-option.active')?.getAttribute('data-method'));
-        console.log('Selected payment method value:', document.getElementById('selected-payment-method')?.value);
-        console.log('Payment fields active:', document.querySelector('.payment-input-fields.active')?.id);
-        
-        // Test slider manually
-        const sepaOption = document.querySelector('.slider-option[data-method="sepa"]');
-        if (sepaOption) {
-            console.log('SEPA option found, triggering click...');
-            sepaOption.click();
-        } else {
-            console.error('SEPA option not found!');
-        }
-        
-        console.log('=== END PAYMENT SLIDER DEBUG ===');
-    });
-}
+// Debug-Button entfernt
 
 // Event-Listener für Adressauswahl hinzufügen
 document.addEventListener('change', function(e) {
