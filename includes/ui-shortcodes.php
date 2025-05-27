@@ -481,9 +481,53 @@ add_shortcode('toggle_button_popup', 'toggle_button_with_popup_shortcode');
 
 
 
-function mobile_top_banner_shortcode() {
+add_action('wp_footer', function() {
     if (wp_is_mobile()) {
-        echo do_shortcode('[elementor-template id="2575"]');
+        ?>
+        <!-- 🚀 Fixierte mobile Navigation -->
+        <div id="mobile-bottom-nav" class="mobile-nav-wrapper">
+            <?php echo do_shortcode('[elementor-template id="4626"]'); ?>
+        </div>
+
+        <style>
+        #mobile-bottom-nav.mobile-nav-wrapper {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            max-width: 100%;
+            z-index: 9999;
+            background: #fff;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            margin: 0;
+            padding: 0;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            #mobile-bottom-nav.mobile-nav-wrapper {
+                display: block;
+            }
+        }
+        </style>
+
+        <script>
+        (function() {
+            const nav = document.getElementById('mobile-bottom-nav');
+            if (!nav) return;
+
+            const adjustPosition = () => {
+                nav.style.bottom = '0px';
+                nav.style.position = 'fixed';
+                nav.style.zIndex = '9999';
+            };
+
+            window.addEventListener('resize', adjustPosition);
+            window.addEventListener('scroll', adjustPosition);
+            window.addEventListener('orientationchange', adjustPosition);
+            document.addEventListener('DOMContentLoaded', adjustPosition);
+        })();
+        </script>
+        <?php
     }
-}
-add_action('wp_body_open', 'mobile_top_banner_shortcode');
+});
