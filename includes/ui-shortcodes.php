@@ -498,7 +498,6 @@ add_action('wp_footer', function() {
             max-width: 100%;
             background: #fff;
             z-index: 9999;
-            border-top: 1px solid #DFDFDF; /* ✅ Neuer oberer Rahmen */
             margin: 0;
             padding: 0;
             display: none;
