@@ -129,51 +129,7 @@ if (selectedAddress || filledAddress) {
         initialBillingInputs.forEach(input => input.required = !billingSameAsShippingCheckbox.checked);
     }
 
-    // Adressauswahl-Handler
-function handleAddressSelection() {
-    const addressCards = document.querySelectorAll('.address-card input[type="radio"]');
-    
-    addressCards.forEach(radio => {
-        radio.addEventListener('change', function() {
-            // Alle Karten deselektieren
-            document.querySelectorAll('.address-card-content').forEach(card => {
-                card.classList.remove('border-blue-500', 'bg-blue-50');
-                card.classList.add('border-gray-200');
-            });
-            
-            document.querySelectorAll('.address-selected-icon').forEach(icon => {
-                icon.classList.add('opacity-0');
-            });
-            
-            if (this.checked) {
-                // Gewählte Karte markieren
-                const cardContent = this.parentElement.querySelector('.address-card-content');
-                const selectedIcon = this.parentElement.querySelector('.address-selected-icon');
-                
-                cardContent.classList.remove('border-gray-200');
-                cardContent.classList.add('border-blue-500', 'bg-blue-50');
-                selectedIcon.classList.remove('opacity-0');
-                
-                const addressType = this.dataset.addressType;
-                
-                if (addressType === 'new') {
-                    // Neue Adresse - Modal öffnen
-                    const modal = document.getElementById('new-address-modal');
-                    if (modal) {
-                        modal.classList.add('active');
-                        document.body.style.overflow = 'hidden';
-                    }
-                    // Checkout-Felder leeren
-                    clearCheckoutFields();
-                } else {
-                    // Gespeicherte oder WC-Adresse - Felder füllen
-                    const addressData = JSON.parse(this.dataset.addressData);
-                    populateCheckoutFields(addressData);
-                }
-            }
-        });
-    });
-}
+    // Entfernt - wird vom Address Manager übernommen
 
 // Checkout-Felder mit Adressdaten füllen
 function populateCheckoutFields(addressData) {
@@ -245,90 +201,7 @@ function syncBillingWithShipping() {
     });
 }
 
-// Modal-Handler für neue Adresse
-function handleNewAddressModal() {
-    const modal = document.getElementById('new-address-modal');
-    const closeButtons = modal?.querySelectorAll('.btn-close-modal, .btn-cancel-address');
-    const saveButton = modal?.querySelector('.btn-save-address');
-    const form = modal?.querySelector('#new-address-form');
-    
-    // Modal schließen
-    closeButtons?.forEach(button => {
-        button.addEventListener('click', () => {
-            modal.classList.remove('active');
-            document.body.style.overflow = 'auto';
-            
-            // Radio-Button zurücksetzen
-            const newAddressRadio = document.querySelector('input[name="selected_address"][value="new_address"]');
-            if (newAddressRadio) {
-                newAddressRadio.checked = false;
-            }
-            
-            // Erste verfügbare Adresse auswählen
-            const firstAddressRadio = document.querySelector('input[name="selected_address"]:not([value="new_address"])');
-            if (firstAddressRadio) {
-                firstAddressRadio.checked = true;
-                firstAddressRadio.dispatchEvent(new Event('change'));
-            }
-        });
-    });
-    
-    // ESC-Taste zum Schließen
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal?.classList.contains('active')) {
-            closeButtons[0]?.click();
-        }
-    });
-    
-    // Neue Adresse speichern
-    saveButton?.addEventListener('click', (e) => {
-        e.preventDefault();
-        
-        if (!form) return;
-        
-        const formData = new FormData(form);
-        formData.append('action', 'yprint_save_address');
-        formData.append('yprint_address_nonce', yprint_address_ajax.nonce);
-        
-        // Loading state
-        saveButton.disabled = true;
-        saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...';
-        
-        fetch(yprint_address_ajax.ajax_url, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Modal schließen
-                modal.classList.remove('active');
-                document.body.style.overflow = 'auto';
-                
-                // Neue Adresse in Checkout-Felder eintragen
-                const newAddressData = data.data.address_data;
-                populateCheckoutFields(newAddressData);
-                
-                // Erfolgsmeldung anzeigen
-                showMessage('Adresse erfolgreich gespeichert!', 'success');
-                
-                // Optional: Seite neu laden um die neue Adresse in der Liste anzuzeigen
-                // window.location.reload();
-            } else {
-                showMessage(data.data.message || 'Fehler beim Speichern der Adresse', 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showMessage('Ein Fehler ist aufgetreten', 'error');
-        })
-        .finally(() => {
-            // Loading state zurücksetzen
-            saveButton.disabled = false;
-            saveButton.innerHTML = '<i class="fas fa-save mr-2"></i>Adresse speichern';
-        });
-    });
-}
+// Entfernt - wird vollständig vom Address Manager übernommen
 
 // Nachrichten anzeigen
 function showMessage(message, type = 'info') {
@@ -571,6 +444,17 @@ function showStep(stepNumber) {
 
     currentStep = stepNumber;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Address Manager reinitialisieren wenn zu Schritt 1 zurückgekehrt wird
+    if (stepNumber === 1 && window.YPrintAddressManager) {
+        console.log('Reinitialisiere Address Manager für Schritt 1');
+        // Address Manager neu laden
+        setTimeout(() => {
+            if (window.YPrintAddressManager.loadSavedAddresses) {
+                window.YPrintAddressManager.loadSavedAddresses();
+            }
+        }, 100);
+    }
 
     // Sammle Daten wenn zum Zahlungsschritt gewechselt wird
     if (stepNumber === 2) {
@@ -1094,10 +978,14 @@ function populateAddressFields(addressData, type = 'shipping') {
     validateAddressForm();
 }
 
-// Nach der document.ready-Funktion hinzufügen
-jQuery(document).on('click', '.address-card', function() {
-    validateAddressForm(); // Sofort validieren, um Button-Status zu aktualisieren
-});
+// Integration mit Address Manager statt eigene Handler
+if (window.YPrintAddressManager) {
+    // Event-Integration mit Address Manager
+    jQuery(document).on('address_selected', function(event, addressData) {
+        console.log('Adresse vom Address Manager ausgewählt:', addressData);
+        validateAddressForm(); // Button-Status aktualisieren
+    });
+}
 
 // Debugging-Hilfsfunktion
 function logCheckoutState() {
@@ -1311,28 +1199,7 @@ jQuery(document).ready(function($) {
 
 // Debug-Button entfernt
 
-// Event-Listener für Adressauswahl hinzufügen
-document.addEventListener('change', function(e) {
-    if (e.target.name === 'selected_address') {
-        const addressData = e.target.getAttribute('data-address-data');
-        if (addressData) {
-            try {
-                const parsedData = JSON.parse(addressData);
-                populateAddressFields(parsedData, 'shipping');
-                
-                // Wenn Rechnungsadresse gleich Lieferadresse
-                const billingSameCheckbox = document.getElementById('billing-same-as-shipping');
-                if (billingSameCheckbox && billingSameCheckbox.checked) {
-                    populateAddressFields(parsedData, 'billing');
-                }
-                
-                selectedAddress = parsedData;
-            } catch (error) {
-                console.error('Error parsing address data:', error);
-            }
-        }
-    }
-});
+// Entfernt - wird vom Address Manager übernommen
 
 // Beispiel für ein globales Objekt für AJAX-Aufrufe (Platzhalter)
 // const YPrintAJAX = {
