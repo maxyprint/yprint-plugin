@@ -43,6 +43,9 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout-s
 // Include Address Manager
 require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-address-manager.php';
 
+// Include Order Actions Shortcode
+require_once YPRINT_PLUGIN_DIR . 'includes/order-actions-shortcode.php';
+
 // Initialize Checkout Shortcode
 add_action('init', function() {
     YPrint_Stripe_Checkout_Shortcode::init();
