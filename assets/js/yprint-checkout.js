@@ -1208,12 +1208,35 @@ function detectPaymentMethod() {
     return jQuery('#selected-payment-method').val();
 }
 
-// Vereinfachte Initialisierung - nur jQuery verwenden
+// Sichere Initialisierung mit Stripe-Check
 jQuery(document).ready(function() {
     console.log('DOM ready - initializing payment systems');
     
-    // Warte bis Stripe vollständig geladen ist
-    setTimeout(() => {
+    // Funktion um auf Stripe zu warten
+    function waitForStripe(callback, maxAttempts = 10) {
+        let attempts = 0;
+        
+        function checkStripe() {
+            attempts++;
+            
+            if (typeof Stripe !== 'undefined' && window.YPrintStripeCheckout) {
+                console.log('Stripe and YPrintStripeCheckout ready after', attempts, 'attempts');
+                callback();
+            } else if (attempts < maxAttempts) {
+                console.log('Waiting for Stripe... attempt', attempts);
+                setTimeout(checkStripe, 500);
+            } else {
+                console.warn('Stripe initialization timeout after', maxAttempts, 'attempts');
+                // Initialisiere trotzdem den Payment Slider (ohne Stripe Elements)
+                initPaymentSlider();
+            }
+        }
+        
+        checkStripe();
+    }
+    
+    // Warte auf Stripe und initialisiere dann
+    waitForStripe(() => {
         // Payment Slider initialisieren
         initPaymentSlider();
         
@@ -1223,14 +1246,13 @@ jQuery(document).ready(function() {
                 console.log('DEBUG: Initial Card Element mounting');
                 window.YPrintStripeCheckout.initCardElement();
             }
-        }, 200);
+        }, 100);
         
         // Debug: Prüfe vorhandene Elemente
         console.log('DEBUG: Payment slider elements found:', document.querySelectorAll('.slider-option').length);
         console.log('DEBUG: Payment fields found:', document.querySelectorAll('.payment-input-fields').length);
         console.log('DEBUG: Slider indicator found:', document.querySelector('.slider-indicator') ? 'Yes' : 'No');
-        
-    }, 300); // Warte 300ms um sicherzustellen dass alle Skripte geladen sind
+    });
 });
 
 // Express Payment Integration bleibt bestehen
