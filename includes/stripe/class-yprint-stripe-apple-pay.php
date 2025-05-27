@@ -289,9 +289,17 @@ private function make_domain_registration_request() {
             $options['apple_pay_domain_set'] = 'yes';
             $this->apple_pay_domain_set = true;
             
+            // Aktiviere Express Payments automatisch nach erfolgreicher Domain-Registrierung
+            if (!isset($options['express_payments'])) {
+                $options['express_payments'] = 'yes';
+            }
+            if (!isset($options['payment_request'])) {
+                $options['payment_request'] = 'yes';
+            }
+            
             YPrint_Stripe_API::update_stripe_settings($options);
             
-            error_log('Your domain has been verified with Apple Pay!');
+            error_log('YPrint Apple Pay: Domain successfully verified and Express Payments enabled');
         } else {
             // Update settings with failed status
             $options['apple_pay_verified_domain'] = $this->domain_name;
@@ -300,7 +308,7 @@ private function make_domain_registration_request() {
             
             YPrint_Stripe_API::update_stripe_settings($options);
             
-            error_log('Error: ' . $response['message']);
+            error_log('YPrint Apple Pay: Domain registration failed - ' . $response['message']);
         }
         
         return $response;
