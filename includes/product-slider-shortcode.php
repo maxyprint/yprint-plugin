@@ -48,29 +48,59 @@ class YPrint_Product_Slider {
     }
 
     /**
-     * Render Product Slider shortcode
-     *
-     * @param array $atts Shortcode attributes
-     * @return string HTML output
-     */
-    public static function render_product_slider($atts) {
-        $atts = shortcode_atts(array(
-            'title' => 'Design a Shirt',
-            'limit' => 12,
-            'category' => '',
-            'class' => 'yprint-product-slider'
-        ), $atts, 'product_slider');
+ * Render Product Slider shortcode
+ *
+ * @param array $atts Shortcode attributes
+ * @return string HTML output
+ */
+public static function render_product_slider($atts) {
+    $atts = shortcode_atts(array(
+        'title' => 'Design a Shirt',
+        'limit' => 12,
+        'category' => '',
+        'class' => 'yprint-product-slider',
+        'debug' => false
+    ), $atts, 'product_slider');
 
-        // Check if WooCommerce is active
-        if (!class_exists('WooCommerce')) {
-            return '<p class="error-message">WooCommerce ist nicht aktiviert.</p>';
-        }
+    // Check if WooCommerce is active
+    if (!class_exists('WooCommerce')) {
+        return '<p class="error-message">WooCommerce ist nicht aktiviert.</p>';
+    }
 
-        $products = self::get_products($atts);
+    $products = self::get_products($atts);
+    
+    // Debug information
+    if ($atts['debug'] || current_user_can('administrator')) {
+        $debug_info = '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px;">';
+        $debug_info .= '<strong>Debug Info:</strong><br>';
+        $debug_info .= 'WooCommerce aktiv: ' . (class_exists('WooCommerce') ? 'Ja' : 'Nein') . '<br>';
+        $debug_info .= 'Gefundene Produkte: ' . count($products) . '<br>';
+        $debug_info .= 'Limit: ' . $atts['limit'] . '<br>';
+        $debug_info .= 'Kategorie: ' . ($atts['category'] ? $atts['category'] : 'Alle') . '<br>';
         
-        if (empty($products)) {
-            return '<p class="yprint-no-products">Keine Produkte gefunden.</p>';
+        // Total products in database
+        $total_products = wp_count_posts('product');
+        $debug_info .= 'Gesamt Produkte in DB: ' . $total_products->publish . '<br>';
+        
+        if (!empty($products)) {
+            $debug_info .= 'Erste 3 Produktnamen: ';
+            $product_names = array();
+            for ($i = 0; $i < min(3, count($products)); $i++) {
+                $product_names[] = $products[$i]->get_name();
+            }
+            $debug_info .= implode(', ', $product_names) . '<br>';
         }
+        
+        $debug_info .= '</div>';
+    }
+    
+    if (empty($products)) {
+        $no_products_msg = '<p class="yprint-no-products">Keine Produkte gefunden.</p>';
+        if (isset($debug_info)) {
+            return $debug_info . $no_products_msg;
+        }
+        return $no_products_msg;
+    }
 
         $unique_id = 'yprint-product-slider-' . uniqid();
         $css_class = sanitize_html_class($atts['class']);
@@ -531,52 +561,78 @@ class YPrint_Product_Slider {
     }
 
     /**
-     * Get products for the slider
-     *
-     * @param array $atts Shortcode attributes
-     * @return array Array of WC_Product objects
-     */
-    private static function get_products($atts) {
-        $args = array(
+ * Get products for the slider
+ *
+ * @param array $atts Shortcode attributes
+ * @return array Array of WC_Product objects
+ */
+private static function get_products($atts) {
+    // Verwende WooCommerce's eigene Produktabfrage
+    $args = array(
+        'status' => 'publish',
+        'limit' => intval($atts['limit']),
+        'orderby' => 'date',
+        'order' => 'DESC',
+    );
+
+    // Add category filter if specified
+    if (!empty($atts['category'])) {
+        $category_slugs = array_map('trim', explode(',', $atts['category']));
+        $args['category'] = $category_slugs;
+    }
+
+    // Debugging: Log the query arguments
+    error_log('YPrint Product Slider Query Args: ' . print_r($args, true));
+
+    // Use WooCommerce's wc_get_products function
+    $products = wc_get_products($args);
+
+    // Debugging: Log the results
+    error_log('YPrint Product Slider Found Products: ' . count($products));
+
+    // Fallback: If no products found, try simpler query
+    if (empty($products)) {
+        error_log('YPrint Product Slider: No products found with WC query, trying fallback...');
+        
+        $fallback_args = array(
             'post_type' => 'product',
             'post_status' => 'publish',
             'posts_per_page' => intval($atts['limit']),
-            'meta_query' => array(
-                array(
-                    'key' => '_visibility',
-                    'value' => array('catalog', 'visible'),
-                    'compare' => 'IN'
-                )
-            )
+            'orderby' => 'date',
+            'order' => 'DESC'
         );
 
-        // Add category filter if specified
+        // Add category filter for fallback
         if (!empty($atts['category'])) {
-            $args['tax_query'] = array(
+            $fallback_args['tax_query'] = array(
                 array(
                     'taxonomy' => 'product_cat',
                     'field' => 'slug',
-                    'terms' => explode(',', $atts['category'])
+                    'terms' => array_map('trim', explode(',', $atts['category'])),
+                    'operator' => 'IN'
                 )
             );
         }
 
-        $query = new WP_Query($args);
+        $query = new WP_Query($fallback_args);
         $products = array();
 
         if ($query->have_posts()) {
             while ($query->have_posts()) {
                 $query->the_post();
                 $product = wc_get_product(get_the_ID());
-                if ($product && $product->is_visible()) {
+                if ($product) {
                     $products[] = $product;
                 }
             }
             wp_reset_postdata();
         }
 
-        return $products;
+        error_log('YPrint Product Slider Fallback Found Products: ' . count($products));
     }
+
+    return $products;
+}
 }
 
 // Initialize the class
