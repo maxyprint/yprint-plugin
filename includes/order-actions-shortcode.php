@@ -140,16 +140,17 @@ class YPrint_Order_Actions_Screenshot_Final {
 
 .yprint-last-order-actions-buttons {
     display: flex;
-    gap: 24px;
+    gap: 8px;
     margin-top: 4px;
     justify-content: flex-start;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
 }
 
 .yprint-last-order-action-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     color: #6b7280;
     text-decoration: none;
     cursor: pointer;
@@ -158,9 +159,12 @@ class YPrint_Order_Actions_Screenshot_Final {
     transition: all 0.2s ease;
     background: none;
     border: none;
-    padding: 8px 12px;
+    padding: 8px 10px;
     border-radius: 8px;
     position: relative;
+    white-space: nowrap;
+    min-width: 40px;
+    justify-content: center;
 }
 
 .yprint-last-order-action-btn:hover {
@@ -188,6 +192,25 @@ class YPrint_Order_Actions_Screenshot_Final {
     font-size: 20px;
     color: #d1d5db;
     flex-shrink: 0;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.yprint-last-order-arrow:hover {
+    color: #6b7280;
+    background-color: #f3f4f6;
+    transform: translateX(2px);
+}
+
+.yprint-last-order-arrow:active {
+    transform: translateX(0);
+    background-color: #e5e7eb;
 }
 
 .yprint-last-order-action-btn.loading {
@@ -226,7 +249,7 @@ class YPrint_Order_Actions_Screenshot_Final {
 .yprint-share-dropdown-desktop {
     position: absolute;
     top: 100%;
-    left: 0;
+    right: 0;
     background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
@@ -235,6 +258,14 @@ class YPrint_Order_Actions_Screenshot_Final {
     display: none;
     z-index: 1000;
     min-width: 160px;
+}
+
+@media (max-width: 480px) {
+    .yprint-share-dropdown-desktop {
+        right: 0;
+        left: auto;
+        min-width: 140px;
+    }
 }
 
 .yprint-share-dropdown-desktop.show {
@@ -291,18 +322,48 @@ class YPrint_Order_Actions_Screenshot_Final {
     color: #374151;
 }
 
+/* Medium screens - hide text when space gets tight */
+@media (max-width: 480px) {
+    .yprint-last-order-action-btn span {
+        display: none;
+    }
+    
+    .yprint-last-order-action-btn {
+        padding: 8px;
+        min-width: 40px;
+        gap: 0;
+    }
+    
+    .yprint-last-order-actions-buttons {
+        gap: 6px;
+    }
+}
+
+/* Container queries alternative for very tight spaces */
+@media (max-width: 400px) {
+    .yprint-last-order-actions {
+        padding: 16px;
+    }
+    
+    .yprint-last-order-actions-buttons {
+        gap: 4px;
+    }
+    
+    .yprint-last-order-action-btn {
+        padding: 6px;
+        min-width: 36px;
+    }
+    
+    .yprint-last-order-action-btn i {
+        font-size: 14px;
+    }
+}
+
+/* Regular mobile adjustments */
 @media (max-width: 600px) {
     .yprint-last-order-actions {
         padding: 20px;
         gap: 16px;
-    }
-    
-    .yprint-last-order-actions-buttons {
-        gap: 20px;
-    }
-    
-    .yprint-last-order-action-btn span {
-        display: inline; /* Keep text visible on mobile too */
     }
     
     .yprint-last-order-header {
@@ -312,6 +373,13 @@ class YPrint_Order_Actions_Screenshot_Final {
     .yprint-last-order-image-container {
         width: 56px;
         height: 56px;
+    }
+}
+
+/* Show text on larger screens */
+@media (min-width: 481px) {
+    .yprint-last-order-action-btn span {
+        display: inline;
     }
 }
 </style>
@@ -327,7 +395,7 @@ class YPrint_Order_Actions_Screenshot_Final {
                     <div class="yprint-last-order-status"><?php echo esc_html($order_status); ?></div>
                     <div class="yprint-last-order-number"><?php echo esc_html('#' . $order_number); ?></div>
                 </div>
-                <span class="yprint-last-order-arrow">&rarr;</span>
+                <a href="<?php echo esc_url(home_url('/orders')); ?>" class="yprint-last-order-arrow" title="Alle Bestellungen anzeigen">&rarr;</a>
             </div>
             <div class="yprint-last-order-actions-buttons">
             <button class="yprint-last-order-action-btn reorder yprint-reorder-btn"
@@ -534,6 +602,40 @@ if (shareDropdown) {
                 });
             };
         });
+
+        // Dynamic layout adjustment based on available space
+const adjustButtonLayout = () => {
+    const buttonsContainer = container.querySelector('.yprint-last-order-actions-buttons');
+    const buttons = container.querySelectorAll('.yprint-last-order-action-btn');
+    
+    if (!buttonsContainer || buttons.length === 0) return;
+    
+    const containerWidth = buttonsContainer.offsetWidth;
+    const buttonCount = buttons.length;
+    
+    // Calculate if we need to hide text (rough calculation)
+    const minWidthPerButton = 120; // Width needed for icon + text
+    const totalNeededWidth = buttonCount * minWidthPerButton;
+    
+    buttons.forEach(button => {
+        const span = button.querySelector('span');
+        if (span) {
+            if (containerWidth < totalNeededWidth) {
+                span.style.display = 'none';
+                button.style.padding = '8px';
+                button.style.minWidth = '40px';
+            } else {
+                span.style.display = 'inline';
+                button.style.padding = '8px 10px';
+                button.style.minWidth = 'auto';
+            }
+        }
+    });
+};
+
+// Call on load and resize
+adjustButtonLayout();
+window.addEventListener('resize', adjustButtonLayout);
         </script>
 
         <?php
@@ -641,6 +743,8 @@ if (shareDropdown) {
             wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb: ' . $e->getMessage());
         }
     }
+
+    
 }
 
 // Initialize the class
