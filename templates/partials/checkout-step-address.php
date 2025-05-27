@@ -57,36 +57,41 @@ if ( ! defined( 'ABSPATH' ) ) {
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
         <label for="first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
-        <input type="text" id="first_name" name="shipping_first_name" class="form-input" required autocomplete="given-name">
+        <input type="text" id="first_name" name="first_name" class="form-input" required autocomplete="given-name">
     </div>
     <div>
         <label for="last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
-        <input type="text" id="last_name" name="shipping_last_name" class="form-input" required autocomplete="family-name">
+        <input type="text" id="last_name" name="last_name" class="form-input" required autocomplete="family-name">
     </div>
+</div>
+<div>
+    <label for="email" class="form-label"><?php esc_html_e('E-Mail-Adresse', 'yprint-checkout'); ?></label>
+    <input type="email" id="email" name="email" class="form-input" required autocomplete="email">
+    <p class="field-description text-sm text-gray-600 mt-1"><?php esc_html_e('Für die Bestellbestätigung und Versand-Updates', 'yprint-checkout'); ?></p>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div>
         <label for="street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
-        <input type="text" id="street" name="shipping_address_1" class="form-input" required autocomplete="shipping street-address">
+        <input type="text" id="street" name="street" class="form-input" required autocomplete="shipping street-address">
     </div>
     <div>
         <label for="housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
-        <input type="text" id="housenumber" name="shipping_address_2" class="form-input" required autocomplete="shipping address-line2">
+        <input type="text" id="housenumber" name="housenumber" class="form-input" required autocomplete="shipping address-line2">
     </div>
 </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>
-                <input type="text" id="zip" name="shipping_zip" class="form-input" required autocomplete="shipping postal-code" inputmode="numeric" value="<?php /* echo esc_attr(WC()->customer->get_shipping_postcode()); */ ?>">
+                <input type="text" id="zip" name="zip" class="form-input" required autocomplete="shipping postal-code" inputmode="numeric">
             </div>
             <div>
                 <label for="city" class="form-label"><?php esc_html_e('Ort', 'yprint-checkout'); ?></label>
-                <input type="text" id="city" name="shipping_city" class="form-input" required autocomplete="shipping address-level2" value="<?php /* echo esc_attr(WC()->customer->get_shipping_city()); */ ?>">
+                <input type="text" id="city" name="city" class="form-input" required autocomplete="shipping address-level2">
             </div>
         </div>
         <div>
             <label for="country" class="form-label"><?php esc_html_e('Land', 'yprint-checkout'); ?></label>
-            <select id="country" name="shipping_country" class="form-select" required autocomplete="shipping country">
+            <select id="country" name="country" class="form-select" required autocomplete="shipping country">
                 <?php /*
                 $countries = WC()->countries->get_shipping_countries();
                 $current_country = WC()->customer->get_shipping_country();
@@ -102,7 +107,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         </div>
         <div>
             <label for="phone" class="form-label"><?php esc_html_e('Telefonnummer', 'yprint-checkout'); ?> <span class="text-sm text-yprint-text-secondary">(<?php esc_html_e('optional, für Versand-Updates', 'yprint-checkout'); ?>)</span></label>
-            <input type="tel" id="phone" name="shipping_phone" class="form-input" autocomplete="shipping tel" inputmode="tel" value="<?php /* echo esc_attr(WC()->customer->get_billing_phone()); */ ?>"> <?php // Oft wird billing_phone auch für shipping genutzt ?>
+            <input type="tel" id="phone" name="phone" class="form-input" autocomplete="shipping tel" inputmode="tel">
         </div>
         <div class="flex items-center mt-4">
             <input type="checkbox" id="billing-same-as-shipping" name="billing_same_as_shipping" class="form-checkbox" checked>

@@ -48,14 +48,21 @@ class YPrint_Stripe_Checkout_Shortcode {
         add_action('wp_enqueue_scripts', array($instance, 'enqueue_checkout_assets'));
         
         // Register AJAX handlers
-        add_action('wp_ajax_yprint_save_address', array($instance, 'ajax_save_address'));
-        add_action('wp_ajax_nopriv_yprint_save_address', array($instance, 'ajax_save_address'));
-        
-        add_action('wp_ajax_yprint_set_payment_method', array($instance, 'ajax_set_payment_method'));
-        add_action('wp_ajax_nopriv_yprint_set_payment_method', array($instance, 'ajax_set_payment_method'));
-        
-        add_action('wp_ajax_yprint_process_checkout', array($instance, 'ajax_process_checkout'));
-        add_action('wp_ajax_nopriv_yprint_process_checkout', array($instance, 'ajax_process_checkout'));
+add_action('wp_ajax_yprint_save_address', array($instance, 'ajax_save_address'));
+add_action('wp_ajax_nopriv_yprint_save_address', array($instance, 'ajax_save_address'));
+
+add_action('wp_ajax_yprint_set_payment_method', array($instance, 'ajax_set_payment_method'));
+add_action('wp_ajax_nopriv_yprint_set_payment_method', array($instance, 'ajax_set_payment_method'));
+
+add_action('wp_ajax_yprint_process_checkout', array($instance, 'ajax_process_checkout'));
+add_action('wp_ajax_nopriv_yprint_process_checkout', array($instance, 'ajax_process_checkout'));
+
+// Validation AJAX handlers
+add_action('wp_ajax_yprint_check_email_availability', array($instance, 'ajax_check_email_availability'));
+add_action('wp_ajax_nopriv_yprint_check_email_availability', array($instance, 'ajax_check_email_availability'));
+
+add_action('wp_ajax_yprint_validate_voucher', array($instance, 'ajax_validate_voucher'));
+add_action('wp_ajax_nopriv_yprint_validate_voucher', array($instance, 'ajax_validate_voucher'));
     }
 
     /**
@@ -152,13 +159,22 @@ wp_enqueue_style(
             );
             
             // Checkout JS
-            wp_enqueue_script(
-                'yprint-checkout-js',
-                YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js',
-                array('jquery'),
-                YPRINT_PLUGIN_VERSION,
-                true
-            );
+wp_enqueue_script(
+    'yprint-checkout-js',
+    YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js',
+    array('jquery'),
+    YPRINT_PLUGIN_VERSION,
+    true
+);
+
+// Checkout Validation JS
+wp_enqueue_script(
+    'yprint-checkout-validation-js',
+    YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-validation.js',
+    array('jquery', 'yprint-checkout-js'),
+    YPRINT_PLUGIN_VERSION,
+    true
+);
             
             // Stripe JS (if needed) - Prüfe ob bereits geladen
 if ($this->is_stripe_enabled()) {
@@ -254,21 +270,24 @@ if ($this->is_stripe_enabled()) {
             }
             
             // Localize checkout script with common data
-            wp_localize_script(
-                'yprint-checkout-js',
-                'yprint_checkout_params',
-                array(
-                    'ajax_url' => admin_url('admin-ajax.php'),
-                    'nonce' => wp_create_nonce('yprint_checkout_nonce'),
-                    'is_logged_in' => is_user_logged_in() ? 'yes' : 'no',
-                    'current_step' => isset($_GET['step']) ? sanitize_text_field($_GET['step']) : 'address',
-                    'i18n' => array(
-                        'required_field' => __('This field is required.', 'yprint-plugin'),
-                        'invalid_email' => __('Please enter a valid email address.', 'yprint-plugin'),
-                        'processing' => __('Processing...', 'yprint-plugin'),
-                    )
-                )
-            );
+wp_localize_script(
+    'yprint-checkout-js',
+    'yprint_checkout_params',
+    array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint_checkout_nonce'),
+        'is_logged_in' => is_user_logged_in() ? 'yes' : 'no',
+        'current_step' => isset($_GET['step']) ? sanitize_text_field($_GET['step']) : 'address',
+        'validation_enabled' => true,
+        'i18n' => array(
+            'required_field' => __('Dieses Feld ist erforderlich.', 'yprint-plugin'),
+            'invalid_email' => __('Bitte geben Sie eine gültige E-Mail-Adresse ein.', 'yprint-plugin'),
+            'processing' => __('Wird verarbeitet...', 'yprint-plugin'),
+            'validation_error' => __('Bitte korrigieren Sie die markierten Felder.', 'yprint-plugin'),
+            'form_invalid' => __('Das Formular enthält Fehler. Bitte überprüfen Sie Ihre Eingaben.', 'yprint-plugin'),
+        )
+    )
+);
         }
     }
     
@@ -409,17 +428,102 @@ if ($this->is_stripe_enabled()) {
     }
 
     /**
-     * AJAX handler for processing checkout
-     */
-    public function ajax_process_checkout() {
-        check_ajax_referer('yprint_checkout_nonce', 'nonce');
+ * AJAX handler for processing checkout
+ */
+public function ajax_process_checkout() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    // This is just a placeholder - implement the actual logic according to your needs
+    wp_send_json_success(array(
+        'message' => __('Checkout processed successfully', 'yprint-plugin'),
+        'redirect_url' => home_url('/thank-you/'),
+    ));
+}
+
+/**
+ * AJAX handler for checking email availability
+ */
+public function ajax_check_email_availability() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    $email = isset($_POST['email']) ? sanitize_email($_POST['email']) : '';
+    
+    if (empty($email) || !is_email($email)) {
+        wp_send_json_error(array(
+            'message' => __('Ungültige E-Mail-Adresse.', 'yprint-plugin')
+        ));
+        return;
+    }
+    
+    // Prüfe ob E-Mail bereits existiert
+    if (email_exists($email)) {
+        wp_send_json_error(array(
+            'message' => __('Diese E-Mail-Adresse ist bereits registriert.', 'yprint-plugin')
+        ));
+        return;
+    }
+    
+    // E-Mail ist verfügbar
+    wp_send_json_success(array(
+        'message' => __('E-Mail-Adresse ist verfügbar.', 'yprint-plugin')
+    ));
+}
+
+/**
+ * AJAX handler for validating voucher codes
+ */
+public function ajax_validate_voucher() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    $voucher_code = isset($_POST['voucher_code']) ? strtoupper(sanitize_text_field($_POST['voucher_code'])) : '';
+    
+    if (empty($voucher_code)) {
+        wp_send_json_error(array(
+            'message' => __('Bitte geben Sie einen Gutscheincode ein.', 'yprint-plugin')
+        ));
+        return;
+    }
+    
+    // Einfache Gutschein-Validierung (kann erweitert werden)
+    $valid_vouchers = array(
+        'YPRINT10' => array(
+            'discount' => 10,
+            'type' => 'percentage',
+            'message' => '10% Rabatt angewendet'
+        ),
+        'WELCOME5' => array(
+            'discount' => 5,
+            'type' => 'fixed',
+            'message' => '5€ Rabatt angewendet'
+        ),
+        'NEWCUSTOMER' => array(
+            'discount' => 15,
+            'type' => 'percentage',
+            'message' => '15% Neukunden-Rabatt angewendet'
+        )
+    );
+    
+    if (isset($valid_vouchers[$voucher_code])) {
+        $voucher = $valid_vouchers[$voucher_code];
         
-        // This is just a placeholder - implement the actual logic according to your needs
+        // Gutschein in Session speichern für Preisberechnung
+        if (!session_id()) {
+            session_start();
+        }
+        $_SESSION['applied_voucher'] = $voucher_code;
+        $_SESSION['voucher_data'] = $voucher;
+        
         wp_send_json_success(array(
-            'message' => __('Checkout processed successfully', 'yprint-plugin'),
-            'redirect_url' => home_url('/thank-you/'),
+            'message' => $voucher['message'],
+            'discount' => $voucher['discount'],
+            'type' => $voucher['type']
+        ));
+    } else {
+        wp_send_json_error(array(
+            'message' => __('Ungültiger Gutscheincode.', 'yprint-plugin')
         ));
     }
+}
 
 /**
      * Prepare real WooCommerce cart data for checkout templates
