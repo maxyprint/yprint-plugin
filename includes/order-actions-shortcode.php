@@ -1,7 +1,8 @@
 <?php
 /**
- * Modern & Efficient Order Actions Shortcode for YPrint (Screenshot Style)
+ * Modern & Efficient Order Actions Shortcode for YPrint (Screenshot Style - Final)
  * Creates action buttons for the last order with reorder, feedback, share.
+ * Optimized for mobile sharing.
  *
  * @package YPrint
  */
@@ -12,9 +13,9 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Class to handle order action buttons (Screenshot Style)
+ * Class to handle order action buttons (Screenshot Style - Final)
  */
-class YPrint_Order_Actions_Screenshot {
+class YPrint_Order_Actions_Screenshot_Final {
 
     /**
      * Initialize the class
@@ -26,7 +27,7 @@ class YPrint_Order_Actions_Screenshot {
     }
 
     /**
-     * Render order actions shortcode (Screenshot Style)
+     * Render order actions shortcode (Screenshot Style - Final)
      *
      * @param array $atts Shortcode attributes
      * @return string HTML output
@@ -73,13 +74,9 @@ class YPrint_Order_Actions_Screenshot {
         $css_class = sanitize_html_class($atts['class']);
         $unique_id = 'yprint-last-order-actions-' . uniqid();
 
-        $share_title = __('Schau dir mein Design an!', 'yprint-plugin');
-        $share_text = __('Individuelles Design erstellt', 'yprint-plugin');
         $adding_to_cart_text = __('Wird neu bestellt...', 'yprint-plugin');
         $added_to_cart_text = __('Zum Warenkorb hinzugefügt', 'yprint-plugin');
         $error_adding_text = __('Fehler beim erneuten Bestellen', 'yprint-plugin');
-        $copy_link_success = __('Link kopiert!', 'yprint-plugin');
-        $copy_insta_success = __('Text kopiert! In Instagram einfügen.', 'yprint-plugin');
 
         ob_start();
         ?>
@@ -192,6 +189,15 @@ class YPrint_Order_Actions_Screenshot {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        @media (max-width: 600px) {
+            .yprint-last-order-actions-buttons {
+                gap: 10px;
+            }
+            .yprint-last-order-action-btn span {
+                display: none; /* Hide text on smaller screens */
+            }
+        }
         </style>
 
         <div id="<?php echo esc_attr($unique_id); ?>" class="<?php echo esc_attr($css_class); ?>">
@@ -219,15 +225,45 @@ class YPrint_Order_Actions_Screenshot {
                     <i class="far fa-comment-dots"></i>
                     <span><?php _e('Feedback', 'yprint-plugin'); ?></span>
                 </a>
-                <div class="yprint-share-menu">
-                    <button class="yprint-last-order-action-btn share yprint-share-trigger"
-                            data-design-name="<?php echo esc_attr($design_name); ?>"
-                            data-design-image="<?php echo esc_attr($design_image); ?>"
-                            data-product-url="<?php echo esc_attr($product_url); ?>">
-                        <i class="fas fa-share-alt"></i>
+                <?php if (wp_is_mobile()) : ?>
+                    <a href="whatsapp://send?text=<?php echo rawurlencode(__('Schau dir mein Design an!', 'yprint-plugin') . ' "' . $design_name . '" - ' . __('Individuelles Design erstellt', 'yprint-plugin') . ' ' . $product_url); ?>"
+                       data-action="share/whatsapp/share"
+                       class="yprint-last-order-action-btn share">
+                        <i class="fab fa-whatsapp" style="color: #25D366;"></i>
                         <span><?php _e('Share', 'yprint-plugin'); ?></span>
+                    </a>
+                    <a href="https://www.facebook.com/sharer/sharer.php?u=<?php echo rawurlencode($product_url); ?>&quote=<?php echo rawurlencode(__('Schau dir mein Design an!', 'yprint-plugin') . ' "' . $design_name . '" - ' . __('Individuelles Design erstellt', 'yprint-plugin')); ?>"
+                       target="_blank"
+                       class="yprint-last-order-action-btn share">
+                        <i class="fab fa-facebook" style="color: #1877F2;"></i>
+                        <span><?php _e('Share', 'yprint-plugin'); ?></span>
+                    </a>
+                    <a href="https://twitter.com/intent/tweet?text=<?php echo rawurlencode(__('Schau dir mein Design an!', 'yprint-plugin') . ' "' . $design_name . '" - ' . __('Individuelles Design erstellt', 'yprint-plugin') . ' ' . $product_url); ?>"
+                       target="_blank"
+                       class="yprint-last-order-action-btn share">
+                        <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
+                        <span><?php _e('Share', 'yprint-plugin'); ?></span>
+                    </a>
+                    <a href="https://instagram.com/?utm_source=qr&r=nametag" target="_blank" class="yprint-last-order-action-btn share">
+                        <i class="fab fa-instagram" style="color: #E4405F;"></i>
+                        <span><?php _e('Instagram', 'yprint-plugin'); ?></span>
+                    </a>
+                    <a href="https://t.me/share/url?url=<?php echo rawurlencode($product_url); ?>&text=<?php echo rawurlencode(__('Schau dir mein Design an!', 'yprint-plugin') . ' "' . $design_name . '" - ' . __('Individuelles Design erstellt', 'yprint-plugin')); ?>"
+                       target="_blank"
+                       class="yprint-last-order-action-btn share">
+                        <i class="fab fa-telegram" style="color: #0088CC;"></i>
+                        <span><?php _e('Telegram', 'yprint-plugin'); ?></span>
+                    </a>
+                    <button class="yprint-last-order-action-btn share yprint-share-trigger-mobile">
+                        <i class="fas fa-share-alt"></i>
+                        <span><?php _e('Teilen', 'yprint-plugin'); ?></span>
                     </button>
-                    <div class="yprint-share-dropdown">
+                <?php else : ?>
+                    <button class="yprint-last-order-action-btn share yprint-share-trigger-desktop">
+                        <i class="fas fa-share-alt"></i>
+                        <span><?php _e('Teilen', 'yprint-plugin'); ?></span>
+                    </button>
+                    <div class="yprint-share-dropdown-desktop">
                         <a href="#" class="yprint-share-option" data-platform="whatsapp">
                             <i class="fab fa-whatsapp" style="color: #25D366;"></i>
                             <span>WhatsApp</span>
@@ -240,10 +276,6 @@ class YPrint_Order_Actions_Screenshot {
                             <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
                             <span>Twitter</span>
                         </a>
-                        <a href="#" class="yprint-share-option" data-platform="instagram">
-                            <i class="fab fa-instagram" style="color: #E4405F;"></i>
-                            <span>Instagram</span>
-                        </a>
                         <a href="#" class="yprint-share-option" data-platform="telegram">
                             <i class="fab fa-telegram" style="color: #0088CC;"></i>
                             <span>Telegram</span>
@@ -253,7 +285,7 @@ class YPrint_Order_Actions_Screenshot {
                             <span>Link kopieren</span>
                         </a>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -262,40 +294,22 @@ class YPrint_Order_Actions_Screenshot {
             const container = document.getElementById('<?php echo esc_js($unique_id); ?>');
             if (!container) return;
 
-            // Share Menu Toggle
-            const shareButton = container.querySelector('.yprint-share-trigger');
-            const shareDropdown = container.querySelector('.yprint-share-dropdown');
+            // Desktop Share Menu Toggle
+            const shareButtonDesktop = container.querySelector('.yprint-share-trigger-desktop');
+            const shareDropdownDesktop = container.querySelector('.yprint-share-dropdown-desktop');
 
-            if (shareButton && shareDropdown) {
-                shareButton.addEventListener('click', (e) => {
+            if (shareButtonDesktop && shareDropdownDesktop) {
+                shareButtonDesktop.addEventListener('click', (e) => {
                     e.preventDefault();
-                    shareDropdown.classList.toggle('show');
+                    shareDropdownDesktop.classList.toggle('show');
                 });
 
                 document.addEventListener('click', (e) => {
                     if (!container.contains(e.target)) {
-                        shareDropdown.classList.remove('show');
+                        shareDropdownDesktop.classList.remove('show');
                     }
                 });
             }
-
-            // Share Options
-            const shareOptions = container.querySelectorAll('.yprint-share-option');
-            shareOptions.forEach(option => {
-                option.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const { platform } = option.dataset;
-                    const designName = shareButton.dataset.designName || 'Mein Design';
-                    const designImage = shareButton.dataset.designImage || '';
-                    const productUrl = shareButton.dataset.productUrl || window.location.href;
-                    const shareTitle = '<?php echo esc_js($share_title); ?>';
-                    const shareText = '<?php echo esc_js($share_text); ?>';
-                    const fullShareText = `<span class="math-inline">\{shareTitle\}\: "</span>{designName}" - ${shareText} ${productUrl}`;
-
-                    handleShare(platform, fullShareText, productUrl, designImage);
-                    shareDropdown.classList.remove('show');
-                });
-            });
 
             const handleShare = (platform, text, url, image) => {
                 const encodedText = encodeURIComponent(text);
@@ -312,17 +326,12 @@ class YPrint_Order_Actions_Screenshot {
                     case 'twitter':
                         shareUrl = `https://twitter.com/intent/tweet?text=<span class="math-inline">\{encodedText\}&url\=</span>{encodedUrl}`;
                         break;
-                    case 'instagram':
-                        navigator.clipboard.writeText(`${text} ${url}`).then(() => {
-                            alert('<?php echo esc_js($copy_insta_success); ?>');
-                        });
-                        return;
                     case 'telegram':
                         shareUrl = `https://t.me/share/url?url=<span class="math-inline">\{encodedUrl\}&text\=</span>{encodedText}`;
                         break;
                     case 'copy':
                         navigator.clipboard.writeText(`${text} ${url}`).then(() => {
-                            alert('<?php echo esc_js($copy_link_success); ?>');
+                            alert('Link kopiert!');
                         });
                         return;
                 }
@@ -331,6 +340,53 @@ class YPrint_Order_Actions_Screenshot {
                     window.open(shareUrl, '_blank', 'width=600,height=400');
                 }
             };
+
+            // Desktop Share Options
+            const shareOptionsDesktop = container.querySelectorAll('.yprint-share-dropdown-desktop .yprint-share-option');
+            shareOptionsDesktop.forEach(option => {
+                option.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const { platform } = option.dataset;
+                    const designName = shareButtonDesktop.dataset.designName || 'Mein Design';
+                    const designImage = shareButtonDesktop.dataset.designImage || '';
+                    const productUrl = shareButtonDesktop.dataset.productUrl || window.location.href;
+                    const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
+                    const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
+                    const fullShareText = `<span class="math-inline">\{shareTitle\}\: "</span>{designName}" - ${shareText} ${productUrl}`;
+
+                    handleShare(platform, fullShareText, productUrl, designImage);
+                    shareDropdownDesktop
+                    .classList.remove('show');
+                });
+            });
+
+            // Mobile Share Trigger (uses native sharing if available)
+            const shareButtonMobile = container.querySelector('.yprint-share-trigger-mobile');
+            if (shareButtonMobile && navigator.share) {
+                shareButtonMobile.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const shareTitleMobile = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
+                    const shareTextMobile = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
+                    const designNameMobile = shareButtonMobile.dataset.designName || 'Mein Design';
+                    const productUrlMobile = shareButtonMobile.dataset.productUrl || window.location.href;
+
+                    try {
+                        await navigator.share({
+                            title: shareTitleMobile,
+                            text: `${shareTitleMobile}: "${designNameMobile}" - ${shareTextMobile}`,
+                            url: productUrlMobile,
+                        });
+                        console.log('Successfully shared');
+                    } catch (error) {
+                        console.error('Error sharing', error);
+                        // Fallback for browsers that don't support native share
+                        alert('Das Teilen wird von deinem Browser nicht unterstützt. Der Link wurde in deine Zwischenablage kopiert.');
+                        navigator.clipboard.writeText(`${shareTitleMobile}: "${designNameMobile}" - ${shareTextMobile} ${productUrlMobile}`);
+                    }
+                });
+            } else if (shareButtonMobile) {
+                shareButtonMobile.style.display = 'none'; // Hide if native share is not available and no desktop fallback
+            }
 
             // Reorder Button
             const reorderBtn = container.querySelector('.yprint-reorder-btn');
@@ -489,4 +545,4 @@ class YPrint_Order_Actions_Screenshot {
 }
 
 // Initialize the class
-YPrint_Order_Actions_Screenshot::init();
+YPrint_Order_Actions_Screenshot_Final::init();
