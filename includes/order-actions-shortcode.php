@@ -1,7 +1,7 @@
 <?php
 /**
- * Modern & Efficient Order Actions Shortcode for YPrint
- * Creates action buttons for orders with social sharing, reorder, feedback, etc.
+ * Modern & Efficient Order Actions Shortcode for YPrint (Screenshot Style)
+ * Creates action buttons for the last order with reorder, feedback, share.
  *
  * @package YPrint
  */
@@ -12,36 +12,35 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Class to handle order action buttons (Modern & Efficient)
+ * Class to handle order action buttons (Screenshot Style)
  */
-class YPrint_Order_Actions_Modern {
+class YPrint_Order_Actions_Screenshot {
 
     /**
      * Initialize the class
      */
     public static function init() {
-        add_shortcode('yprint_order_actions', array(__CLASS__, 'render_order_actions'));
+        add_shortcode('yprint_last_order_actions', array(__CLASS__, 'render_order_actions'));
         add_action('wp_ajax_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
         add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
     }
 
     /**
-     * Render order actions shortcode
+     * Render order actions shortcode (Screenshot Style)
      *
      * @param array $atts Shortcode attributes
      * @return string HTML output
      */
     public static function render_order_actions($atts) {
         $atts = shortcode_atts(array(
-            'class' => 'yprint-order-actions'
-        ), $atts, 'yprint_order_actions');
+            'class' => 'yprint-last-order-actions'
+        ), $atts, 'yprint_last_order_actions');
 
         $current_user_id = get_current_user_id();
         if (!$current_user_id) {
             return '<p class="yprint-order-actions-login-required">' .
-                   __('Bitte melde dich an, um deine Bestellaktionen zu sehen.', 'yprint-plugin') .
-                   ' <a href="' . esc_url(wp_login_url(get_permalink())) . '">' .
-                   __('Jetzt anmelden', 'yprint-plugin') . '</a></p>';
+                   __('Bitte melde dich an, um deine letzte Bestellung zu sehen.', 'yprint-plugin') .
+                   '</p>';
         }
 
         if (!class_exists('WooCommerce')) {
@@ -52,8 +51,7 @@ class YPrint_Order_Actions_Modern {
         if (!$latest_order) {
             return '<p class="yprint-no-orders">' .
                    __('Du hast noch keine Bestellungen.', 'yprint-plugin') .
-                   ' <a href="' . esc_url(home_url('/products')) . '">' .
-                   __('Jetzt einkaufen', 'yprint-plugin') . '</a></p>';
+                   '</p>';
         }
 
         $order_items = $latest_order->get_items();
@@ -63,209 +61,200 @@ class YPrint_Order_Actions_Modern {
 
         $latest_item = reset($order_items);
         $order_id = $latest_order->get_id();
-        $item_id = $latest_item->get_id();
         $product = $latest_item->get_product();
 
         $design_data = $latest_item->get_meta('print_design');
-        $design_id = $design_data['design_id'] ?? '';
-        $design_name = $design_data['name'] ?? ($product ? $product->get_name() : $latest_item->get_name());
-        $design_image = $design_data['preview_url'] ?? ($product ? wp_get_attachment_image_url($product->get_image_id(), 'medium') : '');
+        $design_image = $design_data['preview_url'] ?? ($product ? wp_get_attachment_image_url($product->get_image_id(), 'thumbnail') : '');
+        $order_status = wc_get_order_status_name($latest_order->get_status());
+        $order_number = $latest_order->get_order_number();
         $product_url = $product ? get_permalink($product->get_id()) : '';
+        $design_name = $design_data['name'] ?? ($product ? $product->get_name() : $latest_item->get_name());
 
         $css_class = sanitize_html_class($atts['class']);
-        $unique_id = 'yprint-order-actions-' . uniqid();
+        $unique_id = 'yprint-last-order-actions-' . uniqid();
 
-        $share_title = __('Schau dir mein Design bei YPrint an!', 'yprint-plugin');
-        $share_text = __('Individuelles Streetwear Design bei YPrint erstellt', 'yprint-plugin');
-        $adding_to_cart_text = __('Artikel wird hinzugefügt...', 'yprint-plugin');
-        $added_to_cart_text = __('Artikel wurde zum Warenkorb hinzugefügt', 'yprint-plugin');
-        $error_adding_text = __('Fehler beim Hinzufügen zum Warenkorb', 'yprint-plugin');
-        $copy_link_success = __('Link wurde kopiert!', 'yprint-plugin');
-        $copy_insta_success = __('Text wurde kopiert! Du kannst es jetzt in Instagram einfügen.', 'yprint-plugin');
+        $share_title = __('Schau dir mein Design an!', 'yprint-plugin');
+        $share_text = __('Individuelles Design erstellt', 'yprint-plugin');
+        $adding_to_cart_text = __('Wird neu bestellt...', 'yprint-plugin');
+        $added_to_cart_text = __('Zum Warenkorb hinzugefügt', 'yprint-plugin');
+        $error_adding_text = __('Fehler beim erneuten Bestellen', 'yprint-plugin');
+        $copy_link_success = __('Link kopiert!', 'yprint-plugin');
+        $copy_insta_success = __('Text kopiert! In Instagram einfügen.', 'yprint-plugin');
 
         ob_start();
         ?>
 
         <style>
-        .yprint-order-actions {
+        .yprint-last-order-actions {
+            background-color: #f9f9f9; /* Example background */
+            padding: 15px;
+            border-radius: 8px;
             display: flex;
+            flex-direction: column;
             gap: 10px;
-            margin: 20px 0;
-            flex-wrap: wrap;
+            border: 1px solid #eee; /* Example border */
         }
 
-        .yprint-order-action-btn {
-            display: inline-flex;
+        .yprint-last-order-header {
+            display: flex;
             align-items: center;
+            gap: 15px;
+        }
+
+        .yprint-last-order-image-container {
+            width: 60px;
+            height: 60px;
+            border-radius: 6px;
+            overflow: hidden;
+            background-color: #fff;
+            display: flex;
             justify-content: center;
-            gap: 8px;
-            padding: 12px 20px;
-            border: 1px solid #e0e0e0;
-            border-radius: 25px;
-            background: #ffffff;
-            color: #333;
+            align-items: center;
+            border: 1px solid #ddd;
+        }
+
+        .yprint-last-order-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .yprint-last-order-details {
+            flex-grow: 1;
+        }
+
+        .yprint-last-order-status {
+            font-weight: bold;
+            color: #28a745; /* Example color for "Delivered" */
+            margin-bottom: 5px;
+        }
+
+        .yprint-last-order-number {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .yprint-last-order-actions-buttons {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            justify-content: flex-start; /* Align buttons to the left */
+        }
+
+        .yprint-last-order-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #007bff; /* Example button text color */
             text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s ease;
-            min-width: 120px;
-            box-sizing: border-box;
+            font-size: 0.95em;
         }
 
-        .yprint-order-action-btn:hover {
-            background: #f8f9fa;
-            border-color: #0079FF;
-            color: #0079FF;
+        .yprint-last-order-action-btn i {
+            font-size: 1.1em;
         }
 
-        .yprint-order-action-btn.primary {
-            background: #0079FF;
-            color: white;
-            border-color: #0079FF;
+        .yprint-last-order-action-btn.reorder i {
+            /* Style for reorder icon */
         }
 
-        .yprint-order-action-btn.primary:hover {
-            background: #0056b3;
-            border-color: #0056b3;
-            color: white;
+        .yprint-last-order-action-btn.feedback i {
+            /* Style for feedback icon */
         }
 
-        .yprint-order-action-btn i {
-            font-size: 16px;
+        .yprint-last-order-action-btn.share i {
+            /* Style for share icon */
         }
 
-        .yprint-order-action-btn.loading {
+        .yprint-last-order-arrow {
+            font-size: 1.5em;
+            color: #6c757d;
+        }
+
+        .yprint-last-order-action-btn.loading {
             opacity: 0.7;
             pointer-events: none;
         }
 
-        .yprint-order-action-btn.loading::after {
+        .yprint-last-order-action-btn.loading::after {
             content: '';
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             border: 2px solid currentColor;
             border-top: 2px solid transparent;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-left: 8px;
+            margin-left: 5px;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        .yprint-share-menu {
-            position: relative;
-            display: inline-block;
-        }
-
-        .yprint-share-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background: white;
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            padding: 10px;
-            min-width: 200px;
-            z-index: 1000;
-            display: none;
-        }
-
-        .yprint-share-dropdown.show {
-            display: block;
-        }
-
-        .yprint-share-option {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 8px 12px;
-            border-radius: 8px;
-            text-decoration: none;
-            color: #333;
-            transition: background 0.2s ease;
-        }
-
-        .yprint-share-option:hover {
-            background: #f8f9fa;
-        }
-
-        .yprint-share-option i {
-            width: 20px;
-            font-size: 18px;
-        }
-
-        @media (max-width: 768px) {
-            .yprint-order-actions {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .yprint-order-action-btn {
-                width: 100%;
-            }
-        }
         </style>
 
         <div id="<?php echo esc_attr($unique_id); ?>" class="<?php echo esc_attr($css_class); ?>">
-            <a href="<?php echo esc_url(home_url('/orders')); ?>" class="yprint-order-action-btn">
-                <i class="fas fa-arrow-left"></i>
-                <span><?php _e('Bestellungen', 'yprint-plugin'); ?></span>
-            </a>
-
-            <div class="yprint-share-menu">
-                <button class="yprint-order-action-btn yprint-share-trigger"
-                        data-design-name="<?php echo esc_attr($design_name); ?>"
-                        data-design-image="<?php echo esc_attr($design_image); ?>"
-                        data-product-url="<?php echo esc_attr($product_url); ?>">
-                    <i class="fas fa-share"></i>
-                    <span><?php _e('Teilen', 'yprint-plugin'); ?></span>
+            <div class="yprint-last-order-header">
+                <?php if ($design_image) : ?>
+                    <div class="yprint-last-order-image-container">
+                        <img src="<?php echo esc_url($design_image); ?>" alt="<?php echo esc_attr($design_name); ?>" class="yprint-last-order-image">
+                    </div>
+                <?php endif; ?>
+                <div class="yprint-last-order-details">
+                    <div class="yprint-last-order-status"><?php echo esc_html($order_status); ?></div>
+                    <div class="yprint-last-order-number"><?php echo esc_html('#' . $order_number); ?></div>
+                </div>
+                <span class="yprint-last-order-arrow">&rarr;</span>
+            </div>
+            <div class="yprint-last-order-actions-buttons">
+                <button class="yprint-last-order-action-btn reorder yprint-reorder-btn"
+                        data-order-id="<?php echo esc_attr($order_id); ?>"
+                        data-item-id="<?php echo esc_attr($item_id); ?>"
+                        data-design-id="<?php echo esc_attr($design_data['design_id'] ?? ''); ?>">
+                    <i class="fas fa-sync"></i>
+                    <span><?php _e('Reorder', 'yprint-plugin'); ?></span>
                 </button>
-
-                <div class="yprint-share-dropdown">
-                    <a href="#" class="yprint-share-option" data-platform="whatsapp">
-                        <i class="fab fa-whatsapp" style="color: #25D366;"></i>
-                        <span>WhatsApp</span>
-                    </a>
-                    <a href="#" class="yprint-share-option" data-platform="facebook">
-                        <i class="fab fa-facebook" style="color: #1877F2;"></i>
-                        <span>Facebook</span>
-                    </a>
-                    <a href="#" class="yprint-share-option" data-platform="twitter">
-                        <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
-                        <span>Twitter</span>
-                    </a>
-                    <a href="#" class="yprint-share-option" data-platform="instagram">
-                        <i class="fab fa-instagram" style="color: #E4405F;"></i>
-                        <span>Instagram</span>
-                    </a>
-                    <a href="#" class="yprint-share-option" data-platform="telegram">
-                        <i class="fab fa-telegram" style="color: #0088CC;"></i>
-                        <span>Telegram</span>
-                    </a>
-                    <a href="#" class="yprint-share-option" data-platform="copy">
-                        <i class="fas fa-copy" style="color: #666;"></i>
-                        <span>Link kopieren</span>
-                    </a>
+                <a href="https://de.trustpilot.com/evaluate/yprint.de" target="_blank" rel="noopener" class="yprint-last-order-action-btn feedback">
+                    <i class="far fa-comment-dots"></i>
+                    <span><?php _e('Feedback', 'yprint-plugin'); ?></span>
+                </a>
+                <div class="yprint-share-menu">
+                    <button class="yprint-last-order-action-btn share yprint-share-trigger"
+                            data-design-name="<?php echo esc_attr($design_name); ?>"
+                            data-design-image="<?php echo esc_attr($design_image); ?>"
+                            data-product-url="<?php echo esc_attr($product_url); ?>">
+                        <i class="fas fa-share-alt"></i>
+                        <span><?php _e('Share', 'yprint-plugin'); ?></span>
+                    </button>
+                    <div class="yprint-share-dropdown">
+                        <a href="#" class="yprint-share-option" data-platform="whatsapp">
+                            <i class="fab fa-whatsapp" style="color: #25D366;"></i>
+                            <span>WhatsApp</span>
+                        </a>
+                        <a href="#" class="yprint-share-option" data-platform="facebook">
+                            <i class="fab fa-facebook" style="color: #1877F2;"></i>
+                            <span>Facebook</span>
+                        </a>
+                        <a href="#" class="yprint-share-option" data-platform="twitter">
+                            <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
+                            <span>Twitter</span>
+                        </a>
+                        <a href="#" class="yprint-share-option" data-platform="instagram">
+                            <i class="fab fa-instagram" style="color: #E4405F;"></i>
+                            <span>Instagram</span>
+                        </a>
+                        <a href="#" class="yprint-share-option" data-platform="telegram">
+                            <i class="fab fa-telegram" style="color: #0088CC;"></i>
+                            <span>Telegram</span>
+                        </a>
+                        <a href="#" class="yprint-share-option" data-platform="copy">
+                            <i class="fas fa-copy" style="color: #666;"></i>
+                            <span>Link kopieren</span>
+                        </a>
+                    </div>
                 </div>
             </div>
-
-            <a href="https://de.trustpilot.com/evaluate/yprint.de" target="_blank" rel="noopener" class="yprint-order-action-btn">
-                <i class="fas fa-star"></i>
-                <span><?php _e('Feedback', 'yprint-plugin'); ?></span>
-            </a>
-
-            <button class="yprint-order-action-btn primary yprint-reorder-btn"
-                    data-order-id="<?php echo esc_attr($order_id); ?>"
-                    data-item-id="<?php echo esc_attr($item_id); ?>"
-                    data-design-id="<?php echo esc_attr($design_id); ?>">
-                <i class="fas fa-redo"></i>
-                <span><?php _e('Erneut bestellen', 'yprint-plugin'); ?></span>
-            </button>
         </div>
 
         <script type="text/javascript">
@@ -296,12 +285,12 @@ class YPrint_Order_Actions_Modern {
                 option.addEventListener('click', (e) => {
                     e.preventDefault();
                     const { platform } = option.dataset;
-                    const designName = shareButton.dataset.designName || 'Mein YPrint Design';
+                    const designName = shareButton.dataset.designName || 'Mein Design';
                     const designImage = shareButton.dataset.designImage || '';
-                    const productUrl = shareButton.dataset.productUrl || 'https://yprint.de';
+                    const productUrl = shareButton.dataset.productUrl || window.location.href;
                     const shareTitle = '<?php echo esc_js($share_title); ?>';
                     const shareText = '<?php echo esc_js($share_text); ?>';
-                    const fullShareText = `<span class="math-inline">\{shareTitle\} "</span>{designName}" - ${shareText}`;
+                    const fullShareText = `<span class="math-inline">\{shareTitle\}\: "</span>{designName}" - ${shareText} ${productUrl}`;
 
                     handleShare(platform, fullShareText, productUrl, designImage);
                     shareDropdown.classList.remove('show');
@@ -315,7 +304,7 @@ class YPrint_Order_Actions_Modern {
 
                 switch (platform) {
                     case 'whatsapp':
-                        shareUrl = `https://wa.me/?text=<span class="math-inline">\{encodedText\}%20</span>{encodedUrl}`;
+                        shareUrl = `https://wa.me/?text=${encodedText}`;
                         break;
                     case 'facebook':
                         shareUrl = `https://www.facebook.com/sharer/sharer.php?u=<span class="math-inline">\{encodedUrl\}&quote\=</span>{encodedText}`;
@@ -373,7 +362,7 @@ class YPrint_Order_Actions_Modern {
                     if (response.success) {
                         button.querySelector('span').textContent = '<?php echo esc_js($added_to_cart_text); ?>';
                         setTimeout(() => {
-                            window.location.href = 'https://yprint.de/checkout';
+                            window.location.href = '<?php echo esc_url(wc_get_checkout_url()); ?>';
                         }, 1000);
                     } else {
                         alert(response.data || '<?php echo esc_js($error_adding_text); ?>');
@@ -399,8 +388,7 @@ class YPrint_Order_Actions_Modern {
     /**
      * Get the latest order for a specific user
      *
-     * @param
-     * * @param int $user_id User ID
+     * @param int $user_id User ID
      * @return WC_Order|false Latest order or false if none found
      */
     private static function get_latest_user_order($user_id) {
@@ -501,4 +489,4 @@ class YPrint_Order_Actions_Modern {
 }
 
 // Initialize the class
-YPrint_Order_Actions_Modern::init();
+YPrint_Order_Actions_Screenshot::init();
