@@ -2,7 +2,7 @@
 /*
 Plugin Name: YPrint Kontaktformular für eingeloggte Nutzer
 Description: Generiert ein einfaches Textfeld, um eine E-Mail mit Nutzerdaten an info@yprint.de zu senden.
-Version: 1.1
+Version: 1.2
 Author: Ihr Name oder Organisation
 */
 
@@ -14,7 +14,27 @@ function yprint_kontaktformular_shortcode() {
         $user_email = $current_user->user_email;
         $display_name = $current_user->display_name;
 
-        $output = '<form method="post" action="">';
+        $output = '<style>';
+        $output .= '.yprint-button {';
+        $output .= '    display: inline-block;';
+        $output .= '    padding: 12px 20px;';
+        $output .= '    background-color: #0079FF;';
+        $output .= '    color: white;';
+        $output .= '    border: none;';
+        $output .= '    border-radius: 10px;';
+        $output .= '    font-size: 16px;';
+        $output .= '    font-weight: 500;';
+        $output .= '    cursor: pointer;';
+        $output .= '    text-decoration: none;';
+        $output .= '    transition: all 0.2s ease;';
+        $output .= '}';
+        $output .= '.yprint-button:hover {';
+        $output .= '    background-color: #0056b3;';
+        $output .= '    transform: translateY(-1px);';
+        $output .= '    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);';
+        $output .= '}';
+        $output .= '</style>';
+        $output .= '<form method="post" action="">';
         $output .= '<p><textarea name="nachricht" style="width: 100%; min-height: 150px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; background-color: #f9f9f9;"></textarea></p>';
         $output .= '<input type="hidden" name="user_id" value="' . esc_attr($user_id) . '">';
         $output .= '<input type="hidden" name="user_login" value="' . esc_attr($user_login) . '">';
@@ -44,9 +64,4 @@ function yprint_kontaktformular_shortcode() {
     }
 }
 add_shortcode('yprint_kontakt', 'yprint_kontaktformular_shortcode');
-
-function yprint_enqueue_styles() {
-    wp_enqueue_style( 'yprint-kontakt-style', plugins_url( 'css/yprint-kontakt.css', __FILE__ ) );
-}
-add_action( 'wp_enqueue_scripts', 'yprint_enqueue_styles' );
 ?>
