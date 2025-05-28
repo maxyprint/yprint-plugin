@@ -38,7 +38,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-admin.php'
 // Apple Pay class will be loaded by yprint-stripe.php
 
 // Include the checkout shortcode
-require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout-shortcode.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout.php';
 
 // Include Address Manager
 require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-address-manager.php';
@@ -54,7 +54,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
 
 // Initialize Checkout Shortcode
 add_action('init', function() {
-    YPrint_Stripe_Checkout_Shortcode::init();
+    YPrint_Stripe_Checkout::init();
 });
 
 // Initialize Address Manager
