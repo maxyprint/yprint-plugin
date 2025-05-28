@@ -916,7 +916,7 @@ class YPrintCheckoutUXEnhancer {
     }
 
     init() {
-        this.setupFormProgressTracking();
+        // this.setupFormProgressTracking(); // Deaktiviert - Fortschrittsbalken entfernt
         this.setupSmartAutofill();
         this.setupKeyboardNavigation();
         this.setupMobileOptimizations();
@@ -924,104 +924,23 @@ class YPrintCheckoutUXEnhancer {
     }
 
     /**
-     * Verfolgt Fortschritt beim Ausfüllen der Formulare
-     */
-    setupFormProgressTracking() {
-        const forms = ['address-form', 'payment-form'];
-        
-        forms.forEach(formId => {
-            const form = document.getElementById(formId);
-            if (!form) return;
-            
-            const progressBar = this.createProgressBar(form);
-            this.updateProgress(form, progressBar);
-            
-            // Live-Update des Fortschritts
-            form.addEventListener('input', () => {
-                this.updateProgress(form, progressBar);
-            });
-        });
-    }
+ * Verfolgt Fortschritt beim Ausfüllen der Formulare
+ * DEAKTIVIERT - Fortschrittsbalken entfernt
+ */
+setupFormProgressTracking() {
+    // Methode deaktiviert - keine Fortschrittsbalken mehr
+    return;
+}
 
-    createProgressBar(form) {
-        const progressContainer = document.createElement('div');
-        progressContainer.className = 'form-progress-container';
-        progressContainer.innerHTML = `
-            <div class="form-progress-bar">
-                <div class="form-progress-fill" style="width: 0%"></div>
-            </div>
-            <span class="form-progress-text">0% ausgefüllt</span>
-        `;
-        
-        // CSS für Progress Bar
-        const style = document.createElement('style');
-        style.textContent = `
-            .form-progress-container {
-                margin-bottom: 1rem;
-                padding: 0.75rem;
-                background: #f8fafc;
-                border-radius: 0.5rem;
-                border: 1px solid #e2e8f0;
-            }
+createProgressBar(form) {
+    // Methode deaktiviert - keine Fortschrittsbalken mehr
+    return null;
+}
 
-            .form-progress-bar {
-                width: 100%;
-                height: 0.5rem;
-                background: #e2e8f0;
-                border-radius: 0.25rem;
-                overflow: hidden;
-                margin-bottom: 0.5rem;
-            }
-
-            .form-progress-fill {
-                height: 100%;
-                background: linear-gradient(90deg, #0079FF, #00a8ff);
-                transition: width 0.3s ease;
-                border-radius: 0.25rem;
-            }
-
-            .form-progress-text {
-                font-size: 0.875rem;
-                color: #64748b;
-                font-weight: 500;
-            }
-        `;
-        
-        if (!document.getElementById('form-progress-styles')) {
-            style.id = 'form-progress-styles';
-            document.head.appendChild(style);
-        }
-        
-        form.parentNode.insertBefore(progressContainer, form);
-        return progressContainer;
-    }
-
-    updateProgress(form, progressContainer) {
-        const fields = form.querySelectorAll('input[required], select[required], textarea[required]');
-        const filledFields = Array.from(fields).filter(field => {
-            if (field.type === 'checkbox' || field.type === 'radio') {
-                return field.checked;
-            }
-            return field.value.trim() !== '';
-        });
-
-        const percentage = fields.length > 0 ? Math.round((filledFields.length / fields.length) * 100) : 0;
-        
-        const progressFill = progressContainer.querySelector('.form-progress-fill');
-        const progressText = progressContainer.querySelector('.form-progress-text');
-        
-        progressFill.style.width = `${percentage}%`;
-        progressText.textContent = `${percentage}% ausgefüllt`;
-        
-        // Farbe ändern basierend auf Fortschritt
-        if (percentage === 100) {
-            progressFill.style.background = 'linear-gradient(90deg, #16a34a, #22c55e)';
-        } else if (percentage >= 75) {
-            progressFill.style.background = 'linear-gradient(90deg, #0079FF, #00a8ff)';
-        } else {
-            progressFill.style.background = 'linear-gradient(90deg, #6b7280, #9ca3af)';
-        }
-    }
+updateProgress(form, progressContainer) {
+    // Methode deaktiviert - keine Fortschrittsbalken mehr
+    return;
+}
 
     /**
      * Intelligente Autovervollständigung
