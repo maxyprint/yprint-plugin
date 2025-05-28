@@ -1,0 +1,19 @@
+.yprint-button {
+    display: inline-block;
+    padding: 12px 20px;
+    background-color: #0079FF;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.yprint-button:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
+}

@@ -2,7 +2,7 @@
 /*
 Plugin Name: YPrint Kontaktformular für eingeloggte Nutzer
 Description: Generiert ein einfaches Textfeld, um eine E-Mail mit Nutzerdaten an info@yprint.de zu senden.
-Version: 1.0
+Version: 1.1
 Author: Ihr Name oder Organisation
 */
 
@@ -15,12 +15,12 @@ function yprint_kontaktformular_shortcode() {
         $display_name = $current_user->display_name;
 
         $output = '<form method="post" action="">';
-        $output .= '<p><textarea name="nachricht" style="width: 100%; min-height: 150px; border: none; background: transparent;"></textarea></p>';
+        $output .= '<p><textarea name="nachricht" style="width: 100%; min-height: 150px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; background-color: #f9f9f9;"></textarea></p>';
         $output .= '<input type="hidden" name="user_id" value="' . esc_attr($user_id) . '">';
         $output .= '<input type="hidden" name="user_login" value="' . esc_attr($user_login) . '">';
         $output .= '<input type="hidden" name="user_email" value="' . esc_attr($user_email) . '">';
         $output .= '<input type="hidden" name="display_name" value="' . esc_attr($display_name) . '">';
-        $output .= '<p><input type="submit" value="Nachricht senden" style="border: none; background: transparent;"></p>';
+        $output .= '<p style="text-align: right;"><input type="submit" value="Nachricht senden" class="yprint-button"></p>';
         $output .= '</form>';
 
         if (isset($_POST['nachricht'])) {
@@ -44,4 +44,9 @@ function yprint_kontaktformular_shortcode() {
     }
 }
 add_shortcode('yprint_kontakt', 'yprint_kontaktformular_shortcode');
+
+function yprint_enqueue_styles() {
+    wp_enqueue_style( 'yprint-kontakt-style', plugins_url( 'css/yprint-kontakt.css', __FILE__ ) );
+}
+add_action( 'wp_enqueue_scripts', 'yprint_enqueue_styles' );
 ?>
