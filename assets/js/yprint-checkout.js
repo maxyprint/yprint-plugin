@@ -14,12 +14,49 @@ let currentStep = window.currentStep; // Lokale Referenz für Kompatibilität
         isBillingSameAsShipping: true,
     };
 
-    // Dummy Produktdaten für den Warenkorb (sollten in einer echten Anwendung serverseitig geladen werden)
-    const cartItems = [
-        { id: 1, name: "Individuelles Fotobuch Premium", price: 49.99, quantity: 1, image: "https://placehold.co/100x100/0079FF/FFFFFF?text=Buch" },
-        { id: 2, name: "Visitenkarten (250 Stk.)", price: 19.50, quantity: 2, image: "https://placehold.co/100x100/E3F2FD/1d1d1f?text=Karten" },
-        { id: 3, name: "Großformat Poster A2", price: 25.00, quantity: 1, image: "https://placehold.co/100x100/CCCCCC/FFFFFF?text=Poster" },
-    ];
+    // Reale Warenkorbdaten - werden über AJAX geladen
+let cartItems = [];
+let cartTotals = {
+    subtotal: 0,
+    shipping: 0,
+    discount: 0,
+    total: 0,
+    vat: 0
+};
+
+// Lade reale Warenkorbdaten beim Initialisieren
+async function loadRealCartData() {
+    try {
+        const response = await fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                action: 'yprint_get_cart_data',
+                nonce: yprint_checkout_params.nonce
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            cartItems = data.data.items || [];
+            cartTotals = data.data.totals || cartTotals;
+            
+            // UI aktualisieren nach dem Laden der Daten
+            updateCartSummaryDisplay(document.getElementById('checkout-cart-summary-items'));
+            updateCartTotalsDisplay(document.getElementById('checkout-cart-summary-totals'));
+            updatePaymentStepSummary();
+            
+            console.log('Reale Warenkorbdaten geladen:', cartItems);
+        } else {
+            console.error('Fehler beim Laden der Warenkorbdaten:', data.data);
+        }
+    } catch (error) {
+        console.error('AJAX-Fehler beim Laden der Warenkorbdaten:', error);
+    }
+}
 
     // DOM-Elemente auswählen (optimiert, falls Elemente nicht immer vorhanden sind)
     const steps = document.querySelectorAll(".checkout-step");
@@ -537,28 +574,41 @@ function collectAddressData() {
      * @returns {object} - Ein Objekt mit den berechneten Preisen.
      */
     function calculatePrices() {
-        let subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        let shipping = 4.99; // Feste Versandkosten (Beispiel)
-        let discount = 0;
-        const voucherFeedbackEl = document.getElementById('voucher-feedback');
-
-        if (formData.voucher && formData.voucher.toUpperCase() === "YPRINT10") { // Dummy Gutschein Logik
-            discount = subtotal * 0.10; // 10% Rabatt
-            if (voucherFeedbackEl) {
-                voucherFeedbackEl.textContent = `"YPRINT10" angewendet: -€${discount.toFixed(2)}`;
-                voucherFeedbackEl.className = 'text-sm mt-1 text-yprint-success';
+        // Verwende reale Warenkorbdaten aus WooCommerce
+        return {
+            subtotal: cartTotals.subtotal || 0,
+            shipping: cartTotals.shipping || 0,
+            discount: cartTotals.discount || 0,
+            total: cartTotals.total || 0,
+            vat: cartTotals.vat || 0
+        };
+    }
+    
+    // Neue Funktion um Preise live zu aktualisieren
+    async function refreshCartTotals() {
+        try {
+            const response = await fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'yprint_refresh_cart_totals',
+                    nonce: yprint_checkout_params.nonce,
+                    voucher_code: formData.voucher || ''
+                })
+            });
+    
+            const data = await response.json();
+            
+            if (data.success) {
+                cartTotals = data.data.totals;
+                updatePaymentStepSummary();
+                updateCartTotalsDisplay(document.getElementById('checkout-cart-summary-totals'));
             }
-        } else if (formData.voucher && voucherFeedbackEl) {
-            voucherFeedbackEl.textContent = 'Ungültiger Gutscheincode.';
-            voucherFeedbackEl.className = 'text-sm mt-1 text-yprint-error';
-        } else if (voucherFeedbackEl) {
-            voucherFeedbackEl.textContent = ''; // Feedback leeren, wenn Gutschein entfernt wird
+        } catch (error) {
+            console.error('Fehler beim Aktualisieren der Preise:', error);
         }
-
-        let total = subtotal + shipping - discount;
-        let vat = total * 0.19; // Annahme 19% MwSt auf den Gesamtbetrag nach Rabatt
-
-        return { subtotal, shipping, discount, total, vat };
     }
 
     /**
@@ -596,26 +646,28 @@ function collectAddressData() {
     }
 
 
-    /**
-     * Füllt die Bestätigungsseite mit den gesammelten Daten.
-     */
-    function populateConfirmation() {
-        // Adressen
+    async function populateConfirmation() {
+        // Lade aktuelle Warenkorbdaten
+        await loadRealCartData();
+        
+        // Adressen (bestehender Code bleibt)
         const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
         if (confirmShippingAddressEl) {
             confirmShippingAddressEl.innerHTML = `
+                ${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}<br>
                 ${formData.shipping.street || ''} ${formData.shipping.housenumber || ''}<br>
                 ${formData.shipping.zip || ''} ${formData.shipping.city || ''}<br>
                 ${formData.shipping.country || ''}
                 ${formData.shipping.phone ? '<br>Tel: ' + formData.shipping.phone : ''}
             `;
         }
-
+    
         const confirmBillingContainer = document.getElementById('confirm-billing-address-container');
         const confirmBillingAddressEl = document.getElementById('confirm-billing-address');
         if (confirmBillingContainer && confirmBillingAddressEl) {
             if (!formData.isBillingSameAsShipping && Object.keys(formData.billing).length > 0) {
                 confirmBillingAddressEl.innerHTML = `
+                    ${formData.billing.first_name || ''} ${formData.billing.last_name || ''}<br>
                     ${formData.billing.street || ''} ${formData.billing.housenumber || ''}<br>
                     ${formData.billing.zip || ''} ${formData.billing.city || ''}<br>
                     ${formData.billing.country || ''}
@@ -625,41 +677,65 @@ function collectAddressData() {
                 confirmBillingContainer.classList.add('hidden');
             }
         }
-
+    
         // Zahlungsart
         const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
         if (confirmPaymentMethodEl) {
+            const selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value || 
+                                  document.getElementById('selected-payment-method')?.value;
+            
             let paymentMethodText = 'Nicht gewählt';
-            switch (formData.payment.method) {
-                case 'paypal': paymentMethodText = '<i class="fab fa-paypal mr-2"></i> PayPal'; break;
-                case 'applepay': paymentMethodText = '<i class="fab fa-apple-pay mr-2"></i> Apple Pay'; break;
-                case 'creditcard': paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Kreditkarte'; break;
-                case 'klarna': paymentMethodText = '<svg viewBox="0 0 496 156" class="klarna-logo-svg inline" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M248.291 31.0084C265.803 31.0084 280.21 37.1458 291.513 49.4206C302.888 61.6954 308.575 77.0417 308.575 95.4594C308.575 113.877 302.888 129.223 291.513 141.498C280.21 153.773 265.803 159.91 248.291 159.91H180.854V31.0084H248.291ZM213.956 132.621H248.291C258.57 132.621 267.076 129.68 273.808 123.798C280.612 117.844 284.014 109.177 284.014 97.7965C284.014 86.4158 280.612 77.7491 273.808 71.7947C267.076 65.8403 258.57 62.8992 248.291 62.8992H213.956V132.621ZM143.061 31.0084H109.959V159.91H143.061V31.0084ZM495.99 31.0084L445.609 159.91H408.009L378.571 79.1557L349.132 159.91H311.532L361.914 31.0084H399.514L428.952 112.661L458.39 31.0084H495.99ZM0 31.0084H33.1017V159.91H0V31.0084Z" fill="#FFB3C7"></path></svg> Klarna'; break;
+            
+            if (selectedMethod?.includes('stripe_card')) {
+                paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Kreditkarte (Stripe)';
+            } else if (selectedMethod?.includes('stripe_sepa')) {
+                paymentMethodText = '<i class="fas fa-university mr-2"></i> SEPA-Lastschrift (Stripe)';
+            } else if (selectedMethod?.includes('paypal')) {
+                paymentMethodText = '<i class="fab fa-paypal mr-2"></i> PayPal';
+            } else if (selectedMethod?.includes('applepay')) {
+                paymentMethodText = '<i class="fab fa-apple-pay mr-2"></i> Apple Pay';
             }
+            
             confirmPaymentMethodEl.innerHTML = paymentMethodText;
         }
-
-        // Produkte
+    
+        // Produkte mit Design-Unterstützung
         const productListEl = document.getElementById('confirm-product-list');
         if (productListEl) {
-            productListEl.innerHTML = ''; // Vorherige Einträge löschen
+            productListEl.innerHTML = '';
+            
             cartItems.forEach(item => {
                 const itemEl = document.createElement('div');
-                itemEl.className = 'flex justify-between items-center py-2'; // Tailwind Klassen
+                itemEl.className = 'flex justify-between items-center py-3 border-b border-gray-100';
+                
+                // Design-Details für Design-Produkte
+                let designDetailsHtml = '';
+                if (item.is_design_product && item.design_details && item.design_details.length > 0) {
+                    designDetailsHtml = `
+                        <div class="design-details mt-1">
+                            ${item.design_details.map(detail => 
+                                `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1">${detail}</span>`
+                            ).join('')}
+                        </div>
+                    `;
+                }
+                
                 itemEl.innerHTML = `
-                    <div class="flex items-center">
-                        <img src="${item.image}" alt="${item.name}" class="product-item"> <div>
-                            <p class="font-medium">${item.name}</p>
-                            <p class="text-sm text-yprint-text-secondary">Menge: ${item.quantity}</p>
+                    <div class="flex items-center flex-1">
+                        <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded border mr-3">
+                        <div class="flex-1">
+                            <p class="font-medium text-sm">${item.name}</p>
+                            <p class="text-xs text-gray-600">Menge: ${item.quantity}</p>
+                            ${designDetailsHtml}
                         </div>
                     </div>
-                    <p class="font-medium">€${(item.price * item.quantity).toFixed(2)}</p>
+                    <p class="font-medium text-sm">€${(item.price * item.quantity).toFixed(2)}</p>
                 `;
                 productListEl.appendChild(itemEl);
             });
         }
-
-        // Preise
+    
+        // Preise - verwende reale Daten
         const prices = calculatePrices();
         const confirmSubtotalEl = document.getElementById('confirm-subtotal');
         const confirmShippingEl = document.getElementById('confirm-shipping');
@@ -667,7 +743,7 @@ function collectAddressData() {
         const confirmDiscountEl = document.getElementById('confirm-discount');
         const confirmVatEl = document.getElementById('confirm-vat');
         const confirmTotalEl = document.getElementById('confirm-total');
-
+    
         if (confirmSubtotalEl) confirmSubtotalEl.textContent = `€${prices.subtotal.toFixed(2)}`;
         if (confirmShippingEl) confirmShippingEl.textContent = `€${prices.shipping.toFixed(2)}`;
         if (confirmDiscountRowEl && confirmDiscountEl) {
@@ -761,13 +837,83 @@ function collectAddressData() {
     }
 
     if (btnToConfirmation) {
-        btnToConfirmation.addEventListener('click', (e) => {
+        btnToConfirmation.addEventListener('click', async (e) => {
             e.preventDefault();
+            
+            // Validiere Zahlungsmethode
+            const paymentValid = await validatePaymentMethod();
+            
+            if (!paymentValid) {
+                showMessage('Bitte wählen Sie eine gültige Zahlungsmethode aus oder vervollständigen Sie die Zahlungsdaten.', 'error');
+                return;
+            }
+            
             collectPaymentData();
-            populateConfirmation();
+            await populateConfirmation(); // Jetzt async
             showStep(3);
-            // z.B. YPrintAJAX.setPaymentMethod(formData.payment);
         });
+    }
+    
+    // Neue Funktion zur Validierung der Zahlungsmethode
+    async function validatePaymentMethod() {
+        const selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value || 
+                              document.getElementById('selected-payment-method')?.value;
+        
+        if (!selectedMethod) {
+            return false;
+        }
+        
+        // Stripe-spezifische Validierung
+        if (selectedMethod.includes('stripe')) {
+            if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initialized) {
+                // Prüfe ob Stripe Elements vollständig ausgefüllt sind
+                const activeSliderOption = document.querySelector('.slider-option.active');
+                const paymentMethod = activeSliderOption?.dataset.method;
+                
+                if (paymentMethod === 'card') {
+                    // Prüfe Card Element
+                    return await validateStripeCardElement();
+                } else if (paymentMethod === 'sepa') {
+                    // Prüfe SEPA Element  
+                    return await validateStripeSepaElement();
+                }
+            }
+            return false;
+        }
+        
+        return true; // Andere Zahlungsmethoden sind ok wenn ausgewählt
+    }
+    
+    async function validateStripeCardElement() {
+        if (!window.YPrintStripeCheckout.cardElement) return false;
+        
+        try {
+            // Teste ob Card Element gültig ist
+            const {error} = await window.YPrintStripeCheckout.stripe.createPaymentMethod({
+                type: 'card',
+                card: window.YPrintStripeCheckout.cardElement,
+            });
+            
+            return !error;
+        } catch (e) {
+            return false;
+        }
+    }
+    
+    async function validateStripeSepaElement() {
+        if (!window.YPrintStripeCheckout.sepaElement) return false;
+        
+        try {
+            // Teste ob SEPA Element gültig ist
+            const {error} = await window.YPrintStripeCheckout.stripe.createPaymentMethod({
+                type: 'sepa_debit',
+                sepa_debit: window.YPrintStripeCheckout.sepaElement,
+            });
+            
+            return !error;
+        } catch (e) {
+            return false;
+        }
     }
 
     if (btnBackToPaymentFromConfirm) {
@@ -779,24 +925,71 @@ function collectAddressData() {
     }
 
     if (btnBuyNow) {
-        btnBuyNow.addEventListener('click', (e) => {
+        btnBuyNow.addEventListener('click', async (e) => {
             e.preventDefault();
+            
             toggleLoadingOverlay(true);
-            // Simuliere Bestellverarbeitung (AJAX Call an 'wp_ajax_yprint_process_checkout')
-            // YPrintAJAX.processCheckout(formData).then(response => { ... });
-            setTimeout(() => {
-                toggleLoadingOverlay(false);
-                populateThankYouPage();
-                showStep(4);
-                // Fortschrittsanzeige für Danke-Seite anpassen
-                progressSteps.forEach(pStep => pStep.classList.add('completed'));
-                const lastProgressStep = document.getElementById('progress-step-3');
-                if (lastProgressStep) {
-                    lastProgressStep.classList.remove('active'); // Letzten Schritt nicht mehr aktiv
-                    lastProgressStep.classList.add('completed'); // Auch als completed markieren
+            
+            try {
+                // Echte Bestellverarbeitung
+                const orderResult = await processRealOrder();
+                
+                if (orderResult.success) {
+                    populateThankYouPage(orderResult.data);
+                    showStep(4);
+                    
+                    // Fortschrittsanzeige für Danke-Seite anpassen
+                    progressSteps.forEach(pStep => pStep.classList.add('completed'));
+                    const lastProgressStep = document.getElementById('progress-step-3');
+                    if (lastProgressStep) {
+                        lastProgressStep.classList.remove('active');
+                        lastProgressStep.classList.add('completed');
+                    }
+                    
+                    showMessage('Bestellung erfolgreich aufgegeben!', 'success');
+                } else {
+                    throw new Error(orderResult.message || 'Bestellung konnte nicht verarbeitet werden');
                 }
-            }, 2500); // 2.5 Sekunden Ladezeit-Simulation
+            } catch (error) {
+                console.error('Bestellfehler:', error);
+                showMessage(error.message || 'Ein Fehler ist aufgetreten', 'error');
+            } finally {
+                toggleLoadingOverlay(false);
+            }
         });
+    }
+    
+    // Neue Funktion für echte Bestellverarbeitung
+    async function processRealOrder() {
+        try {
+            const response = await fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'yprint_process_final_checkout',
+                    nonce: yprint_checkout_params.nonce,
+                    shipping_data: JSON.stringify(formData.shipping),
+                    billing_data: JSON.stringify(formData.billing),
+                    payment_data: JSON.stringify(formData.payment),
+                    billing_same_as_shipping: formData.isBillingSameAsShipping,
+                    voucher_code: formData.voucher || '',
+                    payment_method: document.getElementById('selected-payment-method')?.value || 
+                                   document.querySelector('input[name="payment_method"]:checked')?.value
+                })
+            });
+    
+            const data = await response.json();
+            return data;
+            
+        } catch (error) {
+            console.error('AJAX-Fehler bei Bestellverarbeitung:', error);
+            return {
+                success: false,
+                message: 'Verbindungsfehler. Bitte versuchen Sie es erneut.'
+            };
+        }
     }
 
     if (btnContinueShopping) {
@@ -847,15 +1040,18 @@ if (initialStep === 1) {
     }
 }
 
-// Warenkorb-Zusammenfassung initial laden (falls vorhanden)
-const cartSummaryContainer = document.getElementById('checkout-cart-summary-items');
-if (cartSummaryContainer) {
-    updateCartSummaryDisplay(cartSummaryContainer);
-}
-const cartTotalsContainer = document.getElementById('checkout-cart-summary-totals');
-if (cartTotalsContainer) {
-    updateCartTotalsDisplay(cartTotalsContainer);
-}
+// Lade reale Warenkorbdaten beim Start
+loadRealCartData().then(() => {
+    // Warenkorb-Zusammenfassung nach dem Laden der Daten aktualisieren
+    const cartSummaryContainer = document.getElementById('checkout-cart-summary-items');
+    if (cartSummaryContainer) {
+        updateCartSummaryDisplay(cartSummaryContainer);
+    }
+    const cartTotalsContainer = document.getElementById('checkout-cart-summary-totals');
+    if (cartTotalsContainer) {
+        updateCartTotalsDisplay(cartTotalsContainer);
+    }
+});
 }); // Ende jQuery Document Ready
 
 // Debug-Button entfernt

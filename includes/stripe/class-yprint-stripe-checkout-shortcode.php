@@ -63,7 +63,304 @@ add_action('wp_ajax_nopriv_yprint_check_email_availability', array($instance, 'a
 
 add_action('wp_ajax_yprint_validate_voucher', array($instance, 'ajax_validate_voucher'));
 add_action('wp_ajax_nopriv_yprint_validate_voucher', array($instance, 'ajax_validate_voucher'));
+
+// New AJAX handlers for real cart data
+add_action('wp_ajax_yprint_get_cart_data', array($instance, 'ajax_get_cart_data'));
+add_action('wp_ajax_nopriv_yprint_get_cart_data', array($instance, 'ajax_get_cart_data'));
+
+add_action('wp_ajax_yprint_refresh_cart_totals', array($instance, 'ajax_refresh_cart_totals'));
+add_action('wp_ajax_nopriv_yprint_refresh_cart_totals', array($instance, 'ajax_refresh_cart_totals'));
+
+add_action('wp_ajax_yprint_process_final_checkout', array($instance, 'ajax_process_final_checkout'));
+add_action('wp_ajax_nopriv_yprint_process_final_checkout', array($instance, 'ajax_process_final_checkout'));
+
+
     }
+
+/**
+ * AJAX handler for getting real cart data
+ */
+public function ajax_get_cart_data() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
+        wp_send_json_success(array(
+            'items' => array(),
+            'totals' => array(
+                'subtotal' => 0,
+                'shipping' => 0,
+                'discount' => 0,
+                'vat' => 0,
+                'total' => 0
+            )
+        ));
+        return;
+    }
+    
+    // Warenkorb-Items sammeln
+    $cart_items = array();
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        $_product = $cart_item['data'];
+        
+        if (!$_product || !$_product->exists()) {
+            continue;
+        }
+        
+        $item_data = array(
+            'id' => $cart_item['product_id'],
+            'name' => $_product->get_name(),
+            'price' => (float) $_product->get_price(),
+            'quantity' => $cart_item['quantity'],
+            'image' => wp_get_attachment_image_url($_product->get_image_id(), 'thumbnail') ?: 'https://placehold.co/100x100/CCCCCC/FFFFFF?text=Produkt',
+            'cart_item_key' => $cart_item_key,
+            'is_design_product' => false,
+            'design_details' => array()
+        );
+        
+        // Design-spezifische Daten hinzufügen, falls vorhanden
+        if (isset($cart_item['print_design'])) {
+            $design = $cart_item['print_design'];
+            
+            $item_data['name'] = $design['name'] ?? $item_data['name'];
+            $item_data['design_id'] = $design['design_id'] ?? null;
+            $item_data['is_design_product'] = true;
+            
+            // Design-Vorschaubild verwenden
+            if (!empty($design['preview_url'])) {
+                $item_data['image'] = $design['preview_url'];
+            }
+            
+            // Berechneten Design-Preis verwenden
+            if (!empty($design['calculated_price'])) {
+                $item_data['price'] = (float) $design['calculated_price'];
+            }
+            
+            // Design-Details für Anzeige
+            if (!empty($design['variation_name'])) {
+                $item_data['design_details'][] = 'Farbe: ' . $design['variation_name'];
+            }
+            
+            if (!empty($design['size_name'])) {
+                $item_data['design_details'][] = 'Größe: ' . $design['size_name'];
+            }
+            
+            if (!empty($design['design_width_cm']) && !empty($design['design_height_cm'])) {
+                $item_data['design_details'][] = sprintf(
+                    'Maße: %s×%s cm',
+                    number_format($design['design_width_cm'], 1),
+                    number_format($design['design_height_cm'], 1)
+                );
+            }
+        }
+        
+        $cart_items[] = $item_data;
+    }
+    
+    // Warenkorb-Summen berechnen
+    WC()->cart->calculate_totals();
+    
+    $cart_totals = array(
+        'subtotal' => (float) WC()->cart->get_subtotal(),
+        'shipping' => (float) WC()->cart->get_shipping_total(),
+        'discount' => (float) WC()->cart->get_discount_total(),
+        'vat' => (float) WC()->cart->get_total_tax(),
+        'total' => (float) WC()->cart->get_total('edit')
+    );
+    
+    wp_send_json_success(array(
+        'items' => $cart_items,
+        'totals' => $cart_totals
+    ));
+}
+
+/**
+ * AJAX handler for refreshing cart totals
+ */
+public function ajax_refresh_cart_totals() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
+        wp_send_json_error('Warenkorb ist leer');
+        return;
+    }
+    
+    $voucher_code = isset($_POST['voucher_code']) ? strtoupper(sanitize_text_field($_POST['voucher_code'])) : '';
+    
+    // Gutschein anwenden falls vorhanden
+    if ($voucher_code) {
+        // Hier würdest du deine Gutschein-Logik integrieren
+        // Zum Beispiel WooCommerce Coupon System verwenden:
+        if (!WC()->cart->has_discount($voucher_code)) {
+            $coupon = new WC_Coupon($voucher_code);
+            if ($coupon->is_valid()) {
+                WC()->cart->apply_coupon($voucher_code);
+            }
+        }
+    }
+    
+    // Warenkorb neu berechnen
+    WC()->cart->calculate_totals();
+    
+    $cart_totals = array(
+        'subtotal' => (float) WC()->cart->get_subtotal(),
+        'shipping' => (float) WC()->cart->get_shipping_total(),
+        'discount' => (float) WC()->cart->get_discount_total(),
+        'vat' => (float) WC()->cart->get_total_tax(),
+        'total' => (float) WC()->cart->get_total('edit')
+    );
+    
+    wp_send_json_success(array(
+        'totals' => $cart_totals
+    ));
+}
+
+/**
+ * AJAX handler for final checkout processing
+ */
+public function ajax_process_final_checkout() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
+        wp_send_json_error('Warenkorb ist leer');
+        return;
+    }
+    
+    try {
+        // Daten aus der Anfrage extrahieren
+        $shipping_data = json_decode(stripslashes($_POST['shipping_data']), true);
+        $billing_data = json_decode(stripslashes($_POST['billing_data']), true);
+        $payment_data = json_decode(stripslashes($_POST['payment_data']), true);
+        $billing_same_as_shipping = filter_var($_POST['billing_same_as_shipping'], FILTER_VALIDATE_BOOLEAN);
+        $payment_method = sanitize_text_field($_POST['payment_method']);
+        
+        // Kundendaten setzen
+        if ($shipping_data) {
+            WC()->customer->set_shipping_first_name($shipping_data['first_name'] ?? '');
+            WC()->customer->set_shipping_last_name($shipping_data['last_name'] ?? '');
+            WC()->customer->set_shipping_address_1($shipping_data['street'] ?? '');
+            WC()->customer->set_shipping_address_2($shipping_data['housenumber'] ?? '');
+            WC()->customer->set_shipping_city($shipping_data['city'] ?? '');
+            WC()->customer->set_shipping_postcode($shipping_data['zip'] ?? '');
+            WC()->customer->set_shipping_country($shipping_data['country'] ?? 'DE');
+        }
+        
+        if ($billing_same_as_shipping && $shipping_data) {
+            WC()->customer->set_billing_first_name($shipping_data['first_name'] ?? '');
+            WC()->customer->set_billing_last_name($shipping_data['last_name'] ?? '');
+            WC()->customer->set_billing_address_1($shipping_data['street'] ?? '');
+            WC()->customer->set_billing_address_2($shipping_data['housenumber'] ?? '');
+            WC()->customer->set_billing_city($shipping_data['city'] ?? '');
+            WC()->customer->set_billing_postcode($shipping_data['zip'] ?? '');
+            WC()->customer->set_billing_country($shipping_data['country'] ?? 'DE');
+        } elseif ($billing_data) {
+            WC()->customer->set_billing_first_name($billing_data['first_name'] ?? '');
+            WC()->customer->set_billing_last_name($billing_data['last_name'] ?? '');
+            WC()->customer->set_billing_address_1($billing_data['street'] ?? '');
+            WC()->customer->set_billing_address_2($billing_data['housenumber'] ?? '');
+            WC()->customer->set_billing_city($billing_data['city'] ?? '');
+            WC()->customer->set_billing_postcode($billing_data['zip'] ?? '');
+            WC()->customer->set_billing_country($billing_data['country'] ?? 'DE');
+        }
+        
+    // E-Mail setzen
+    if (!empty($shipping_data['email'])) {
+        WC()->customer->set_billing_email($shipping_data['email']);
+    }
+    
+    // Zahlungsmethode setzen
+    WC()->session->set('chosen_payment_method', $payment_method);
+    
+    // Bestellung erstellen
+    $checkout = WC()->checkout();
+    $order_id = $checkout->create_order(array());
+    
+    if (is_wp_error($order_id)) {
+        throw new Exception($order_id->get_error_message());
+    }
+    
+    $order = wc_get_order($order_id);
+    
+    if (!$order) {
+        throw new Exception('Bestellung konnte nicht erstellt werden');
+    }
+    
+    // Zahlungsverarbeitung je nach Methode
+    if (strpos($payment_method, 'stripe') !== false) {
+        // Stripe-Zahlung verarbeiten
+        $payment_result = $this->process_stripe_payment($order, $payment_method, $payment_data);
+        
+        if (!$payment_result['success']) {
+            throw new Exception($payment_result['message']);
+        }
+    } else {
+        // Andere Zahlungsmethoden
+        $order->set_payment_method($payment_method);
+        $order->update_status('pending', 'Bestellung aufgegeben - Zahlung ausstehend');
+    }
+    
+    // Bestellung speichern
+    $order->save();
+    
+    // Warenkorb leeren
+    WC()->cart->empty_cart();
+    
+    wp_send_json_success(array(
+        'order_id' => $order_id,
+        'order_number' => $order->get_order_number(),
+        'order_total' => $order->get_total(),
+        'redirect_url' => $order->get_checkout_order_received_url(),
+        'message' => 'Bestellung erfolgreich aufgegeben'
+    ));
+    
+} catch (Exception $e) {
+    error_log('YPrint Checkout Error: ' . $e->getMessage());
+    wp_send_json_error($e->getMessage());
+}
+}
+
+/**
+* Process Stripe payment for the order
+*/
+private function process_stripe_payment($order, $payment_method, $payment_data) {
+try {
+    // Prüfe ob Stripe Gateway verfügbar ist
+    $available_gateways = WC()->payment_gateways()->get_available_payment_gateways();
+    
+    if (!isset($available_gateways['yprint_stripe'])) {
+        return array(
+            'success' => false,
+            'message' => 'Stripe-Zahlungsgateway nicht verfügbar'
+        );
+    }
+    
+    $stripe_gateway = $available_gateways['yprint_stripe'];
+    
+    // Setze Zahlungsmethode für die Bestellung
+    $order->set_payment_method('yprint_stripe');
+    $order->set_payment_method_title('Stripe');
+    
+    // Verarbeite die Zahlung über das Gateway
+    $result = $stripe_gateway->process_payment($order->get_id());
+    
+    if (isset($result['result']) && $result['result'] == 'success') {
+        return array(
+            'success' => true,
+            'redirect_url' => $result['redirect'] ?? ''
+        );
+    } else {
+        return array(
+            'success' => false,
+            'message' => 'Stripe-Zahlung fehlgeschlagen'
+        );
+    }
+    
+} catch (Exception $e) {
+    return array(
+        'success' => false,
+        'message' => $e->getMessage()
+    );
+}
+}
 
     /**
      * Constructor

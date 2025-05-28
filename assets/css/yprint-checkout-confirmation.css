@@ -1,0 +1,168 @@
+/* Erweiterte Styles für die Bestätigungsseite */
+.checkout-confirmation {
+    max-width: 100%;
+}
+
+.confirmation-product-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.confirmation-product-item:last-child {
+    border-bottom: none;
+}
+
+.confirmation-product-image {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-right: 1rem;
+    border: 1px solid #e5e5e5;
+}
+
+.confirmation-product-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.confirmation-product-name {
+    font-weight: 600;
+    color: #1d1d1f;
+    font-size: 0.9rem;
+}
+
+.confirmation-product-quantity {
+    font-size: 0.8rem;
+    color: #6e6e73;
+}
+
+.confirmation-product-price {
+    font-weight: 600;
+    color: #1d1d1f;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.design-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.design-detail {
+    background: rgba(0, 121, 255, 0.1);
+    color: #0079FF;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 121, 255, 0.2);
+}
+
+.confirmation-totals {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+}
+
+.confirmation-total-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+}
+
+.confirmation-total-row.final {
+    border-top: 2px solid #0079FF;
+    padding-top: 1rem;
+    margin-top: 0.5rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #0079FF;
+}
+
+.payment-method-display {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+}
+
+.payment-method-display i {
+    width: 1.25rem;
+    text-align: center;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .confirmation-product-item {
+        padding: 0.75rem 0;
+    }
+    
+    .confirmation-product-image {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .confirmation-totals {
+        padding: 1rem;
+    }
+    
+    .design-details {
+        margin-top: 0.5rem;
+    }
+}
+
+/* Loading States */
+.confirmation-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #6e6e73;
+}
+
+.confirmation-loading .spinner {
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #0079FF;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Accessibility Improvements */
+.confirmation-section {
+    margin-bottom: 2rem;
+}
+
+.confirmation-section h3 {
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    color: #1d1d1f;
+    font-weight: 600;
+}
+
+/* Success Animations */
+.order-success-animation {
+    animation: successPulse 0.6s ease-out;
+}
+
+@keyframes successPulse {
+    0% { transform: scale(0.95); opacity: 0.8; }
+    50% { transform: scale(1.02); opacity: 1; }
+    100% { transform: scale(1); opacity: 1; }
+}
