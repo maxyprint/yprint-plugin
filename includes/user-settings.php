@@ -128,7 +128,7 @@ function yprint_user_settings_shortcode() {
     echo '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">';
     
     // Go Back Button
-    echo '<a href="https://yprint.de/my-products" style="
+    echo '<a href="https://yprint.de/dashboard" style="
         background: transparent;
         border: none;
         font-family: \'Roboto\', sans-serif;

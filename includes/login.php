@@ -23,7 +23,7 @@ function yprint_login_form_shortcode() {
     
     // Sofortige Weiterleitung, wenn der Benutzer eingeloggt ist und kein Admin ist
     if (is_user_logged_in() && !current_user_can('administrator')) {
-        wp_redirect(home_url('/my-products/'));
+        wp_redirect(home_url('/dashboard/'));
         exit;
     }
     
@@ -186,7 +186,7 @@ function yprint_login_form_shortcode() {
     <?php
     // Standard WordPress Login-Formular
     $args = array(
-        'redirect' => home_url('/my-products'),
+        'redirect' => home_url('/dashboard'),
         'label_username' => '',
         'label_password' => '',
         'label_remember' => '',
