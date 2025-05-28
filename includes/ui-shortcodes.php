@@ -484,7 +484,6 @@ add_shortcode('toggle_button_popup', 'toggle_button_with_popup_shortcode');
 add_action('wp_footer', function() {
     if (wp_is_mobile()) {
         ?>
-        <!-- 🚀 Fixierte mobile Navigation -->
         <div id="mobile-bottom-nav" class="mobile-nav-wrapper">
             <?php echo do_shortcode('[elementor-template id="4626"]'); ?>
         </div>
@@ -501,6 +500,11 @@ add_action('wp_footer', function() {
             margin: 0;
             padding: 0;
             display: none;
+            box-shadow: 0px -2px 5px rgba(0, 0, 0, 0.1); /* Optionale Schatten für bessere Sichtbarkeit */
+        }
+
+        body.mobile-bottom-padding {
+            padding-bottom: 60px; /* Passe an die tatsächliche Höhe deines Navigationsmenüs an */
         }
 
         @media (max-width: 768px) {
@@ -515,27 +519,24 @@ add_action('wp_footer', function() {
             const nav = document.getElementById('mobile-bottom-nav');
             if (!nav) return;
 
-            const adjustPosition = () => {
-                nav.style.bottom = '0px';
-                nav.style.position = 'fixed';
-                nav.style.zIndex = '9999';
+            const applyPaddingBottom = () => {
+                const height = nav.offsetHeight;
+                document.body.classList.add('mobile-bottom-padding');
+                document.body.style.paddingBottom = height + 'px';
             };
 
-            window.addEventListener('resize', adjustPosition);
-            window.addEventListener('scroll', adjustPosition);
-            window.addEventListener('orientationchange', adjustPosition);
-            document.addEventListener('DOMContentLoaded', adjustPosition);
+            window.addEventListener('resize', applyPaddingBottom);
+            window.addEventListener('orientationchange', applyPaddingBottom);
+            document.addEventListener('DOMContentLoaded', applyPaddingBottom);
         })();
         </script>
         <?php
     }
 });
 
-
 add_action('wp_footer', function() {
     if (wp_is_mobile()) {
         ?>
-        <!-- 🚀 Fixierter Header nur mobil -->
         <div id="mobile-top-bar" class="mobile-top-wrapper">
             <?php echo do_shortcode('[elementor-template id="2575"]'); ?>
         </div>
@@ -552,10 +553,11 @@ add_action('wp_footer', function() {
             margin: 0;
             padding: 0;
             display: none;
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Optionale Schatten für bessere Sichtbarkeit */
         }
 
         body.mobile-top-padding {
-            padding-top: 60px; /* Passe an die tatsächliche Höhe deines Templates an */
+            padding-top: 60px; /* Passe an die *initiale* geschätzte Höhe deines Headers an */
         }
 
         @media (max-width: 768px) {
@@ -570,15 +572,15 @@ add_action('wp_footer', function() {
             const topBar = document.getElementById('mobile-top-bar');
             if (!topBar) return;
 
-            const applyPadding = () => {
+            const applyPaddingTop = () => {
                 const height = topBar.offsetHeight;
                 document.body.classList.add('mobile-top-padding');
                 document.body.style.paddingTop = height + 'px';
             };
 
-            window.addEventListener('resize', applyPadding);
-            window.addEventListener('orientationchange', applyPadding);
-            document.addEventListener('DOMContentLoaded', applyPadding);
+            window.addEventListener('resize', applyPaddingTop);
+            window.addEventListener('orientationchange', applyPaddingTop);
+            document.addEventListener('DOMContentLoaded', applyPaddingTop);
         })();
         </script>
         <?php
