@@ -482,7 +482,7 @@ add_shortcode('toggle_button_popup', 'toggle_button_with_popup_shortcode');
 
 
 add_action('wp_footer', function() {
-    if (wp_is_mobile()) {
+    if (wp_is_mobile() && !is_front_page() && !is_page('register') && !is_page('login') && !is_page('impressum') && !is_page('datenschutz') && !is_page('rechtlicher-hinweis') && !is_page('gesetz-ueber-digitale-dienste') && !is_page('produktsicherheitsverordnung') && !is_page('recover-account') && !is_page('password-reset-success') && !is_page('verify-email')) {
         ?>
         <div id="mobile-bottom-nav" class="mobile-nav-wrapper">
             <?php echo do_shortcode('[elementor-template id="4626"]'); ?>
@@ -500,7 +500,7 @@ add_action('wp_footer', function() {
             margin: 0;
             padding: 0;
             display: none;
-            box-shadow: 0px -2px 5px rgba(0, 0, 0, 0.1); /* Optionale Schatten für bessere Sichtbarkeit */
+            box-shadow: 0px -2px 5px rgba(0, 0, 0, 0.1);
         }
 
         body.mobile-bottom-padding {
@@ -535,7 +535,7 @@ add_action('wp_footer', function() {
 });
 
 add_action('wp_footer', function() {
-    if (wp_is_mobile()) {
+    if (wp_is_mobile() && !is_front_page() && !is_page('register') && !is_page('login') && !is_page('impressum') && !is_page('datenschutz') && !is_page('rechtlicher-hinweis') && !is_page('gesetz-ueber-digitale-dienste') && !is_page('produktsicherheitsverordnung') && !is_page('recover-account') && !is_page('password-reset-success') && !is_page('verify-email')) {
         ?>
         <div id="mobile-top-bar" class="mobile-top-wrapper">
             <?php echo do_shortcode('[elementor-template id="2575"]'); ?>
@@ -553,7 +553,7 @@ add_action('wp_footer', function() {
             margin: 0;
             padding: 0;
             display: none;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Optionale Schatten für bessere Sichtbarkeit */
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1);
         }
 
         body.mobile-top-padding {
