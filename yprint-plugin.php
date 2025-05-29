@@ -38,8 +38,19 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/yprint-stripe.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-admin.php';
 // Apple Pay class will be loaded by yprint-stripe.php
 
-// Include the checkout shortcode
-require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout.php';
+// Include the checkout shortcode (nur wenn Datei existiert)
+$checkout_file = YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-checkout.php';
+if (file_exists($checkout_file)) {
+    require_once $checkout_file;
+    // Initialize Checkout Shortcode
+    add_action('init', function() {
+        if (class_exists('YPrint_Stripe_Checkout')) {
+            YPrint_Stripe_Checkout::init();
+        }
+    });
+} else {
+    error_log('YPrint Plugin: Checkout class file not found at: ' . $checkout_file);
+}
 
 // Include Address Manager
 require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-address-manager.php';
@@ -52,11 +63,6 @@ require_once YPRINT_PLUGIN_DIR . 'includes/your-designs-shortcode.php';
 
 // Include Product Slider Shortcode
 require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
-
-// Initialize Checkout Shortcode
-add_action('init', function() {
-    YPrint_Stripe_Checkout::init();
-});
 
 // Initialize Address Manager
 add_action('plugins_loaded', function() {

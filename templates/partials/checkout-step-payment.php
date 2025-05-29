@@ -76,12 +76,12 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 
 <?php 
 // Express Checkout Buttons (Apple Pay, Google Pay)
-if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
-    $shortcode_instance = YPrint_Stripe_Checkout_Shortcode::get_instance();
+if (class_exists('YPrint_Stripe_Checkout')) {
+    $checkout_instance = YPrint_Stripe_Checkout::get_instance();
     
     // Prüfe explizit ob Stripe konfiguriert ist
-    if ($shortcode_instance->is_stripe_enabled_public()) {
-        $express_buttons = $shortcode_instance->render_express_payment_buttons();
+    if ($checkout_instance->is_stripe_enabled_public()) {
+        $express_buttons = $checkout_instance->render_express_payment_buttons();
         
         if (!empty($express_buttons)) {
             echo $express_buttons;
@@ -97,7 +97,7 @@ if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
             $settings = YPrint_Stripe_API::get_stripe_settings();
             echo '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px;">';
             echo '<strong>Debug Express Buttons:</strong><br>';
-            echo 'Stripe Enabled: ' . ($shortcode_instance->is_stripe_enabled_public() ? 'Yes' : 'No') . '<br>';
+            echo 'Stripe Enabled: ' . ($checkout_instance->is_stripe_enabled_public() ? 'Yes' : 'No') . '<br>';
             echo 'Payment Request Setting: ' . (isset($settings['payment_request']) ? $settings['payment_request'] : 'Not Set') . '<br>';
             echo 'Express Payments Setting: ' . (isset($settings['express_payments']) ? $settings['express_payments'] : 'Not Set') . '<br>';
             echo 'Live Keys Set: ' . ((!empty($settings['publishable_key']) && !empty($settings['secret_key'])) ? 'Yes' : 'No') . '<br>';
@@ -117,7 +117,7 @@ if (class_exists('YPrint_Stripe_Checkout_Shortcode')) {
 } else {
     if (current_user_can('administrator')) {
         echo '<div style="background: #ffeeee; padding: 10px; margin: 10px 0; border: 1px solid #f5c6cb; border-radius: 5px;">';
-        echo '<strong>Fehler:</strong> YPrint_Stripe_Checkout_Shortcode Klasse nicht gefunden!';
+        echo '<strong>Fehler:</strong> YPrint_Stripe_Checkout Klasse nicht gefunden!';
         echo '</div>';
     }
 }

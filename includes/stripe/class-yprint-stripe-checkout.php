@@ -103,6 +103,90 @@ class YPrint_Stripe_Checkout {
         // Private constructor to prevent direct instantiation
     }
 
+/**
+     * Check if all required files exist
+     *
+     * @return array Missing files
+     */
+    private function check_required_files() {
+        $missing_files = array();
+        
+        $required_files = array(
+            'CSS' => array(
+                'yprint-checkout.css' => YPRINT_PLUGIN_DIR . 'assets/css/yprint-checkout.css',
+                'yprint-checkout-confirmation.css' => YPRINT_PLUGIN_DIR . 'assets/css/yprint-checkout-confirmation.css',
+            ),
+            'JS' => array(
+                'yprint-checkout.js' => YPRINT_PLUGIN_DIR . 'assets/js/yprint-checkout.js',
+                'yprint-express-checkout.js' => YPRINT_PLUGIN_DIR . 'assets/js/yprint-express-checkout.js',
+            ),
+            'Templates' => array(
+                'checkout-multistep.php' => YPRINT_PLUGIN_DIR . 'templates/checkout-multistep.php',
+                'checkout-step-payment.php' => YPRINT_PLUGIN_DIR . 'templates/partials/checkout-step-payment.php',
+            )
+        );
+        
+        foreach ($required_files as $type => $files) {
+            foreach ($files as $name => $path) {
+                if (!file_exists($path)) {
+                    $missing_files[$type][] = $name . ' (' . $path . ')';
+                }
+            }
+        }
+        
+        return $missing_files;
+    }
+
+    /**
+     * Enhanced debug function with file checks
+     */
+    private function get_debug_info() {
+        // Only show debug info to admins
+        if (!current_user_can('manage_options')) {
+            return '';
+        }
+
+        $missing_files = $this->check_required_files();
+        $stripe_enabled = $this->is_stripe_enabled();
+
+        $debug = '<div style="background:#f8f8f8; border:1px solid #ddd; padding:15px; margin:15px 0; font-family:monospace; font-size:12px;">';
+        $debug .= '<h3 style="margin-top:0;">YPrint Checkout Debug Info:</h3>';
+        $debug .= '<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">';
+        
+        // Left column - Basic info
+        $debug .= '<div>';
+        $debug .= '<h4>Basic Configuration:</h4>';
+        $debug .= '<ul style="margin:0; padding-left:20px;">';
+        $debug .= '<li>Plugin URL: ' . YPRINT_PLUGIN_URL . '</li>';
+        $debug .= '<li>Plugin Dir: ' . YPRINT_PLUGIN_DIR . '</li>';
+        $debug .= '<li>Plugin Version: ' . YPRINT_PLUGIN_VERSION . '</li>';
+        $debug .= '<li>WooCommerce Active: ' . (class_exists('WooCommerce') ? 'Yes' : 'No') . '</li>';
+        $debug .= '<li>Cart Empty: ' . (WC()->cart && WC()->cart->is_empty() ? 'Yes' : 'No') . '</li>';
+        $debug .= '<li>Stripe Enabled: ' . ($stripe_enabled ? 'Yes' : 'No') . '</li>';
+        $debug .= '</ul>';
+        $debug .= '</div>';
+        
+        // Right column - File status
+        $debug .= '<div>';
+        $debug .= '<h4>File Status:</h4>';
+        if (empty($missing_files)) {
+            $debug .= '<p style="color:green;">✓ All required files found</p>';
+        } else {
+            $debug .= '<p style="color:red;">✗ Missing files:</p>';
+            foreach ($missing_files as $type => $files) {
+                $debug .= '<strong>' . $type . ':</strong><br>';
+                foreach ($files as $file) {
+                    $debug .= '<span style="color:red; font-size:10px;">- ' . $file . '</span><br>';
+                }
+            }
+        }
+        $debug .= '</div>';
+        
+        $debug .= '</div>';
+        $debug .= '</div>';
+        return $debug;
+    }
+
     /**
      * Render checkout shortcode output
      *
@@ -116,12 +200,17 @@ class YPrint_Stripe_Checkout {
             'debug' => 'no',
         ), $atts, 'yprint_checkout');
 
+        // Set flag to force asset loading
+        if (!defined('YPRINT_CHECKOUT_LOADING')) {
+            define('YPRINT_CHECKOUT_LOADING', true);
+        }
+
         // Ensure WooCommerce is active and cart is not empty
         if (!class_exists('WooCommerce') || WC()->cart->is_empty()) {
             return '<div class="yprint-checkout-error"><p>' . __('Ihr Warenkorb ist leer. <a href="' . wc_get_page_permalink('shop') . '">Weiter einkaufen</a>', 'yprint-plugin') . '</p></div>';
         }
 
-        // Ensure CSS is loaded for this page
+        // Force load assets for this shortcode
         $this->enqueue_checkout_assets();
 
         // Prepare real cart data for templates
@@ -161,16 +250,42 @@ class YPrint_Stripe_Checkout {
      * Enqueue scripts and styles for checkout
      */
     public function enqueue_checkout_assets() {
-        // Only load on pages with our shortcode
+        // Only load on pages with our shortcode OR when called directly
         global $post;
+        $should_load_assets = false;
+        
+        // Check if we're on a page with the shortcode
         if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'yprint_checkout')) {
+            $should_load_assets = true;
+        }
+        
+        // Check if we're in admin or if this is called from render_checkout_shortcode
+        if (is_admin() || (defined('DOING_AJAX') && DOING_AJAX) || !empty($_GET['yprint_checkout'])) {
+            $should_load_assets = true;
+        }
+        
+        // Force load if called from shortcode (add a flag)
+        if (defined('YPRINT_CHECKOUT_LOADING') && YPRINT_CHECKOUT_LOADING) {
+            $should_load_assets = true;
+        }
 
-            // Checkout CSS
+        if ($should_load_assets) {
+            // Checkout CSS - Priorität hoch setzen
             wp_enqueue_style(
                 'yprint-checkout-style',
                 YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout.css',
                 array(),
-                YPRINT_PLUGIN_VERSION . '.' . time() // Force no cache during development
+                YPRINT_PLUGIN_VERSION,
+                'all'
+            );
+            
+            // Checkout Confirmation CSS
+            wp_enqueue_style(
+                'yprint-checkout-confirmation-style',
+                YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout-confirmation.css',
+                array('yprint-checkout-style'),
+                YPRINT_PLUGIN_VERSION,
+                'all'
             );
 
             // Add Tailwind CSS for base styling
@@ -267,6 +382,8 @@ class YPrint_Stripe_Checkout {
                     )
                 );
 
+                
+
                 // Express Checkout spezifische Daten
                 wp_localize_script(
                     'yprint-express-checkout-js',
@@ -303,6 +420,8 @@ class YPrint_Stripe_Checkout {
                 );
             }
 
+            
+
             // Localize checkout script with common data
             wp_localize_script(
                 'yprint-checkout-js',
@@ -327,17 +446,25 @@ class YPrint_Stripe_Checkout {
         }
     }
 
+    
+
     /**
      * Check if Stripe is enabled
      *
      * @return bool
      */
     private function is_stripe_enabled() {
-        if (class_exists('YPrint_Stripe_API')) {
+        if (!class_exists('YPrint_Stripe_API')) {
+            error_log('YPrint Debug: YPrint_Stripe_API class not found');
+            return false;
+        }
+
+        try {
             $settings = YPrint_Stripe_API::get_stripe_settings();
 
             // Prüfe ob grundlegende Stripe-Einstellungen vorhanden sind
             if (empty($settings)) {
+                error_log('YPrint Debug: No Stripe settings found');
                 return false;
             }
 
@@ -345,15 +472,24 @@ class YPrint_Stripe_Checkout {
             $testmode = isset($settings['testmode']) && 'yes' === $settings['testmode'];
             if ($testmode) {
                 $has_keys = !empty($settings['test_publishable_key']) && !empty($settings['test_secret_key']);
+                error_log('YPrint Debug: Test mode - Keys available: ' . ($has_keys ? 'Yes' : 'No'));
             } else {
                 $has_keys = !empty($settings['publishable_key']) && !empty($settings['secret_key']);
+                error_log('YPrint Debug: Live mode - Keys available: ' . ($has_keys ? 'Yes' : 'No'));
             }
 
-            // Stripe ist aktiviert wenn API-Schlüssel vorhanden sind ODER explizit aktiviert
-            return $has_keys || (isset($settings['enabled']) && 'yes' === $settings['enabled']);
+            // Stripe ist aktiviert wenn API-Schlüssel vorhanden sind
+            $is_enabled = $has_keys;
+            error_log('YPrint Debug: Stripe enabled: ' . ($is_enabled ? 'Yes' : 'No'));
+            
+            return $is_enabled;
+        } catch (Exception $e) {
+            error_log('YPrint Debug: Error checking Stripe status: ' . $e->getMessage());
+            return false;
         }
-        return false;
     }
+
+    
 
     /**
      * Make is_stripe_enabled public for debugging
@@ -608,30 +744,6 @@ class YPrint_Stripe_Checkout {
 
         WC()->session->set('yprint_checkout_cart_data', $cart_data);
         WC()->session->set('yprint_checkout_cart_totals', $cart_totals_data);
-    }
-
-    /**
-     * Debug function to check if assets are loading correctly
-     * Add this to the rendered output when debug is enabled
-     */
-    private function get_debug_info() {
-        // Only show debug info to admins
-        if (!current_user_can('manage_options')) {
-            return '';
-        }
-
-        $debug = '<div style="background:#f8f8f8; border:1px solid #ddd; padding:10px; margin:10px 0; font-family:monospace;">';
-        $debug .= '<h3>Checkout Debug Info:</h3>';
-        $debug .= '<ul>';
-        $debug .= '<li>Plugin URL: ' . YPRINT_PLUGIN_URL . '</li>';
-        $debug .= '<li>CSS Path: ' . YPRINT_PLUGIN_URL . 'assets/css/yprint-checkout.css' . '</li>';
-        $debug .= '<li>CSS File Exists: ' . (file_exists(YPRINT_PLUGIN_DIR . 'assets/css/yprint-checkout.css') ? 'Yes' : 'No') . '</li>';
-        $debug .= '<li>JS Path: ' . YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js' . '</li>';
-        $debug .= '<li>JS File Exists: ' . (file_exists(YPRINT_PLUGIN_DIR . 'assets/js/yprint-checkout.js') ? 'Yes' : 'No') . '</li>';
-        $debug .= '<li>Stripe Enabled: ' . ($this->is_stripe_enabled() ? 'Yes' : 'No') . '</li>';
-        $debug .= '</ul>';
-        $debug .= '</div>';
-        return $debug;
     }
 
     /**
@@ -979,5 +1091,7 @@ class YPrint_Stripe_Checkout {
         }
     }
 }
+
+
 
 YPrint_Stripe_Checkout::init();
