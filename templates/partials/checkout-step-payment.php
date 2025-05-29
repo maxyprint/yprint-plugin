@@ -288,7 +288,7 @@ error_log('Loading payment step template from: ' . __FILE__);
     border-radius: 0;
     background: transparent;
     box-shadow: none;
-    display: none;
+    display: block; /* Immer anzeigen */
 }
 
 .express-payment-title {
@@ -837,4 +837,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 500);
     }
 });
+
+// Express Payment Integration
+setTimeout(() => {
+        console.log('Initializing Express Payment after delay...');
+        
+        // Prüfe ob Express Checkout verfügbar ist
+        if (typeof YPrintExpressCheckout !== 'undefined') {
+            console.log('YPrintExpressCheckout found, should initialize automatically');
+        } else {
+            console.log('YPrintExpressCheckout not found, may need to wait longer');
+            
+            // Versuche erneut nach weiterer Verzögerung
+            setTimeout(() => {
+                if (typeof YPrintExpressCheckout !== 'undefined') {
+                    console.log('YPrintExpressCheckout found on second attempt');
+                } else {
+                    console.warn('YPrintExpressCheckout still not found - check if script is loaded');
+                }
+            }, 2000);
+        }
+    }, 1000);
 </script>
