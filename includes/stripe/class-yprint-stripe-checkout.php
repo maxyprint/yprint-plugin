@@ -304,11 +304,20 @@ class YPrint_Stripe_Checkout {
                 '6.5.1'
             );
 
+            // Stripe Service (muss zuerst geladen werden)
+            wp_enqueue_script(
+                'yprint-stripe-service',
+                YPRINT_PLUGIN_URL . 'assets/js/yprint-stripe-service.js',
+                array(),
+                YPRINT_PLUGIN_VERSION,
+                true
+            );
+
             // Checkout JS
             wp_enqueue_script(
                 'yprint-checkout-js',
                 YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js',
-                array('jquery'),
+                array('jquery', 'yprint-stripe-service'),
                 YPRINT_PLUGIN_VERSION,
                 true
             );
@@ -359,7 +368,7 @@ class YPrint_Stripe_Checkout {
                 wp_enqueue_script(
                     'yprint-express-checkout-js',
                     YPRINT_PLUGIN_URL . 'assets/js/yprint-express-checkout.js',
-                    array('jquery', 'stripe-js', 'yprint-checkout-js'),
+                    array('jquery', 'stripe-js', 'yprint-stripe-service'),
                     YPRINT_PLUGIN_VERSION,
                     true
                 );
@@ -379,6 +388,18 @@ class YPrint_Stripe_Checkout {
                         'is_test_mode' => $testmode ? 'yes' : 'no',
                         'processing_text' => __('Processing payment...', 'yprint-plugin'),
                         'card_error_text' => __('Card error: ', 'yprint-plugin'),
+                    )
+                );
+
+                // Stripe Service Konfiguration
+                wp_localize_script(
+                    'yprint-stripe-service',
+                    'yprint_stripe_ajax',
+                    array(
+                        'ajax_url' => admin_url('admin-ajax.php'),
+                        'nonce' => wp_create_nonce('yprint_stripe_service_nonce'),
+                        'publishable_key' => $publishable_key,
+                        'test_mode' => $testmode ? 'yes' : 'no',
                     )
                 );
 

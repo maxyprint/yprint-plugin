@@ -22,50 +22,52 @@
         async init() {
             console.log('YPrint Express Checkout: Initializing...');
             
-            // Prüfe ob Stripe verfügbar ist
-            if (typeof Stripe === 'undefined') {
-                console.error('YPrint Express Checkout: Stripe.js not loaded');
-                this.hideExpressPaymentContainer();
-                return;
-            }
-    
-            // Prüfe ob Parameter verfügbar sind
+            // Prüfe Parameter
             if (typeof yprint_express_payment_params === 'undefined') {
                 console.error('YPrint Express Checkout: Parameters not available');
                 this.hideExpressPaymentContainer();
                 return;
             }
     
-            // Prüfe ob Publishable Key verfügbar ist
             if (!yprint_express_payment_params.stripe || !yprint_express_payment_params.stripe.publishable_key) {
                 console.error('YPrint Express Checkout: Stripe publishable key not available');
                 this.hideExpressPaymentContainer();
                 return;
             }
     
-            console.log('YPrint Express Checkout: All parameters available, proceeding...');
-    
-            // Initialisiere Stripe
-            try {
-                this.stripe = Stripe(yprint_express_payment_params.stripe.publishable_key);
-                console.log('YPrint Express Checkout: Stripe initialized with key:', yprint_express_payment_params.stripe.publishable_key.substring(0, 12) + '...');
-            } catch (error) {
-                console.error('YPrint Express Checkout: Stripe initialization failed:', error);
+            // Initialisiere über zentralen Service
+            const success = await window.YPrintStripeService.initialize(yprint_express_payment_params.stripe.publishable_key);
+            
+            if (!success) {
+                console.error('YPrint Express Checkout: Stripe initialization failed');
                 this.hideExpressPaymentContainer();
                 return;
             }
     
-            // Erstelle Payment Request
-            await this.createPaymentRequest();
+            // Warte auf Service-Bereitschaft
+            if (window.YPrintStripeService.isInitialized()) {
+                await this.createPaymentRequest();
+            } else {
+                window.YPrintStripeService.on('initialized', async () => {
+                    await this.createPaymentRequest();
+                });
+            }
         }
 
         async createPaymentRequest() {
+            const stripe = window.YPrintStripeService.getStripe();
+            if (!stripe) {
+                console.error('YPrint Express Checkout: Stripe not available');
+                this.hideExpressPaymentContainer();
+                return;
+            }
+    
             const params = yprint_express_payment_params;
             
             console.log('YPrint Express Checkout: Creating payment request with params:', params);
             
             // Erstelle Payment Request Objekt
-            this.paymentRequest = this.stripe.paymentRequest({
+            this.paymentRequest = stripe.paymentRequest({
                 country: params.checkout.country || 'DE',
                 currency: params.checkout.currency || 'eur',
                 total: {
@@ -113,7 +115,8 @@
             const buttonSettings = yprint_express_payment_params.settings || {};
             
             try {
-                this.prButton = this.stripe.elements().create('paymentRequestButton', {
+                const elements = window.YPrintStripeService.getElements();
+                this.prButton = elements.create('paymentRequestButton', {
                     paymentRequest: this.paymentRequest,
                     style: {
                         paymentRequestButton: {
@@ -142,7 +145,10 @@
             // Payment Method Event
             this.paymentRequest.on('paymentmethod', (event) => {
                 console.log('YPrint Express Checkout: Payment method received:', event.paymentMethod);
-                this.handlePaymentMethod(event);
+                window.YPrintStripeService.handlePaymentMethod(event, { 
+                    source: 'express_checkout',
+                    type: 'payment_request'
+                });
             });
 
             // Shipping Address Change Event
