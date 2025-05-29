@@ -28,24 +28,33 @@
                 this.hideExpressPaymentContainer();
                 return;
             }
-
+    
             // Prüfe ob Parameter verfügbar sind
             if (typeof yprint_express_payment_params === 'undefined') {
                 console.error('YPrint Express Checkout: Parameters not available');
                 this.hideExpressPaymentContainer();
                 return;
             }
-
+    
+            // Prüfe ob Publishable Key verfügbar ist
+            if (!yprint_express_payment_params.stripe || !yprint_express_payment_params.stripe.publishable_key) {
+                console.error('YPrint Express Checkout: Stripe publishable key not available');
+                this.hideExpressPaymentContainer();
+                return;
+            }
+    
+            console.log('YPrint Express Checkout: All parameters available, proceeding...');
+    
             // Initialisiere Stripe
             try {
                 this.stripe = Stripe(yprint_express_payment_params.stripe.publishable_key);
-                console.log('YPrint Express Checkout: Stripe initialized');
+                console.log('YPrint Express Checkout: Stripe initialized with key:', yprint_express_payment_params.stripe.publishable_key.substring(0, 12) + '...');
             } catch (error) {
                 console.error('YPrint Express Checkout: Stripe initialization failed:', error);
                 this.hideExpressPaymentContainer();
                 return;
             }
-
+    
             // Erstelle Payment Request
             await this.createPaymentRequest();
         }
@@ -53,31 +62,35 @@
         async createPaymentRequest() {
             const params = yprint_express_payment_params;
             
+            console.log('YPrint Express Checkout: Creating payment request with params:', params);
+            
             // Erstelle Payment Request Objekt
             this.paymentRequest = this.stripe.paymentRequest({
-                country: params.checkout.country,
-                currency: params.checkout.currency,
+                country: params.checkout.country || 'DE',
+                currency: params.checkout.currency || 'eur',
                 total: {
-                    label: params.checkout.total_label,
-                    amount: params.cart.total,
+                    label: params.checkout.total_label || 'YPrint Order',
+                    amount: params.cart.total || 0,
                 },
                 requestPayerName: true,
                 requestPayerEmail: true,
                 requestPayerPhone: true,
-                requestShipping: params.cart.needs_shipping,
+                requestShipping: params.cart.needs_shipping || false,
             });
-
+    
             console.log('YPrint Express Checkout: Payment Request created with total:', params.cart.total);
-
+    
             // Prüfe Verfügbarkeit
             try {
                 const result = await this.paymentRequest.canMakePayment();
+                console.log('YPrint Express Checkout: canMakePayment result:', result);
+                
                 if (result) {
                     console.log('YPrint Express Checkout: Payment methods available:', result);
                     this.mountPaymentRequestButton(result);
                     this.setupEventHandlers();
                 } else {
-                    console.log('YPrint Express Checkout: No payment methods available');
+                    console.log('YPrint Express Checkout: No payment methods available on this device/browser');
                     this.hideExpressPaymentContainer();
                 }
             } catch (error) {
@@ -90,26 +103,34 @@
             const container = document.getElementById('yprint-payment-request-button');
             if (!container) {
                 console.error('YPrint Express Checkout: Button container not found');
+                this.hideExpressPaymentContainer();
                 return;
             }
-
+    
+            console.log('YPrint Express Checkout: Mounting payment request button...');
+    
             // Erstelle Payment Request Button mit Settings aus WordPress
             const buttonSettings = yprint_express_payment_params.settings || {};
-            this.prButton = this.stripe.elements().create('paymentRequestButton', {
-                paymentRequest: this.paymentRequest,
-                style: {
-                    paymentRequestButton: {
-                        type: buttonSettings.button_type || 'default',
-                        theme: buttonSettings.button_theme || 'dark',
-                        height: (buttonSettings.button_height || '48') + 'px',
-                    },
-                },
-            });
-
-            // Mounte den Button
+            
             try {
+                this.prButton = this.stripe.elements().create('paymentRequestButton', {
+                    paymentRequest: this.paymentRequest,
+                    style: {
+                        paymentRequestButton: {
+                            type: buttonSettings.button_type || 'default',
+                            theme: buttonSettings.button_theme || 'dark',
+                            height: (buttonSettings.button_height || '48') + 'px',
+                        },
+                    },
+                });
+    
+                // Mounte den Button
                 this.prButton.mount('#yprint-payment-request-button');
+                
+                // Verstecke Loading und zeige Container
+                this.hideExpressPaymentLoading();
                 this.showExpressPaymentContainer();
+                
                 console.log('YPrint Express Checkout: Button mounted successfully');
             } catch (error) {
                 console.error('YPrint Express Checkout: Button mount failed:', error);
@@ -155,6 +176,43 @@
                 console.error('YPrint Express Checkout: Payment processing failed:', error);
                 event.complete('fail', { message: 'Payment processing failed' });
             }
+        }
+
+        hideExpressPaymentLoading() {
+            const loading = document.querySelector('.express-payment-loading');
+            if (loading) {
+                loading.style.display = 'none';
+            }
+        }
+    
+        showExpressPaymentContainer() {
+            const container = document.getElementById('yprint-express-payment-container');
+            if (container) {
+                container.style.display = 'block';
+            }
+            
+            // Verstecke auch das Loading
+            this.hideExpressPaymentLoading();
+        }
+    
+        hideExpressPaymentContainer() {
+            const container = document.getElementById('yprint-express-payment-container');
+            if (container) {
+                container.style.display = 'none';
+            }
+            
+            const loading = document.querySelector('.express-payment-loading');
+            if (loading) {
+                loading.innerHTML = '<span style="color: #999; font-size: 14px;">Express-Zahlungen sind auf diesem Gerät nicht verfügbar</span>';
+            }
+            
+            // Verstecke die gesamte Express Payment Section nach kurzer Zeit
+            setTimeout(() => {
+                const section = document.querySelector('.express-payment-section');
+                if (section) {
+                    section.style.display = 'none';
+                }
+            }, 2000);
         }
 
         async handleShippingAddressChange(event) {
