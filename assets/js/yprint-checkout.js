@@ -24,7 +24,7 @@ let cartTotals = {
     vat: 0
 };
 
-// Lade reale Warenkorbdaten beim Initialisieren
+// Lade reale Warenkorbdaten mit zentraler Datenverwaltung
 async function loadRealCartData() {
     try {
         const response = await fetch(yprint_checkout_params.ajax_url, {
@@ -44,12 +44,23 @@ async function loadRealCartData() {
             cartItems = data.data.items || [];
             cartTotals = data.data.totals || cartTotals;
             
+            // Erweiterte Kontext-Daten verfügbar machen
+            if (data.data.context) {
+                window.checkoutContext = data.data.context;
+                console.log('Vollständiger Checkout-Kontext geladen:', window.checkoutContext);
+            }
+            
             // UI aktualisieren nach dem Laden der Daten
             updateCartSummaryDisplay(document.getElementById('checkout-cart-summary-items'));
             updateCartTotalsDisplay(document.getElementById('checkout-cart-summary-totals'));
             updatePaymentStepSummary();
             
-            console.log('Reale Warenkorbdaten geladen:', cartItems);
+            // Express Payment aktualisieren falls verfügbar
+            if (window.YPrintExpressCheckout && window.checkoutContext.express_payment) {
+                window.YPrintExpressCheckout.updateAmount(window.checkoutContext.express_payment.total.amount);
+            }
+            
+            console.log('Zentrale Warenkorbdaten geladen:', cartItems);
         } else {
             console.error('Fehler beim Laden der Warenkorbdaten:', data.data);
         }

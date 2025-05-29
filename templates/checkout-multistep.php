@@ -42,102 +42,13 @@ $current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_s
 error_log('Requested step from GET: ' . (isset($_GET['step']) ? $_GET['step'] : 'not set'));
 error_log('Current step after validation: ' . $current_step_slug);
 
-// Echte WooCommerce-Warenkorbdaten laden
-$cart_items_data = array();
+// Zentrale Datenverwaltung nutzen (Single Source of Truth)
+$cart_data_manager = YPrint_Cart_Data::get_instance();
+$checkout_context = $cart_data_manager->get_checkout_context('full');
 
-if (!WC()->cart || WC()->cart->is_empty()) {
-    // Leerer Warenkorb
-    $cart_totals_data = array(
-        'subtotal' => 0,
-        'shipping' => 0,
-        'discount' => 0,
-        'vat' => 0,
-        'total' => 0
-    );
-} else {
-    // Warenkorb-Artikel verarbeiten
-    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-        $_product = $cart_item['data'];
-        
-        if (!$_product || !$_product->exists()) {
-            continue;
-        }
-        
-        $item_data = array(
-            'id' => $cart_item['product_id'],
-            'name' => $_product->get_name(),
-            'price' => (float) $_product->get_price(),
-            'quantity' => $cart_item['quantity'],
-            'image' => wp_get_attachment_image_url($_product->get_image_id(), 'thumbnail'),
-            'cart_item_key' => $cart_item_key
-        );
-        
-        // Fallback-Bild wenn kein Produktbild vorhanden
-        if (empty($item_data['image'])) {
-            $item_data['image'] = 'https://placehold.co/100x100/CCCCCC/FFFFFF?text=Produkt';
-        }
-        
-        // Design-spezifische Daten hinzufügen, falls vorhanden
-        if (isset($cart_item['print_design'])) {
-            $design = $cart_item['print_design'];
-            
-            // Design-Name überschreibt Produktname
-            if (!empty($design['name'])) {
-                $item_data['name'] = $design['name'];
-            }
-            
-            // Design-IDs und -Optionen
-            $item_data['design_id'] = $design['design_id'] ?? null;
-            $item_data['variation_name'] = $design['variation_name'] ?? '';
-            $item_data['size_name'] = $design['size_name'] ?? '';
-            
-            // Design-Vorschaubild verwenden, falls verfügbar
-            if (!empty($design['preview_url'])) {
-                $item_data['image'] = $design['preview_url'];
-            }
-            
-            // Berechneten Design-Preis verwenden, falls verfügbar
-            if (!empty($design['calculated_price'])) {
-                $item_data['price'] = (float) $design['calculated_price'];
-            }
-            
-            // Als Design-Produkt markieren
-            $item_data['is_design_product'] = true;
-            $item_data['design_details'] = array();
-            
-            // Design-Details für Anzeige sammeln
-            if (!empty($design['variation_name'])) {
-                $item_data['design_details'][] = __('Farbe: ', 'yprint-checkout') . $design['variation_name'];
-            }
-            
-            if (!empty($design['size_name'])) {
-                $item_data['design_details'][] = __('Größe: ', 'yprint-checkout') . $design['size_name'];
-            }
-            
-            // Zusätzliche Design-Informationen
-            if (!empty($design['design_width_cm']) && !empty($design['design_height_cm'])) {
-                $item_data['design_details'][] = sprintf(
-                    __('Maße: %s×%s cm', 'yprint-checkout'),
-                    number_format($design['design_width_cm'], 1),
-                    number_format($design['design_height_cm'], 1)
-                );
-            }
-        }
-        
-        $cart_items_data[] = $item_data;
-    }
-    
-    // Warenkorb-Summen berechnen
-    WC()->cart->calculate_totals();
-    
-    $cart_totals_data = array(
-        'subtotal' => (float) WC()->cart->get_subtotal(),
-        'shipping' => (float) WC()->cart->get_shipping_total(),
-        'discount' => (float) WC()->cart->get_discount_total(),
-        'vat' => (float) WC()->cart->get_total_tax(),
-        'total' => (float) WC()->cart->get_total('edit')
-    );
-}
+// Daten für Templates extrahieren
+$cart_items_data = $checkout_context['cart_items'];
+$cart_totals_data = $checkout_context['cart_totals'];
 
 // Debug-Ausgabe für Entwicklung (kann später entfernt werden)
 if (current_user_can('administrator') && isset($_GET['debug'])) {

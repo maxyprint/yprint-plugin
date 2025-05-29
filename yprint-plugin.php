@@ -52,6 +52,9 @@ if (file_exists($checkout_file)) {
     error_log('YPrint Plugin: Checkout class file not found at: ' . $checkout_file);
 }
 
+// Include Cart Data Manager (zentrale Datenverwaltung)
+require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-cart-data.php';
+
 // Include Address Manager
 require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-address-manager.php';
 
@@ -66,6 +69,11 @@ require_once YPRINT_PLUGIN_DIR . 'includes/your-designs-shortcode.php';
 
 // Include Product Slider Shortcode
 require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
+
+// Initialize Cart Data Manager
+add_action('plugins_loaded', function() {
+    YPrint_Cart_Data::get_instance();
+});
 
 // Initialize Address Manager
 add_action('plugins_loaded', function() {

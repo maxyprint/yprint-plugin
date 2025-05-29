@@ -81,7 +81,47 @@ class YPrint_Stripe_Checkout {
 
         // Capture order details
         add_action('woocommerce_checkout_update_order_meta', array(__CLASS__, 'capture_order_details'));
+
+        // New AJAX handlers for unified data management
+add_action('wp_ajax_yprint_get_checkout_context', array($instance, 'ajax_get_checkout_context'));
+add_action('wp_ajax_nopriv_yprint_get_checkout_context', array($instance, 'ajax_get_checkout_context'));
+
+add_action('wp_ajax_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
+add_action('wp_ajax_nopriv_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
     }
+
+    /**
+ * AJAX handler to get unified checkout context
+ */
+public function ajax_get_checkout_context() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    $format = isset($_POST['format']) ? sanitize_text_field($_POST['format']) : 'full';
+    
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $checkout_context = $cart_data_manager->get_checkout_context($format);
+    
+    wp_send_json_success($checkout_context);
+}
+
+/**
+ * AJAX handler to refresh checkout context after changes
+ */
+public function ajax_refresh_checkout_context() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
+    
+    // Clear cache to force fresh data
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $cart_data_manager->clear_cache();
+    
+    // Get fresh context
+    $checkout_context = $cart_data_manager->get_checkout_context('full');
+    
+    wp_send_json_success(array(
+        'context' => $checkout_context,
+        'timestamp' => time(),
+    ));
+}
 
     /**
      * Register checkout endpoint for custom URLs
@@ -405,40 +445,44 @@ class YPrint_Stripe_Checkout {
 
                 
 
-                // Express Checkout spezifische Daten
-                wp_localize_script(
-                    'yprint-express-checkout-js',
-                    'yprint_express_payment_params',
-                    array(
-                        'ajax_url' => admin_url('admin-ajax.php'),
-                        'nonce' => wp_create_nonce('yprint_express_checkout_nonce'),
-                        'stripe' => array(
-                            'publishable_key' => $publishable_key,
-                            'test_mode' => $this->is_testmode($stripe_settings),
-                            'locale' => $this->get_stripe_locale()
-                        ),
-                        'checkout' => array(
-                            'country' => substr(get_option('woocommerce_default_country'), 0, 2),
-                            'currency' => strtolower(get_woocommerce_currency()),
-                            'total_label' => get_bloginfo('name') . ' (via YPrint)',
-                        ),
-                        'cart' => array(
-                            'total' => WC()->cart ? (int)(WC()->cart->get_total('edit') * 100) : 0, // In Cent
-                            'needs_shipping' => WC()->cart ? WC()->cart->needs_shipping() : false,
-                            'display_items' => $this->get_cart_display_items()
-                        ),
-                        'settings' => array(
-                            'button_type' => isset($stripe_settings['payment_request_button_type']) ? $stripe_settings['payment_request_button_type'] : 'default',
-                            'button_theme' => isset($stripe_settings['payment_request_button_theme']) ? $stripe_settings['payment_request_button_theme'] : 'dark',
-                            'button_height' => isset($stripe_settings['payment_request_button_height']) ? $stripe_settings['payment_request_button_height'] : '48'
-                        ),
-                        'i18n' => array(
-                            'processing' => __('Zahlung wird verarbeitet...', 'yprint-plugin'),
-                            'error' => __('Zahlung fehlgeschlagen. Bitte versuchen Sie es erneut.', 'yprint-plugin'),
-                            'success' => __('Zahlung erfolgreich!', 'yprint-plugin'),
-                        )
-                    )
-                );
+                // Express Checkout spezifische Daten mit zentraler Datenverwaltung
+$cart_data_manager = YPrint_Cart_Data::get_instance();
+$checkout_context = $cart_data_manager->get_checkout_context('full');
+$express_payment_data = $checkout_context['express_payment'];
+
+wp_localize_script(
+    'yprint-express-checkout-js',
+    'yprint_express_payment_params',
+    array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint_express_checkout_nonce'),
+        'stripe' => array(
+            'publishable_key' => $publishable_key,
+            'test_mode' => $this->is_testmode($stripe_settings),
+            'locale' => $this->get_stripe_locale()
+        ),
+        'checkout' => array(
+            'country' => $express_payment_data['country'],
+            'currency' => $express_payment_data['currency'],
+            'total_label' => $express_payment_data['total']['label'],
+        ),
+        'cart' => array(
+            'total' => $express_payment_data['total']['amount'],
+            'needs_shipping' => $express_payment_data['requestShipping'],
+            'display_items' => $express_payment_data['displayItems']
+        ),
+        'settings' => array(
+            'button_type' => isset($stripe_settings['payment_request_button_type']) ? $stripe_settings['payment_request_button_type'] : 'default',
+            'button_theme' => isset($stripe_settings['payment_request_button_theme']) ? $stripe_settings['payment_request_button_theme'] : 'dark',
+            'button_height' => isset($stripe_settings['payment_request_button_height']) ? $stripe_settings['payment_request_button_height'] : '48'
+        ),
+        'i18n' => array(
+            'processing' => __('Zahlung wird verarbeitet...', 'yprint-plugin'),
+            'error' => __('Zahlung fehlgeschlagen. Bitte versuchen Sie es erneut.', 'yprint-plugin'),
+            'success' => __('Zahlung erfolgreich!', 'yprint-plugin'),
+        )
+    )
+);
             }
 
             
@@ -559,34 +603,16 @@ class YPrint_Stripe_Checkout {
     }
 
     /**
-     * Get cart display items for Stripe Payment Request
-     *
-     * @return array
-     */
-    private function get_cart_display_items() {
-        if (!WC()->cart || WC()->cart->is_empty()) {
-            return array();
-        }
-
-        $items = array();
-        
-        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-            $product = $cart_item['data'];
-            
-            if (!$product || !$product->exists()) {
-                continue;
-            }
-
-            $quantity_label = $cart_item['quantity'] > 1 ? ' (x' . $cart_item['quantity'] . ')' : '';
-            
-            $items[] = array(
-                'label' => $product->get_name() . $quantity_label,
-                'amount' => (int)($cart_item['line_total'] * 100), // In Cent
-            );
-        }
-
-        return $items;
-    }
+ * Get cart display items for Stripe Payment Request using central data
+ *
+ * @return array
+ */
+private function get_cart_display_items() {
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $express_payment_data = $cart_data_manager->get_checkout_context('express_payment');
+    
+    return $express_payment_data['displayItems'] ?? array();
+}
 
     /**
      * Add AJAX handlers for Express Checkout
@@ -603,31 +629,21 @@ class YPrint_Stripe_Checkout {
     }
 
     /**
-     * AJAX handler for Express Checkout data
-     */
-    public function ajax_express_checkout_data() {
-        check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
-        
-        if (!WC()->cart || WC()->cart->is_empty()) {
-            wp_send_json_error(array('message' => __('Warenkorb ist leer', 'yprint-plugin')));
-            return;
-        }
-
-        WC()->cart->calculate_totals();
-        
-        $data = array(
-            'total' => array(
-                'label' => get_bloginfo('name') . ' (via YPrint)',
-                'amount' => (int)(WC()->cart->get_total('edit') * 100),
-            ),
-            'displayItems' => $this->get_cart_display_items(),
-            'currency' => strtolower(get_woocommerce_currency()),
-            'country' => substr(get_option('woocommerce_default_country'), 0, 2),
-            'requestShipping' => WC()->cart->needs_shipping(),
-        );
-
-        wp_send_json_success($data);
+ * AJAX handler for Express Checkout data using central data manager
+ */
+public function ajax_express_checkout_data() {
+    check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
+    
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $express_payment_data = $cart_data_manager->get_checkout_context('express_payment');
+    
+    if (empty($express_payment_data)) {
+        wp_send_json_error(array('message' => __('Warenkorb ist leer', 'yprint-plugin')));
+        return;
     }
+
+    wp_send_json_success($express_payment_data);
+}
 
     /**
      * AJAX handler for Express Payment processing
@@ -722,52 +738,19 @@ class YPrint_Stripe_Checkout {
     }
 
     /**
-     * Prepare cart data for templates
-     */
-    private function prepare_cart_data_for_templates() {
-        global $woocommerce;
+ * Prepare cart data for templates using central data manager
+ */
+private function prepare_cart_data_for_templates() {
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $checkout_context = $cart_data_manager->get_checkout_context('full');
 
-        if (is_null($woocommerce) || is_null($woocommerce->cart)) {
-            return;
-        }
-
-        $cart_items = WC()->cart->get_cart();
-        $cart_data = array();
-
-        foreach ($cart_items as $cart_item_key => $cart_item) {
-            $product = apply_filters('woocommerce_cart_item_product', $cart_item['data'], $cart_item, $cart_item_key);
-
-            if ($product && $product->exists() && $cart_item['quantity'] > 0 && apply_filters('woocommerce_cart_item_visible', true, $cart_item, $cart_item_key)) {
-                $item_data = array(
-                    'key' => $cart_item_key,
-                    'product_id' => $cart_item['product_id'],
-                    'variation_id' => $cart_item['variation_id'],
-                    'name' => $product->get_name(),
-                    'quantity' => $cart_item['quantity'],
-                    'price' => (float) $product->get_price(),
-                    'subtotal' => (float) WC()->cart->get_subtotal(false, false),
-                    'total' => (float) $cart_item['line_total'],
-                    'thumbnail' => wp_get_attachment_image_src($product->get_image_id(), 'thumbnail')[0],
-                    'permalink' => $product->get_permalink(),
-                );
-                $cart_data[] = $item_data;
-            }
-        }
-
-        // Calculate totals
-        WC()->cart->calculate_totals();
-
-        $cart_totals_data = array(
-            'subtotal' => (float) WC()->cart->get_subtotal(),
-            'shipping' => (float) WC()->cart->get_shipping_total(),
-            'discount' => (float) WC()->cart->get_discount_total(),
-            'vat' => (float) WC()->cart->get_total_tax(),
-            'total' => (float) WC()->cart->get_total('edit')
-        );
-
-        WC()->session->set('yprint_checkout_cart_data', $cart_data);
-        WC()->session->set('yprint_checkout_cart_totals', $cart_totals_data);
-    }
+    // Store in session for consistency with existing code
+    WC()->session->set('yprint_checkout_cart_data', $checkout_context['cart_items']);
+    WC()->session->set('yprint_checkout_cart_totals', $checkout_context['cart_totals']);
+    
+    // Also store complete context for advanced usage
+    WC()->session->set('yprint_checkout_context', $checkout_context);
+}
 
     /**
      * AJAX handler to save address information
@@ -958,20 +941,20 @@ class YPrint_Stripe_Checkout {
     }
 
     /**
-     * AJAX handler to get real cart data
-     */
-    public function ajax_get_cart_data() {
-        check_ajax_referer('yprint_checkout_nonce', 'nonce');
+ * AJAX handler to get real cart data using central data manager
+ */
+public function ajax_get_cart_data() {
+    check_ajax_referer('yprint_checkout_nonce', 'nonce');
 
-        $this->prepare_cart_data_for_templates(); // Update cart data
-        $cart_data = WC()->session->get('yprint_checkout_cart_data');
-        $cart_totals = WC()->session->get('yprint_checkout_cart_totals');
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $checkout_context = $cart_data_manager->get_checkout_context('full');
 
-        wp_send_json_success(array(
-            'items' => $cart_data,
-            'totals' => $cart_totals,
-        ));
-    }
+    wp_send_json_success(array(
+        'items' => $checkout_context['cart_items'],
+        'totals' => $checkout_context['cart_totals'],
+        'context' => $checkout_context, // Vollständiger Kontext für erweiterte Nutzung
+    ));
+}
 
     /**
      * AJAX handler to refresh cart totals

@@ -370,6 +370,8 @@ add_action('init', function() {
     }
 });
 
+
+
 // Add WooCommerce payment gateway
 add_filter('woocommerce_payment_gateways', 'yprint_add_stripe_gateway');
 
