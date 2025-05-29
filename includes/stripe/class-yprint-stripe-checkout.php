@@ -497,7 +497,9 @@ class YPrint_Stripe_Checkout {
      * @return bool
      */
     public function is_stripe_enabled_public() {
-        return $this->is_stripe_enabled();
+        $enabled = $this->is_stripe_enabled();
+        error_log('YPrint Debug: is_stripe_enabled_public called, returning: ' . ($enabled ? 'true' : 'false'));
+        return $enabled;
     }
 
     /**

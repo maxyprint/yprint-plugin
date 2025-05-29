@@ -1,4 +1,513 @@
 <?php
+
+
+/**
+ * Partial Template: Schritt 2 - Zahlungsart wählen.
+ */
+
+// Direktaufruf verhindern
+if ( ! defined( 'ABSPATH' ) ) {
+    exit;
+}
+
+// Inline Styling für Payment Step
+?>
+<style>
+/* YPrint Checkout Payment Styling */
+.payment-method-container {
+    background: #ffffff;
+    border: 1px solid #DFDFDF;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+}
+
+.payment-method-slider {
+    background: #F6F7FA;
+    padding: 4px;
+}
+
+.slider-container {
+    position: relative;
+    background: transparent;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.slider-track {
+    display: flex;
+    position: relative;
+    z-index: 10;
+}
+
+.slider-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 500;
+    color: #6e6e73;
+    background: transparent;
+    border-radius: 6px;
+    position: relative;
+    z-index: 3;
+    user-select: none;
+    border: none;
+    outline: none;
+}
+
+.slider-option:hover {
+    background-color: rgba(0, 121, 255, 0.05);
+}
+
+.slider-option.active {
+    color: #0079FF;
+}
+
+.slider-indicator {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    width: 50%;
+    background: #ffffff;
+    border-radius: 6px;
+    transition: transform 0.3s ease;
+    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider-indicator.sepa {
+    transform: translateX(100%);
+}
+
+.payment-input-container {
+    padding: 24px;
+    background: #ffffff;
+}
+
+.payment-fields-wrapper {
+    position: relative;
+    min-height: 120px;
+}
+
+.payment-input-fields {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+}
+
+.payment-input-fields.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    position: relative;
+}
+
+.payment-field-group {
+    margin-bottom: 16px;
+}
+
+.payment-field-label {
+    display: block;
+    font-weight: 500;
+    color: #1d1d1f;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.payment-stripe-element {
+    background: #ffffff;
+    border: 2px solid #DFDFDF;
+    border-radius: 8px;
+    padding: 12px;
+    transition: border-color 0.2s ease;
+    min-height: 44px;
+}
+
+.payment-stripe-element:focus-within {
+    border-color: #0079FF;
+    box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+}
+
+.payment-error-display {
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    min-height: 20px;
+}
+
+.payment-checkbox-container {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.payment-checkbox {
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    accent-color: #0079FF;
+}
+
+.payment-checkbox-label {
+    font-size: 0.85rem;
+    color: #6e6e73;
+}
+
+.sepa-info {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(34, 197, 94, 0.05);
+    border-left: 3px solid #22c55e;
+    border-radius: 0 6px 6px 0;
+}
+
+.sepa-info-content p {
+    margin: 0 0 6px 0;
+    font-size: 0.8rem;
+    color: #6e6e73;
+    line-height: 1.4;
+}
+
+.sepa-info-content p:last-child {
+    margin-bottom: 0;
+}
+
+.test-badge {
+    display: inline-block;
+    background: #fbbf24;
+    color: #92400e;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.express-payment-section {
+    margin: 40px 0 30px 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    display: none;
+}
+
+.express-payment-title {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.express-payment-title span {
+    font-size: 14px;
+    color: #666;
+    background: #f8f8f8;
+    padding: 8px 15px;
+    border-radius: 20px;
+}
+
+#yprint-express-payment-container {
+    margin: 0 0 20px 0;
+}
+
+#yprint-payment-request-button {
+    margin: 0;
+    min-height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.express-payment-separator {
+    text-align: center;
+    margin: 25px 0;
+    position: relative;
+}
+
+.express-payment-separator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e5e5e5;
+}
+
+.express-payment-separator span {
+    background: #ffffff;
+    padding: 0 20px;
+    font-size: 0.875rem;
+    color: #6e6e73;
+    position: relative;
+    z-index: 1;
+    font-weight: 500;
+}
+
+.express-payment-loading {
+    text-align: center;
+    padding: 20px;
+    display: block;
+}
+
+/* Grundlegende Button-Styles */
+.btn {
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background-color: #0079FF;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary {
+    background-color: #f5f5f7;
+    color: #1d1d1f;
+    border: 1px solid #DFDFDF;
+}
+
+.btn-secondary:hover {
+    background-color: #e9e9ed;
+    transform: translateY(-1px);
+}
+
+/* Form-Elemente */
+.form-input, .form-select {
+    border: 1px solid #DFDFDF;
+    border-radius: 10px;
+    padding: 12px 15px;
+    width: 100%;
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    background-color: #ffffff;
+}
+
+.form-input:focus, .form-select:focus {
+    border-color: #0079FF;
+    box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.25);
+    outline: none;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #1d1d1f;
+}
+
+/* Responsive Design */
+@media (max-width: 640px) {
+    .slider-option {
+        padding: 10px 12px;
+        font-size: 0.9rem;
+    }
+    
+    .slider-option span {
+        display: none;
+    }
+    
+    .payment-input-container {
+        padding: 16px;
+    }
+}
+
+/* Checkout Step Basis */
+.checkout-step {
+    display: none;
+}
+.checkout-step.active {
+    display: block;
+}
+
+h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #1d1d1f;
+    display: flex;
+    align-items: center;
+}
+
+h2 i {
+    color: #0079FF;
+    margin-right: 8px;
+}
+
+.space-y-6 > * + * {
+    margin-top: 1.5rem;
+}
+
+.flex {
+    display: flex;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.w-full {
+    width: 100%;
+}
+
+.md\:w-auto {
+    width: auto;
+}
+
+@media (min-width: 768px) {
+    .md\:flex-row {
+        flex-direction: row;
+    }
+    .md\:w-auto {
+        width: auto;
+    }
+}
+
+.flex-col {
+    flex-direction: column;
+}
+
+.gap-4 {
+    gap: 1rem;
+}
+
+.order-1 {
+    order: 1;
+}
+
+.order-2 {
+    order: 2;
+}
+
+@media (min-width: 768px) {
+    .md\:order-1 {
+        order: 1;
+    }
+    .md\:order-2 {
+        order: 2;
+    }
+}
+
+.pt-6 {
+    padding-top: 1.5rem;
+}
+
+.mt-6 {
+    margin-top: 1.5rem;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.text-lg {
+    font-size: 1.125rem;
+}
+
+.text-xl {
+    font-size: 1.25rem;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+.border-t {
+    border-top: 1px solid #e5e5e5;
+}
+
+.rounded-r-none {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.rounded-l-none {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.whitespace-nowrap {
+    white-space: nowrap;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.mt-1 {
+    margin-top: 0.25rem;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.p-3 {
+    padding: 0.75rem;
+}
+
+.rounded-lg {
+    border-radius: 0.5rem;
+}
+
+.bg-blue-50 {
+    background-color: #eff6ff;
+}
+
+.text-blue-800 {
+    color: #1e40af;
+}
+
+.mr-2 {
+    margin-right: 0.5rem;
+}
+
+.ml-2 {
+    margin-left: 0.5rem;
+}
+
+.fas {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+</style>
+
+// Debug-Ausgabe
+error_log('Loading payment step template from: ' . __FILE__);
+
 /**
  * Partial Template: Schritt 2 - Zahlungsart wählen.
  *
@@ -127,16 +636,22 @@ if (class_exists('YPrint_Stripe_Checkout')) {
     <div class="space-y-6">
         <?php
         // Prüfe verfügbare Zahlungsmethoden
-        $stripe_enabled = class_exists('YPrint_Stripe_Checkout_Shortcode') && 
-                         YPrint_Stripe_Checkout_Shortcode::get_instance()->is_stripe_enabled_public();
-        $stripe_settings = $stripe_enabled ? YPrint_Stripe_API::get_stripe_settings() : array();
+        $stripe_enabled = class_exists('YPrint_Stripe_Checkout') && 
+                         class_exists('YPrint_Stripe_API');
+        
+        if ($stripe_enabled) {
+            $checkout_instance = YPrint_Stripe_Checkout::get_instance();
+            $stripe_enabled = $checkout_instance->is_stripe_enabled_public();
+            $stripe_settings = $stripe_enabled ? YPrint_Stripe_API::get_stripe_settings() : array();
+        } else {
+            $stripe_settings = array();
+        }
         ?>
         
-        <?php if ($stripe_enabled) : ?>
         <!-- Intelligenter Payment Bereich -->
         <div class="payment-method-container">
             <!-- Payment Method Slider -->
-            <div class="payment-method-slider mb-4">
+            <div class="payment-method-slider">
                 <div class="slider-container">
                     <div class="slider-track">
                         <div class="slider-option active" data-method="card">
@@ -198,10 +713,15 @@ if (class_exists('YPrint_Stripe_Checkout')) {
                 <?php endif; ?>
             </div>
         </div>
-        <?php else : ?>
+        <?php if (!$stripe_enabled) : ?>
         <!-- Fallback wenn Stripe nicht verfügbar -->
-        <div class="p-4 bg-gray-100 rounded-lg text-center">
-            <p class="text-gray-600"><?php esc_html_e('Zahlungsmethoden werden geladen...', 'yprint-checkout'); ?></p>
+        <div style="padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; text-align: center; margin: 20px 0;">
+            <p style="color: #6c757d; margin: 0;"><?php esc_html_e('Stripe-Zahlungsmethoden sind nicht verfügbar. Bitte kontaktieren Sie den Support.', 'yprint-checkout'); ?></p>
+            <?php if (current_user_can('administrator')) : ?>
+                <p style="color: #dc3545; font-size: 12px; margin: 10px 0 0 0;">
+                    <strong>Admin-Info:</strong> Stripe API-Schlüssel sind nicht konfiguriert oder Stripe-Klassen fehlen.
+                </p>
+            <?php endif; ?>
         </div>
         <?php endif; ?>
     </div>
