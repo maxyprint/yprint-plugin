@@ -622,13 +622,6 @@ if (class_exists('YPrint_Stripe_Checkout')) {
                     <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e5e5e5; z-index: 1;"></div>
                 </div>
             </div>
-            
-            <div class="express-payment-loading" style="text-align: center; padding: 20px; display: block;">
-                <i class="fas fa-spinner fa-spin text-blue-500"></i>
-                <span style="margin-left: 8px; color: #666; font-size: 14px;">
-                    <?php esc_html_e('Express-Zahlungsmethoden werden geladen...', 'yprint-checkout'); ?>
-                </span>
-            </div>
         </div>
         <?php
         
