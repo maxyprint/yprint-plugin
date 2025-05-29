@@ -601,32 +601,67 @@ jQuery.ajax({
         };
     }
     
-    // Neue Funktion um Preise live zu aktualisieren
-    async function refreshCartTotals() {
-        try {
-            const response = await fetch(yprint_checkout_params.ajax_url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    action: 'yprint_refresh_cart_totals',
-                    nonce: yprint_checkout_params.nonce,
-                    voucher_code: formData.voucher || ''
-                })
-            });
-    
-            const data = await response.json();
-            
-            if (data.success) {
-                cartTotals = data.data.totals;
-                updatePaymentStepSummary();
-                updateCartTotalsDisplay(document.getElementById('checkout-cart-summary-totals'));
-            }
-        } catch (error) {
-            console.error('Fehler beim Aktualisieren der Preise:', error);
+    // Neue Funktion um Preise live zu aktualisieren mit Cart Data Manager
+async function refreshCartTotals() {
+    try {
+        const response = await fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                action: 'yprint_refresh_checkout_context',
+                nonce: yprint_checkout_params.nonce,
+                format: 'summary'
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            cartTotals = data.data.context.cart_totals;
+            cartItems = data.data.context.cart_items;
+            updatePaymentStepSummary();
+            updateCartSummaryDisplay(document.getElementById('checkout-cart-summary-items'));
+            updateCartTotalsDisplay(document.getElementById('checkout-cart-summary-totals'));
         }
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren der Preise:', error);
     }
+}
+
+// Gutschein-Funktionalität erweitern
+async function applyVoucher(voucherCode) {
+    try {
+        const response = await fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                action: 'yprint_cart_apply_coupon',
+                nonce: yprint_checkout_params.nonce,
+                coupon_code: voucherCode
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            showMessage(data.message, 'success');
+            cartTotals = data.totals;
+            await refreshCartTotals();
+        } else {
+            showMessage(data.message, 'error');
+        }
+        
+        return data.success;
+    } catch (error) {
+        console.error('Fehler beim Anwenden des Gutscheins:', error);
+        showMessage('Fehler beim Anwenden des Gutscheins', 'error');
+        return false;
+    }
+}
 
     /**
      * Aktualisiert die Preisanzeige im Zahlungsschritt.
@@ -642,25 +677,47 @@ jQuery.ajax({
         if (totalPricePaymentEl) totalPricePaymentEl.textContent = `€${prices.total.toFixed(2)}`;
     }
 
-    // Event Listener für Gutscheinfeld und Button, um Preise live zu aktualisieren
-    const voucherInput = document.getElementById('voucher');
-    // Annahme: Button ist direkt nach dem Input-Feld oder hat eine eindeutige ID
-    const voucherButton = document.querySelector('#voucher + button') || document.getElementById('apply-voucher-button');
+    // Event Listener für Gutscheinfeld und Button mit Cart Data Manager
+const voucherInput = document.getElementById('voucher') || document.getElementById('cart-voucher');
+const voucherButton = document.querySelector('.voucher-button-final') || document.querySelector('#voucher + button') || document.getElementById('apply-voucher-button');
 
-    if (voucherInput) {
-        voucherInput.addEventListener('input', () => {
-            formData.voucher = voucherInput.value;
-            updatePaymentStepSummary();
-            // Optional: updateConfirmationSummary(), falls direkt auf Bestätigungsseite sichtbar
-        });
-    }
-    if (voucherButton) {
-        voucherButton.addEventListener('click', () => {
-            if(voucherInput) formData.voucher = voucherInput.value;
-            updatePaymentStepSummary();
-            // Optional: updateConfirmationSummary()
-        });
-    }
+if (voucherInput) {
+    voucherInput.addEventListener('input', () => {
+        formData.voucher = voucherInput.value;
+    });
+}
+
+if (voucherButton) {
+    voucherButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        
+        const voucherCode = voucherInput ? voucherInput.value.trim() : '';
+        if (!voucherCode) {
+            showMessage('Bitte geben Sie einen Gutscheincode ein', 'error');
+            return;
+        }
+        
+        // Loading-Status anzeigen
+        voucherButton.textContent = 'Wird angewendet...';
+        voucherButton.disabled = true;
+        
+        const success = await applyVoucher(voucherCode);
+        
+        // Button-Status zurücksetzen
+        voucherButton.textContent = 'Einlösen';
+        voucherButton.disabled = false;
+        
+        if (success) {
+            formData.voucher = voucherCode;
+            // Feedback-Element aktualisieren
+            const feedback = document.getElementById('cart-voucher-feedback');
+            if (feedback) {
+                feedback.textContent = 'Gutschein erfolgreich angewendet';
+                feedback.className = 'text-xs mt-1 text-green-600';
+            }
+        }
+    });
+}
 
 
     async function populateConfirmation() {

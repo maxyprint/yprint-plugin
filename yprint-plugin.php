@@ -70,9 +70,26 @@ require_once YPRINT_PLUGIN_DIR . 'includes/your-designs-shortcode.php';
 // Include Product Slider Shortcode
 require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
 
-// Initialize Cart Data Manager
-add_action('plugins_loaded', function() {
-    YPrint_Cart_Data::get_instance();
+// Initialize Cart Data Manager early
+add_action('init', function() {
+    if (class_exists('WooCommerce')) {
+        YPrint_Cart_Data::get_instance();
+    }
+}, 5);
+
+// Add AJAX handlers for Cart Data
+add_action('wp_ajax_yprint_cart_apply_coupon', function() {
+    $cart_manager = YPrint_Cart_Data::get_instance();
+    $coupon_code = sanitize_text_field($_POST['coupon_code'] ?? '');
+    $result = $cart_manager->apply_coupon($coupon_code);
+    wp_send_json($result);
+});
+
+add_action('wp_ajax_nopriv_yprint_cart_apply_coupon', function() {
+    $cart_manager = YPrint_Cart_Data::get_instance();
+    $coupon_code = sanitize_text_field($_POST['coupon_code'] ?? '');
+    $result = $cart_manager->apply_coupon($coupon_code);
+    wp_send_json($result);
 });
 
 // Initialize Address Manager

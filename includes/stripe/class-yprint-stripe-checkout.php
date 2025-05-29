@@ -915,30 +915,18 @@ private function prepare_cart_data_for_templates() {
     }
 
     /**
-     * AJAX handler to validate a voucher code
-     */
-    public function ajax_validate_voucher() {
-        check_ajax_referer('yprint_checkout_nonce', 'security');
+ * AJAX handler to validate a voucher code - delegated to Cart Data Manager
+ */
+public function ajax_validate_voucher() {
+    check_ajax_referer('yprint_checkout_nonce', 'security');
 
-        $voucher_code = isset($_POST['voucher_code']) ? sanitize_text_field($_POST['voucher_code']) : '';
-        $response = array('success' => false, 'message' => __('Ungültiger Gutschein.', 'yprint-plugin'));
-
-        if (!empty($voucher_code)) {
-            if (WC()->cart->apply_coupon($voucher_code)) {
-                WC()->cart->calculate_totals();
-                $response['success'] = true;
-                $response['message'] = __('Gutschein angewendet.', 'yprint-plugin');
-                $response['totals'] = array(
-                    'subtotal' => (float) WC()->cart->get_subtotal(),
-                    'total'    => (float) WC()->cart->get_total('edit'),
-                );
-            } else {
-                $response['message'] = __('Gutschein konnte nicht angewendet werden.', 'yprint-plugin') . ' ' . wc_print_notice(wc_get_notice('error'), 'error');
-            }
-        }
-
-        wp_send_json($response);
-    }
+    $voucher_code = isset($_POST['voucher_code']) ? sanitize_text_field($_POST['voucher_code']) : '';
+    
+    $cart_manager = YPrint_Cart_Data::get_instance();
+    $result = $cart_manager->apply_coupon($voucher_code);
+    
+    wp_send_json($result);
+}
 
     /**
  * AJAX handler to get real cart data using central data manager

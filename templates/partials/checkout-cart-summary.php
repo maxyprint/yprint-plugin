@@ -283,13 +283,31 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
     </div>
 
     <div class="voucher">
-        <label for="cart-voucher"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
-        <div class="voucher-input-group-final">
-            <input type="text" id="cart-voucher" name="cart_voucher" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
-            <button type="button" class="voucher-button-final">
-                <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
-            </button>
-        </div>
-        <p id="cart-voucher-feedback" class="text-xs mt-1"></p>
+    <label for="cart-voucher"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
+    <div class="voucher-input-group-final">
+        <input type="text" id="cart-voucher" name="cart_voucher" placeholder="<?php esc_attr_e('Code eingeben', 'yprint-checkout'); ?>">
+        <button type="button" class="voucher-button-final" data-action="apply-coupon">
+            <?php esc_html_e('Einlösen', 'yprint-checkout'); ?>
+        </button>
     </div>
+    <p id="cart-voucher-feedback" class="text-xs mt-1 text-yprint-text-secondary"></p>
+    
+    <?php 
+    // Angewandte Gutscheine anzeigen
+    $cart_data_manager = YPrint_Cart_Data::get_instance();
+    $applied_coupons = $cart_data_manager->get_applied_coupons();
+    if (!empty($applied_coupons)): ?>
+        <div class="applied-coupons mt-2">
+            <h4 class="text-sm font-medium text-yprint-black mb-1"><?php esc_html_e('Angewandte Gutscheine:', 'yprint-checkout'); ?></h4>
+            <?php foreach ($applied_coupons as $coupon): ?>
+                <div class="applied-coupon flex justify-between items-center text-xs bg-green-50 border border-green-200 rounded px-2 py-1 mb-1">
+                    <span class="font-medium text-green-800"><?php echo esc_html($coupon['code']); ?></span>
+                    <button type="button" class="text-green-600 hover:text-green-800" data-action="remove-coupon" data-coupon="<?php echo esc_attr($coupon['code']); ?>">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+</div>
 </div>
