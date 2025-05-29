@@ -14,6 +14,92 @@ error_log('Loading payment step template from: ' . __FILE__);
 // Inline Styling für Payment Step
 ?>
 <style>
+
+.express-payment-section {
+    margin: 40px 0 30px 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    display: block; /* Änderung: Immer anzeigen */
+}
+
+.express-payment-title {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.express-payment-title span {
+    font-size: 14px;
+    color: #666;
+    background: #f8f8f8;
+    padding: 8px 15px;
+    border-radius: 20px;
+}
+
+#yprint-express-payment-container {
+    margin: 0 0 20px 0;
+}
+
+#yprint-payment-request-button {
+    margin: 0;
+    min-height: 48px;
+    border-radius: 8px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.express-payment-separator {
+    text-align: center;
+    margin: 25px 0;
+    position: relative;
+}
+
+.express-payment-separator::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #e5e5e5;
+}
+
+.express-payment-separator span {
+    background: #ffffff;
+    padding: 0 20px;
+    font-size: 0.875rem;
+    color: #6e6e73;
+    position: relative;
+    z-index: 1;
+    font-weight: 500;
+}
+
+.express-payment-loading {
+    text-align: center;
+    padding: 20px;
+    display: block;
+}
+
+/* Spinner Animation */
+.fa-spin {
+    animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.text-blue-500 {
+    color: #0079FF;
+}
+
 /* YPrint Checkout Payment Styling */
 .payment-method-container {
     background: #ffffff;
@@ -509,22 +595,42 @@ h2 i {
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
 
 <?php 
-// Express Checkout Buttons (Apple Pay, Google Pay)
+// Express Checkout Buttons (Apple Pay, Google Pay) - Immer anzeigen falls Stripe verfügbar
 if (class_exists('YPrint_Stripe_Checkout')) {
     $checkout_instance = YPrint_Stripe_Checkout::get_instance();
     
     // Prüfe explizit ob Stripe konfiguriert ist
     if ($checkout_instance->is_stripe_enabled_public()) {
-        $express_buttons = $checkout_instance->render_express_payment_buttons();
-        
-        if (!empty($express_buttons)) {
-            echo $express_buttons;
-        } else {
-            // Fallback: Express-Zahlungen sind konfiguriert aber nicht verfügbar
-            echo '<div class="express-payment-notice" style="padding: 10px; background: #f8f8f8; border: 1px solid #ddd; border-radius: 8px; margin: 15px 0; text-align: center;">';
-            echo '<p style="margin: 0; color: #666; font-size: 14px;"><i class="fas fa-info-circle mr-2"></i>' . __('Express-Zahlungsmethoden werden auf unterstützten Geräten angezeigt', 'yprint-checkout') . '</p>';
-            echo '</div>';
-        }
+        // Render Express Payment Buttons direkt
+        ?>
+        <div class="express-payment-section" style="margin: 20px 0;">
+            <div class="express-payment-title" style="text-align: center; margin-bottom: 15px;">
+                <span style="font-size: 14px; color: #666; background: #f8f8f8; padding: 8px 15px; border-radius: 20px;">
+                    <i class="fas fa-bolt mr-2"></i><?php esc_html_e('Express-Zahlung', 'yprint-checkout'); ?>
+                </span>
+            </div>
+            
+            <div id="yprint-express-payment-container" style="display: none;">
+                <div id="yprint-payment-request-button" style="margin-bottom: 15px;">
+                    <!-- Stripe Elements wird hier eingefügt -->
+                </div>
+                
+                <div class="express-payment-separator" style="text-align: center; margin: 20px 0; position: relative;">
+                    <span style="background: white; padding: 0 15px; color: #999; font-size: 14px; position: relative; z-index: 2;">
+                        <?php esc_html_e('oder', 'yprint-checkout'); ?>
+                    </span>
+                    <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e5e5e5; z-index: 1;"></div>
+                </div>
+            </div>
+            
+            <div class="express-payment-loading" style="text-align: center; padding: 20px; display: block;">
+                <i class="fas fa-spinner fa-spin text-blue-500"></i>
+                <span style="margin-left: 8px; color: #666; font-size: 14px;">
+                    <?php esc_html_e('Express-Zahlungsmethoden werden geladen...', 'yprint-checkout'); ?>
+                </span>
+            </div>
+        </div>
+        <?php
         
         // Debug-Info nur für Administratoren
         if (current_user_can('administrator') && isset($_GET['debug'])) {
@@ -537,7 +643,6 @@ if (class_exists('YPrint_Stripe_Checkout')) {
             echo 'Live Keys Set: ' . ((!empty($settings['publishable_key']) && !empty($settings['secret_key'])) ? 'Yes' : 'No') . '<br>';
             echo 'Test Keys Set: ' . ((!empty($settings['test_publishable_key']) && !empty($settings['test_secret_key'])) ? 'Yes' : 'No') . '<br>';
             echo 'Is SSL: ' . (is_ssl() ? 'Yes' : 'No') . '<br>';
-            echo 'Express Buttons HTML Length: ' . strlen($express_buttons) . '<br>';
             echo '</div>';
         }
     } else {
