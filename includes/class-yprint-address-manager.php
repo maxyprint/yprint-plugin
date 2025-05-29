@@ -50,8 +50,8 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_set_checkout_address', array($this, 'ajax_set_checkout_address'));
 
         // In der __construct() Methode hinzufügen:
-        add_action('wp_ajax_yprint_save_address', array($this, 'handle_save_address_ajax'));
-        add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_address_ajax'));
+        // add_action('wp_ajax_yprint_save_address', array($this, 'handle_save_address_ajax')); // ENTFERNT - zentral verwaltet
+        // add_action('wp_ajax_nopriv_yprint_save_address', array($this, 'handle_save_address_ajax')); // ENTFERNT - zentral verwaltet
 
         add_action('wp_ajax_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
         add_action('wp_ajax_nopriv_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));

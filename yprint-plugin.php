@@ -55,6 +55,9 @@ if (file_exists($checkout_file)) {
 // Include Address Manager
 require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-address-manager.php';
 
+// Include Address Handler (zentrale AJAX-Verwaltung)
+require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-address-handler.php';
+
 // Include Order Actions Shortcode
 require_once YPRINT_PLUGIN_DIR . 'includes/order-actions-shortcode.php';
 
@@ -67,6 +70,11 @@ require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
 // Initialize Address Manager
 add_action('plugins_loaded', function() {
     YPrint_Address_Manager::get_instance();
+});
+
+// Initialize Address Handler (zentrale AJAX-Verwaltung)
+add_action('plugins_loaded', function() {
+    YPrint_Address_Handler::get_instance();
 });
 
 // Initialize Stripe Admin

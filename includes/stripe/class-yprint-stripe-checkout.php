@@ -46,9 +46,9 @@ class YPrint_Stripe_Checkout {
         // Enqueue scripts and styles
         add_action('wp_enqueue_scripts', array($instance, 'enqueue_checkout_assets'));
 
-        // Register AJAX handlers
-        add_action('wp_ajax_yprint_save_address', array($instance, 'ajax_save_address'));
-        add_action('wp_ajax_nopriv_yprint_save_address', array($instance, 'ajax_save_address'));
+        // Register AJAX handlers (entfernt: yprint_save_address - wird zentral verwaltet)
+        // add_action('wp_ajax_yprint_save_address', array($instance, 'ajax_save_address')); // ENTFERNT
+        // add_action('wp_ajax_nopriv_yprint_save_address', array($instance, 'ajax_save_address')); // ENTFERNT
 
         add_action('wp_ajax_yprint_set_payment_method', array($instance, 'ajax_set_payment_method'));
         add_action('wp_ajax_nopriv_yprint_set_payment_method', array($instance, 'ajax_set_payment_method'));
@@ -751,46 +751,8 @@ class YPrint_Stripe_Checkout {
     /**
      * AJAX handler to save address information
      */
-    public function ajax_save_address() {
-        check_ajax_referer('yprint_checkout_nonce', 'security');
-
-        $data = $_POST;
-        $response = array('success' => false, 'message' => __('Fehler beim Speichern der Adresse.', 'yprint-plugin'));
-
-        if (!empty($data)) {
-            // Sanitize and validate address data
-            $address = array_map('sanitize_text_field', array_intersect_key($data, array_flip(array(
-                'billing_first_name', 'billing_last_name', 'billing_company', 'billing_address_1',
-                'billing_address_2', 'billing_city', 'billing_postcode', 'billing_country', 'billing_state',
-                'billing_email', 'billing_phone',
-                'shipping_first_name', 'shipping_last_name', 'shipping_company', 'shipping_address_1',
-                'shipping_address_2', 'shipping_city', 'shipping_postcode', 'shipping_country', 'shipping_state',
-                'ship_to_different_address'
-            ))));
-
-            // Basic validation (you might want to add more robust validation)
-            if (empty($address['billing_first_name']) || empty($address['billing_last_name']) ||
-                empty($address['billing_address_1']) || empty($address['billing_city']) ||
-                empty($address['billing_postcode']) || empty($address['billing_country']) ||
-                empty($address['billing_email']) || empty($address['billing_phone'])) {
-                wp_send_json_error(array('message' => __('Bitte füllen Sie alle Pflichtfelder aus.', 'yprint-plugin')));
-                return;
-            }
-
-            // Save address data to session
-            WC()->session->set('yprint_checkout_address', $address);
-
-            // Store chosen shipping address ID if it exists
-            if (isset($data['chosen_shipping_address_id']) && !empty($data['chosen_shipping_address_id'])) {
-                WC()->session->set('chosen_shipping_address_id', sanitize_text_field($data['chosen_shipping_address_id']));
-            }
-
-            $response['success'] = true;
-            $response['message'] = __('Adresse erfolgreich gespeichert.', 'yprint-plugin');
-        }
-
-        wp_send_json($response);
-    }
+    // METHODE ENTFERNT - wird zentral von YPrint_Address_Handler verwaltet
+    // ajax_save_address() wurde nach YPrint_Address_Handler::handle_checkout_context() migriert
 
     /**
      * AJAX handler to set payment method

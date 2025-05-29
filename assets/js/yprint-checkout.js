@@ -534,23 +534,25 @@ function collectAddressData() {
         formData.billing.country = document.getElementById('billing_country')?.value || '';
     }
     if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
-            // AJAX-Call zum Speichern der Adresse
-            jQuery.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_checkout_address',
-                    nonce: yprint_address_ajax.nonce,
-                    first_name: formData.shipping.first_name || '',
-                    last_name: formData.shipping.last_name || '',
-                    company: formData.shipping.company || '',
-                    address_1: formData.shipping.street || '',
-                    address_2: formData.shipping.housenumber || '',
-                    postcode: formData.shipping.zip || '',
-                    city: formData.shipping.city || '',
-                    country: formData.shipping.country || 'DE'
-                }
-            });
+            // Adresse speichern mit Kontext
+jQuery.ajax({
+    url: yprint_checkout_params.ajax_url,
+    type: 'POST',
+    data: {
+        action: 'yprint_save_address',
+        context: 'checkout', // Kontext hinzufügen
+        yprint_address_nonce: yprint_address_ajax.nonce,
+        security: yprint_checkout_params.nonce,
+        first_name: formData.shipping.first_name || '',
+        last_name: formData.shipping.last_name || '',
+        company: formData.shipping.company || '',
+        address_1: formData.shipping.street || '',
+        address_2: formData.shipping.housenumber || '',
+        postcode: formData.shipping.zip || '',
+        city: formData.shipping.city || '',
+        country: formData.shipping.country || 'DE'
+    }
+});
         }
     }
 
