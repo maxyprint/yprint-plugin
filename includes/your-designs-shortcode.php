@@ -416,7 +416,9 @@ class YPrint_Your_Designs {
                             $template_id = self::get_template_id_for_design($design);
                         ?>
                             <div class="yprint-design-card" data-design-id="<?php echo esc_attr($design->id); ?>">
-                                <div class="yprint-design-clickable-area" data-template-id="<?php echo esc_attr($template_id); ?>">
+                                <div class="yprint-design-clickable-area" 
+                                     data-design-id="<?php echo esc_attr($design->id); ?>"
+                                     data-template-id="<?php echo esc_attr($template_id); ?>">
                                     <div class="yprint-design-image-container">
                                         <?php 
                                         $preview_url = self::get_design_preview_url($design);
@@ -450,6 +452,7 @@ class YPrint_Your_Designs {
                                 <div class="yprint-design-actions">
                                     <?php if ($template_id) : ?>
                                     <div class="yprint-design-action edit" 
+                                         data-design-id="<?php echo esc_attr($design->id); ?>"
                                          data-template-id="<?php echo esc_attr($template_id); ?>"
                                          title="<?php _e('Design bearbeiten', 'yprint-plugin'); ?>">
                                         <i class="fas fa-edit"></i>
@@ -493,19 +496,32 @@ class YPrint_Your_Designs {
             console.log('YPrint Designs: Found clickable areas:', clickableAreas.length);
             
             clickableAreas.forEach((area, index) => {
-                console.log('YPrint Designs: Setting up clickable area', index, area.dataset.templateId);
+                const designId = area.dataset.designId;
+                const templateId = area.dataset.templateId;
+                console.log('YPrint Designs: Setting up clickable area', index, 'Design ID:', designId, 'Template ID:', templateId);
+                
                 area.addEventListener('click', function(e) {
                     console.log('YPrint Designs: Clickable area clicked!', e.target);
                     e.preventDefault();
                     e.stopPropagation();
+                    
+                    const designId = this.dataset.designId;
                     const templateId = this.dataset.templateId;
-                    console.log('YPrint Designs: Template ID:', templateId);
-                    if (templateId) {
-                        const url = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                    
+                    console.log('YPrint Designs: Design ID:', designId, 'Template ID:', templateId);
+                    
+                    if (designId && templateId) {
+                        const url = '<?php echo esc_url(home_url('/designer/?design_id=')); ?>' + designId + '&template_id=' + templateId;
                         console.log('YPrint Designs: Navigating to:', url);
                         window.location.href = url;
                     } else {
-                        console.warn('YPrint Designs: No template ID found');
+                        console.warn('YPrint Designs: Missing design_id or template_id', {designId, templateId});
+                        // Fallback: nur mit template_id wenn verfügbar
+                        if (templateId) {
+                            const fallbackUrl = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                            console.log('YPrint Designs: Fallback navigation to:', fallbackUrl);
+                            window.location.href = fallbackUrl;
+                        }
                     }
                 });
             });
@@ -525,9 +541,16 @@ class YPrint_Your_Designs {
             editButtons.forEach(button => {
                 button.addEventListener('click', function(e) {
                     e.stopPropagation();
+                    const designId = this.dataset.designId;
                     const templateId = this.dataset.templateId;
-                    if (templateId) {
-                        window.location.href = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                    
+                    if (designId && templateId) {
+                        const url = '<?php echo esc_url(home_url('/designer/?design_id=')); ?>' + designId + '&template_id=' + templateId;
+                        window.location.href = url;
+                    } else if (templateId) {
+                        // Fallback: nur template_id
+                        const fallbackUrl = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                        window.location.href = fallbackUrl;
                     }
                 });
             });
