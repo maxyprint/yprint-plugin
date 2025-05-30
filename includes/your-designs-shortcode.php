@@ -659,23 +659,83 @@ class YPrint_Your_Designs {
 
     /**
      * Get template ID for a design from WooCommerce product
+     * Korrigiert: Zuordnung zwischen design_template Custom Post Type und WooCommerce Produkt
      *
      * @param object $design Design object
-     * @return int|null Template ID or null if not found
+     * @return int|null WooCommerce Product ID or null if not found
      */
     private static function get_template_id_for_design($design) {
         if (empty($design->template_id)) {
             return null;
         }
 
-        // Der template_id sollte die WooCommerce Product Post ID sein
-        // Prüfen ob das Produkt existiert
-        $product = get_post($design->template_id);
+        // Design template_id ist ein design_template Custom Post Type
+        $design_template_id = $design->template_id;
         
-        if ($product && $product->post_type === 'product') {
-            return $design->template_id;
+        // Prüfen ob das design_template existiert
+        $design_template = get_post($design_template_id);
+        if (!$design_template || $design_template->post_type !== 'design_template') {
+            return null;
         }
 
+        // Methode 1: Suche nach WooCommerce Produkt mit Meta-Feld das auf design_template verweist
+        global $wpdb;
+        
+        // Suche nach Produkt mit Meta-Feld '_design_template_id' oder ähnlich
+        $product_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} 
+             WHERE meta_key IN ('_design_template_id', '_template_id', 'design_template_id') 
+             AND meta_value = %s 
+             AND post_id IN (
+                 SELECT ID FROM {$wpdb->posts} 
+                 WHERE post_type = 'product' 
+                 AND post_status = 'publish'
+             )",
+            $design_template_id
+        ));
+
+        if ($product_id) {
+            return intval($product_id);
+        }
+
+        // Methode 2: Suche über design_template Meta-Feld das auf WooCommerce Produkt verweist
+        $linked_product_id = get_post_meta($design_template_id, '_linked_product_id', true);
+        if ($linked_product_id) {
+            $product = get_post($linked_product_id);
+            if ($product && $product->post_type === 'product') {
+                return intval($linked_product_id);
+            }
+        }
+
+        // Methode 3: Suche über design_template Meta-Feld '_wc_product_id'
+        $wc_product_id = get_post_meta($design_template_id, '_wc_product_id', true);
+        if ($wc_product_id) {
+            $product = get_post($wc_product_id);
+            if ($product && $product->post_type === 'product') {
+                return intval($wc_product_id);
+            }
+        }
+
+        // Methode 4: Fallback - Suche über Post-Titel oder Slug
+        $template_title = $design_template->post_title;
+        $template_slug = $design_template->post_name;
+        
+        if (!empty($template_title)) {
+            $product_by_title = $wpdb->get_var($wpdb->prepare(
+                "SELECT ID FROM {$wpdb->posts} 
+                 WHERE post_type = 'product' 
+                 AND post_status = 'publish'
+                 AND (post_title = %s OR post_name = %s)",
+                $template_title,
+                $template_slug
+            ));
+            
+            if ($product_by_title) {
+                return intval($product_by_title);
+            }
+        }
+
+        // Keine Zuordnung gefunden
         return null;
     }
 
