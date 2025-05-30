@@ -226,22 +226,61 @@ $(document).on('click', '.address-card', function(e) {
                 self.deleteAddress(addressId);
             });
             
-            // NEU: Event für das Bearbeiten einer Adresse
-            $(document).on('click', '.btn-edit-address', function(e) {
-                console.log('Bearbeiten button clicked! Attempting to open modal.'); // Debugging-Ausgabe
-                e.preventDefault();
-                const addressCard = $(this).closest('.address-card');
-                const addressId = addressCard.data('address-id');
-                // Adressdaten aus dem data-Attribut abrufen
-                try {
-                    const addressDataStr = addressCard.data('address-data');
-                    const addressData = JSON.parse(decodeURIComponent(addressDataStr));
-                    self.openAddressModal(addressId, addressData);
-                } catch (error) {
-                    console.error('Error parsing address data from card:', error);
-                    self.showMessage('Fehler beim Laden der Adresse', 'error');
-                }
-            });
+            // Event für das Bearbeiten einer Adresse mit verbesserter Behandlung
+$(document).on('click', '.btn-edit-address', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const $button = $(this);
+    const addressCard = $button.closest('.address-card');
+    const addressId = addressCard.data('address-id') || $button.data('address-id');
+    
+    // Loading-Zustand anzeigen
+    $button.addClass('loading').prop('disabled', true);
+    
+    console.log('Bearbeiten button clicked for address ID:', addressId);
+    
+    try {
+        // Adressdaten aus dem data-Attribut abrufen
+        const addressDataStr = addressCard.data('address-data');
+        
+        if (!addressDataStr) {
+            throw new Error('Keine Adressdaten gefunden');
+        }
+        
+        const addressData = JSON.parse(decodeURIComponent(addressDataStr));
+        
+        // Modal öffnen
+        self.openAddressModal(addressId, addressData);
+        
+    } catch (error) {
+        console.error('Error parsing address data from card:', error);
+        self.showMessage('Fehler beim Laden der Adresse', 'error');
+    } finally {
+        // Loading-Zustand entfernen nach kurzer Verzögerung
+        setTimeout(() => {
+            $button.removeClass('loading').prop('disabled', false);
+        }, 300);
+    }
+});
+
+// Keyboard Navigation Support
+$(document).on('keydown', '.btn-address-action', function(e) {
+    // Enter oder Space aktiviert den Button
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        $(this).trigger('click');
+    }
+});
+
+// Touch-Ereignisse für bessere mobile Erfahrung
+$(document).on('touchstart', '.btn-address-action', function(e) {
+    $(this).addClass('touch-active');
+});
+
+$(document).on('touchend touchcancel', '.btn-address-action', function(e) {
+    $(this).removeClass('touch-active');
+});
         
             // Modal schließen
             $(document).on('click', '.btn-close-modal, .address-modal-overlay', function() {

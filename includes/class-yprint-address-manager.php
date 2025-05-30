@@ -113,9 +113,13 @@ public function ajax_save_checkout_address() {
             <div class="address-modal-content">
                 <div class="address-modal-header">
                     <h3><?php _e('Neue Adresse hinzufügen', 'yprint-plugin'); ?></h3>
-                    <button type="button" class="btn-close-modal">
-                        <i class="fas fa-times"></i>
-                    </button>
+                    <button type="button" 
+        class="btn-address-action btn-edit-address" 
+        title="Adresse bearbeiten"
+        aria-label="Adresse bearbeiten"
+        data-address-id="<?php echo esc_attr($address_id); ?>">
+    <i class="fas fa-edit" aria-hidden="true"></i>
+</button>
                 </div>
                 <div class="address-modal-body">
                 <form id="new-address-form" class="space-y-4">

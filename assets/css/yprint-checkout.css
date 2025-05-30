@@ -475,32 +475,136 @@ label.flex.items-center:hover {
     gap: 0.5rem;
 }
 
-.btn-address-action {
-    background: none;
-    border: none;
-    color: var(--yprint-text-secondary);
-    padding: 0.25rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    width: 28px;
-    height: 28px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* Button Reset und Basis-Styling mit hoher Spezifität */
+.yprint-saved-addresses .btn-address-action.btn-edit-address,
+.yprint-saved-addresses .btn-address-action.btn-set-default,
+.yprint-saved-addresses .btn-address-action.btn-delete-address {
+    /* Reset für alle Framework-Konflikte */
+    all: unset;
+    box-sizing: border-box !important;
+    
+    /* Basis-Layout */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    
+    /* Dimensionen (Touch-optimiert) */
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    min-height: 32px !important;
+    
+    /* Aussehen */
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 6px !important;
+    color: var(--yprint-text-secondary, #6e6e73) !important;
+    
+    /* Interaktion */
+    cursor: pointer !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    
+    /* Animationen */
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    
+    /* Text-Eigenschaften */
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 400 !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    
+    /* Accessibility */
+    outline: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
 }
 
-.btn-address-action:hover {
-    background-color: var(--yprint-light-gray);
-    color: var(--yprint-black);
+/* Focus-visible für Accessibility */
+.yprint-saved-addresses .btn-address-action:focus-visible {
+    outline: 2px solid var(--yprint-blue, #0079FF) !important;
+    outline-offset: 2px !important;
+    border-color: var(--yprint-blue, #0079FF) !important;
 }
 
-.btn-set-default:hover {
-    color: var(--yprint-blue);
+/* Hover-Zustände spezifisch */
+.yprint-saved-addresses .btn-address-action.btn-edit-address:hover {
+    background-color: var(--yprint-light-gray, #F6F7FA) !important;
+    color: var(--yprint-black, #1d1d1f) !important;
+    border-color: var(--yprint-medium-gray, #e5e5e5) !important;
+    transform: scale(1.05) !important;
 }
 
-.btn-delete-address:hover {
-    color: var(--yprint-error);
+.yprint-saved-addresses .btn-address-action.btn-set-default:hover {
+    background-color: rgba(0, 121, 255, 0.1) !important;
+    color: var(--yprint-blue, #0079FF) !important;
+    border-color: var(--yprint-blue, #0079FF) !important;
+}
+
+.yprint-saved-addresses .btn-address-action.btn-delete-address:hover {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    color: var(--yprint-error, #dc3545) !important;
+    border-color: var(--yprint-error, #dc3545) !important;
+}
+
+/* Active/Pressed-Zustand */
+.yprint-saved-addresses .btn-address-action:active {
+    transform: scale(0.95) !important;
+    transition-duration: 0.05s !important;
+}
+
+/* Disabled-Zustand */
+.yprint-saved-addresses .btn-address-action:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+/* Loading-Zustand */
+.yprint-saved-addresses .btn-address-action.loading {
+    position: relative !important;
+    color: transparent !important;
+}
+
+.yprint-saved-addresses .btn-address-action.loading::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 12px !important;
+    height: 12px !important;
+    margin: -6px 0 0 -6px !important;
+    border: 2px solid currentColor !important;
+    border-top-color: transparent !important;
+    border-radius: 50% !important;
+    animation: btn-spin 0.8s linear infinite !important;
+}
+
+@keyframes btn-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Mobile-spezifische Anpassungen */
+@media (max-width: 640px) {
+    .yprint-saved-addresses .btn-address-action {
+        width: 36px !important;
+        height: 36px !important;
+        min-width: 36px !important;
+        min-height: 36px !important;
+        font-size: 16px !important;
+    }
+}
+
+/* High-DPI/Retina Anpassungen */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .yprint-saved-addresses .btn-address-action {
+        border-width: 0.5px !important;
+    }
 }
 
 /* Inhalt einer Adresskarte */
@@ -1667,4 +1771,54 @@ input[name="payment_method"]:checked + .payment-method-label {
 
 .applied-coupon button:hover {
     color: #047857;
+}
+/* Touch-spezifische Styles */
+.yprint-saved-addresses .btn-address-action.touch-active {
+    transform: scale(0.95) !important;
+    background-color: var(--yprint-light-gray, #F6F7FA) !important;
+}
+
+/* Hover-Unterdrückung auf Touch-Geräten */
+@media (hover: none) and (pointer: coarse) {
+    .yprint-saved-addresses .btn-address-action:hover {
+        transform: none !important;
+        background-color: transparent !important;
+        color: var(--yprint-text-secondary, #6e6e73) !important;
+        border-color: transparent !important;
+    }
+}
+
+/* Print-Styles (verstecke Buttons beim Drucken) */
+@media print {
+    .yprint-saved-addresses .btn-address-action {
+        display: none !important;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .yprint-saved-addresses .btn-address-action {
+        transition: none !important;
+        animation: none !important;
+    }
+    
+    .yprint-saved-addresses .btn-address-action:hover {
+        transform: none !important;
+    }
+    
+    .yprint-saved-addresses .btn-address-action:active {
+        transform: none !important;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .yprint-saved-addresses .btn-address-action {
+        border: 2px solid currentColor !important;
+    }
+    
+    .yprint-saved-addresses .btn-address-action:hover {
+        background-color: currentColor !important;
+        color: var(--yprint-white, #ffffff) !important;
+    }
 }
