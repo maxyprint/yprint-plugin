@@ -1,6 +1,6 @@
 <?php
 /**
- * Generiert ein Popup-Menü mit der beschriebenen Designstruktur.
+ * Generiert ein Popup-Menü mit der YPrint Corporate Design Struktur.
  * Das Popup wird über einen Button mit dem Link '#mobile-menu' ausgelöst.
  */
 function yprint_mobile_menu_popup() {
@@ -56,25 +56,25 @@ function yprint_mobile_menu_popup_html() {
 }
 
 /**
- * Fügt die notwendigen CSS-Stile in den Header ein.
+ * Fügt die notwendigen CSS-Stile in den Header ein (angepasst für YPrint Design).
  */
 function yprint_add_mobile_menu_popup_css() {
     ?>
     <style type="text/css">
         /* Grundlegendes Styling für das Popup */
         #mobile-menu-popup {
-            display: none; /* Standardmäßig ausgeblendet */
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 10000; /* Sollte über anderen Inhalten liegen */
-            background-color: rgba(0, 0, 0, 0.5); /* Optionaler Hintergrund-Dimmer */
-            overflow: hidden; /* Verhindert Scrollen des Body, wenn Popup offen ist */
-            transition: opacity 0.3s ease-in-out;
+            z-index: 10000;
+            background-color: rgba(0, 0, 0, 0.5); /* Dunkler Overlay */
+            overflow: hidden;
+            transition: opacity 0.2s ease-in-out; /* Sanftere Transition */
             opacity: 0;
-            cursor: pointer; /* Cursor-Hinweis, dass das Overlay klickbar ist */
+            cursor: pointer;
         }
 
         #mobile-menu-popup.open {
@@ -83,21 +83,21 @@ function yprint_add_mobile_menu_popup_css() {
         }
 
         #mobile-menu-popup .sidebar {
-            background-color: #111;
-            color: #fff;
-            padding: 2rem 1rem;
+            background-color: #1d1d1f; /* Dunkelgrau für Hintergrund */
+            color: #FFFFFF; /* Weiß für Text */
+            padding: 20px 15px; /* Angepasstes Padding */
             width: 250px;
             height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            align-items: flex-start; /* Linksbündige Ausrichtung der Sidebar-Inhalte */
+            align-items: flex-start;
             position: absolute;
             left: 0;
             top: 0;
-            transform: translateX(-100%); /* Standardmäßig außerhalb des Bildschirms */
-            transition: transform 0.3s ease-in-out;
-            cursor: auto; /* Verhindert den Overlay-Cursor auf dem Sidebar-Inhalt */
+            transform: translateX(-100%);
+            transition: transform 0.2s ease-in-out; /* Sanftere Transition */
+            cursor: auto;
         }
 
         #mobile-menu-popup.open .sidebar {
@@ -106,59 +106,66 @@ function yprint_add_mobile_menu_popup_css() {
 
         /* Styling für die Sidebar-Inhalte */
         .user-info {
-            margin-bottom: 2rem;
+            margin-bottom: 30px; /* Größerer Abstand */
         }
 
         .username {
-            font-size: 1.5rem;
-            font-weight: bold;
-            margin-bottom: 0.5rem;
+            font-size: 24px; /* H2 Größe */
+            font-weight: 600; /* H2 Gewicht */
+            color: #FFFFFF;
+            margin-bottom: 10px;
         }
 
         .main-menu ul {
             list-style: none;
             padding: 0;
             margin: 0;
-            width: 100%; /* Stellt sicher, dass die Menüpunkte die volle Breite nutzen */
+            width: 100%;
         }
 
         .menu-item {
-            margin: 0.75rem 0;
-            font-weight: 500;
+            margin: 15px 0; /* Angepasster Abstand */
+            font-weight: 400; /* Normales Gewicht */
             cursor: pointer;
-            width: 100%; /* Menüpunkte nehmen die volle Breite ein */
+            width: 100%;
         }
 
         .menu-item a {
-            display: block; /* Macht den Link zum Blockelement für besseres Klickverhalten und Styling */
-            color: #fff;
+            display: block;
+            color: #FFFFFF;
             text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 8px; /* Für die aktiven Elemente */
+            padding: 12px 15px; /* Button-ähnliches Padding */
+            border-radius: 10px; /* Standard Border-Radius */
+        }
+
+        .menu-item a:hover {
+            background-color: #F6F7FA; /* Hellgrauer Hover-Effekt */
+            color: #1d1d1f;
         }
 
         .menu-item.active a {
-            background-color: #2a2a2a;
-            font-weight: 600;
+            background-color: #0079FF; /* YPrint Blau für aktiv */
+            color: #FFFFFF;
+            font-weight: 600; /* Fett für aktiv */
         }
 
         .footer {
-            font-size: 0.8rem;
-            color: #aaa;
-            padding-top: 2rem;
+            font-size: 13px; /* Kleinerer Text */
+            color: #6e6e73; /* Sekundärer Textfarbe */
+            padding-top: 30px; /* Größerer Abstand */
             width: 100%;
         }
 
         .footer p {
-            margin: 0.25rem 0;
+            margin: 5px 0;
         }
 
         .menu-item.logout a {
-            color: #f44336; /* Beispiel-Farbe für Logout */
+            color: #dc3545; /* Rot für Logout */
         }
 
         body.menu-open {
-            overflow: hidden; /* Verhindert Body-Scroll, wenn Menü offen ist */
+            overflow: hidden;
         }
     </style>
     <?php
@@ -245,7 +252,7 @@ function yprint_add_mobile_menu_popup_js() {
 add_action('wp_footer', 'yprint_add_mobile_menu_popup_js');
 
 /**
- * Shortcode für einen Button zum Triggern des Mobile Menüs
+ * Shortcode für einen Button zum Triggern des Mobile Menüs (angepasst für YPrint Design).
  *
  * Usage: [mobile_menu_button text="Menü öffnen" class="custom-button-class"]
  *
@@ -260,7 +267,7 @@ function mobile_menu_button_shortcode( $atts ) {
 
     $class_attr = !empty( $atts['class'] ) ? ' class="' . sanitize_html_class( $atts['class'] ) . '"' : '';
 
-    return '<a href="#mobile-menu"' . $class_attr . '>' . esc_html( $atts['text'] ) . '</a>';
+    return '<a href="#mobile-menu"' . $class_attr . ' style="background-color: #0079FF; color: #FFFFFF; padding: 12px 20px; border-radius: 10px; text-decoration: none; display: inline-block;">' . esc_html( $atts['text'] ) . '</a>';
 }
 add_shortcode( 'mobile_menu_button', 'mobile_menu_button_shortcode' );
 
@@ -268,6 +275,10 @@ add_shortcode( 'mobile_menu_button', 'mobile_menu_button_shortcode' );
 // verwenden Sie den folgenden Shortcode im WordPress-Editor:
 // [mobile_menu_button text="Menü öffnen" class="mein-stil"]
 // Ersetzen Sie "Menü öffnen" durch Ihren gewünschten Text und "mein-stil" durch optionale CSS-Klassen.
+
+// Sie können auch einen normalen WordPress-Button verwenden und ihm im Link-Dialog die URL "#mobile-menu" geben.
+// Um ihn wie den primären YPrint Button zu gestalten, können Sie ihm die Klasse "wp-block-button__link" geben
+// und dann in Ihrem CSS weitere Stile hinzufügen oder die Standardstile überschreiben.
 
 // Das Popup-HTML und die CSS-Stile werden automatisch im Footer bzw. Header eingefügt.
 // Das JavaScript für die Funktionalität wird ebenfalls automatisch im Footer eingefügt.
