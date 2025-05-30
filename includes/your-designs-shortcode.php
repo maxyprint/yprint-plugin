@@ -106,6 +106,7 @@ class YPrint_Your_Designs {
             min-width: 200px;
             background-color: #ffffff;
             border-radius: 8px;
+            border: 1px solid #e5e5e5;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             transition: all 0.2s ease;
             cursor: pointer;
