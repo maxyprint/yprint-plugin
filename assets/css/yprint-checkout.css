@@ -1,17 +1,49 @@
 /* YPrint Corporate Design Anpassungen & Checkout Styles */
 :root {
+    /* Primäre Markenfarben */
     --yprint-blue: #0079FF;
     --yprint-blue-dark: #0056b3;
+    --yprint-blue-light: rgba(0, 121, 255, 0.1);
+    --yprint-blue-hover: rgba(0, 121, 255, 0.05);
+    
+    /* Neutrale Farben */
     --yprint-black: #1d1d1f;
     --yprint-white: #FFFFFF;
     --yprint-light-gray: #F6F7FA;
     --yprint-medium-gray: #e5e5e5;
-    --yprint-border-gray: #DFDFDF; /* Angepasst an gewünschte Rahmenfarbe */
+    --yprint-border-gray: #DFDFDF;
+    --yprint-text-primary: #1d1d1f;
     --yprint-text-secondary: #6e6e73;
+    
+    /* Status-Farben */
     --yprint-success: #28a745;
     --yprint-success-dark: #1e7e34;
+    --yprint-success-light: rgba(40, 167, 69, 0.1);
     --yprint-error: #dc3545;
+    --yprint-error-light: rgba(220, 53, 69, 0.1);
+    --yprint-warning: #fbbf24;
+    --yprint-warning-dark: #92400e;
     --yprint-info-bg: #E3F2FD;
+    
+    /* Abstände und Größen */
+    --yprint-radius-sm: 6px;
+    --yprint-radius-md: 8px;
+    --yprint-radius-lg: 12px;
+    --yprint-spacing-xs: 0.25rem;
+    --yprint-spacing-sm: 0.5rem;
+    --yprint-spacing-md: 1rem;
+    --yprint-spacing-lg: 1.5rem;
+    --yprint-spacing-xl: 2rem;
+    
+    /* Schatten */
+    --yprint-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --yprint-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --yprint-shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.15);
+    
+    /* Transitions */
+    --yprint-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --yprint-transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --yprint-transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body.yprint-checkout-page { /* Spezifische Klasse für Checkout-Seiten-Body */
@@ -27,86 +59,297 @@ body.yprint-checkout-page { /* Spezifische Klasse für Checkout-Seiten-Body */
 .yprint-checkout-page h2 { font-size: 24px; font-weight: 600; margin-bottom: 15px; }
 .yprint-checkout-page h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
 
-/* Buttons */
-.btn {
-    padding: 12px 20px;
-    border-radius: 10px;
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-    cursor: pointer;
-    border: none;
-    display: inline-flex; /* Für Icon-Ausrichtung */
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
+/* Button Base - Reset für Framework-Konflikte */
+.yprint-btn {
+    /* Hard Reset für Elementor/Framework-Konflikte */
+    all: unset !important;
+    box-sizing: border-box !important;
+    
+    /* Base Layout */
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: var(--yprint-spacing-sm) !important;
+    
+    /* Sizing */
+    padding: 12px 20px !important;
+    min-height: 44px !important;
+    
+    /* Typography */
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    
+    /* Appearance */
+    border: 1px solid transparent !important;
+    border-radius: var(--yprint-radius-md) !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    
+    /* Transitions */
+    transition: all var(--yprint-transition-fast) !important;
+    
+    /* States */
+    position: relative !important;
+    overflow: hidden !important;
 }
-.btn-primary {
-    background-color: var(--yprint-blue);
-    color: var(--yprint-white);
+
+/* Button Variants */
+.yprint-btn--primary {
+    background-color: var(--yprint-blue) !important;
+    color: var(--yprint-white) !important;
+    border-color: var(--yprint-blue) !important;
+    box-shadow: var(--yprint-shadow-sm) !important;
 }
-.btn-primary:hover {
-    background-color: var(--yprint-blue-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+.yprint-btn--primary:hover:not(:disabled) {
+    background-color: var(--yprint-blue-dark) !important;
+    border-color: var(--yprint-blue-dark) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--yprint-shadow-md) !important;
 }
-.btn-primary:disabled {
-    background-color: #a0cfff; /* Helleres Blau für disabled */
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+
+.yprint-btn--secondary {
+    background-color: var(--yprint-light-gray) !important;
+    color: var(--yprint-text-primary) !important;
+    border-color: var(--yprint-border-gray) !important;
 }
-.btn-secondary {
-    background-color: #f5f5f7;
-    color: var(--yprint-black);
-    border: 1px solid var(--yprint-border-gray);
+
+.yprint-btn--secondary:hover:not(:disabled) {
+    background-color: var(--yprint-medium-gray) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--yprint-shadow-sm) !important;
 }
-.btn-secondary:hover {
-    background-color: #e9e9ed;
-    transform: translateY(-1px);
+
+.yprint-btn--success {
+    background-color: var(--yprint-success) !important;
+    color: var(--yprint-white) !important;
+    border-color: var(--yprint-success) !important;
 }
-.btn-success {
-    background-color: var(--yprint-success);
-    color: var(--yprint-white);
+
+.yprint-btn--success:hover:not(:disabled) {
+    background-color: var(--yprint-success-dark) !important;
+    border-color: var(--yprint-success-dark) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--yprint-shadow-md) !important;
 }
-.btn-success:hover {
-    background-color: var(--yprint-success-dark);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+/* Button States */
+.yprint-btn:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    pointer-events: none !important;
+}
+
+.yprint-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98) !important;
+    transition-duration: 0.05s !important;
+}
+
+/* Button Sizes */
+.yprint-btn--sm {
+    padding: 8px 16px !important;
+    min-height: 36px !important;
+    font-size: 0.875rem !important;
+}
+
+.yprint-btn--lg {
+    padding: 16px 24px !important;
+    min-height: 52px !important;
+    font-size: 1.125rem !important;
+}
+
+/* Loading State */
+.yprint-btn--loading {
+    color: transparent !important;
+    pointer-events: none !important;
+}
+
+.yprint-btn--loading::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 16px !important;
+    height: 16px !important;
+    margin: -8px 0 0 -8px !important;
+    border: 2px solid transparent !important;
+    border-top-color: currentColor !important;
+    border-radius: 50% !important;
+    animation: yprint-spin 0.8s linear infinite !important;
+}
+
+@keyframes yprint-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Formular-Elemente */
-.form-input, .form-select {
-    border: 1px solid var(--yprint-border-gray);
-    border-radius: 10px;
-    padding: 12px 15px;
-    width: 100%;
-    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-    background-color: var(--yprint-white); /* Sicherstellen, dass Inputs hell sind */
+/* Form Base Reset */
+.yprint-form-element {
+    /* Reset für Framework-Konflikte */
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    
+    /* Base Styling */
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    
+    /* Box Model */
+    box-sizing: border-box !important;
+    width: 100% !important;
+    margin: 0 !important;
+    
+    /* Transitions */
+    transition: all var(--yprint-transition-fast) !important;
 }
-.form-input:focus, .form-select:focus {
-    border-color: var(--yprint-blue);
-    box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.25);
-    outline: none;
+
+/* Input & Select Fields */
+.yprint-input,
+.yprint-select {
+    @extend .yprint-form-element;
+    
+    /* Layout */
+    padding: 12px 15px !important;
+    min-height: 44px !important;
+    
+    /* Appearance */
+    background-color: var(--yprint-white) !important;
+    border: 1px solid var(--yprint-border-gray) !important;
+    border-radius: var(--yprint-radius-md) !important;
+    color: var(--yprint-text-primary) !important;
+    
+    /* Typography */
+    font-weight: 400 !important;
 }
-.form-checkbox {
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    border-color: var(--yprint-border-gray);
-    accent-color: var(--yprint-blue); /* Für modernen Browser-Checkbox-Stil */
-    margin-right: 0.5rem; /* Tailwind: mr-2 */
+
+.yprint-input:focus,
+.yprint-select:focus {
+    outline: none !important;
+    border-color: var(--yprint-blue) !important;
+    box-shadow: 0 0 0 3px var(--yprint-blue-light) !important;
+    background-color: var(--yprint-white) !important;
 }
-.form-radio { /* Tailwind hat keine Standard .form-radio, daher eigene Basis oder Utility-Klassen nutzen */
-    width: 20px;
-    height: 20px;
-    accent-color: var(--yprint-blue);
-    margin-right: 0.75rem; /* Tailwind: mr-3 */
+
+.yprint-input::placeholder {
+    color: var(--yprint-text-secondary) !important;
+    opacity: 1 !important;
 }
-.form-label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 500;
-    color: var(--yprint-black);
+
+.yprint-input:disabled,
+.yprint-select:disabled {
+    background-color: var(--yprint-light-gray) !important;
+    color: var(--yprint-text-secondary) !important;
+    cursor: not-allowed !important;
+    opacity: 0.7 !important;
+}
+
+/* Select Dropdown */
+.yprint-select {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%236e6e73' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-position: right 12px center !important;
+    background-repeat: no-repeat !important;
+    background-size: 16px !important;
+    padding-right: 40px !important;
+}
+
+/* Checkboxes & Radio */
+.yprint-checkbox,
+.yprint-radio {
+    @extend .yprint-form-element;
+    
+    /* Layout */
+    width: 20px !important;
+    height: 20px !important;
+    margin-right: var(--yprint-spacing-sm) !important;
+    
+    /* Appearance */
+    background-color: var(--yprint-white) !important;
+    border: 2px solid var(--yprint-border-gray) !important;
+    cursor: pointer !important;
+    
+    /* Custom styling */
+    position: relative !important;
+    flex-shrink: 0 !important;
+}
+
+.yprint-checkbox {
+    border-radius: var(--yprint-radius-sm) !important;
+}
+
+.yprint-radio {
+    border-radius: 50% !important;
+}
+
+.yprint-checkbox:checked,
+.yprint-radio:checked {
+    background-color: var(--yprint-blue) !important;
+    border-color: var(--yprint-blue) !important;
+}
+
+.yprint-checkbox:checked::after {
+    content: '✓' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    color: var(--yprint-white) !important;
+    font-size: 12px !important;
+    font-weight: bold !important;
+}
+
+.yprint-radio:checked::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 8px !important;
+    height: 8px !important;
+    background-color: var(--yprint-white) !important;
+    border-radius: 50% !important;
+    transform: translate(-50%, -50%) !important;
+}
+
+/* Labels */
+.yprint-label {
+    display: block !important;
+    font-family: 'Roboto', sans-serif !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    color: var(--yprint-text-primary) !important;
+    margin-bottom: 6px !important;
+    line-height: 1.4 !important;
+}
+
+.yprint-label--inline {
+    display: flex !important;
+    align-items: center !important;
+    cursor: pointer !important;
+    margin-bottom: 0 !important;
+}
+
+/* Error States */
+.yprint-input--error,
+.yprint-select--error {
+    border-color: var(--yprint-error) !important;
+    box-shadow: 0 0 0 3px var(--yprint-error-light) !important;
+}
+
+.yprint-form-error {
+    color: var(--yprint-error) !important;
+    font-size: 0.875rem !important;
+    margin-top: 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: var(--yprint-spacing-xs) !important;
 }
 
 /* Karten und Container */
