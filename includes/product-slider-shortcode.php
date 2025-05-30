@@ -58,8 +58,7 @@ class YPrint_Product_Slider {
             'title' => 'Design a Shirt',
             'limit' => 12,
             'category' => '',
-            'class' => 'yprint-product-slider',
-            'debug' => false
+            'class' => 'yprint-product-slider'
         ), $atts, 'product_slider');
 
         // Check if WooCommerce is active
@@ -69,37 +68,10 @@ class YPrint_Product_Slider {
 
         $products = self::get_products($atts);
         
-        // Debug information
-        if ($atts['debug'] || current_user_can('administrator')) {
-            $debug_info = '<div style="background: #f9f9f9; padding: 10px; margin: 10px 0; border-radius: 8px; font-size: 13px; color: #6D6D6D;">';
-            $debug_info .= '<strong>Debug Info:</strong><br>';
-            $debug_info .= 'WooCommerce aktiv: ' . (class_exists('WooCommerce') ? 'Ja' : 'Nein') . '<br>';
-            $debug_info .= 'Gefundene Produkte: ' . count($products) . '<br>';
-            $debug_info .= 'Limit: ' . $atts['limit'] . '<br>';
-            $debug_info .= 'Kategorie: ' . ($atts['category'] ? $atts['category'] : 'Alle') . '<br>';
-            
-            // Total products in database
-            $total_products = wp_count_posts('product');
-            $debug_info .= 'Gesamt Produkte in DB: ' . $total_products->publish . '<br>';
-            
-            if (!empty($products)) {
-                $debug_info .= 'Erste 3 Produktnamen: ';
-                $product_names = array();
-                for ($i = 0; $i < min(3, count($products)); $i++) {
-                    $product_names[] = $products[$i]->get_name();
-                }
-                $debug_info .= implode(', ', $product_names) . '<br>';
-            }
-            
-            $debug_info .= '</div>';
-        }
+
         
         if (empty($products)) {
-            $no_products_msg = '<p style="text-align: center; padding: 20px; color: #6D6D6D; font-size: 14px; margin: 0;">Keine Produkte gefunden.</p>';
-            if (isset($debug_info)) {
-                return $debug_info . $no_products_msg;
-            }
-            return $no_products_msg;
+            return '<p style="text-align: center; padding: 20px; color: #6D6D6D; font-size: 14px; margin: 0;">Keine Produkte gefunden.</p>';
         }
 
         $unique_id = 'yprint-product-slider-' . uniqid();
@@ -111,24 +83,29 @@ class YPrint_Product_Slider {
 
         <style>
         .yprint-product-slider-container {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            margin: 0;
-            padding: 0;
+            font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin: 0 0 2rem 0;
         }
 
         .yprint-product-slider-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 16px;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .yprint-product-slider-title {
             font-size: 18px;
             font-weight: 600;
-            color: #1A1A1A;
+            color: #111827;
             margin: 0;
-            line-height: 1.3;
+            line-height: 1.2;
         }
 
         .yprint-product-slider-controls {
@@ -272,7 +249,7 @@ class YPrint_Product_Slider {
             font-size: 14px;
         }
 
-        /* Responsive Design */
+        /* Mobile Responsive */
         @media (max-width: 1024px) {
             .yprint-product-card {
                 flex: 0 0 180px;
@@ -280,6 +257,11 @@ class YPrint_Product_Slider {
         }
 
         @media (max-width: 768px) {
+            .yprint-product-slider-container {
+                padding: 1rem;
+                border-radius: 8px;
+            }
+
             .yprint-product-slider-title {
                 font-size: 16px;
             }
@@ -314,6 +296,12 @@ class YPrint_Product_Slider {
         }
 
         @media (max-width: 480px) {
+            .yprint-product-slider-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+
             .yprint-product-card {
                 flex: 0 0 140px;
                 padding: 10px;
@@ -407,8 +395,6 @@ class YPrint_Product_Slider {
                 </div>
             </div>
         </div>
-
-        <?php if (isset($debug_info)) echo $debug_info; ?>
 
         <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function() {
@@ -547,19 +533,11 @@ class YPrint_Product_Slider {
             $args['category'] = $category_slugs;
         }
 
-        // Debugging: Log the query arguments
-        error_log('YPrint Product Slider Query Args: ' . print_r($args, true));
-
         // Use WooCommerce's wc_get_products function
         $products = wc_get_products($args);
 
-        // Debugging: Log the results
-        error_log('YPrint Product Slider Found Products: ' . count($products));
-
         // Fallback: If no products found, try simpler query
         if (empty($products)) {
-            error_log('YPrint Product Slider: No products found with WC query, trying fallback...');
-            
             $fallback_args = array(
                 'post_type' => 'product',
                 'post_status' => 'publish',
@@ -593,8 +571,6 @@ class YPrint_Product_Slider {
                 }
                 wp_reset_postdata();
             }
-
-            error_log('YPrint Product Slider Fallback Found Products: ' . count($products));
         }
 
         return $products;
