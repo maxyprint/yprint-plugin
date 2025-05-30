@@ -1,6 +1,6 @@
 <?php
 /**
- * YPrint Product Slider Shortcode
+ * YPrint Product Slider Shortcode - Redesigned
  * Displays all WooCommerce products in a modern horizontal slider
  *
  * @package YPrint
@@ -48,59 +48,59 @@ class YPrint_Product_Slider {
     }
 
     /**
- * Render Product Slider shortcode
- *
- * @param array $atts Shortcode attributes
- * @return string HTML output
- */
-public static function render_product_slider($atts) {
-    $atts = shortcode_atts(array(
-        'title' => 'Design a Shirt',
-        'limit' => 12,
-        'category' => '',
-        'class' => 'yprint-product-slider',
-        'debug' => false
-    ), $atts, 'product_slider');
+     * Render Product Slider shortcode
+     *
+     * @param array $atts Shortcode attributes
+     * @return string HTML output
+     */
+    public static function render_product_slider($atts) {
+        $atts = shortcode_atts(array(
+            'title' => 'Design a Shirt',
+            'limit' => 12,
+            'category' => '',
+            'class' => 'yprint-product-slider',
+            'debug' => false
+        ), $atts, 'product_slider');
 
-    // Check if WooCommerce is active
-    if (!class_exists('WooCommerce')) {
-        return '<p class="error-message">WooCommerce ist nicht aktiviert.</p>';
-    }
+        // Check if WooCommerce is active
+        if (!class_exists('WooCommerce')) {
+            return '<p class="error-message">WooCommerce ist nicht aktiviert.</p>';
+        }
 
-    $products = self::get_products($atts);
-    
-    // Debug information
-    if ($atts['debug'] || current_user_can('administrator')) {
-        $debug_info = '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px;">';
-        $debug_info .= '<strong>Debug Info:</strong><br>';
-        $debug_info .= 'WooCommerce aktiv: ' . (class_exists('WooCommerce') ? 'Ja' : 'Nein') . '<br>';
-        $debug_info .= 'Gefundene Produkte: ' . count($products) . '<br>';
-        $debug_info .= 'Limit: ' . $atts['limit'] . '<br>';
-        $debug_info .= 'Kategorie: ' . ($atts['category'] ? $atts['category'] : 'Alle') . '<br>';
+        $products = self::get_products($atts);
         
-        // Total products in database
-        $total_products = wp_count_posts('product');
-        $debug_info .= 'Gesamt Produkte in DB: ' . $total_products->publish . '<br>';
-        
-        if (!empty($products)) {
-            $debug_info .= 'Erste 3 Produktnamen: ';
-            $product_names = array();
-            for ($i = 0; $i < min(3, count($products)); $i++) {
-                $product_names[] = $products[$i]->get_name();
+        // Debug information
+        if ($atts['debug'] || current_user_can('administrator')) {
+            $debug_info = '<div style="background: #f9f9f9; padding: 10px; margin: 10px 0; border-radius: 8px; font-size: 13px; color: #6D6D6D;">';
+            $debug_info .= '<strong>Debug Info:</strong><br>';
+            $debug_info .= 'WooCommerce aktiv: ' . (class_exists('WooCommerce') ? 'Ja' : 'Nein') . '<br>';
+            $debug_info .= 'Gefundene Produkte: ' . count($products) . '<br>';
+            $debug_info .= 'Limit: ' . $atts['limit'] . '<br>';
+            $debug_info .= 'Kategorie: ' . ($atts['category'] ? $atts['category'] : 'Alle') . '<br>';
+            
+            // Total products in database
+            $total_products = wp_count_posts('product');
+            $debug_info .= 'Gesamt Produkte in DB: ' . $total_products->publish . '<br>';
+            
+            if (!empty($products)) {
+                $debug_info .= 'Erste 3 Produktnamen: ';
+                $product_names = array();
+                for ($i = 0; $i < min(3, count($products)); $i++) {
+                    $product_names[] = $products[$i]->get_name();
+                }
+                $debug_info .= implode(', ', $product_names) . '<br>';
             }
-            $debug_info .= implode(', ', $product_names) . '<br>';
+            
+            $debug_info .= '</div>';
         }
         
-        $debug_info .= '</div>';
-    }
-    
-    if (empty($products)) {
-        $no_products_msg = '<p class="yprint-no-products">Keine Produkte gefunden.</p>';
-        if (isset($debug_info)) {
-            return $debug_info . $no_products_msg;
+        if (empty($products)) {
+            $no_products_msg = '<p style="text-align: center; padding: 20px; color: #6D6D6D; font-size: 14px; margin: 0;">Keine Produkte gefunden.</p>';
+            if (isset($debug_info)) {
+                return $debug_info . $no_products_msg;
+            }
+            return $no_products_msg;
         }
-        return $no_products_msg;
-    }
 
         $unique_id = 'yprint-product-slider-' . uniqid();
         $css_class = sanitize_html_class($atts['class']);
@@ -111,28 +111,24 @@ public static function render_product_slider($atts) {
 
         <style>
         .yprint-product-slider-container {
-            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            margin: 32px 0;
-            background: #ffffff;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e5e7eb;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
         .yprint-product-slider-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
         }
 
         .yprint-product-slider-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #111827;
+            font-size: 18px;
+            font-weight: 600;
+            color: #1A1A1A;
             margin: 0;
-            line-height: 1.2;
+            line-height: 1.3;
         }
 
         .yprint-product-slider-controls {
@@ -141,79 +137,81 @@ public static function render_product_slider($atts) {
         }
 
         .yprint-slider-nav-btn {
-            width: 40px;
-            height: 40px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            border: 1px solid #e5e7eb;
-            background: #ffffff;
-            color: #6b7280;
+            border: 1px solid #E5E5E5;
+            background: #FFFFFF;
+            color: #6D6D6D;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
-            font-size: 16px;
+            font-size: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .yprint-slider-nav-btn:hover {
-            background: #f9fafb;
-            color: #374151;
-            border-color: #d1d5db;
-            transform: translateY(-1px);
+            background: #F9F9F9;
+            color: #1A1A1A;
+            border-color: #6D6D6D;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .yprint-slider-nav-btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
-            transform: none;
         }
 
         .yprint-slider-nav-btn:disabled:hover {
-            background: #ffffff;
-            color: #6b7280;
-            border-color: #e5e7eb;
-            transform: none;
+            background: #FFFFFF;
+            color: #6D6D6D;
+            border-color: #E5E5E5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .yprint-product-slider-wrapper {
             position: relative;
             overflow: hidden;
-            border-radius: 12px;
         }
 
         .yprint-product-slider-track {
             display: flex;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            gap: 20px;
-            padding: 4px;
+            gap: 16px;
         }
 
         .yprint-product-card {
-            flex: 0 0 280px;
-            background: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
+            flex: 0 0 200px;
+            background: #FFFFFF;
+            border-radius: 16px;
+            border: 1px solid #E5E5E5;
             overflow: hidden;
             transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 16px;
         }
 
         .yprint-product-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-            border-color: #d1d5db;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            border-color: #6D6D6D;
         }
 
         .yprint-product-image-container {
             position: relative;
             width: 100%;
-            height: 200px;
-            background: #f9fafb;
+            height: 140px;
+            background: #F9F9F9;
             overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
+            border-radius: 12px;
+            margin-bottom: 12px;
         }
 
         .yprint-product-image {
@@ -224,142 +222,121 @@ public static function render_product_slider($atts) {
         }
 
         .yprint-product-card:hover .yprint-product-image {
-            transform: scale(1.05);
+            transform: scale(1.02);
         }
 
         .yprint-product-info {
-            padding: 20px;
             position: relative;
+            padding: 0;
         }
 
         .yprint-product-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            color: #111827;
-            margin: 0 0 8px 0;
+            color: #1A1A1A;
+            margin: 0 0 12px 0;
             line-height: 1.3;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
 
-        .yprint-product-price {
-            font-size: 16px;
-            font-weight: 500;
-            color: #6b7280;
-            margin: 0 0 8px 0;
-        }
-
-        .yprint-product-description {
-            font-size: 14px;
-            color: #6b7280;
-            line-height: 1.4;
-            margin: 0 0 16px 0;
-            height: 40px;
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-
         .yprint-product-button {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: #007AFF;
+            width: 100%;
+            background: #0079FF;
             color: white;
             border: none;
-            border-radius: 50px;
-            padding: 10px 20px;
+            border-radius: 10px;
+            padding: 10px 16px;
             font-size: 14px;
-            font-weight: 600;
+            font-weight: 500;
             cursor: pointer;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            gap: 8px;
             transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0, 122, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 121, 255, 0.2);
         }
 
         .yprint-product-button:hover {
             background: #0056b3;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
+            color: white;
+            text-decoration: none;
         }
 
         .yprint-product-button i {
-            font-size: 12px;
-        }
-
-        .yprint-no-products {
-            text-align: center;
-            padding: 40px;
-            color: #6b7280;
-            font-style: italic;
+            font-size: 14px;
         }
 
         /* Responsive Design */
         @media (max-width: 1024px) {
             .yprint-product-card {
-                flex: 0 0 260px;
+                flex: 0 0 180px;
             }
         }
 
         @media (max-width: 768px) {
-            .yprint-product-slider-container {
-                padding: 20px;
-                margin: 20px 0;
-            }
-
             .yprint-product-slider-title {
-                font-size: 24px;
+                font-size: 16px;
             }
 
             .yprint-product-card {
-                flex: 0 0 240px;
-            }
-
-            .yprint-product-slider-track {
-                gap: 16px;
-            }
-
-            .yprint-product-slider-controls {
-                display: none;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .yprint-product-card {
-                flex: 0 0 200px;
+                flex: 0 0 160px;
+                padding: 12px;
             }
 
             .yprint-product-slider-track {
                 gap: 12px;
             }
 
-            .yprint-product-info {
-                padding: 16px;
+            .yprint-product-slider-controls {
+                display: none;
+            }
+
+            .yprint-product-image-container {
+                height: 120px;
+                margin-bottom: 8px;
             }
 
             .yprint-product-name {
-                font-size: 16px;
-            }
-
-            .yprint-product-price {
                 font-size: 14px;
-            }
-
-            .yprint-product-description {
-                font-size: 13px;
-                height: 35px;
+                margin-bottom: 8px;
             }
 
             .yprint-product-button {
-                bottom: 16px;
-                right: 16px;
-                padding: 8px 16px;
+                padding: 8px 12px;
                 font-size: 13px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .yprint-product-card {
+                flex: 0 0 140px;
+                padding: 10px;
+            }
+
+            .yprint-product-slider-track {
+                gap: 10px;
+            }
+
+            .yprint-product-image-container {
+                height: 100px;
+                margin-bottom: 6px;
+            }
+
+            .yprint-product-name {
+                font-size: 13px;
+                margin-bottom: 6px;
+            }
+
+            .yprint-product-button {
+                padding: 6px 10px;
+                font-size: 12px;
+                gap: 4px;
             }
         }
 
@@ -410,8 +387,8 @@ public static function render_product_slider($atts) {
                                         'alt' => esc_attr($product->get_name())
                                     ));
                                 } else {
-                                    echo '<div class="yprint-product-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">';
-                                    echo '<i class="fas fa-image" style="font-size: 32px; color: white; opacity: 0.7;"></i>';
+                                    echo '<div class="yprint-product-image" style="background: linear-gradient(135deg, #6D6D6D 0%, #1A1A1A 100%); display: flex; align-items: center; justify-content: center;">';
+                                    echo '<i class="fas fa-image" style="font-size: 24px; color: white; opacity: 0.5;"></i>';
                                     echo '</div>';
                                 }
                                 ?>
@@ -419,21 +396,6 @@ public static function render_product_slider($atts) {
                             
                             <div class="yprint-product-info">
                                 <h3 class="yprint-product-name"><?php echo esc_html($product->get_name()); ?></h3>
-                                <div class="yprint-product-price"><?php echo $product->get_price_html(); ?></div>
-                                <div class="yprint-product-description">
-                                    <?php 
-                                    $description = $product->get_short_description();
-                                    if (empty($description)) {
-                                        $categories = get_the_terms($product->get_id(), 'product_cat');
-                                        if ($categories && !is_wp_error($categories)) {
-                                            $description = $categories[0]->name . ' - Individuell gestaltbar';
-                                        } else {
-                                            $description = 'Individuell gestaltbares Produkt';
-                                        }
-                                    }
-                                    echo wp_trim_words($description, 12, '...');
-                                    ?>
-                                </div>
                                 <a href="<?php echo esc_url(get_permalink($product->get_id())); ?>" 
                                    class="yprint-product-button">
                                     <i class="fas fa-palette"></i>
@@ -445,6 +407,8 @@ public static function render_product_slider($atts) {
                 </div>
             </div>
         </div>
+
+        <?php if (isset($debug_info)) echo $debug_info; ?>
 
         <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function() {
@@ -459,7 +423,7 @@ public static function render_product_slider($atts) {
             if (!track || !prevBtn || !nextBtn || cards.length === 0) return;
 
             let currentIndex = 0;
-            const cardWidth = 300; // Card width + gap
+            const cardWidth = 216; // Card width + gap (200px + 16px)
             const visibleCards = Math.floor(container.offsetWidth / cardWidth);
             const maxIndex = Math.max(0, cards.length - visibleCards);
 
@@ -479,7 +443,7 @@ public static function render_product_slider($atts) {
             // Previous button
             prevBtn.addEventListener('click', function() {
                 if (currentIndex > 0) {
-                    currentIndex = Math.max(0, currentIndex - visibleCards);
+                    currentIndex = Math.max(0, currentIndex - Math.max(1, visibleCards - 1));
                     moveSlider();
                 }
             });
@@ -487,7 +451,7 @@ public static function render_product_slider($atts) {
             // Next button
             nextBtn.addEventListener('click', function() {
                 if (currentIndex < maxIndex) {
-                    currentIndex = Math.min(maxIndex, currentIndex + visibleCards);
+                    currentIndex = Math.min(maxIndex, currentIndex + Math.max(1, visibleCards - 1));
                     moveSlider();
                 }
             });
@@ -514,7 +478,9 @@ public static function render_product_slider($atts) {
             window.addEventListener('resize', function() {
                 clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(() => {
-                    currentIndex = 0;
+                    const newVisibleCards = Math.floor(container.offsetWidth / cardWidth);
+                    const newMaxIndex = Math.max(0, cards.length - newVisibleCards);
+                    currentIndex = Math.min(currentIndex, newMaxIndex);
                     moveSlider();
                 }, 100);
             });
@@ -561,78 +527,78 @@ public static function render_product_slider($atts) {
     }
 
     /**
- * Get products for the slider
- *
- * @param array $atts Shortcode attributes
- * @return array Array of WC_Product objects
- */
-private static function get_products($atts) {
-    // Verwende WooCommerce's eigene Produktabfrage
-    $args = array(
-        'status' => 'publish',
-        'limit' => intval($atts['limit']),
-        'orderby' => 'date',
-        'order' => 'DESC',
-    );
-
-    // Add category filter if specified
-    if (!empty($atts['category'])) {
-        $category_slugs = array_map('trim', explode(',', $atts['category']));
-        $args['category'] = $category_slugs;
-    }
-
-    // Debugging: Log the query arguments
-    error_log('YPrint Product Slider Query Args: ' . print_r($args, true));
-
-    // Use WooCommerce's wc_get_products function
-    $products = wc_get_products($args);
-
-    // Debugging: Log the results
-    error_log('YPrint Product Slider Found Products: ' . count($products));
-
-    // Fallback: If no products found, try simpler query
-    if (empty($products)) {
-        error_log('YPrint Product Slider: No products found with WC query, trying fallback...');
-        
-        $fallback_args = array(
-            'post_type' => 'product',
-            'post_status' => 'publish',
-            'posts_per_page' => intval($atts['limit']),
+     * Get products for the slider
+     *
+     * @param array $atts Shortcode attributes
+     * @return array Array of WC_Product objects
+     */
+    private static function get_products($atts) {
+        // Verwende WooCommerce's eigene Produktabfrage
+        $args = array(
+            'status' => 'publish',
+            'limit' => intval($atts['limit']),
             'orderby' => 'date',
-            'order' => 'DESC'
+            'order' => 'DESC',
         );
 
-        // Add category filter for fallback
+        // Add category filter if specified
         if (!empty($atts['category'])) {
-            $fallback_args['tax_query'] = array(
-                array(
-                    'taxonomy' => 'product_cat',
-                    'field' => 'slug',
-                    'terms' => array_map('trim', explode(',', $atts['category'])),
-                    'operator' => 'IN'
-                )
+            $category_slugs = array_map('trim', explode(',', $atts['category']));
+            $args['category'] = $category_slugs;
+        }
+
+        // Debugging: Log the query arguments
+        error_log('YPrint Product Slider Query Args: ' . print_r($args, true));
+
+        // Use WooCommerce's wc_get_products function
+        $products = wc_get_products($args);
+
+        // Debugging: Log the results
+        error_log('YPrint Product Slider Found Products: ' . count($products));
+
+        // Fallback: If no products found, try simpler query
+        if (empty($products)) {
+            error_log('YPrint Product Slider: No products found with WC query, trying fallback...');
+            
+            $fallback_args = array(
+                'post_type' => 'product',
+                'post_status' => 'publish',
+                'posts_per_page' => intval($atts['limit']),
+                'orderby' => 'date',
+                'order' => 'DESC'
             );
-        }
 
-        $query = new WP_Query($fallback_args);
-        $products = array();
-
-        if ($query->have_posts()) {
-            while ($query->have_posts()) {
-                $query->the_post();
-                $product = wc_get_product(get_the_ID());
-                if ($product) {
-                    $products[] = $product;
-                }
+            // Add category filter for fallback
+            if (!empty($atts['category'])) {
+                $fallback_args['tax_query'] = array(
+                    array(
+                        'taxonomy' => 'product_cat',
+                        'field' => 'slug',
+                        'terms' => array_map('trim', explode(',', $atts['category'])),
+                        'operator' => 'IN'
+                    )
+                );
             }
-            wp_reset_postdata();
+
+            $query = new WP_Query($fallback_args);
+            $products = array();
+
+            if ($query->have_posts()) {
+                while ($query->have_posts()) {
+                    $query->the_post();
+                    $product = wc_get_product(get_the_ID());
+                    if ($product) {
+                        $products[] = $product;
+                    }
+                }
+                wp_reset_postdata();
+            }
+
+            error_log('YPrint Product Slider Fallback Found Products: ' . count($products));
         }
 
-        error_log('YPrint Product Slider Fallback Found Products: ' . count($products));
+        return $products;
     }
-
-    return $products;
-}
 }
 
 // Initialize the class
