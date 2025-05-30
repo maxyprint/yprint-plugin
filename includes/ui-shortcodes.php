@@ -320,12 +320,14 @@ function yprint_mobile_nav_toggle() {
 
             // Wenn wir Buttons gefunden haben
             if ($navButtons.length > 0) {
-                // Speichere die ursprüngliche Positionierung des Buttons
+                // Speichere die ursprüngliche Positionierung und andere Stile des Buttons
                 $navButtons.each(function() {
                     $(this).data('original-position', $(this).css('position'));
                     $(this).data('original-zIndex', $(this).css('z-index'));
-                    $(this).data('original-top', $(this).css('top'));
-                    $(this).data('original-left', $(this).css('left'));
+                    $(this).data('original-top', $(this).offset().top);
+                    $(this).data('original-left', $(this).offset().left);
+                    $(this).data('original-width', $(this).outerWidth());
+                    $(this).data('original-height', $(this).outerHeight());
                 });
 
                 // Füge einen Event-Listener für Klicks hinzu
@@ -338,12 +340,13 @@ function yprint_mobile_nav_toggle() {
                     // Verzögere die Anpassung des Buttons, damit sie nach dem Overlay passiert
                     setTimeout(function() {
                         if (openingMenu) {
-                            console.log('Menü wird geöffnet, setze Button auf fixed und hohen z-index');
+                            console.log('Menü wird geöffnet, setze Button auf fixed an der ursprünglichen Position');
                             $clickedButton.css({
                                 'position': 'fixed',
-                                'top': '0px',
-                                'left': '0px',
-                                'width': '100%', // Optional: Button über die volle Breite
+                                'top': $clickedButton.data('original-top') + 'px',
+                                'left': $clickedButton.data('original-left') + 'px',
+                                'width': $clickedButton.data('original-width') + 'px', // Behalte ursprüngliche Breite
+                                'height': $clickedButton.data('original-height') + 'px', // Behalte ursprüngliche Höhe
                                 'z-index': 1000 // Stellen Sie sicher, dass dies höher als das Overlay ist
                             });
                         } else {
@@ -351,34 +354,30 @@ function yprint_mobile_nav_toggle() {
                             $clickedButton.css({
                                 'position': $clickedButton.data('original-position') || '',
                                 'z-index': $clickedButton.data('original-zIndex') || '',
-                                'top': $clickedButton.data('original-top') || '',
-                                'left': $clickedButton.data('original-left') || '',
-                                'width': '' // Entferne die Breiten-Überschreibung
+                                'top': $clickedButton.data('original-top') !== undefined ? $clickedButton.data('original-top') + 'px' : '',
+                                'left': $clickedButton.data('original-left') !== undefined ? $clickedButton.data('original-left') + 'px' : '',
+                                'width': $clickedButton.data('original-width') !== undefined ? $clickedButton.data('original-width') + 'px' : '',
+                                'height': $clickedButton.data('original-height') !== undefined ? $clickedButton.data('original-height') + 'px' : ''
                             });
                         }
-                    }, 100); // Eine kurze Verzögerung, um sicherzustellen, dass das Overlay aktiv ist
+                    }, 100); // Kurze Verzögerung
 
                     // Standardmäßiges Öffnen/Schließen des Menüs beibehalten
                     if (isMenuOpen()) {
                         console.log('Menü ist offen, schließe es');
-                        // Verhindern Sie das Standard-Klick-Verhalten
                         e.preventDefault();
                         e.stopPropagation();
-                        // Wenn es offen ist, schließe es durch Neuladen der Seite ohne Parameter
                         var cleanUrl = window.location.protocol + '//' + window.location.host +
                                        window.location.pathname;
-                        // Behalte andere Query-Parameter bei, falls vorhanden, aber entferne nav_open
                         var searchParams = new URLSearchParams(window.location.search);
                         searchParams.delete('nav_open');
-                        // Füge bereinigte Parameter hinzu, falls welche übrig sind
                         if (searchParams.toString()) {
                             cleanUrl += '?' + searchParams.toString();
                         }
-                        // Navigiere zur bereinigten URL
                         window.location.href = cleanUrl;
                         return false;
                     }
-                    return true; // Lasse den normalen Klick durchlaufen
+                    return true;
                 });
 
                 // Funktion zum initialen Überprüfen und Anpassen der Button-Positionierung beim Seitenladen
@@ -387,9 +386,10 @@ function yprint_mobile_nav_toggle() {
                         $navButtons.each(function() {
                             $(this).css({
                                 'position': 'fixed',
-                                'top': '0px',
-                                'left': '0px',
-                                'width': '100%',
+                                'top': $(this).data('original-top') + 'px',
+                                'left': $(this).data('original-left') + 'px',
+                                'width': $(this).data('original-width') + 'px',
+                                'height': $(this).data('original-height') + 'px',
                                 'z-index': 1000
                             });
                         });
