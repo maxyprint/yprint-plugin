@@ -310,90 +310,94 @@ function yprint_mobile_nav_toggle() {
         $(window).on('load', function() {
             // Diese Funktion überprüft, ob das Menü geöffnet ist
             function isMenuOpen() {
-                return window.location.hash === '#mobile-navigation' || 
+                return window.location.hash === '#mobile-navigation' ||
                        window.location.search.indexOf('nav_open=1') !== -1;
             }
-            
+
             // Finde alle Navigations-Buttons (es könnten mehrere sein)
             var $navButtons = $('a[href="#mobile-navigation"], a[href*="nav_open=1"]');
             console.log('Gefundene Nav-Buttons:', $navButtons.length);
-            
+
             // Wenn wir Buttons gefunden haben
             if ($navButtons.length > 0) {
-                // Speichere die originalen href-Werte
+                // Speichere die ursprüngliche Positionierung des Buttons
                 $navButtons.each(function() {
-                    $(this).data('original-href', $(this).attr('href'));
+                    $(this).data('original-position', $(this).css('position'));
+                    $(this).data('original-zIndex', $(this).css('z-index'));
+                    $(this).data('original-top', $(this).css('top'));
+                    $(this).data('original-left', $(this).css('left'));
                 });
-                
-                // Füge einen Event-Listener für Klicks hinzu, der NACH dem ursprünglichen Klick ausgeführt wird
+
+                // Füge einen Event-Listener für Klicks hinzu
                 $navButtons.on('click', function(e) {
-                    // Speichere eine Referenz auf den Button
                     var $clickedButton = $(this);
-                    
-                    // Überprüfe, ob das Menü bereits geöffnet ist
+
+                    // Überprüfe, ob das Menü gerade geöffnet wird
+                    var openingMenu = !isMenuOpen();
+
+                    // Verzögere die Anpassung des Buttons, damit sie nach dem Overlay passiert
+                    setTimeout(function() {
+                        if (openingMenu) {
+                            console.log('Menü wird geöffnet, setze Button auf fixed und hohen z-index');
+                            $clickedButton.css({
+                                'position': 'fixed',
+                                'top': '0px',
+                                'left': '0px',
+                                'width': '100%', // Optional: Button über die volle Breite
+                                'z-index': 1000 // Stellen Sie sicher, dass dies höher als das Overlay ist
+                            });
+                        } else {
+                            console.log('Menü wird geschlossen, setze Button auf ursprüngliche Position zurück');
+                            $clickedButton.css({
+                                'position': $clickedButton.data('original-position') || '',
+                                'z-index': $clickedButton.data('original-zIndex') || '',
+                                'top': $clickedButton.data('original-top') || '',
+                                'left': $clickedButton.data('original-left') || '',
+                                'width': '' // Entferne die Breiten-Überschreibung
+                            });
+                        }
+                    }, 100); // Eine kurze Verzögerung, um sicherzustellen, dass das Overlay aktiv ist
+
+                    // Standardmäßiges Öffnen/Schließen des Menüs beibehalten
                     if (isMenuOpen()) {
                         console.log('Menü ist offen, schließe es');
                         // Verhindern Sie das Standard-Klick-Verhalten
                         e.preventDefault();
                         e.stopPropagation();
-                        
                         // Wenn es offen ist, schließe es durch Neuladen der Seite ohne Parameter
-                        var cleanUrl = window.location.protocol + '//' + window.location.host + 
-                                    window.location.pathname;
-                        
+                        var cleanUrl = window.location.protocol + '//' + window.location.host +
+                                       window.location.pathname;
                         // Behalte andere Query-Parameter bei, falls vorhanden, aber entferne nav_open
                         var searchParams = new URLSearchParams(window.location.search);
                         searchParams.delete('nav_open');
-                        
                         // Füge bereinigte Parameter hinzu, falls welche übrig sind
                         if (searchParams.toString()) {
                             cleanUrl += '?' + searchParams.toString();
                         }
-                        
                         // Navigiere zur bereinigten URL
                         window.location.href = cleanUrl;
                         return false;
-                    } else {
-                        console.log('Menü ist geschlossen, lasse es öffnen');
-                        // Wenn das Menü geschlossen ist, lasse das Standard-Verhalten zu
-                        // Aber ändere den Text nach einer kurzen Verzögerung
-                        setTimeout(function() {
-                            if ($clickedButton.data('original-text')) {
-                                $clickedButton.text('Menü schließen');
-                            }
-                        }, 500);
-                        return true; // Lasse den normalen Klick durchlaufen
                     }
+                    return true; // Lasse den normalen Klick durchlaufen
                 });
-                
-                // Update Button-Text basierend auf Menü-Status
-                function updateButtonsText() {
+
+                // Funktion zum initialen Überprüfen und Anpassen der Button-Positionierung beim Seitenladen
+                function initialButtonPosition() {
                     if (isMenuOpen()) {
                         $navButtons.each(function() {
-                            // Speichere den originalen Text, falls wir ihn noch nicht gespeichert haben
-                            var $btn = $(this);
-                            if (!$btn.data('original-text') && $btn.text() !== 'Menü schließen') {
-                                $btn.data('original-text', $btn.text());
-                                console.log('Originaler Text gespeichert:', $btn.data('original-text'));
-                            }
-                            $btn.text('Menü schließen');
-                        });
-                    } else {
-                        $navButtons.each(function() {
-                            var $btn = $(this);
-                            // Stelle den ursprünglichen Text wieder her, falls gespeichert
-                            if ($btn.data('original-text')) {
-                                $btn.text($btn.data('original-text'));
-                            }
+                            $(this).css({
+                                'position': 'fixed',
+                                'top': '0px',
+                                'left': '0px',
+                                'width': '100%',
+                                'z-index': 1000
+                            });
                         });
                     }
                 }
-                
-                // Initialer Check und regelmäßiges Update
-                setTimeout(updateButtonsText, 500);
-                setInterval(updateButtonsText, 1000);
-                
-                console.log('Mobile Navigation Toggle initialisiert');
+
+                // Führe die initiale Überprüfung nach dem Laden aus
+                $(initialButtonPosition);
             }
         });
     });
