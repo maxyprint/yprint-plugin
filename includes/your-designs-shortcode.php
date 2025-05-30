@@ -688,30 +688,30 @@ class YPrint_Your_Designs {
      * @return int|null WooCommerce Product ID or null if not found
      */
     private static function get_template_id_for_design($design) {
-        error_log('YPrint Debug: get_template_id_for_design() called for design ID: ' . $design->id);
+        echo "<script>console.log('YPrint PHP Debug: get_template_id_for_design() called for design ID: " . $design->id . "');</script>";
         
         if (empty($design->template_id)) {
-            error_log('YPrint Debug: Design template_id is empty for design ID: ' . $design->id);
+            echo "<script>console.log('YPrint PHP Debug: Design template_id is empty for design ID: " . $design->id . "');</script>";
             return null;
         }
 
         // Design template_id ist ein design_template Custom Post Type
         $design_template_id = $design->template_id;
-        error_log('YPrint Debug: Design template_id: ' . $design_template_id);
+        echo "<script>console.log('YPrint PHP Debug: Design template_id: " . $design_template_id . "');</script>";
         
         // Prüfen ob das design_template existiert
         $design_template = get_post($design_template_id);
         if (!$design_template) {
-            error_log('YPrint Debug: Design template post not found for ID: ' . $design_template_id);
+            echo "<script>console.log('YPrint PHP Debug: Design template post not found for ID: " . $design_template_id . "');</script>";
             return null;
         }
         
         if ($design_template->post_type !== 'design_template') {
-            error_log('YPrint Debug: Post is not design_template type. Found: ' . $design_template->post_type);
+            echo "<script>console.log('YPrint PHP Debug: Post is not design_template type. Found: " . $design_template->post_type . "');</script>";
             return null;
         }
         
-        error_log('YPrint Debug: Found design_template: ' . $design_template->post_title . ' (ID: ' . $design_template_id . ')');
+        echo "<script>console.log('YPrint PHP Debug: Found design_template: " . esc_js($design_template->post_title) . " (ID: " . $design_template_id . ")');</script>";
 
         // Methode 1: Suche nach WooCommerce Produkt mit Meta-Feld das auf design_template verweist
         global $wpdb;
@@ -730,39 +730,39 @@ class YPrint_Your_Designs {
         ));
 
         if ($product_id) {
-            error_log('YPrint Debug: Found WooCommerce Product via meta search: ' . $product_id);
+            echo "<script>console.log('YPrint PHP Debug: Found WooCommerce Product via meta search: " . $product_id . "');</script>";
             return intval($product_id);
         }
-        error_log('YPrint Debug: No product found via meta search');
+        echo "<script>console.log('YPrint PHP Debug: No product found via meta search');</script>";
 
         // Methode 2: Suche über design_template Meta-Feld das auf WooCommerce Produkt verweist
         $linked_product_id = get_post_meta($design_template_id, '_linked_product_id', true);
         if ($linked_product_id) {
-            error_log('YPrint Debug: Found _linked_product_id: ' . $linked_product_id);
+            echo "<script>console.log('YPrint PHP Debug: Found _linked_product_id: " . $linked_product_id . "');</script>";
             $product = get_post($linked_product_id);
             if ($product && $product->post_type === 'product') {
-                error_log('YPrint Debug: Validated linked product: ' . $linked_product_id);
+                echo "<script>console.log('YPrint PHP Debug: Validated linked product: " . $linked_product_id . "');</script>";
                 return intval($linked_product_id);
             }
         }
-        error_log('YPrint Debug: No _linked_product_id found');
+        echo "<script>console.log('YPrint PHP Debug: No _linked_product_id found');</script>";
 
         // Methode 3: Suche über design_template Meta-Feld '_wc_product_id'
         $wc_product_id = get_post_meta($design_template_id, '_wc_product_id', true);
         if ($wc_product_id) {
-            error_log('YPrint Debug: Found _wc_product_id: ' . $wc_product_id);
+            echo "<script>console.log('YPrint PHP Debug: Found _wc_product_id: " . $wc_product_id . "');</script>";
             $product = get_post($wc_product_id);
             if ($product && $product->post_type === 'product') {
-                error_log('YPrint Debug: Validated WC product: ' . $wc_product_id);
+                echo "<script>console.log('YPrint PHP Debug: Validated WC product: " . $wc_product_id . "');</script>";
                 return intval($wc_product_id);
             }
         }
-        error_log('YPrint Debug: No _wc_product_id found');
+        echo "<script>console.log('YPrint PHP Debug: No _wc_product_id found');</script>";
 
         // Methode 4: Fallback - Suche über Post-Titel oder Slug
         $template_title = $design_template->post_title;
         $template_slug = $design_template->post_name;
-        error_log('YPrint Debug: Trying title/slug match. Title: ' . $template_title . ', Slug: ' . $template_slug);
+        echo "<script>console.log('YPrint PHP Debug: Trying title/slug match. Title: " . esc_js($template_title) . ", Slug: " . esc_js($template_slug) . "');</script>";
         
         if (!empty($template_title)) {
             $product_by_title = $wpdb->get_var($wpdb->prepare(
@@ -775,17 +775,18 @@ class YPrint_Your_Designs {
             ));
             
             if ($product_by_title) {
-                error_log('YPrint Debug: Found product by title/slug: ' . $product_by_title);
+                echo "<script>console.log('YPrint PHP Debug: Found product by title/slug: " . $product_by_title . "');</script>";
                 return intval($product_by_title);
             }
         }
 
         // Debug: Alle Meta-Felder des design_template ausgeben
         $all_meta = get_post_meta($design_template_id);
-        error_log('YPrint Debug: All meta fields for design_template ' . $design_template_id . ': ' . print_r($all_meta, true));
+        $meta_keys = array_keys($all_meta);
+        echo "<script>console.log('YPrint PHP Debug: All meta keys for design_template " . $design_template_id . ": " . esc_js(implode(', ', $meta_keys)) . "');</script>";
 
         // Keine Zuordnung gefunden
-        error_log('YPrint Debug: No WooCommerce Product ID found for design_template: ' . $design_template_id);
+        echo "<script>console.log('YPrint PHP Debug: No WooCommerce Product ID found for design_template: " . $design_template_id . "');</script>";
         return null;
     }
 
