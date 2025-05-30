@@ -55,25 +55,26 @@ class YPrint_Your_Designs {
 
         <style>
         .yprint-your-designs {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
             background-color: #ffffff;
-            border-radius: 16px;
-            padding: 24px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
-            margin-bottom: 32px;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            margin-bottom: 2rem;
         }
 
         .yprint-your-designs-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
         }
 
         .yprint-your-designs-title {
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: 600;
             color: #111827;
             margin: 0;
             line-height: 1.2;
@@ -81,144 +82,89 @@ class YPrint_Your_Designs {
 
         .yprint-your-designs-count {
             font-size: 14px;
-            color: #6b7280;
-            font-weight: 500;
+            color: #6B7280;
+            font-weight: 400;
         }
 
-        .yprint-designs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 16px;
+        .yprint-designs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
         }
 
         .yprint-design-card {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
             background-color: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             transition: all 0.2s ease;
             cursor: pointer;
             position: relative;
-            overflow: hidden;
         }
 
         .yprint-design-card:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-            transform: translateY(-2px);
-            border-color: #d1d5db;
-        }
-
-        .yprint-design-image-container {
-            position: relative;
-            width: 100%;
-            aspect-ratio: 1;
-            background-color: #f9fafb;
-            overflow: hidden;
-            border-radius: 12px 12px 0 0;
+            background-color: #F3F4F6;
         }
 
         .yprint-design-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transition: transform 0.3s ease;
-        }
-
-        .yprint-design-card:hover .yprint-design-image {
-            transform: scale(1.05);
-        }
-
-        .yprint-design-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.5) 100%);
-            opacity: 0;
-            transition: opacity 0.2s ease;
-            display: flex;
-            align-items: flex-end;
-            padding: 12px;
-        }
-
-        .yprint-design-card:hover .yprint-design-overlay {
-            opacity: 1;
-        }
-
-        .yprint-design-actions {
-            display: flex;
-            gap: 8px;
-            width: 100%;
-        }
-
-        .yprint-design-action-btn {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: none;
+            width: 64px;
+            height: 64px;
             border-radius: 8px;
-            padding: 8px 12px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #374151;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: center;
-            text-decoration: none;
+            object-fit: cover;
+            background-color: #F9FAFB;
+            flex-shrink: 0;
+            margin-right: 1rem;
+        }
+
+        .yprint-design-image-placeholder {
+            width: 64px;
+            height: 64px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            flex-shrink: 0;
+            margin-right: 1rem;
         }
 
-        .yprint-design-action-btn:hover {
-            background: rgba(255, 255, 255, 1);
-            transform: translateY(-1px);
-        }
-
-        .yprint-design-action-btn.delete {
-            background: rgba(239, 68, 68, 0.9);
+        .yprint-design-image-placeholder i {
+            font-size: 20px;
             color: white;
+            opacity: 0.7;
         }
 
-        .yprint-design-action-btn.delete:hover {
-            background: rgba(220, 38, 38, 1);
-        }
-
-        .yprint-design-info {
-            padding: 16px;
+        .yprint-design-content {
+            flex: 1;
+            padding-right: 1rem;
         }
 
         .yprint-design-name {
             font-size: 16px;
             font-weight: 600;
             color: #111827;
-            margin: 0 0 4px 0;
-            text-align: center;
+            margin: 0 0 0.25rem 0;
             line-height: 1.3;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
         }
 
         .yprint-design-meta {
-            font-size: 13px;
-            color: #6b7280;
-            text-align: center;
+            font-size: 14px;
+            color: #6B7280;
             margin: 0;
+            line-height: 1.4;
         }
 
         .yprint-design-status {
             display: inline-block;
-            padding: 2px 8px;
+            padding: 0.125rem 0.5rem;
             border-radius: 12px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 8px;
+            margin-top: 0.5rem;
         }
 
         .yprint-design-status.saved {
@@ -231,41 +177,93 @@ class YPrint_Your_Designs {
             color: #065f46;
         }
 
+        .yprint-design-actions {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            margin-right: 1rem;
+        }
+
+        .yprint-design-action {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            cursor: pointer;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            color: #6B7280;
+        }
+
+        .yprint-design-action:hover {
+            color: #111827;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .yprint-design-action i {
+            font-size: 20px;
+            margin-bottom: 0.25rem;
+            transition: color 0.2s ease;
+        }
+
+        .yprint-design-action-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .yprint-design-action.delete {
+            color: #DC2626;
+        }
+
+        .yprint-design-action.delete:hover {
+            color: #B91C1C;
+            background-color: rgba(220, 38, 38, 0.05);
+        }
+
+        .yprint-design-chevron {
+            color: #9CA3AF;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
         .yprint-no-designs {
             text-align: center;
-            padding: 48px 24px;
-            color: #6b7280;
+            padding: 3rem 1.5rem;
+            color: #6B7280;
         }
 
         .yprint-no-designs-icon {
             font-size: 48px;
-            color: #d1d5db;
-            margin-bottom: 16px;
+            color: #D1D5DB;
+            margin-bottom: 1rem;
         }
 
         .yprint-no-designs-title {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
             color: #374151;
-            margin: 0 0 8px 0;
+            margin: 0 0 0.5rem 0;
         }
 
         .yprint-no-designs-text {
-            font-size: 16px;
-            margin: 0 0 24px 0;
+            font-size: 14px;
+            margin: 0 0 1.5rem 0;
             line-height: 1.5;
+            color: #6B7280;
         }
 
         .yprint-create-design-btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 0.5rem;
             background-color: #0079FF;
             color: white;
             border: none;
-            border-radius: 10px;
-            padding: 12px 24px;
-            font-size: 16px;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 14px;
             font-weight: 600;
             text-decoration: none;
             transition: all 0.2s ease;
@@ -274,25 +272,24 @@ class YPrint_Your_Designs {
 
         .yprint-create-design-btn:hover {
             background-color: #0056b3;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
+            color: white;
         }
 
         .yprint-loading {
             text-align: center;
-            padding: 32px;
-            color: #6b7280;
+            padding: 2rem;
+            color: #6B7280;
         }
 
         .yprint-spinner {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 2px solid #d1d5db;
+            border: 2px solid #D1D5DB;
             border-top: 2px solid #0079FF;
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin-right: 8px;
+            margin-right: 0.5rem;
         }
 
         @keyframes spin {
@@ -303,21 +300,23 @@ class YPrint_Your_Designs {
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .yprint-your-designs {
-                padding: 20px;
-                border-radius: 12px;
+                padding: 1rem;
+                border-radius: 8px;
             }
 
             .yprint-your-designs-title {
-                font-size: 20px;
+                font-size: 16px;
             }
 
-            .yprint-designs-grid {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-                gap: 12px;
+            .yprint-design-card {
+                padding: 0.75rem;
             }
 
-            .yprint-design-info {
-                padding: 12px;
+            .yprint-design-image,
+            .yprint-design-image-placeholder {
+                width: 48px;
+                height: 48px;
+                margin-right: 0.75rem;
             }
 
             .yprint-design-name {
@@ -329,32 +328,39 @@ class YPrint_Your_Designs {
             }
 
             .yprint-design-actions {
-                flex-direction: column;
-                gap: 6px;
+                gap: 1rem;
+                margin-right: 0.5rem;
             }
 
-            .yprint-design-action-btn {
+            .yprint-design-action i {
+                font-size: 18px;
+            }
+
+            .yprint-design-action-label {
                 font-size: 11px;
-                padding: 6px 8px;
             }
         }
 
         @media (max-width: 480px) {
-            .yprint-designs-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
             .yprint-your-designs-header {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 8px;
+                gap: 0.5rem;
+            }
+
+            .yprint-design-actions {
+                gap: 0.5rem;
+            }
+
+            .yprint-design-action {
+                padding: 0.25rem;
             }
         }
         </style>
 
         <div id="<?php echo esc_attr($unique_id); ?>" class="<?php echo esc_attr($css_class); ?>">
             <div class="yprint-your-designs-header">
-                <h2 class="yprint-your-designs-title"><?php _e('Your Designs', 'yprint-plugin'); ?></h2>
+                <h2 class="yprint-your-designs-title"><?php _e('Deine Designs', 'yprint-plugin'); ?></h2>
                 <span class="yprint-your-designs-count">
                     <?php echo sprintf(_n('%d Design', '%d Designs', count($designs), 'yprint-plugin'), count($designs)); ?>
                 </span>
@@ -369,52 +375,30 @@ class YPrint_Your_Designs {
                     <p class="yprint-no-designs-text">
                         <?php _e('Erstelle dein erstes individuelles Design und bringe deine Kreativität zum Ausdruck.', 'yprint-plugin'); ?>
                     </p>
-                    <a href="<?php echo esc_url(home_url('/design-tool')); ?>" class="yprint-create-design-btn">
+                    <a href="<?php echo esc_url(home_url('/designer')); ?>" class="yprint-create-design-btn">
                         <i class="fas fa-plus"></i>
                         <?php _e('Design erstellen', 'yprint-plugin'); ?>
                     </a>
                 </div>
             <?php else : ?>
-                <div class="yprint-designs-grid">
-                    <?php foreach ($designs as $design) : ?>
+                <div class="yprint-designs-list">
+                    <?php foreach ($designs as $design) : 
+                        $template_id = self::get_template_id_for_design($design);
+                    ?>
                         <div class="yprint-design-card" data-design-id="<?php echo esc_attr($design->id); ?>">
-                            <div class="yprint-design-image-container">
-                                <?php 
-                                $preview_url = self::get_design_preview_url($design);
-                                if ($preview_url) : ?>
-                                    <img src="<?php echo esc_url($preview_url); ?>" 
-                                         alt="<?php echo esc_attr($design->name); ?>" 
-                                         class="yprint-design-image">
-                                <?php else : ?>
-                                    <div class="yprint-design-image" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center;">
-                                        <i class="fas fa-image" style="font-size: 24px; color: white; opacity: 0.7;"></i>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <div class="yprint-design-overlay">
-                                    <div class="yprint-design-actions">
-                                        <button class="yprint-design-action-btn reorder" 
-                                                data-design-id="<?php echo esc_attr($design->id); ?>"
-                                                title="<?php _e('Erneut bestellen', 'yprint-plugin'); ?>">
-                                            <i class="fas fa-shopping-cart"></i>
-                                            <?php _e('Bestellen', 'yprint-plugin'); ?>
-                                        </button>
-                                        <a href="<?php echo esc_url(home_url('/design-tool?edit=' . $design->id)); ?>" 
-                                           class="yprint-design-action-btn edit"
-                                           title="<?php _e('Design bearbeiten', 'yprint-plugin'); ?>">
-                                            <i class="fas fa-edit"></i>
-                                            <?php _e('Bearbeiten', 'yprint-plugin'); ?>
-                                        </a>
-                                        <button class="yprint-design-action-btn delete" 
-                                                data-design-id="<?php echo esc_attr($design->id); ?>"
-                                                title="<?php _e('Design löschen', 'yprint-plugin'); ?>">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
+                            <?php 
+                            $preview_url = self::get_design_preview_url($design);
+                            if ($preview_url) : ?>
+                                <img src="<?php echo esc_url($preview_url); ?>" 
+                                     alt="<?php echo esc_attr($design->name); ?>" 
+                                     class="yprint-design-image">
+                            <?php else : ?>
+                                <div class="yprint-design-image-placeholder">
+                                    <i class="fas fa-image"></i>
                                 </div>
-                            </div>
+                            <?php endif; ?>
                             
-                            <div class="yprint-design-info">
+                            <div class="yprint-design-content">
                                 <h3 class="yprint-design-name"><?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?></h3>
                                 <p class="yprint-design-meta">
                                     <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
@@ -426,6 +410,33 @@ class YPrint_Your_Designs {
                                     <span class="yprint-design-status saved"><?php _e('Gespeichert', 'yprint-plugin'); ?></span>
                                 <?php endif; ?>
                             </div>
+
+                            <div class="yprint-design-actions">
+                                <div class="yprint-design-action reorder" 
+                                     data-design-id="<?php echo esc_attr($design->id); ?>"
+                                     title="<?php _e('Erneut bestellen', 'yprint-plugin'); ?>">
+                                    <i class="fas fa-redo-alt"></i>
+                                    <div class="yprint-design-action-label"><?php _e('Reorder', 'yprint-plugin'); ?></div>
+                                </div>
+                                
+                                <?php if ($template_id) : ?>
+                                <div class="yprint-design-action edit" 
+                                     data-template-id="<?php echo esc_attr($template_id); ?>"
+                                     title="<?php _e('Design bearbeiten', 'yprint-plugin'); ?>">
+                                    <i class="fas fa-edit"></i>
+                                    <div class="yprint-design-action-label"><?php _e('Bearbeiten', 'yprint-plugin'); ?></div>
+                                </div>
+                                <?php endif; ?>
+                                
+                                <div class="yprint-design-action delete" 
+                                     data-design-id="<?php echo esc_attr($design->id); ?>"
+                                     title="<?php _e('Design löschen', 'yprint-plugin'); ?>">
+                                    <i class="fas fa-trash"></i>
+                                    <div class="yprint-design-action-label"><?php _e('Löschen', 'yprint-plugin'); ?></div>
+                                </div>
+                            </div>
+
+                            <i class="fas fa-chevron-right yprint-design-chevron"></i>
                         </div>
                     <?php endforeach; ?>
                 </div>
@@ -447,6 +458,18 @@ class YPrint_Your_Designs {
                 });
             });
 
+            // Handle edit buttons
+            const editButtons = container.querySelectorAll('.edit');
+            editButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const templateId = this.dataset.templateId;
+                    if (templateId) {
+                        window.location.href = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                    }
+                });
+            });
+
             // Handle delete buttons
             const deleteButtons = container.querySelectorAll('.delete');
             deleteButtons.forEach(button => {
@@ -464,18 +487,24 @@ class YPrint_Your_Designs {
             designCards.forEach(card => {
                 card.addEventListener('click', function(e) {
                     // Don't navigate if clicking on action buttons
-                    if (e.target.closest('.yprint-design-action-btn')) {
+                    if (e.target.closest('.yprint-design-action')) {
                         return;
                     }
-                    const designId = this.dataset.designId;
-                    window.location.href = '<?php echo esc_url(home_url('/design-tool?edit=')); ?>' + designId;
+                    
+                    const editButton = this.querySelector('.edit');
+                    if (editButton) {
+                        const templateId = editButton.dataset.templateId;
+                        if (templateId) {
+                            window.location.href = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                        }
+                    }
                 });
             });
 
             function handleReorder(designId, button) {
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <?php echo esc_js(__('Lädt...', 'yprint-plugin')); ?>';
-                button.disabled = true;
+                const originalContent = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><div class="yprint-design-action-label"><?php echo esc_js(__('Lädt...', 'yprint-plugin')); ?></div>';
+                button.style.pointerEvents = 'none';
 
                 jQuery.ajax({
                     url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
@@ -488,28 +517,28 @@ class YPrint_Your_Designs {
                 })
                 .done(function(response) {
                     if (response.success) {
-                        button.innerHTML = '<i class="fas fa-check"></i> <?php echo esc_js(__('Hinzugefügt', 'yprint-plugin')); ?>';
+                        button.innerHTML = '<i class="fas fa-check"></i><div class="yprint-design-action-label"><?php echo esc_js(__('Hinzugefügt', 'yprint-plugin')); ?></div>';
                         setTimeout(() => {
                             window.location.href = '<?php echo esc_url(wc_get_checkout_url()); ?>';
                         }, 1000);
                     } else {
                         alert(response.data || '<?php echo esc_js(__('Fehler beim Hinzufügen zum Warenkorb', 'yprint-plugin')); ?>');
-                        button.innerHTML = originalText;
-                        button.disabled = false;
+                        button.innerHTML = originalContent;
+                        button.style.pointerEvents = 'auto';
                     }
                 })
                 .fail(function() {
                     alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>');
-                    button.innerHTML = originalText;
-                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    button.style.pointerEvents = 'auto';
                 });
             }
 
             function handleDelete(designId, button) {
                 const card = button.closest('.yprint-design-card');
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                button.disabled = true;
+                const originalContent = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><div class="yprint-design-action-label"></div>';
+                button.style.pointerEvents = 'none';
 
                 jQuery.ajax({
                     url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
@@ -522,7 +551,7 @@ class YPrint_Your_Designs {
                 })
                 .done(function(response) {
                     if (response.success) {
-                        card.style.transform = 'scale(0.8)';
+                        card.style.transform = 'scale(0.95)';
                         card.style.opacity = '0';
                         setTimeout(() => {
                             card.remove();
@@ -539,14 +568,14 @@ class YPrint_Your_Designs {
                         }, 300);
                     } else {
                         alert(response.data || '<?php echo esc_js(__('Fehler beim Löschen des Designs', 'yprint-plugin')); ?>');
-                        button.innerHTML = originalText;
-                        button.disabled = false;
+                        button.innerHTML = originalContent;
+                        button.style.pointerEvents = 'auto';
                     }
                 })
                 .fail(function() {
                     alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>');
-                    button.innerHTML = originalText;
-                    button.disabled = false;
+                    button.innerHTML = originalContent;
+                    button.style.pointerEvents = 'auto';
                 });
             }
         });
@@ -583,6 +612,28 @@ class YPrint_Your_Designs {
         ));
         
         return $designs ?: array();
+    }
+
+    /**
+     * Get template ID for a design from WooCommerce product
+     *
+     * @param object $design Design object
+     * @return int|null Template ID or null if not found
+     */
+    private static function get_template_id_for_design($design) {
+        if (empty($design->template_id)) {
+            return null;
+        }
+
+        // Der template_id sollte die WooCommerce Product Post ID sein
+        // Prüfen ob das Produkt existiert
+        $product = get_post($design->template_id);
+        
+        if ($product && $product->post_type === 'product') {
+            return $design->template_id;
+        }
+
+        return null;
     }
 
     /**
@@ -667,21 +718,31 @@ class YPrint_Your_Designs {
             return;
         }
 
-        // Here you would implement the logic to add the design to cart
-        // This would typically involve:
-        // 1. Getting the template and product data
-        // 2. Calculating the price
-        // 3. Adding to WooCommerce cart with design data
-        
-        try {
-            // For now, just return success
-            // In a real implementation, you'd use your existing add-to-cart logic
+        // Check if we have the OctoPrint Design Tool class available
+        if (class_exists('OctoPrint_Design_Tool_Public')) {
+            try {
+                $octo_tool = new OctoPrint_Design_Tool_Public('', '');
+                
+                // Use the existing add_to_cart method from the Design Tool
+                $result = $octo_tool->handle_add_to_cart();
+                
+                if ($result && !is_wp_error($result)) {
+                    wp_send_json_success(array(
+                        'message' => 'Design wurde zum Warenkorb hinzugefügt',
+                        'design_id' => $design_id
+                    ));
+                } else {
+                    wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb');
+                }
+            } catch (Exception $e) {
+                wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb: ' . $e->getMessage());
+            }
+        } else {
+            // Fallback: Basic implementation without full integration
             wp_send_json_success(array(
                 'message' => 'Design wurde zum Warenkorb hinzugefügt',
                 'design_id' => $design_id
             ));
-        } catch (Exception $e) {
-            wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb: ' . $e->getMessage());
         }
     }
 
