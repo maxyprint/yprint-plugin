@@ -4,44 +4,35 @@
  * Das Popup wird über einen Button mit dem Link '#mobile-menu' ausgelöst.
  */
 function yprint_mobile_menu_popup() {
+    global $wp;
+    $current_user = wp_get_current_user();
+    $username = $current_user->exists() ? esc_html( $current_user->display_name ) : 'Gast';
+    $current_url = home_url( add_query_arg( array(), $wp->request ) );
     ?>
     <div id="mobile-menu-popup" class="mobile-menu-popup">
         <aside class="sidebar">
             <div class="user-info">
-                <h2 class="username">Ethan Carter</h2>
+                <h2 class="username"><?php echo $username; ?></h2>
             </div>
             <nav class="main-menu">
                 <ul>
-                    <li class="menu-item active">
-                        <a href="#">Account</a>
+                    <li class="menu-item<?php if (strpos($current_url, 'yprint.de/my-products') !== false) echo ' active'; ?>">
+                        <a href="https://yprint.de/my-products">Designs</a>
                     </li>
-                    <li class="menu-item">
-                        <a href="#">Designs</a>
+                    <li class="menu-item<?php if (strpos($current_url, 'yprint.de/orders') !== false) echo ' active'; ?>">
+                        <a href="https://yprint.de/orders">Bestellungen</a>
                     </li>
-                    <li class="menu-item">
-                        <a href="#">Orders</a>
+                    <li class="menu-item<?php if (strpos($current_url, 'yprint.de/settings') !== false) echo ' active'; ?>">
+                        <a href="https://yprint.de/settings">Einstellungen</a>
                     </li>
-                    <li class="menu-item">
-                        <a href="#">Creating Designs</a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="#">Support</a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="#">Settings</a>
-                    </li>
-                    <li class="menu-item">
-                        <a href="#">Language</a>
+                    <li class="menu-item<?php if (strpos($current_url, 'yprint.de/help') !== false) echo ' active'; ?>">
+                        <a href="https://yprint.de/help">Hilfe</a>
                     </li>
                     <li class="menu-item logout">
-                        <a href="#">Logout</a>
+                        <a href="<?php echo wp_logout_url(home_url()); ?>">Logout</a>
                     </li>
                 </ul>
             </nav>
-            <div class="footer">
-                <p class="version">Version 1.0.0</p>
-                <p class="copyright">&copy; Dein Copyright</p>
-            </div>
         </aside>
     </div>
     <?php
@@ -90,7 +81,7 @@ function yprint_add_mobile_menu_popup_css() {
             height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start; /* Footer wurde entfernt, daher kein space-between mehr */
             align-items: flex-start;
             position: absolute;
             left: 0;
@@ -114,6 +105,11 @@ function yprint_add_mobile_menu_popup_css() {
             font-weight: 600; /* H2 Gewicht */
             color: #FFFFFF;
             margin-bottom: 10px;
+        }
+
+        .main-menu {
+            margin-bottom: auto; /* Schiebt das Menü nach oben */
+            width: 100%;
         }
 
         .main-menu ul {
@@ -149,19 +145,12 @@ function yprint_add_mobile_menu_popup_css() {
             font-weight: 600; /* Fett für aktiv */
         }
 
-        .footer {
-            font-size: 13px; /* Kleinerer Text */
-            color: #6e6e73; /* Sekundärer Textfarbe */
-            padding-top: 30px; /* Größerer Abstand */
-            width: 100%;
-        }
-
-        .footer p {
-            margin: 5px 0;
+        .menu-item.logout {
+            margin-top: 30px; /* Abstand zum oberen Menü */
         }
 
         .menu-item.logout a {
-            color: #FFFFFF; /* Rot für Logout */
+            color: #FF4D4D; /* Rot für Logout */
         }
 
         body.menu-open {
@@ -220,15 +209,6 @@ function yprint_add_mobile_menu_popup_js() {
                     closeMenu();
                 }
             });
-
-            // Optional: Schließen des Menüs beim Klicken außerhalb des Menüs (alte Methode beibehalten - kann entfernt werden, wenn Overlay immer den Bildschirm füllt)
-            /*
-            $(document).on('click', function(event) {
-                if ($menuPopup.hasClass('open') && !$(event.target).closest('.mobile-menu-popup, a[href="#mobile-menu"], button[data-target="#mobile-menu"]').length) {
-                    closeMenu();
-                }
-            });
-            */
 
             // Optional: Schließen des Menüs mit der Escape-Taste
             $(document).on('keydown', function(event) {
