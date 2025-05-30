@@ -70,6 +70,8 @@ require_once YPRINT_PLUGIN_DIR . 'includes/your-designs-shortcode.php';
 // Include Product Slider Shortcode
 require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
 
+require_once YPRINT_PLUGIN_DIR . 'includes/navigation-menu-popup.php';
+
 // Initialize Cart Data Manager early
 add_action('init', function() {
     if (class_exists('WooCommerce')) {
