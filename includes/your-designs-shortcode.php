@@ -86,73 +86,87 @@ class YPrint_Your_Designs {
             font-weight: 400;
         }
 
+        .yprint-designs-container {
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.5rem;
+        }
+
         .yprint-designs-list {
             display: flex;
-            flex-direction: column;
             gap: 1rem;
+            padding: 0.25rem 0;
+            min-width: max-content;
         }
 
         .yprint-design-card {
             display: flex;
-            align-items: center;
-            padding: 1rem;
+            flex-direction: column;
+            width: 200px;
+            min-width: 200px;
             background-color: #ffffff;
             border-radius: 8px;
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             transition: all 0.2s ease;
             cursor: pointer;
             position: relative;
+            overflow: hidden;
         }
 
         .yprint-design-card:hover {
-            background-color: #F3F4F6;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .yprint-design-image-container {
+            position: relative;
+            width: 100%;
+            height: 120px;
+            overflow: hidden;
         }
 
         .yprint-design-image {
-            width: 64px;
-            height: 64px;
-            border-radius: 8px;
+            width: 100%;
+            height: 100%;
             object-fit: cover;
             background-color: #F9FAFB;
-            flex-shrink: 0;
-            margin-right: 1rem;
         }
 
         .yprint-design-image-placeholder {
-            width: 64px;
-            height: 64px;
-            border-radius: 8px;
+            width: 100%;
+            height: 100%;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            flex-shrink: 0;
-            margin-right: 1rem;
         }
 
         .yprint-design-image-placeholder i {
-            font-size: 20px;
+            font-size: 24px;
             color: white;
             opacity: 0.7;
         }
 
         .yprint-design-content {
+            padding: 0.75rem;
             flex: 1;
-            padding-right: 1rem;
         }
 
         .yprint-design-name {
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             color: #111827;
             margin: 0 0 0.25rem 0;
             line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .yprint-design-meta {
-            font-size: 14px;
+            font-size: 12px;
             color: #6B7280;
-            margin: 0;
+            margin: 0 0 0.5rem 0;
             line-height: 1.4;
         }
 
@@ -160,11 +174,10 @@ class YPrint_Your_Designs {
             display: inline-block;
             padding: 0.125rem 0.5rem;
             border-radius: 12px;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-top: 0.5rem;
         }
 
         .yprint-design-status.saved {
@@ -179,9 +192,11 @@ class YPrint_Your_Designs {
 
         .yprint-design-actions {
             display: flex;
-            gap: 1.5rem;
+            justify-content: space-between;
             align-items: center;
-            margin-right: 1rem;
+            padding: 0.5rem 0.75rem;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            background-color: #F9FAFB;
         }
 
         .yprint-design-action {
@@ -190,27 +205,29 @@ class YPrint_Your_Designs {
             align-items: center;
             text-align: center;
             cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 6px;
+            padding: 0.25rem;
+            border-radius: 4px;
             transition: all 0.2s ease;
             color: #6B7280;
+            flex: 1;
         }
 
         .yprint-design-action:hover {
             color: #111827;
-            background-color: rgba(0, 0, 0, 0.02);
+            background-color: rgba(0, 0, 0, 0.05);
         }
 
         .yprint-design-action i {
-            font-size: 20px;
-            margin-bottom: 0.25rem;
+            font-size: 16px;
+            margin-bottom: 0.125rem;
             transition: color 0.2s ease;
         }
 
         .yprint-design-action-label {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: 500;
             color: #374151;
+            line-height: 1;
         }
 
         .yprint-design-action.delete {
@@ -219,13 +236,26 @@ class YPrint_Your_Designs {
 
         .yprint-design-action.delete:hover {
             color: #B91C1C;
-            background-color: rgba(220, 38, 38, 0.05);
+            background-color: rgba(220, 38, 38, 0.1);
         }
 
-        .yprint-design-chevron {
-            color: #9CA3AF;
-            font-size: 16px;
-            flex-shrink: 0;
+        /* Scrollbar styling */
+        .yprint-designs-container::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .yprint-designs-container::-webkit-scrollbar-track {
+            background: #F3F4F6;
+            border-radius: 3px;
+        }
+
+        .yprint-designs-container::-webkit-scrollbar-thumb {
+            background: #D1D5DB;
+            border-radius: 3px;
+        }
+
+        .yprint-designs-container::-webkit-scrollbar-thumb:hover {
+            background: #9CA3AF;
         }
 
         .yprint-no-designs {
@@ -309,35 +339,32 @@ class YPrint_Your_Designs {
             }
 
             .yprint-design-card {
-                padding: 0.75rem;
+                width: 160px;
+                min-width: 160px;
             }
 
-            .yprint-design-image,
-            .yprint-design-image-placeholder {
-                width: 48px;
-                height: 48px;
-                margin-right: 0.75rem;
+            .yprint-design-image-container {
+                height: 100px;
+            }
+
+            .yprint-design-content {
+                padding: 0.5rem;
             }
 
             .yprint-design-name {
-                font-size: 14px;
-            }
-
-            .yprint-design-meta {
                 font-size: 12px;
             }
 
-            .yprint-design-actions {
-                gap: 1rem;
-                margin-right: 0.5rem;
+            .yprint-design-meta {
+                font-size: 10px;
             }
 
             .yprint-design-action i {
-                font-size: 18px;
+                font-size: 14px;
             }
 
             .yprint-design-action-label {
-                font-size: 11px;
+                font-size: 9px;
             }
         }
 
@@ -348,12 +375,9 @@ class YPrint_Your_Designs {
                 gap: 0.5rem;
             }
 
-            .yprint-design-actions {
-                gap: 0.5rem;
-            }
-
-            .yprint-design-action {
-                padding: 0.25rem;
+            .yprint-design-card {
+                width: 140px;
+                min-width: 140px;
             }
         }
         </style>
@@ -381,64 +405,68 @@ class YPrint_Your_Designs {
                     </a>
                 </div>
             <?php else : ?>
-                <div class="yprint-designs-list">
-                    <?php foreach ($designs as $design) : 
-                        $template_id = self::get_template_id_for_design($design);
-                    ?>
-                        <div class="yprint-design-card" data-design-id="<?php echo esc_attr($design->id); ?>">
-                            <?php 
-                            $preview_url = self::get_design_preview_url($design);
-                            if ($preview_url) : ?>
-                                <img src="<?php echo esc_url($preview_url); ?>" 
-                                     alt="<?php echo esc_attr($design->name); ?>" 
-                                     class="yprint-design-image">
-                            <?php else : ?>
-                                <div class="yprint-design-image-placeholder">
-                                    <i class="fas fa-image"></i>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="yprint-design-content">
-                                <h3 class="yprint-design-name"><?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?></h3>
-                                <p class="yprint-design-meta">
-                                    <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
-                                        date_i18n('d.m.Y', strtotime($design->created_at))); ?>
-                                </p>
-                                <?php if (self::design_has_orders($design->id)) : ?>
-                                    <span class="yprint-design-status ordered"><?php _e('Bestellt', 'yprint-plugin'); ?></span>
-                                <?php else : ?>
-                                    <span class="yprint-design-status saved"><?php _e('Gespeichert', 'yprint-plugin'); ?></span>
-                                <?php endif; ?>
-                            </div>
-
-                            <div class="yprint-design-actions">
-                                <div class="yprint-design-action reorder" 
-                                     data-design-id="<?php echo esc_attr($design->id); ?>"
-                                     title="<?php _e('Erneut bestellen', 'yprint-plugin'); ?>">
-                                    <i class="fas fa-redo-alt"></i>
-                                    <div class="yprint-design-action-label"><?php _e('Reorder', 'yprint-plugin'); ?></div>
+                <div class="yprint-designs-container">
+                    <div class="yprint-designs-list">
+                        <?php foreach ($designs as $design) : 
+                            $template_id = self::get_template_id_for_design($design);
+                        ?>
+                            <div class="yprint-design-card" data-design-id="<?php echo esc_attr($design->id); ?>">
+                                <div class="yprint-design-image-container">
+                                    <?php 
+                                    $preview_url = self::get_design_preview_url($design);
+                                    if ($preview_url) : ?>
+                                        <img src="<?php echo esc_url($preview_url); ?>" 
+                                             alt="<?php echo esc_attr($design->name); ?>" 
+                                             class="yprint-design-image">
+                                    <?php else : ?>
+                                        <div class="yprint-design-image-placeholder">
+                                            <i class="fas fa-image"></i>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 
-                                <?php if ($template_id) : ?>
-                                <div class="yprint-design-action edit" 
-                                     data-template-id="<?php echo esc_attr($template_id); ?>"
-                                     title="<?php _e('Design bearbeiten', 'yprint-plugin'); ?>">
-                                    <i class="fas fa-edit"></i>
-                                    <div class="yprint-design-action-label"><?php _e('Bearbeiten', 'yprint-plugin'); ?></div>
+                                <div class="yprint-design-content">
+                                    <h3 class="yprint-design-name" title="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>">
+                                        <?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?>
+                                    </h3>
+                                    <p class="yprint-design-meta">
+                                        <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
+                                            date_i18n('d.m.Y', strtotime($design->created_at))); ?>
+                                    </p>
+                                    <?php if (self::design_has_orders($design->id)) : ?>
+                                        <span class="yprint-design-status ordered"><?php _e('Bestellt', 'yprint-plugin'); ?></span>
+                                    <?php else : ?>
+                                        <span class="yprint-design-status saved"><?php _e('Gespeichert', 'yprint-plugin'); ?></span>
+                                    <?php endif; ?>
                                 </div>
-                                <?php endif; ?>
-                                
-                                <div class="yprint-design-action delete" 
-                                     data-design-id="<?php echo esc_attr($design->id); ?>"
-                                     title="<?php _e('Design löschen', 'yprint-plugin'); ?>">
-                                    <i class="fas fa-trash"></i>
-                                    <div class="yprint-design-action-label"><?php _e('Löschen', 'yprint-plugin'); ?></div>
+
+                                <div class="yprint-design-actions">
+                                    <?php if ($template_id) : ?>
+                                    <div class="yprint-design-action edit" 
+                                         data-template-id="<?php echo esc_attr($template_id); ?>"
+                                         title="<?php _e('Design bearbeiten', 'yprint-plugin'); ?>">
+                                        <i class="fas fa-edit"></i>
+                                        <div class="yprint-design-action-label"><?php _e('Bearbeiten', 'yprint-plugin'); ?></div>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="yprint-design-action reorder" 
+                                         data-design-id="<?php echo esc_attr($design->id); ?>"
+                                         title="<?php _e('Erneut bestellen', 'yprint-plugin'); ?>">
+                                        <i class="fas fa-redo-alt"></i>
+                                        <div class="yprint-design-action-label"><?php _e('Reorder', 'yprint-plugin'); ?></div>
+                                    </div>
+                                    
+                                    <div class="yprint-design-action delete" 
+                                         data-design-id="<?php echo esc_attr($design->id); ?>"
+                                         title="<?php _e('Design löschen', 'yprint-plugin'); ?>">
+                                        <i class="fas fa-trash"></i>
+                                        <div class="yprint-design-action-label"><?php _e('Löschen', 'yprint-plugin'); ?></div>
+                                    </div>
                                 </div>
                             </div>
-
-                            <i class="fas fa-chevron-right yprint-design-chevron"></i>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
             <?php endif; ?>
         </div>
