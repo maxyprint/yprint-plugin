@@ -481,7 +481,34 @@ class YPrint_Your_Designs {
         <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function() {
             const container = document.getElementById('<?php echo esc_js($unique_id); ?>');
-            if (!container) return;
+            if (!container) {
+                console.error('YPrint Designs: Container not found!');
+                return;
+            }
+
+            console.log('YPrint Designs: Initializing...', container);
+
+            // Handle clickable area (main card area above buttons)
+            const clickableAreas = container.querySelectorAll('.yprint-design-clickable-area');
+            console.log('YPrint Designs: Found clickable areas:', clickableAreas.length);
+            
+            clickableAreas.forEach((area, index) => {
+                console.log('YPrint Designs: Setting up clickable area', index, area.dataset.templateId);
+                area.addEventListener('click', function(e) {
+                    console.log('YPrint Designs: Clickable area clicked!', e.target);
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const templateId = this.dataset.templateId;
+                    console.log('YPrint Designs: Template ID:', templateId);
+                    if (templateId) {
+                        const url = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                        console.log('YPrint Designs: Navigating to:', url);
+                        window.location.href = url;
+                    } else {
+                        console.warn('YPrint Designs: No template ID found');
+                    }
+                });
+            });
 
             // Handle reorder buttons
             const reorderButtons = container.querySelectorAll('.reorder');
@@ -490,18 +517,6 @@ class YPrint_Your_Designs {
                     e.stopPropagation();
                     const designId = this.dataset.designId;
                     handleReorder(designId, this);
-                });
-            });
-
-            // Handle clickable area (main card area above buttons)
-            const clickableAreas = container.querySelectorAll('.yprint-design-clickable-area');
-            clickableAreas.forEach(area => {
-                area.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const templateId = this.dataset.templateId;
-                    if (templateId) {
-                        window.location.href = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
-                    }
                 });
             });
 
@@ -528,9 +543,6 @@ class YPrint_Your_Designs {
                     }
                 });
             });
-
-            // Remove the old card click handler since we now use the clickable area
-            // The clickable area handles navigation to the designer
 
             function handleReorder(designId, button) {
                 const originalContent = button.innerHTML;
