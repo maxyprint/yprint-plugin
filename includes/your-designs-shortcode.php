@@ -412,9 +412,11 @@ class YPrint_Your_Designs {
             <?php else : ?>
                 <div class="yprint-designs-container">
                     <div class="yprint-designs-list">
-                        <?php foreach ($designs as $design) : 
-                            $template_id = self::get_template_id_for_design($design);
-                        ?>
+                    <?php foreach ($designs as $design) : 
+    $template_id = self::get_template_id_for_design($design);
+    // Temporärer Debug-Code
+    self::debug_design_data($design);
+?>
                             <div class="yprint-design-card" data-design-id="<?php echo esc_attr($design->id); ?>">
                                 <div class="yprint-design-clickable-area" 
                                      data-design-id="<?php echo esc_attr($design->id); ?>"
@@ -870,6 +872,36 @@ class YPrint_Your_Designs {
             'design_id' => $design_id
         ));
     }
+
+    // Füge diese Funktion nach der get_template_id_for_design() Funktion hinzu:
+private static function debug_design_data($design) {
+    echo "<script>console.log('=== DESIGN DATA DEBUG ===');</script>";
+    echo "<script>console.log('Design ID: " . $design->id . "');</script>";
+    echo "<script>console.log('Template ID: " . $design->template_id . "');</script>";
+    echo "<script>console.log('Design Data Length: " . strlen($design->design_data ?? '') . "');</script>";
+    
+    if (!empty($design->design_data)) {
+        $decoded_data = json_decode($design->design_data, true);
+        if ($decoded_data) {
+            $data_keys = array_keys($decoded_data);
+            echo "<script>console.log('Design Data Keys: " . esc_js(implode(', ', $data_keys)) . "');</script>";
+            
+            // Prüfe speziell nach variationImages
+            if (isset($decoded_data['variationImages'])) {
+                $variation_keys = array_keys($decoded_data['variationImages']);
+                echo "<script>console.log('Variation Images Keys: " . esc_js(implode(', ', $variation_keys)) . "');</script>";
+            } else {
+                echo "<script>console.log('ERROR: No variationImages found in design_data!');</script>";
+            }
+        } else {
+            echo "<script>console.log('ERROR: Could not decode design_data JSON!');</script>";
+            echo "<script>console.log('Raw design_data (first 200 chars): " . esc_js(substr($design->design_data, 0, 200)) . "');</script>";
+        }
+    } else {
+        echo "<script>console.log('ERROR: design_data is empty!');</script>";
+    }
+    echo "<script>console.log('=== END DEBUG ===');</script>";
+}
 }
 
 // Initialize the class
