@@ -69,11 +69,12 @@ function yprint_add_mobile_menu_popup_css() {
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 9999; /* Sollte über anderen Inhalten liegen */
+            z-index: 10000; /* Sollte über anderen Inhalten liegen */
             background-color: rgba(0, 0, 0, 0.5); /* Optionaler Hintergrund-Dimmer */
             overflow: hidden; /* Verhindert Scrollen des Body, wenn Popup offen ist */
             transition: opacity 0.3s ease-in-out;
             opacity: 0;
+            cursor: pointer; /* Cursor-Hinweis, dass das Overlay klickbar ist */
         }
 
         #mobile-menu-popup.open {
@@ -96,6 +97,7 @@ function yprint_add_mobile_menu_popup_css() {
             top: 0;
             transform: translateX(-100%); /* Standardmäßig außerhalb des Bildschirms */
             transition: transform 0.3s ease-in-out;
+            cursor: auto; /* Verhindert den Overlay-Cursor auf dem Sidebar-Inhalt */
         }
 
         #mobile-menu-popup.open .sidebar {
@@ -204,12 +206,22 @@ function yprint_add_mobile_menu_popup_js() {
                 openMenu();
             }
 
-            // Optional: Schließen des Menüs beim Klicken außerhalb des Menüs
+            // Schließen des Menüs beim Klicken außerhalb des Menüs (auf das Overlay)
+            $menuPopup.on('click', function(event) {
+                // Überprüfe, ob das geklickte Element das Popup-Overlay selbst ist
+                if ($(event.target).is(this)) {
+                    closeMenu();
+                }
+            });
+
+            // Optional: Schließen des Menüs beim Klicken außerhalb des Menüs (alte Methode beibehalten - kann entfernt werden, wenn Overlay immer den Bildschirm füllt)
+            /*
             $(document).on('click', function(event) {
                 if ($menuPopup.hasClass('open') && !$(event.target).closest('.mobile-menu-popup, a[href="#mobile-menu"], button[data-target="#mobile-menu"]').length) {
                     closeMenu();
                 }
             });
+            */
 
             // Optional: Schließen des Menüs mit der Escape-Taste
             $(document).on('keydown', function(event) {
