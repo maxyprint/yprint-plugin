@@ -118,6 +118,11 @@ class YPrint_Your_Designs {
             transform: translateY(-2px);
         }
 
+        .yprint-design-clickable-area {
+            flex: 1;
+            cursor: pointer;
+        }
+
         .yprint-design-image-container {
             position: relative;
             width: 100%;
@@ -411,33 +416,35 @@ class YPrint_Your_Designs {
                             $template_id = self::get_template_id_for_design($design);
                         ?>
                             <div class="yprint-design-card" data-design-id="<?php echo esc_attr($design->id); ?>">
-                                <div class="yprint-design-image-container">
-                                    <?php 
-                                    $preview_url = self::get_design_preview_url($design);
-                                    if ($preview_url) : ?>
-                                        <img src="<?php echo esc_url($preview_url); ?>" 
-                                             alt="<?php echo esc_attr($design->name); ?>" 
-                                             class="yprint-design-image">
-                                    <?php else : ?>
-                                        <div class="yprint-design-image-placeholder">
-                                            <i class="fas fa-image"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
-                                
-                                <div class="yprint-design-content">
-                                    <h3 class="yprint-design-name" title="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>">
-                                        <?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?>
-                                    </h3>
-                                    <p class="yprint-design-meta">
-                                        <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
-                                            date_i18n('d.m.Y', strtotime($design->created_at))); ?>
-                                    </p>
-                                    <?php if (self::design_has_orders($design->id)) : ?>
-                                        <span class="yprint-design-status ordered"><?php _e('Bestellt', 'yprint-plugin'); ?></span>
-                                    <?php else : ?>
-                                        <span class="yprint-design-status saved"><?php _e('Gespeichert', 'yprint-plugin'); ?></span>
-                                    <?php endif; ?>
+                                <div class="yprint-design-clickable-area" data-template-id="<?php echo esc_attr($template_id); ?>">
+                                    <div class="yprint-design-image-container">
+                                        <?php 
+                                        $preview_url = self::get_design_preview_url($design);
+                                        if ($preview_url) : ?>
+                                            <img src="<?php echo esc_url($preview_url); ?>" 
+                                                 alt="<?php echo esc_attr($design->name); ?>" 
+                                                 class="yprint-design-image">
+                                        <?php else : ?>
+                                            <div class="yprint-design-image-placeholder">
+                                                <i class="fas fa-image"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
+                                    <div class="yprint-design-content">
+                                        <h3 class="yprint-design-name" title="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>">
+                                            <?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?>
+                                        </h3>
+                                        <p class="yprint-design-meta">
+                                            <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
+                                                date_i18n('d.m.Y', strtotime($design->created_at))); ?>
+                                        </p>
+                                        <?php if (self::design_has_orders($design->id)) : ?>
+                                            <span class="yprint-design-status ordered"><?php _e('Bestellt', 'yprint-plugin'); ?></span>
+                                        <?php else : ?>
+                                            <span class="yprint-design-status saved"><?php _e('Gespeichert', 'yprint-plugin'); ?></span>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
 
                                 <div class="yprint-design-actions">
@@ -486,6 +493,18 @@ class YPrint_Your_Designs {
                 });
             });
 
+            // Handle clickable area (main card area above buttons)
+            const clickableAreas = container.querySelectorAll('.yprint-design-clickable-area');
+            clickableAreas.forEach(area => {
+                area.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const templateId = this.dataset.templateId;
+                    if (templateId) {
+                        window.location.href = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
+                    }
+                });
+            });
+
             // Handle edit buttons
             const editButtons = container.querySelectorAll('.edit');
             editButtons.forEach(button => {
@@ -510,24 +529,8 @@ class YPrint_Your_Designs {
                 });
             });
 
-            // Handle card clicks (navigate to design tool)
-            const designCards = container.querySelectorAll('.yprint-design-card');
-            designCards.forEach(card => {
-                card.addEventListener('click', function(e) {
-                    // Don't navigate if clicking on action buttons
-                    if (e.target.closest('.yprint-design-action')) {
-                        return;
-                    }
-                    
-                    const editButton = this.querySelector('.edit');
-                    if (editButton) {
-                        const templateId = editButton.dataset.templateId;
-                        if (templateId) {
-                            window.location.href = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
-                        }
-                    }
-                });
-            });
+            // Remove the old card click handler since we now use the clickable area
+            // The clickable area handles navigation to the designer
 
             function handleReorder(designId, button) {
                 const originalContent = button.innerHTML;
