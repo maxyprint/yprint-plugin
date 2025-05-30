@@ -150,7 +150,7 @@ function yprint_add_mobile_menu_popup_css() {
         }
 
         .menu-item.logout a {
-            color: #FF4D4D; /* Rot für Logout */
+            color: #FFFFFF; /* Rot für Logout */
         }
 
         body.menu-open {
