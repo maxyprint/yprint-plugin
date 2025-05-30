@@ -69,7 +69,7 @@ function yprint_add_mobile_menu_popup_css() {
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1001; /* Sollte über anderen Inhalten liegen */
+            z-index: 9999; /* Sollte über anderen Inhalten liegen */
             background-color: rgba(0, 0, 0, 0.5); /* Optionaler Hintergrund-Dimmer */
             overflow: hidden; /* Verhindert Scrollen des Body, wenn Popup offen ist */
             transition: opacity 0.3s ease-in-out;
