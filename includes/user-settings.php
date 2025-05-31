@@ -3401,13 +3401,6 @@ function yprint_shipping_settings_shortcode() {
             </div>
         </form>
         
-        <!-- "Neue Adresse hinzufügen" Button direkt unterhalb der Standard-Adresse -->
-        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; text-align: center;">
-            <a href="?tab=shipping&action=add" class="yprint-button">
-                <i class="fas fa-plus"></i> Neue Adresse hinzufügen
-            </a>
-        </div>
-        
         <?php endif; ?>
     </div>
     
