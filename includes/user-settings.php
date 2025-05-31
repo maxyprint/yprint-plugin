@@ -316,7 +316,7 @@ function yprint_settings_styles() {
     position: relative;
 }
 
-/* Navigation Area - Lower z-index */
+/* Navigation Area - Niedrigere z-index */
 .yprint-settings-tabs-container {
     position: relative;
     z-index: 1;
@@ -324,7 +324,19 @@ function yprint_settings_styles() {
 
 .yprint-settings-grid {
     position: relative;
-    z-index: 2;
+    z-index: 1;
+}
+
+/* Content Area - Höhere z-index für Überlagerung */
+.yprint-settings-content {
+    position: relative;
+    z-index: 10;
+    background-color: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    padding: 30px;
+    border: 1px solid #e5e5e5;
+    margin-top: -20px; /* Überlappt die Navigation leicht */
 }
 
 /* Go Back Button - Nur Desktop */
@@ -470,19 +482,7 @@ function yprint_settings_styles() {
                 max-width: 600px;
             }
             
-            /* Desktop Layout mit Sidebar */
-            .yprint-settings-tabs-container {
-                display: flex;
-                gap: 30px;
-            }
             
-            .yprint-settings-grid {
-                flex: 0 0 250px;
-                gap: 5px;
-                position: sticky;
-                top: 30px;
-                height: fit-content;
-            }
             
             .settings-item {
     display: flex;
@@ -537,15 +537,40 @@ function yprint_settings_styles() {
     transform: rotate(180deg);
 }
             
-            .yprint-settings-content {
-                flex: 1;
-                background-color: #FFFFFF;
-                border-radius: 16px;
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-                padding: 30px;
-                border: 1px solid #e5e5e5;
-            }
-        }
+        /* Desktop Layout mit Sidebar */
+.yprint-settings-tabs-container {
+    display: flex;
+    gap: 30px;
+    position: relative;
+}
+
+.yprint-settings-grid {
+    flex: 0 0 250px;
+    gap: 5px;
+    position: sticky;
+    top: 30px;
+    height: fit-content;
+    z-index: 1;
+}
+
+.yprint-settings-content {
+    flex: 1;
+    min-width: 0; /* Ermöglicht Flex-Shrinking */
+    background-color: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    padding: 30px;
+    border: 1px solid #e5e5e5;
+    z-index: 10;
+    position: relative;
+    
+    /* Erweitere Content-Bereich für bessere Überlagerung */
+    margin-left: -15px; /* Überlappt leicht die Navigation */
+    padding-left: 45px; /* Kompensiert die negative Margin */
+    
+    /* Zusätzliche Breite für vollständige Überlagerung */
+    width: calc(100% + 15px);
+}
         
         /* Verstecke Desktop-spezifische Elemente auf Mobile */
         .yprint-settings-tabs,
@@ -1240,38 +1265,110 @@ function yprint_personal_settings_shortcode() {
             
             <script>
 jQuery(document).ready(function($) {
-    // Mobile Tab Selection Handler mit Overlay
+    // Mobile Tab Selection Handler mit Content-Überlagerung
 $(".settings-item").on("click", function(e) {
     var href = $(this).attr('href');
     
-    // Auf Mobile: Overlay anzeigen
+    // Auf Mobile: Content über Navigation legen
     if (window.innerWidth <= 768) {
         e.preventDefault();
         
         // Chevron-Animation
         $(this).find('.settings-chevron').addClass('rotate');
         
-        // Overlay erstellen falls nicht vorhanden
-        if ($('.settings-overlay').length === 0) {
-            $('body').append('<div class="settings-overlay"></div>');
+        // Content-Overlay erstellen falls nicht vorhanden
+        if ($('.content-overlay').length === 0) {
+            $('body').append('<div class="content-overlay"></div>');
         }
         
-        // Content-Bereich laden (AJAX oder direkte Navigation)
-        loadSettingsContent(href);
-        
-        // Overlay und Settings anzeigen
+        // Content-Bereich anzeigen
         setTimeout(function() {
-            $('.settings-overlay').addClass('show');
-            $('.settings-section').addClass('show');
-            $('body').css('overflow', 'hidden'); // Verhindert Scrollen im Hintergrund
+            $('.content-overlay').addClass('show');
+            $('.yprint-settings-content').addClass('show');
+            $('body').css('overflow', 'hidden');
         }, 100);
         
         // Close-Button hinzufügen falls nicht vorhanden
-        if ($('.settings-close-btn').length === 0) {
-            $('.settings-section').prepend('<button class="settings-close-btn" type="button">&times;</button>');
+        if ($('.content-close-btn').length === 0) {
+            $('.yprint-settings-content').prepend('<button class="content-close-btn" type="button">&times;</button>');
         }
+        
+        // Content laden (AJAX oder direkte Navigation nach Animation)
+        setTimeout(function() {
+            window.location.href = href;
+        }, 500);
     }
 });
+
+// Close-Handler für Content-Overlay
+$(document).on('click', '.content-close-btn, .content-overlay', function(e) {
+    if (e.target === this) {
+        $('.content-overlay').removeClass('show');
+        $('.yprint-settings-content').removeClass('show');
+        $('body').css('overflow', 'auto');
+        $('.settings-chevron').removeClass('rotate');
+    }
+});
+
+// Escape-Key zum Schließen
+$(document).on('keydown', function(e) {
+    if (e.key === 'Escape' && $('.yprint-settings-content.show').length > 0) {
+        $('.content-overlay').removeClass('show');
+        $('.yprint-settings-content').removeClass('show');
+        $('body').css('overflow', 'auto');
+        $('.settings-chevron').removeClass('rotate');
+    }
+});
+
+/* Close-Button für Mobile Content */
+.content-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background-color: #f5f5f7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    z-index: 101;
+    transition: all 0.2s ease;
+}
+
+.content-close-btn:hover {
+    background-color: #e5e5ea;
+    color: #333;
+    transform: scale(1.05);
+}
+
+.content-close-btn:active {
+    transform: scale(0.95);
+}
+
+/* Desktop - Close-Button verstecken */
+@media (min-width: 768px) {
+    .content-close-btn {
+        display: none;
+    }
+    
+    .content-overlay {
+        display: none;
+    }
+    
+    .yprint-settings-content {
+        position: relative !important;
+        transform: none !important;
+        height: auto !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+}
 
 // Close-Handler für Settings-Overlay
 $(document).on('click', '.settings-close-btn, .settings-overlay', function(e) {
@@ -4518,29 +4615,60 @@ return ob_get_clean();
         padding-bottom: 8px;
     }
     
-    /* Settings Section - Vollständige Mobile Überlagerung */
-    .settings-section {
+    .yprint-settings-content {
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 50;
+        z-index: 100; /* Sehr hoher z-index */
+        background-color: #FFFFFF;
         margin: 0;
-        padding: 24px 20px;
+        padding: 20px;
         border-radius: 0;
         border: none;
-        width: 100%;
+        width: 100vw;
         height: 100vh;
         overflow-y: auto;
-        
-        /* Vollständiger weißer Hintergrund */
-        background-color: #FFFFFF;
         box-shadow: none;
         
-        /* Smooth Transition */
+        /* Initial versteckt */
         transform: translateY(100%);
         transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        opacity: 0;
+        visibility: hidden;
+    }
+    
+    /* Content sichtbar wenn aktiv */
+    .yprint-settings-content.show {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
+    }
+    
+    /* Navigation bleibt sichtbar aber darunter */
+    .yprint-settings-grid {
+        z-index: 1;
+        position: relative;
+    }
+    
+    /* Overlay-Hintergrund für Navigation */
+    .content-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.4);
+        z-index: 99;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    
+    .content-overlay.show {
+        opacity: 1;
+        visibility: visible;
     }
     
     /* Settings Section - Sichtbar wenn aktiv */
