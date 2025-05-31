@@ -1543,6 +1543,33 @@ function yprint_billing_settings_shortcode() {
     $billing_country = get_user_meta($user_id, 'billing_country', true) ?: 'DE';
     $alt_billing_email = get_user_meta($user_id, 'alt_billing_email', true);
     $is_company = get_user_meta($user_id, 'is_company', true);
+    
+    // Lieferadresse für "Identisch mit Lieferadresse" Option abrufen
+    $shipping_first_name = get_user_meta($user_id, 'shipping_first_name', true);
+    $shipping_last_name = get_user_meta($user_id, 'shipping_last_name', true);
+    $shipping_company = get_user_meta($user_id, 'shipping_company', true);
+    $shipping_address_1 = get_user_meta($user_id, 'shipping_address_1', true);
+    $shipping_address_2 = get_user_meta($user_id, 'shipping_address_2', true);
+    $shipping_postcode = get_user_meta($user_id, 'shipping_postcode', true);
+    $shipping_city = get_user_meta($user_id, 'shipping_city', true);
+    $shipping_country = get_user_meta($user_id, 'shipping_country', true) ?: 'DE';
+    
+    // Prüfen ob Rechnungsadresse identisch mit Lieferadresse ist
+    $billing_same_as_shipping = (
+        $billing_first_name === $shipping_first_name &&
+        $billing_last_name === $shipping_last_name &&
+        $billing_address_1 === $shipping_address_1 &&
+        $billing_address_2 === $shipping_address_2 &&
+        $billing_postcode === $shipping_postcode &&
+        $billing_city === $shipping_city &&
+        $billing_country === $shipping_country
+    );
+    
+    // Address Manager Integration - gespeicherte Adressen abrufen
+    $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+    if (!is_array($additional_addresses)) {
+        $additional_addresses = array();
+    }
 
     // Formularverarbeitung
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['billing_settings_nonce']) && 
@@ -1667,31 +1694,75 @@ function yprint_billing_settings_shortcode() {
             </div>
         </div>
         
-        <form method="POST" class="yprint-settings-form" id="billing-settings-form">
-            <?php wp_nonce_field('save_billing_settings', 'billing_settings_nonce'); ?>
-            
-            <div class="yprint-form-row">
-                <div class="yprint-form-group">
-                    <label for="billing_first_name" class="yprint-form-label">Vorname</label>
-                    <input type="text" 
-                           id="billing_first_name" 
-                           name="billing_first_name" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($billing_first_name); ?>" 
-                           placeholder="Vorname" 
-                           required>
-                </div>
-                <div class="yprint-form-group">
-                    <label for="billing_last_name" class="yprint-form-label">Nachname</label>
-                    <input type="text" 
-                           id="billing_last_name" 
-                           name="billing_last_name" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($billing_last_name); ?>" 
-                           placeholder="Nachname" 
-                           required>
+        <!-- Option: Identisch mit Lieferadresse -->
+        <div class="yprint-checkbox-row" style="margin-bottom: 20px;">
+            <input type="checkbox" 
+                   id="billing_same_as_shipping" 
+                   name="billing_same_as_shipping" 
+                   <?php checked($billing_same_as_shipping, true); ?>>
+            <label for="billing_same_as_shipping">Rechnungsadresse ist identisch mit Lieferadresse</label>
+        </div>
+        
+        <!-- Adressverwaltung Integration -->
+        <div id="billing-address-selection" <?php echo $billing_same_as_shipping ? 'style="display: none;"' : ''; ?>>
+            <?php if (!empty($additional_addresses)): ?>
+            <h4>Gespeicherte Adressen verwenden</h4>
+            <div class="yprint-saved-addresses billing-addresses">
+                <div class="address-cards-grid">
+                    <?php foreach ($additional_addresses as $address): ?>
+                    <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
+                        <div class="address-card-content">
+                            <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
+                            <p>
+                                <?php if (!empty($address['company'])): ?>
+                                <?php echo esc_html($address['company']); ?><br>
+                                <?php endif; ?>
+                                <?php echo esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')); ?><br>
+                                <?php echo esc_html(($address['address_1'] ?? '') . ' ' . ($address['address_2'] ?? '')); ?><br>
+                                <?php echo esc_html(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')); ?><br>
+                                <?php echo esc_html($address['country'] ?? ''); ?>
+                            </p>
+                        </div>
+                        <button type="button" class="yprint-button btn-use-billing-address">
+                            Für Rechnung verwenden
+                        </button>
+                    </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
+            
+            <div class="billing-separator" style="text-align: center; margin: 20px 0;">
+                <span style="background: white; padding: 0 15px; color: #999;">oder neue Adresse eingeben</span>
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e5e5e5; z-index: -1;"></div>
+            </div>
+            <?php endif; ?>
+        
+            <form method="POST" class="yprint-settings-form" id="billing-settings-form">
+                <?php wp_nonce_field('save_billing_settings', 'billing_settings_nonce'); ?>
+                <input type="hidden" id="billing_same_as_shipping_value" name="billing_same_as_shipping_value" value="<?php echo $billing_same_as_shipping ? '1' : '0'; ?>">
+                
+                <div class="yprint-form-row">
+                    <div class="yprint-form-group">
+                        <label for="billing_first_name" class="yprint-form-label">Vorname</label>
+                        <input type="text" 
+                               id="billing_first_name" 
+                               name="billing_first_name" 
+                               class="yprint-form-input" 
+                               value="<?php echo esc_attr($billing_first_name); ?>" 
+                               placeholder="Vorname" 
+                               required>
+                    </div>
+                    <div class="yprint-form-group">
+                        <label for="billing_last_name" class="yprint-form-label">Nachname</label>
+                        <input type="text" 
+                               id="billing_last_name" 
+                               name="billing_last_name" 
+                               class="yprint-form-input" 
+                               value="<?php echo esc_attr($billing_last_name); ?>" 
+                               placeholder="Nachname" 
+                               required>
+                    </div>
+                </div>
             
             <!-- Unternehmensdaten -->
             <div class="yprint-checkbox-row">
@@ -1865,6 +1936,52 @@ function yprint_billing_settings_shortcode() {
         // HERE API Initialisierung
         const API_KEY = 'xPlTGXIrjg1O6Oea3e2gvo5lrN-iO1gT47Sc-VojWdU';
         
+        // Rechnungsadresse identisch mit Lieferadresse umschalten
+        $('#billing_same_as_shipping').change(function() {
+            const isChecked = this.checked;
+            $('#billing_same_as_shipping_value').val(isChecked ? '1' : '0');
+            
+            if (isChecked) {
+                // Lieferadresse in Rechnungsfelder kopieren
+                $('#billing_first_name').val('<?php echo esc_js($shipping_first_name); ?>');
+                $('#billing_last_name').val('<?php echo esc_js($shipping_last_name); ?>');
+                $('#billing_address_1').val('<?php echo esc_js($shipping_address_1); ?>');
+                $('#billing_address_2').val('<?php echo esc_js($shipping_address_2); ?>');
+                $('#billing_postcode').val('<?php echo esc_js($shipping_postcode); ?>');
+                $('#billing_city').val('<?php echo esc_js($shipping_city); ?>');
+                $('#billing_country').val('<?php echo esc_js($shipping_country); ?>');
+                
+                // Adressauswahl verstecken
+                $('#billing-address-selection').slideUp(300);
+            } else {
+                // Adressauswahl anzeigen
+                $('#billing-address-selection').slideDown(300);
+            }
+        });
+        
+        // Gespeicherte Adresse für Rechnung verwenden
+        $('.btn-use-billing-address').on('click', function() {
+            const addressCard = $(this).closest('.address-card');
+            const addressData = JSON.parse(addressCard.attr('data-address-data'));
+            
+            // Felder ausfüllen
+            $('#billing_first_name').val(addressData.first_name || '');
+            $('#billing_last_name').val(addressData.last_name || '');
+            $('#billing_company').val(addressData.company || '');
+            $('#billing_address_1').val(addressData.address_1 || '');
+            $('#billing_address_2').val(addressData.address_2 || '');
+            $('#billing_postcode').val(addressData.postcode || '');
+            $('#billing_city').val(addressData.city || '');
+            $('#billing_country').val(addressData.country || 'DE');
+            
+            // Visuelles Feedback
+            addressCard.addClass('selected');
+            setTimeout(() => addressCard.removeClass('selected'), 2000);
+            
+            // Event triggern für weitere Integration
+            $(document).trigger('yprint_billing_address_selected', [addressData]);
+        });
+        
         // Unternehmensfeld umschalten
         $('#is_company').change(function() {
             if (this.checked) {
@@ -2016,6 +2133,21 @@ function yprint_shipping_settings_shortcode() {
     $user_id = get_current_user_id();
     $message = '';
     $message_type = '';
+    
+    // Address Manager Styles und Scripts einbinden
+    wp_enqueue_style('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/css/yprint-address-manager.css', array(), YPRINT_PLUGIN_VERSION);
+    wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    
+    // Address Manager JavaScript-Variablen
+    wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint_save_address_action'),
+        'messages' => array(
+            'delete_address' => __('Adresse wirklich löschen?', 'yprint-plugin'),
+            'set_as_default' => __('Als Standard setzen', 'yprint-plugin'),
+            'standard_address' => __('Standard-Adresse', 'yprint-plugin'),
+        ),
+    ));
     
     // Standard-Lieferadresse aus WooCommerce abrufen
     $shipping_first_name = get_user_meta($user_id, 'shipping_first_name', true);
@@ -2227,6 +2359,107 @@ function yprint_shipping_settings_shortcode() {
         
         <div class="yprint-info-message" style="background-color: #E3F2FD; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 15px;">
             <p style="margin: 0;">Hier kannst du verschiedene Lieferadressen hinterlegen und verwalten. Im Bestellprozess kannst du dann auswählen, an welche dieser Adressen geliefert werden soll.</p>
+        </div>
+        
+        <!-- Address Manager Integration -->
+        <div class="yprint-saved-addresses" style="margin-bottom: 30px;">
+            <div class="loading-addresses" style="text-align: center; padding: 20px; display: none;">
+                <i class="fas fa-spinner fa-spin"></i> Lade gespeicherte Adressen...
+            </div>
+            <div class="address-cards-grid" style="display: none;">
+                <!-- Adressen werden hier durch JavaScript geladen -->
+            </div>
+        </div>
+        
+        <!-- Adressformular (wird versteckt wenn gespeicherte Adressen vorhanden) -->
+        <div id="address-form" style="display: none;">
+            <h3>Neue Adresse hinzufügen</h3>
+            
+            <!-- Hier wird das bestehende Formular eingefügt -->
+        </div>
+        
+        <!-- Modal für neue/bearbeitete Adressen -->
+        <div id="new-address-modal" class="yprint-address-modal" style="display: none;">
+            <div class="address-modal-overlay"></div>
+            <div class="address-modal-content">
+                <div class="address-modal-header">
+                    <h3>Neue Adresse hinzufügen</h3>
+                    <button type="button" class="btn-close-modal">&times;</button>
+                </div>
+                <form id="new-address-form">
+                    <!-- Hidden Field für ID bei Bearbeitung -->
+                    <input type="hidden" id="new_address_edit_id" name="new_address_edit_id" value="">
+                    
+                    <div class="yprint-form-group">
+                        <label for="new_address_name" class="yprint-form-label">Bezeichnung</label>
+                        <input type="text" id="new_address_name" name="new_address_name" class="yprint-form-input" placeholder="z.B. Zuhause, Büro" required>
+                    </div>
+                    
+                    <div class="yprint-form-row">
+                        <div class="yprint-form-group">
+                            <label for="new_address_first_name" class="yprint-form-label">Vorname</label>
+                            <input type="text" id="new_address_first_name" name="new_address_first_name" class="yprint-form-input" required>
+                        </div>
+                        <div class="yprint-form-group">
+                            <label for="new_last_name" class="yprint-form-label">Nachname</label>
+                            <input type="text" id="new_last_name" name="new_last_name" class="yprint-form-input" required>
+                        </div>
+                    </div>
+                    
+                    <div class="yprint-checkbox-row">
+                        <input type="checkbox" id="new_is_company" name="new_is_company">
+                        <label for="new_is_company">Firmenadresse</label>
+                    </div>
+                    
+                    <div id="new_company_field" class="yprint-company-fields" style="display: none;">
+                        <div class="yprint-form-group">
+                            <label for="new_company" class="yprint-form-label">Firmenname</label>
+                            <input type="text" id="new_company" name="new_company" class="yprint-form-input">
+                        </div>
+                    </div>
+                    
+                    <div class="yprint-form-row">
+                        <div class="yprint-form-group">
+                            <label for="new_address_1" class="yprint-form-label">Straße</label>
+                            <input type="text" id="new_address_1" name="new_address_1" class="yprint-form-input" required>
+                        </div>
+                        <div class="yprint-form-group">
+                            <label for="new_address_2" class="yprint-form-label">Hausnummer</label>
+                            <input type="text" id="new_address_2" name="new_address_2" class="yprint-form-input" required>
+                        </div>
+                    </div>
+                    
+                    <div class="yprint-form-row">
+                        <div class="yprint-form-group">
+                            <label for="new_postcode" class="yprint-form-label">PLZ</label>
+                            <input type="text" id="new_postcode" name="new_postcode" class="yprint-form-input" required>
+                        </div>
+                        <div class="yprint-form-group">
+                            <label for="new_city" class="yprint-form-label">Stadt</label>
+                            <input type="text" id="new_city" name="new_city" class="yprint-form-input" required>
+                        </div>
+                    </div>
+                    
+                    <div class="yprint-form-group">
+                        <label for="new_country" class="yprint-form-label">Land</label>
+                        <select id="new_country" name="new_country" class="yprint-form-select" required>
+                            <option value="DE">Deutschland</option>
+                            <option value="AT">Österreich</option>
+                            <option value="CH">Schweiz</option>
+                            <!-- Weitere Länder hier -->
+                        </select>
+                    </div>
+                    
+                    <div class="address-form-actions">
+                        <button type="button" class="yprint-button yprint-button-secondary btn-cancel-address">Abbrechen</button>
+                        <button type="button" class="yprint-button btn-save-address">
+                            <i class="fas fa-save mr-2"></i>Adresse speichern
+                        </button>
+                    </div>
+                    
+                    <div class="address-form-errors" style="display: none; margin-top: 15px;"></div>
+                </form>
+            </div>
         </div>
         
         <?php
@@ -4183,9 +4416,10 @@ function yprint_save_privacy_settings_callback() {
 add_action('wp_ajax_yprint_save_privacy_settings', 'yprint_save_privacy_settings_callback');
 
 /**
- * Benutzerkonten synchronisieren mit Checkout
+ * Vollständige Checkout-Account-Synchronisation
  * - Integration der Benutzereinstellungen in den Checkout
- * - Automatische Auswahl für Deutschland
+ * - Address Manager Integration
+ * - Event-basierte Kommunikation
  */
 
 /**
@@ -4202,6 +4436,585 @@ function yprint_set_default_country($user_id) {
     }
 }
 add_action('user_register', 'yprint_set_default_country');
+
+/**
+ * AJAX Handler für Synchronisation Account → Checkout
+ */
+function yprint_sync_account_to_checkout_callback() {
+    check_ajax_referer('yprint_sync_nonce', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht angemeldet'));
+        return;
+    }
+    
+    $user_id = get_current_user_id();
+    $sync_type = isset($_POST['sync_type']) ? sanitize_text_field($_POST['sync_type']) : 'all';
+    
+    $response_data = array();
+    
+    // Adressdaten synchronisieren
+    if ($sync_type === 'all' || $sync_type === 'addresses') {
+        $addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+        if (!is_array($addresses)) {
+            $addresses = array();
+        }
+        
+        $response_data['addresses'] = $addresses;
+        $response_data['default_address'] = get_user_meta($user_id, 'default_shipping_address', true);
+    }
+    
+    // Zahlungsmethoden synchronisieren
+    if ($sync_type === 'all' || $sync_type === 'payment') {
+        global $wpdb;
+        $payment_methods = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}payment_methods WHERE user_id = %d ORDER BY is_default DESC",
+                $user_id
+            ),
+            ARRAY_A
+        );
+        
+        $response_data['payment_methods'] = $payment_methods;
+    }
+    
+    // Benutzer-Präferenzen
+    if ($sync_type === 'all' || $sync_type === 'preferences') {
+        $response_data['preferences'] = array(
+            'billing_same_as_shipping' => get_user_meta($user_id, 'billing_same_as_shipping', true),
+            'save_payment_methods' => get_user_meta($user_id, 'save_payment_methods', true),
+            'auto_fill_checkout' => get_user_meta($user_id, 'auto_fill_checkout', true),
+        );
+    }
+    
+    do_action('yprint_account_checkout_synced', $user_id, $sync_type, $response_data);
+    
+    wp_send_json_success($response_data);
+}
+add_action('wp_ajax_yprint_sync_account_to_checkout', 'yprint_sync_account_to_checkout_callback');
+
+/**
+ * AJAX Handler für Checkout → Account Sync
+ */
+function yprint_sync_checkout_to_account_callback() {
+    check_ajax_referer('yprint_sync_nonce', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht angemeldet'));
+        return;
+    }
+    
+    $user_id = get_current_user_id();
+    $checkout_data = isset($_POST['checkout_data']) ? wp_unslash($_POST['checkout_data']) : array();
+    
+    if (empty($checkout_data)) {
+        wp_send_json_error(array('message' => 'Keine Daten übermittelt'));
+        return;
+    }
+    
+    // Adresse aus Checkout als neue gespeicherte Adresse hinzufügen
+   if (isset($checkout_data['address']) && !empty($checkout_data['address'])) {
+    $address_data = $checkout_data['address'];
+    
+    // Validierung der Adressdaten
+    $required_fields = array('first_name', 'last_name', 'address_1', 'postcode', 'city', 'country');
+    $is_valid = true;
+    
+    foreach ($required_fields as $field) {
+        if (empty($address_data[$field])) {
+            $is_valid = false;
+            break;
+        }
+    }
+    
+    if ($is_valid) {
+        // Neue Adresse zu gespeicherten Adressen hinzufügen
+        $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+        if (!is_array($additional_addresses)) {
+            $additional_addresses = array();
+        }
+        
+        $new_address = array(
+            'id' => uniqid('checkout_addr_'),
+            'name' => 'Aus Checkout (' . date('d.m.Y') . ')',
+            'first_name' => sanitize_text_field($address_data['first_name']),
+            'last_name' => sanitize_text_field($address_data['last_name']),
+            'company' => isset($address_data['company']) ? sanitize_text_field($address_data['company']) : '',
+            'address_1' => sanitize_text_field($address_data['address_1']),
+            'address_2' => isset($address_data['address_2']) ? sanitize_text_field($address_data['address_2']) : '',
+            'postcode' => sanitize_text_field($address_data['postcode']),
+            'city' => sanitize_text_field($address_data['city']),
+            'country' => sanitize_text_field($address_data['country']),
+            'is_company' => !empty($address_data['company']),
+            'created_from' => 'checkout'
+        );
+        
+        $additional_addresses[] = $new_address;
+        update_user_meta($user_id, 'additional_shipping_addresses', $additional_addresses);
+        
+        do_action('yprint_address_saved_from_checkout', $user_id, $new_address);
+    }
+}
+
+// Zahlungsmethoden-Präferenzen aktualisieren
+if (isset($checkout_data['save_payment_method']) && $checkout_data['save_payment_method']) {
+    update_user_meta($user_id, 'save_payment_methods', true);
+}
+
+// Auto-Fill Präferenz speichern
+if (isset($checkout_data['auto_fill_enabled'])) {
+    update_user_meta($user_id, 'auto_fill_checkout', (bool)$checkout_data['auto_fill_enabled']);
+}
+
+do_action('yprint_checkout_account_synced', $user_id, $checkout_data);
+
+wp_send_json_success(array('message' => 'Checkout-Daten erfolgreich in Account übernommen'));
+}
+add_action('wp_ajax_yprint_sync_checkout_to_account', 'yprint_sync_checkout_to_account_callback');
+
+/**
+* Event Handler für Address Manager Integration
+*/
+function yprint_trigger_address_events() {
+// JavaScript Events für Account-Settings Integration
+?>
+<script>
+// Event-System für Address Manager Integration
+jQuery(document).ready(function($) {
+    // Event: Adresse wurde ausgewählt
+    $(document).on('address_selected', function(event, addressId, addressData) {
+        console.log('Address selected:', addressId, addressData);
+        
+        // Trigger Account-Checkout Sync
+        $.ajax({
+            url: yprint_checkout_params.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_sync_account_to_checkout',
+                nonce: yprint_checkout_params.nonce,
+                sync_type: 'addresses',
+                selected_address: addressId
+            },
+            success: function(response) {
+                if (response.success) {
+                    $(document).trigger('yprint_checkout_prefilled', [response.data]);
+                }
+            }
+        });
+    });
+    
+    // Event: Adresse wurde gespeichert
+    $(document).on('address_saved', function(event, addressData) {
+        console.log('Address saved:', addressData);
+        
+        // Benachrichtigung anzeigen
+        if (typeof showMessage === 'function') {
+            showMessage('Adresse wurde erfolgreich gespeichert', 'success');
+        }
+        
+        $(document).trigger('yprint_address_updated', [addressData]);
+    });
+    
+    // Event: Adresse wurde gelöscht
+    $(document).on('address_deleted', function(event, addressId) {
+        console.log('Address deleted:', addressId);
+        
+        // Prüfen ob das die aktuelle Checkout-Adresse war
+        const currentAddressId = $('#selected_address_id').val();
+        if (currentAddressId === addressId) {
+            // Checkout-Felder leeren
+            $('#street, #housenumber, #zip, #city').val('');
+            $('#selected_address_id').val('');
+        }
+        
+        $(document).trigger('yprint_address_updated');
+    });
+    
+    // Event: Zahlungsmethode wurde gespeichert
+    $(document).on('payment_method_saved', function(event, paymentData) {
+        console.log('Payment method saved:', paymentData);
+        
+        // Checkout-Integration aktualisieren
+        if (window.YPrintStripeCheckout && paymentData.is_default) {
+            window.YPrintStripeCheckout.setDefaultPaymentMethod(paymentData.id);
+        }
+        
+        $(document).trigger('yprint_payment_method_updated', [paymentData]);
+    });
+    
+    // Event: Benutzer-Präferenzen wurden geändert
+    $(document).on('preferences_changed', function(event, preferences) {
+        console.log('Preferences changed:', preferences);
+        
+        // Auto-Fill Status aktualisieren
+        if (preferences.auto_fill_checkout !== undefined) {
+            $('body').toggleClass('auto-fill-enabled', preferences.auto_fill_checkout);
+        }
+        
+        $(document).trigger('yprint_preferences_updated', [preferences]);
+    });
+});
+</script>
+<?php
+}
+add_action('wp_footer', 'yprint_trigger_address_events');
+
+/**
+* Erweiterte Zahlungsmethoden-Integration mit Stripe
+*/
+function yprint_payment_settings_integration() {
+// Stripe Customer Portal Integration
+if (class_exists('YPrint_Stripe_API')) {
+    add_action('wp_ajax_yprint_create_stripe_portal_session', 'yprint_create_stripe_portal_session_callback');
+}
+}
+add_action('init', 'yprint_payment_settings_integration');
+
+/**
+* Stripe Customer Portal Session erstellen
+*/
+function yprint_create_stripe_portal_session_callback() {
+check_ajax_referer('stripe_portal_nonce', 'nonce');
+
+if (!is_user_logged_in()) {
+    wp_send_json_error(array('message' => 'Nicht angemeldet'));
+    return;
+}
+
+if (!class_exists('YPrint_Stripe_API')) {
+    wp_send_json_error(array('message' => 'Stripe nicht verfügbar'));
+    return;
+}
+
+$user_id = get_current_user_id();
+$stripe_customer_id = get_user_meta($user_id, '_stripe_customer_id', true);
+
+if (!$stripe_customer_id) {
+    wp_send_json_error(array('message' => 'Kein Stripe-Kunde gefunden'));
+    return;
+}
+
+try {
+    // Stripe Portal Session erstellen
+    $portal_session = YPrint_Stripe_API::request(array(
+        'customer' => $stripe_customer_id,
+        'return_url' => add_query_arg('tab', 'payment', wp_get_referer())
+    ), 'billing_portal/sessions');
+    
+    if (!empty($portal_session->error)) {
+        throw new Exception($portal_session->error->message);
+    }
+    
+    wp_send_json_success(array(
+        'portal_url' => $portal_session->url
+    ));
+    
+} catch (Exception $e) {
+    wp_send_json_error(array('message' => $e->getMessage()));
+}
+}
+
+/**
+* Erweiterte Formularverarbeitung mit Event-Integration
+*/
+function yprint_enhanced_form_processing() {
+// Hook in bestehende Formularverarbeitung für Event-Triggering
+add_action('yprint_after_address_save', 'yprint_trigger_address_saved_event', 10, 2);
+add_action('yprint_after_payment_method_save', 'yprint_trigger_payment_saved_event', 10, 2);
+}
+add_action('init', 'yprint_enhanced_form_processing');
+
+/**
+* Event-Trigger für gespeicherte Adresse
+*/
+function yprint_trigger_address_saved_event($user_id, $address_data) {
+// JavaScript Event über AJAX Response auslösen
+if (defined('DOING_AJAX') && DOING_AJAX) {
+    // Event wird über JavaScript in der AJAX Response ausgelöst
+    add_filter('wp_send_json_success', function($response) use ($address_data) {
+        if (!isset($response['events'])) {
+            $response['events'] = array();
+        }
+        $response['events'][] = array(
+            'type' => 'address_saved',
+            'data' => $address_data
+        );
+        return $response;
+    });
+}
+}
+
+/**
+* Event-Trigger für gespeicherte Zahlungsmethode
+*/
+function yprint_trigger_payment_saved_event($user_id, $payment_data) {
+if (defined('DOING_AJAX') && DOING_AJAX) {
+    add_filter('wp_send_json_success', function($response) use ($payment_data) {
+        if (!isset($response['events'])) {
+            $response['events'] = array();
+        }
+        $response['events'][] = array(
+            'type' => 'payment_method_saved',
+            'data' => $payment_data
+        );
+        return $response;
+    });
+}
+}
+
+/**
+* Checkout-Präferenzen Management
+*/
+function yprint_checkout_preferences_shortcode() {
+if (!is_user_logged_in()) {
+    return '<p>Bitte melde dich an, um deine Checkout-Präferenzen zu verwalten.</p>';
+}
+
+$user_id = get_current_user_id();
+$auto_fill = get_user_meta($user_id, 'auto_fill_checkout', true);
+$save_addresses = get_user_meta($user_id, 'save_addresses_checkout', true);
+$save_payment_methods = get_user_meta($user_id, 'save_payment_methods', true);
+
+ob_start();
+?>
+<div class="yprint-checkout-preferences">
+    <h3>Checkout-Einstellungen</h3>
+    
+    <form id="checkout-preferences-form">
+        <div class="yprint-setting-row">
+            <div class="yprint-setting-info">
+                <div class="yprint-setting-title">Automatisches Ausfüllen</div>
+                <div class="yprint-setting-description">Checkout-Felder automatisch mit gespeicherten Daten ausfüllen</div>
+            </div>
+            <label class="yprint-switch">
+                <input type="checkbox" id="auto_fill_checkout" name="auto_fill_checkout" <?php checked($auto_fill, true); ?>>
+                <span class="yprint-switch-slider"></span>
+            </label>
+        </div>
+        
+        <div class="yprint-setting-row">
+            <div class="yprint-setting-info">
+                <div class="yprint-setting-title">Adressen automatisch speichern</div>
+                <div class="yprint-setting-description">Neue Adressen im Checkout automatisch für zukünftige Bestellungen speichern</div>
+            </div>
+            <label class="yprint-switch">
+                <input type="checkbox" id="save_addresses_checkout" name="save_addresses_checkout" <?php checked($save_addresses, true); ?>>
+                <span class="yprint-switch-slider"></span>
+            </label>
+        </div>
+        
+        <div class="yprint-setting-row">
+            <div class="yprint-setting-info">
+                <div class="yprint-setting-title">Zahlungsmethoden speichern</div>
+                <div class="yprint-setting-description">Zahlungsmethoden für schnellere zukünftige Käufe speichern</div>
+            </div>
+            <label class="yprint-switch">
+                <input type="checkbox" id="save_payment_methods" name="save_payment_methods" <?php checked($save_payment_methods, true); ?>>
+                <span class="yprint-switch-slider"></span>
+            </label>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <button type="submit" class="yprint-button">Einstellungen speichern</button>
+        </div>
+    </form>
+</div>
+
+<script>
+jQuery(document).ready(function($) {
+    $('#checkout-preferences-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const preferences = {
+            auto_fill_checkout: $('#auto_fill_checkout').is(':checked'),
+            save_addresses_checkout: $('#save_addresses_checkout').is(':checked'),
+            save_payment_methods: $('#save_payment_methods').is(':checked')
+        };
+        
+        $.ajax({
+            url: yprint_checkout_params.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_save_checkout_preferences',
+                nonce: yprint_checkout_params.nonce,
+                preferences: preferences
+            },
+            success: function(response) {
+                if (response.success) {
+                    $(document).trigger('preferences_changed', [preferences]);
+                    
+                    // Feedback anzeigen
+                    const message = $('<div class="yprint-message yprint-message-success">Einstellungen gespeichert</div>');
+                    $('.yprint-checkout-preferences').prepend(message);
+                    setTimeout(() => message.fadeOut(), 3000);
+                }
+            }
+        });
+    });
+});
+</script>
+<?php
+
+return ob_get_clean();
+}
+add_shortcode('yprint_checkout_preferences', 'yprint_checkout_preferences_shortcode');
+
+/**
+* AJAX Handler für Checkout-Präferenzen
+*/
+function yprint_save_checkout_preferences_callback() {
+check_ajax_referer('yprint_checkout_nonce', 'nonce');
+
+if (!is_user_logged_in()) {
+    wp_send_json_error(array('message' => 'Nicht angemeldet'));
+    return;
+}
+
+$user_id = get_current_user_id();
+$preferences = isset($_POST['preferences']) ? wp_unslash($_POST['preferences']) : array();
+
+if (empty($preferences)) {
+    wp_send_json_error(array('message' => 'Keine Präferenzen übermittelt'));
+    return;
+}
+
+// Präferenzen speichern
+update_user_meta($user_id, 'auto_fill_checkout', !empty($preferences['auto_fill_checkout']));
+update_user_meta($user_id, 'save_addresses_checkout', !empty($preferences['save_addresses_checkout']));
+update_user_meta($user_id, 'save_payment_methods', !empty($preferences['save_payment_methods']));
+
+do_action('yprint_checkout_preferences_updated', $user_id, $preferences);
+
+wp_send_json_success(array(
+    'message' => 'Checkout-Präferenzen gespeichert',
+    'preferences' => $preferences
+));
+}
+add_action('wp_ajax_yprint_save_checkout_preferences', 'yprint_save_checkout_preferences_callback');
+
+/**
+* Integration von Checkout-Präferenzen in User Settings Tab
+*/
+function yprint_add_checkout_preferences_tab($tabs) {
+$tabs['checkout'] = array(
+    'title' => 'Checkout-Einstellungen',
+    'icon' => 'shopping-cart'
+);
+return $tabs;
+}
+
+/**
+* Erweiterte User Settings mit Checkout-Tab
+*/
+function yprint_user_settings_with_checkout_shortcode($atts) {
+$atts = shortcode_atts(array(
+    'test_mode' => 'no',
+    'debug' => 'no',
+), $atts, 'yprint_user_settings');
+
+// Benutzer muss angemeldet sein
+if (!is_user_logged_in()) {
+    return '<div class="yprint-login-required">
+        <p>Bitte melde dich an, um deine Einstellungen zu verwalten.</p>
+        <a href="' . esc_url(wc_get_page_permalink('myaccount')) . '" class="yprint-button">Zum Login</a>
+    </div>';
+}
+
+// Aktuellen Tab abrufen
+$current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'personal';
+
+// Erweiterte Tabs mit Checkout-Integration
+$tabs = array(
+    'personal' => array('title' => 'Persönliche Daten', 'icon' => 'user'),
+    'billing' => array('title' => 'Rechnungsadresse', 'icon' => 'file-invoice'),
+    'shipping' => array('title' => 'Lieferadressen', 'icon' => 'shipping-fast'),
+    'payment' => array('title' => 'Zahlungsmethoden', 'icon' => 'credit-card'),
+    'checkout' => array('title' => 'Checkout-Einstellungen', 'icon' => 'shopping-cart'),
+    'notifications' => array('title' => 'Benachrichtigungen', 'icon' => 'bell'),
+    'privacy' => array('title' => 'Datenschutz', 'icon' => 'shield-alt'),
+);
+
+ob_start();
+
+// Meldungen verarbeiten
+$message = isset($_GET['message']) ? sanitize_text_field($_GET['message']) : '';
+$message_type = isset($_GET['type']) ? sanitize_text_field($_GET['type']) : 'info';
+
+if ($message) {
+    echo '<div class="yprint-message yprint-message-' . esc_attr($message_type) . '">';
+    echo esc_html($message);
+    echo '</div>';
+}
+
+?>
+<div class="yprint-settings-container">
+    <div class="yprint-settings-header">
+        <h1>Mein Konto</h1>
+        <p class="yprint-settings-intro">Verwalte deine Einstellungen und Checkout-Präferenzen</p>
+    </div>
+
+    <div class="yprint-settings-tabs-container">
+        <div class="yprint-settings-grid">
+            <?php foreach ($tabs as $tab_id => $tab_info) : 
+                $active_class = ($current_tab === $tab_id) ? ' active' : '';
+                ?>
+                <a href="?tab=<?php echo esc_attr($tab_id); ?>" class="settings-item<?php echo esc_attr($active_class); ?>">
+                    <div class="settings-item-left">
+                        <div class="settings-icon">
+                            <i class="fas fa-<?php echo esc_attr($tab_info['icon']); ?>"></i>
+                        </div>
+                        <div class="settings-title"><?php echo esc_html($tab_info['title']); ?></div>
+                    </div>
+                    <div class="settings-chevron">
+                        <i class="fas fa-chevron-right"></i>
+                    </div>
+                </a>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="yprint-settings-content">
+            <?php
+            switch ($current_tab) {
+                case 'personal':
+                    echo do_shortcode('[yprint_personal_settings]');
+                    break;
+                case 'billing':
+                    echo do_shortcode('[yprint_billing_settings]');
+                    break;
+                case 'shipping':
+                    echo do_shortcode('[yprint_shipping_settings]');
+                    break;
+                case 'payment':
+                    echo do_shortcode('[yprint_payment_settings]');
+                    break;
+                case 'checkout':
+                    echo do_shortcode('[yprint_checkout_preferences]');
+                    break;
+                case 'notifications':
+                    echo do_shortcode('[yprint_notification_settings]');
+                    break;
+                case 'privacy':
+                    echo do_shortcode('[yprint_privacy_settings]');
+                    break;
+            }
+            ?>
+        </div>
+    </div>
+</div>
+<?php
+
+return ob_get_clean();
+}
+
+/**
+* Registrierung der erweiterten Shortcodes
+*/
+function yprint_register_enhanced_shortcodes() {
+// Bestehende Shortcodes überschreiben für Integration
+remove_shortcode('yprint_user_settings');
+add_shortcode('yprint_user_settings', 'yprint_user_settings_with_checkout_shortcode');
+}
+add_action('init', 'yprint_register_enhanced_shortcodes', 20);
 
 /**
  * Einstellungen mit WooCommerce Checkout integrieren - Verschiedene Felder übertragen
