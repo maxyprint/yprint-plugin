@@ -58,7 +58,6 @@ function yprint_help_shortcode() {
         /* YPrint Help Page Styles - White Theme */
         .yprint-help-container {
             font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-            background-color: #ffffff;
             color: #1d1d1f;
             min-height: 100vh;
             padding: 16px;
