@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: YPrint Hilfe-Seite
-Description: Umfassende Hilfe-Seite mit FAQ, Support-Kontakt und technischer Hilfe im YPrint Dark Theme
+Description: Umfassende Hilfe-Seite mit FAQ, Support-Kontakt und technischer Hilfe im YPrint White Theme
 Version: 2.0
 Author: YPrint Team
 */
@@ -55,11 +55,11 @@ function yprint_help_shortcode() {
 
 <div class="yprint-help-container">
     <style>
-        /* YPrint Help Page Styles - Dark Theme */
+        /* YPrint Help Page Styles - White Theme */
         .yprint-help-container {
             font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-            background-color: #1d1d1f;
-            color: #ffffff;
+            background-color: #ffffff;
+            color: #1d1d1f;
             min-height: 100vh;
             padding: 16px;
             line-height: 1.5;
@@ -96,7 +96,7 @@ function yprint_help_shortcode() {
             font-size: 28px;
             font-weight: 600;
             margin: 0;
-            color: #ffffff;
+            color: #1d1d1f;
         }
         
         .search-bar {
@@ -117,12 +117,12 @@ function yprint_help_shortcode() {
         .search-input {
             width: 100%;
             padding: 16px 16px 16px 52px;
-            background-color: #444;
-            border: none;
+            background-color: #f6f7fa;
+            border: 1px solid #e5e5e5;
             border-radius: 12px;
-            color: #ffffff;
+            color: #1d1d1f;
             font-size: 16px;
-            transition: background-color 0.2s ease;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
         }
         
         .search-input::placeholder {
@@ -131,21 +131,24 @@ function yprint_help_shortcode() {
         
         .search-input:focus {
             outline: none;
-            background-color: #555;
+            border-color: #0079FF;
+            background-color: #ffffff;
         }
         
         .help-section {
             margin-bottom: 24px;
         }
         
-        .faq-dropdown {
-            background-color: #444;
+        .faq-dropdown, .tech-help-dropdown, .other-topics-dropdown {
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
             border-radius: 12px;
             overflow: hidden;
             margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
         }
         
-        .faq-title-container {
+        .dropdown-title-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -154,15 +157,15 @@ function yprint_help_shortcode() {
             transition: background-color 0.2s ease;
         }
         
-        .faq-title-container:hover {
-            background-color: #555;
+        .dropdown-title-container:hover {
+            background-color: #f6f7fa;
         }
         
-        .faq-title {
+        .dropdown-title {
             font-size: 18px;
             font-weight: 600;
             margin: 0;
-            color: #ffffff;
+            color: #1d1d1f;
         }
         
         .chevron-icon {
@@ -176,19 +179,19 @@ function yprint_help_shortcode() {
             transform: rotate(180deg);
         }
         
-        .faq-content {
+        .dropdown-content {
             padding: 0 20px;
             max-height: 0;
             overflow: hidden;
             transition: max-height 0.3s ease, padding 0.3s ease;
         }
         
-        .faq-content.open {
+        .dropdown-content.open {
             max-height: 500px;
             padding: 0 20px 20px 20px;
         }
         
-        .faq-list {
+        .faq-list, .help-list {
             list-style: none;
             padding: 0;
             margin: 0;
@@ -197,7 +200,7 @@ function yprint_help_shortcode() {
         .faq-item {
             margin-bottom: 16px;
             padding-bottom: 16px;
-            border-bottom: 1px solid #555;
+            border-bottom: 1px solid #e5e5e5;
         }
         
         .faq-item:last-child {
@@ -208,7 +211,7 @@ function yprint_help_shortcode() {
         
         .faq-question {
             font-weight: 600;
-            color: #ffffff;
+            color: #1d1d1f;
             margin-bottom: 8px;
         }
         
@@ -218,17 +221,19 @@ function yprint_help_shortcode() {
         }
         
         .contact-support {
-            background-color: #444;
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
         }
         
         .section-title {
             font-size: 18px;
             font-weight: 600;
             margin: 0 0 16px 0;
-            color: #ffffff;
+            color: #1d1d1f;
         }
         
         .contact-buttons {
@@ -241,8 +246,8 @@ function yprint_help_shortcode() {
             flex: 1;
             min-width: 120px;
             padding: 14px 20px;
-            background-color: #f5f5f7;
-            color: #1d1d1f;
+            background-color: #0079FF;
+            color: #ffffff;
             border: none;
             border-radius: 10px;
             font-size: 16px;
@@ -257,9 +262,9 @@ function yprint_help_shortcode() {
         }
         
         .contact-button:hover {
-            background-color: #e5e5ea;
+            background-color: #0056b3;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
         }
         
         .contact-button svg {
@@ -267,25 +272,12 @@ function yprint_help_shortcode() {
             height: 18px;
         }
         
-        .technical-help, .other-topics {
-            background-color: #444;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-        
-        .help-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
         .help-list-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 12px 0;
-            border-bottom: 1px solid #555;
+            border-bottom: 1px solid #e5e5e5;
             cursor: pointer;
             transition: color 0.2s ease;
         }
@@ -306,7 +298,7 @@ function yprint_help_shortcode() {
         .help-footer {
             text-align: center;
             padding: 20px 0;
-            border-top: 1px solid #444;
+            border-top: 1px solid #e5e5e5;
             margin-top: 32px;
         }
         
@@ -332,7 +324,7 @@ function yprint_help_shortcode() {
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: rgba(0, 0, 0, 0.8);
+            background-color: rgba(0, 0, 0, 0.5);
             display: none;
             align-items: center;
             justify-content: center;
@@ -345,14 +337,15 @@ function yprint_help_shortcode() {
         }
         
         .contact-modal-content {
-            background-color: #1d1d1f;
+            background-color: #ffffff;
             border-radius: 16px;
             padding: 24px;
             max-width: 500px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
-            border: 1px solid #444;
+            border: 1px solid #e5e5e5;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
         
         .modal-header {
@@ -366,7 +359,7 @@ function yprint_help_shortcode() {
             font-size: 20px;
             font-weight: 600;
             margin: 0;
-            color: #ffffff;
+            color: #1d1d1f;
         }
         
         .close-button {
@@ -380,7 +373,7 @@ function yprint_help_shortcode() {
         }
         
         .close-button:hover {
-            color: #ffffff;
+            color: #1d1d1f;
         }
         
         .close-button svg {
@@ -396,18 +389,19 @@ function yprint_help_shortcode() {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #ffffff;
+            color: #1d1d1f;
         }
         
         .form-input, .form-textarea {
             width: 100%;
             padding: 12px 16px;
-            background-color: #444;
-            border: 1px solid #555;
+            background-color: #f6f7fa;
+            border: 1px solid #e5e5e5;
             border-radius: 8px;
-            color: #ffffff;
+            color: #1d1d1f;
             font-size: 16px;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+            box-sizing: border-box;
         }
         
         .form-input::placeholder, .form-textarea::placeholder {
@@ -417,6 +411,7 @@ function yprint_help_shortcode() {
         .form-input:focus, .form-textarea:focus {
             outline: none;
             border-color: #0079FF;
+            background-color: #ffffff;
         }
         
         .form-textarea {
@@ -433,9 +428,9 @@ function yprint_help_shortcode() {
         
         .btn-secondary {
             padding: 12px 20px;
-            background-color: #444;
-            color: #ffffff;
-            border: 1px solid #555;
+            background-color: #f6f7fa;
+            color: #1d1d1f;
+            border: 1px solid #e5e5e5;
             border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
@@ -443,7 +438,7 @@ function yprint_help_shortcode() {
         }
         
         .btn-secondary:hover {
-            background-color: #555;
+            background-color: #e5e5ea;
         }
         
         .btn-primary {
@@ -462,7 +457,7 @@ function yprint_help_shortcode() {
         }
         
         .success-message {
-            background-color: #444;
+            background-color: #f6f7fa;
             border: 1px solid #28a745;
             border-radius: 8px;
             padding: 16px;
@@ -471,7 +466,7 @@ function yprint_help_shortcode() {
         }
         
         .error-message {
-            background-color: #444;
+            background-color: #f6f7fa;
             border: 1px solid #dc3545;
             border-radius: 8px;
             padding: 16px;
@@ -513,11 +508,13 @@ function yprint_help_shortcode() {
         
         /* Search functionality styles */
         .search-results {
-            background-color: #444;
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 24px;
             display: none;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
         }
         
         .search-results.show {
@@ -526,16 +523,25 @@ function yprint_help_shortcode() {
         
         .search-result-item {
             padding: 12px 0;
-            border-bottom: 1px solid #555;
+            border-bottom: 1px solid #e5e5e5;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
         }
         
         .search-result-item:last-child {
             border-bottom: none;
         }
         
+        .search-result-item:hover {
+            background-color: #f6f7fa;
+            margin: 0 -12px;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        
         .search-result-title {
             font-weight: 600;
-            color: #ffffff;
+            color: #1d1d1f;
             margin-bottom: 4px;
         }
         
@@ -548,6 +554,70 @@ function yprint_help_shortcode() {
             text-align: center;
             color: #6e6e73;
             padding: 20px;
+        }
+        
+        /* Detail Content Styles */
+        .detail-content {
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+        
+        .detail-content.show {
+            display: block;
+        }
+        
+        .detail-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .detail-back-button {
+            background: transparent;
+            border: none;
+            color: #0079FF;
+            cursor: pointer;
+            padding: 8px;
+            margin-right: 12px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .detail-back-button:hover {
+            background-color: rgba(0, 121, 255, 0.1);
+        }
+        
+        .detail-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+            color: #1d1d1f;
+        }
+        
+        .detail-text {
+            color: #6e6e73;
+            line-height: 1.6;
+        }
+        
+        .detail-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .detail-list-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e5e5;
+            color: #6e6e73;
+        }
+        
+        .detail-list-item:last-child {
+            border-bottom: none;
         }
     </style>
 
@@ -573,6 +643,19 @@ function yprint_help_shortcode() {
         <div id="searchResultsList"></div>
     </div>
 
+    <!-- Detail Content Container -->
+    <div class="detail-content" id="detailContent">
+        <div class="detail-header">
+            <button class="detail-back-button" onclick="hideDetailContent()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <h2 class="detail-title" id="detailTitle"></h2>
+        </div>
+        <div id="detailBody"></div>
+    </div>
+
     <?php if ($message_sent): ?>
     <div class="success-message">
         Deine Nachricht wurde erfolgreich gesendet. Wir werden uns bald bei dir melden!
@@ -588,13 +671,13 @@ function yprint_help_shortcode() {
     <?php endif; ?>
 
     <div class="faq-dropdown">
-        <div class="faq-title-container" onclick="toggleFAQ()">
-            <h2 class="faq-title">Häufig gestellte Fragen</h2>
+        <div class="dropdown-title-container" onclick="toggleDropdown('faq')">
+            <h2 class="dropdown-title">Häufig gestellte Fragen</h2>
             <svg class="chevron-icon" id="faqChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M6 9l6 6 6-6"/>
             </svg>
         </div>
-        <div class="faq-content" id="faqContent">
+        <div class="dropdown-content" id="faqContent">
             <ul class="faq-list">
                 <li class="faq-item">
                     <div class="faq-question">Wie kann ich meine Bestellung verfolgen?</div>
@@ -639,34 +722,48 @@ function yprint_help_shortcode() {
         </div>
     </div>
 
-    <div class="technical-help">
-        <h3 class="section-title">Technische Hilfe</h3>
-        <ul class="help-list">
-            <li class="help-list-item" onclick="showCommonIssues()">
-                Häufige Probleme
-                <span>→</span>
-            </li>
-            <li class="help-list-item">
-                Design-Upload Probleme
-                <span>→</span>
-            </li>
-            <li class="help-list-item">
-                Website-Probleme
-                <span>→</span>
-            </li>
-        </ul>
+    <div class="tech-help-dropdown">
+        <div class="dropdown-title-container" onclick="toggleDropdown('techHelp')">
+            <h3 class="dropdown-title">Technische Hilfe</h3>
+            <svg class="chevron-icon" id="techHelpChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="dropdown-content" id="techHelpContent">
+            <ul class="help-list">
+                <li class="help-list-item" onclick="showDetailContent('common-issues')">
+                    Häufige Probleme
+                    <span>→</span>
+                </li>
+                <li class="help-list-item" onclick="showDetailContent('design-upload')">
+                    Design-Upload Probleme
+                    <span>→</span>
+                </li>
+                <li class="help-list-item" onclick="showDetailContent('website-problems')">
+                    Website-Probleme
+                    <span>→</span>
+                </li>
+            </ul>
+        </div>
     </div>
 
-    <div class="other-topics">
-        <h3 class="section-title">Weitere Themen</h3>
-        <ul class="help-list">
-            <li class="help-list-item">Versand</li>
-            <li class="help-list-item">Rücksendungen</li>
-            <li class="help-list-item">Zahlungen</li>
-            <li class="help-list-item">Konto</li>
-            <li class="help-list-item">Größentabelle</li>
-            <li class="help-list-item">Materialien</li>
-        </ul>
+    <div class="other-topics-dropdown">
+        <div class="dropdown-title-container" onclick="toggleDropdown('otherTopics')">
+            <h3 class="dropdown-title">Weitere Themen</h3>
+            <svg class="chevron-icon" id="otherTopicsChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+        </div>
+        <div class="dropdown-content" id="otherTopicsContent">
+            <ul class="help-list">
+                <li class="help-list-item" onclick="showDetailContent('shipping')">Versand</li>
+                <li class="help-list-item" onclick="showDetailContent('returns')">Rücksendungen</li>
+                <li class="help-list-item" onclick="showDetailContent('payments')">Zahlungen</li>
+                <li class="help-list-item" onclick="showDetailContent('account')">Konto</li>
+                <li class="help-list-item" onclick="showDetailContent('size-chart')">Größentabelle</li>
+                <li class="help-list-item" onclick="showDetailContent('materials')">Materialien</li>
+            </ul>
+        </div>
     </div>
 
     <footer class="help-footer">
@@ -715,13 +812,218 @@ function yprint_help_shortcode() {
     </div>
 
     <script>
-        // FAQ Toggle Functionality
-        function toggleFAQ() {
-            const content = document.getElementById('faqContent');
-            const chevron = document.getElementById('faqChevron');
+        // Detail content data
+        const detailData = {
+            'common-issues': {
+                title: 'Häufige Probleme',
+                content: `
+                    <div class="detail-text">
+                        <p>Hier sind die häufigsten technischen Probleme und ihre Lösungen:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Design wird nicht korrekt angezeigt:</strong> Stelle sicher, dass dein Design im PNG oder JPEG Format vorliegt und die Auflösung mindestens 300 DPI beträgt.</li>
+                            <li class="detail-list-item"><strong>Upload dauert zu lange:</strong> Überprüfe deine Internetverbindung und stelle sicher, dass die Dateigröße unter 50MB liegt.</li>
+                            <li class="detail-list-item"><strong>Zahlungsfehler beim Checkout:</strong> Überprüfe deine Kartendaten und stelle sicher, dass genügend Guthaben vorhanden ist.</li>
+                            <li class="detail-list-item"><strong>E-Mail-Bestätigung nicht erhalten:</strong> Überprüfe deinen Spam-Ordner oder kontaktiere unseren Support.</li>
+                            <li class="detail-list-item"><strong>Probleme mit der Größenauswahl:</strong> Verwende unsere Größentabelle als Referenz und beachte, dass Größen je nach Produkttyp variieren können.</li>
+                        </ul>
+                    </div>
+                `
+            },
+            'design-upload': {
+                title: 'Design-Upload Probleme',
+                content: `
+                    <div class="detail-text">
+                        <p>Probleme beim Hochladen deiner Designs? Hier findest du Hilfe:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Unterstützte Dateiformate:</strong> PNG, JPEG, PDF (Vektordateien bevorzugt)</li>
+                            <li class="detail-list-item"><strong>Maximale Dateigröße:</strong> 50MB pro Datei</li>
+                            <li class="detail-list-item"><strong>Empfohlene Auflösung:</strong> Mindestens 300 DPI für beste Druckqualität</li>
+                            <li class="detail-list-item"><strong>Farbmodus:</strong> CMYK für Druck, RGB für Bildschirmdarstellung</li>
+                            <li class="detail-list-item"><strong>Transparenz:</strong> PNG-Dateien mit transparentem Hintergrund werden unterstützt</li>
+                        </ul>
+                        <p>Falls weiterhin Probleme auftreten, kontaktiere unseren Support mit der Fehlermeldung.</p>
+                    </div>
+                `
+            },
+            'website-problems': {
+                title: 'Website-Probleme',
+                content: `
+                    <div class="detail-text">
+                        <p>Technische Probleme mit der Website? Hier sind einige Lösungsansätze:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Seite lädt nicht:</strong> Leere deinen Browser-Cache und lade die Seite neu (Strg+F5)</li>
+                            <li class="detail-list-item"><strong>Login-Probleme:</strong> Überprüfe deine Anmeldedaten oder setze dein Passwort zurück</li>
+                            <li class="detail-list-item"><strong>Browser-Kompatibilität:</strong> Verwende die neueste Version von Chrome, Firefox, Safari oder Edge</li>
+                            <li class="detail-list-item"><strong>JavaScript-Fehler:</strong> Stelle sicher, dass JavaScript in deinem Browser aktiviert ist</li>
+                            <li class="detail-list-item"><strong>Mobile Ansicht:</strong> Bei Problemen auf dem Smartphone versuche die Desktop-Version</li>
+                        </ul>
+                    </div>
+                `
+            },
+            'shipping': {
+                title: 'Versand',
+                content: `
+                    <div class="detail-text">
+                        <p>Alles was du über unseren Versand wissen musst:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Versandkosten Deutschland:</strong> 4,90€ (kostenlos ab 50€)</li>
+                            <li class="detail-list-item"><strong>Versandkosten EU:</strong> 9,90€ (kostenlos ab 75€)</li>
+                            <li class="detail-list-item"><strong>Lieferzeit Deutschland:</strong> 3-7 Werktage</li>
+                            <li class="detail-list-item"><strong>Lieferzeit EU:</strong> 5-10 Werktage</li>
+                            <li class="detail-list-item"><strong>Sendungsverfolgung:</strong> Du erhältst eine Tracking-Nummer per E-Mail</li>
+                            <li class="detail-list-item"><strong>Express-Versand:</strong> Verfügbar für 9,90€ Aufpreis (1-3 Werktage)</li>
+                        </ul>
+                    </div>
+                `
+            },
+            'returns': {
+                title: 'Rücksendungen',
+                content: `
+                    <div class="detail-text">
+                        <p>Informationen zu Rücksendungen und Umtausch:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Rückgaberecht:</strong> 14 Tage ab Erhalt der Ware</li>
+                            <li class="detail-list-item"><strong>Bedingung:</strong> Artikel müssen ungetragen und in Originalverpackung sein</li>
+                            <li class="detail-list-item"><strong>Personalisierte Artikel:</strong> Können nur bei Produktionsfehlern zurückgegeben werden</li>
+                            <li class="detail-list-item"><strong>Rücksendekosten:</strong> Trägt der Kunde (außer bei fehlerhaften Produkten)</li>
+                            <li class="detail-list-item"><strong>Erstattung:</strong> Erfolgt innerhalb von 14 Tagen nach Erhalt der Rücksendung</li>
+                        </ul>
+                    </div>
+                `
+            },
+            'payments': {
+                title: 'Zahlungen',
+                content: `
+                    <div class="detail-text">
+                        <p>Alle verfügbaren Zahlungsmethoden im Überblick:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Kreditkarten:</strong> Visa, Mastercard, American Express</li>
+                            <li class="detail-list-item"><strong>Debitkarten:</strong> Maestro, V-Pay</li>
+                            <li class="detail-list-item"><strong>Digital Wallets:</strong> Apple Pay, Google Pay, PayPal</li>
+                            <li class="detail-list-item"><strong>Bankeinzug:</strong> SEPA-Lastschrift</li>
+                            <li class="detail-list-item"><strong>Sicherheit:</strong> Alle Zahlungen werden SSL-verschlüsselt übertragen</li>
+                            <li class="detail-list-item"><strong>Währung:</strong> Alle Preise in Euro (EUR)</li>
+                        </ul>
+                    </div>
+                `
+            },
+            'account': {
+                title: 'Konto',
+                content: `
+                    <div class="detail-text">
+                        <p>Verwalte dein YPrint-Konto:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>Registrierung:</strong> Kostenlos mit E-Mail-Adresse</li>
+                            <li class="detail-list-item"><strong>Bestellübersicht:</strong> Alle deine Bestellungen auf einen Blick</li>
+                            <li class="detail-list-item"><strong>Adressbuch:</strong> Speichere mehrere Lieferadressen</li>
+                            <li class="detail-list-item"><strong>Passwort ändern:</strong> Jederzeit in den Kontoeinstellungen möglich</li>
+                            <li class="detail-list-item"><strong>Newsletter:</strong> Abonniere unseren Newsletter für Angebote</li>
+                            <li class="detail-list-item"><strong>Konto löschen:</strong> Kontaktiere unseren Support für die Löschung</li>
+                        </ul>
+                    </div>
+                `
+            },
+            'size-chart': {
+                title: 'Größentabelle',
+                content: `
+                    <div class="detail-text">
+                        <p>Finde die richtige Größe für deine Bestellung:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>XS:</strong> Brustumfang 80-84 cm</li>
+                            <li class="detail-list-item"><strong>S:</strong> Brustumfang 84-88 cm</li>
+                            <li class="detail-list-item"><strong>M:</strong> Brustumfang 88-92 cm</li>
+                            <li class="detail-list-item"><strong>L:</strong> Brustumfang 92-96 cm</li>
+                            <li class="detail-list-item"><strong>XL:</strong> Brustumfang 96-100 cm</li>
+                            <li class="detail-list-item"><strong>XXL:</strong> Brustumfang 100-104 cm</li>
+                            <li class="detail-list-item"><strong>3XL:</strong> Brustumfang 104-108 cm</li>
+                        </ul>
+                        <p><strong>Tipp:</strong> Miss deinen Brustumfang an der breitesten Stelle und wähle die entsprechende Größe.</p>
+                    </div>
+                `
+            },
+            'materials': {
+                title: 'Materialien',
+                content: `
+                    <div class="detail-text">
+                        <p>Informationen über unsere verwendeten Materialien:</p>
+                        <ul class="detail-list">
+                            <li class="detail-list-item"><strong>T-Shirts:</strong> 100% Baumwolle, 180g/m²</li>
+                            <li class="detail-list-item"><strong>Hoodies:</strong> 80% Baumwolle, 20% Polyester, 350g/m²</li>
+                            <li class="detail-list-item"><strong>Sweatshirts:</strong> 85% Baumwolle, 15% Polyester, 280g/m²</li>
+                            <li class="detail-list-item"><strong>Druckverfahren:</strong> Direct-to-Garment (DTG) für beste Qualität</li>
+                            <li class="detail-list-item"><strong>Nachhaltigkeit:</strong> Wir verwenden OEKO-TEX zertifizierte Materialien</li>
+                            <li class="detail-list-item"><strong>Pflege:</strong> Waschbar bei 30°C, nicht bleichen, mäßig heiß bügeln</li>
+                        </ul>
+                    </div>
+                `
+            }
+        };
+
+        // Dropdown Toggle Functionality
+        function toggleDropdown(type) {
+            const content = document.getElementById(type + 'Content');
+            const chevron = document.getElementById(type + 'Chevron');
             
             content.classList.toggle('open');
             chevron.classList.toggle('rotated');
+        }
+
+        // Detail Content Functions
+        function showDetailContent(contentKey) {
+            const detailContent = document.getElementById('detailContent');
+            const detailTitle = document.getElementById('detailTitle');
+            const detailBody = document.getElementById('detailBody');
+            
+            if (detailData[contentKey]) {
+                detailTitle.textContent = detailData[contentKey].title;
+                detailBody.innerHTML = detailData[contentKey].content;
+                detailContent.classList.add('show');
+                
+                // Hide other sections
+                hideAllSections();
+                
+                // Scroll to top
+                detailContent.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function hideDetailContent() {
+            const detailContent = document.getElementById('detailContent');
+            detailContent.classList.remove('show');
+            showAllSections();
+        }
+
+        function hideAllSections() {
+            const sections = [
+                'searchResults',
+                document.querySelector('.faq-dropdown'),
+                document.querySelector('.contact-support'),
+                document.querySelector('.tech-help-dropdown'),
+                document.querySelector('.other-topics-dropdown'),
+                document.querySelector('.help-footer')
+            ];
+            
+            sections.forEach(section => {
+                if (section) {
+                    section.style.display = 'none';
+                }
+            });
+        }
+
+        function showAllSections() {
+            const sections = [
+                document.querySelector('.faq-dropdown'),
+                document.querySelector('.contact-support'),
+                document.querySelector('.tech-help-dropdown'),
+                document.querySelector('.other-topics-dropdown'),
+                document.querySelector('.help-footer')
+            ];
+            
+            sections.forEach(section => {
+                if (section) {
+                    section.style.display = 'block';
+                }
+            });
         }
 
         // Contact Modal Functions
@@ -747,57 +1049,79 @@ function yprint_help_shortcode() {
         const searchResults = document.getElementById('searchResults');
         const searchResultsList = document.getElementById('searchResultsList');
 
-        // Search data
+        // Enhanced search data including detail content
         const searchData = [
             {
                 title: "Bestellung verfolgen",
                 content: "Du erhältst eine E-Mail mit der Sendungsverfolgungsnummer, sobald deine Bestellung versendet wurde.",
-                category: "FAQ"
+                category: "FAQ",
+                action: "faq"
             },
             {
                 title: "Zahlungsmethoden",
                 content: "Wir akzeptieren alle gängigen Kreditkarten, PayPal, Apple Pay, Google Pay und SEPA-Lastschrift.",
-                category: "FAQ"
+                category: "FAQ",
+                action: "showDetailContent('payments')"
             },
             {
                 title: "Produktionszeit",
                 content: "Die Produktion dauert in der Regel 2-5 Werktage. Print-on-Demand Artikel werden erst nach der Bestellung produziert.",
-                category: "FAQ"
+                category: "FAQ",
+                action: "faq"
             },
             {
                 title: "Bestellung stornieren",
                 content: "Du kannst deine Bestellung innerhalb von 2 Stunden nach der Bestellung stornieren.",
-                category: "FAQ"
+                category: "FAQ",
+                action: "faq"
             },
             {
-                title: "Versand",
-                content: "Informationen zu Versandkosten, Lieferzeiten und internationalen Sendungen.",
-                category: "Versand"
+                title: "Häufige Probleme",
+                content: "Design wird nicht korrekt angezeigt, Upload dauert zu lange, Zahlungsfehler beim Checkout",
+                category: "Technisch",
+                action: "showDetailContent('common-issues')"
             },
             {
-                title: "Rücksendungen",
-                content: "Wie du Artikel zurücksenden kannst und unsere Rückgabebedingungen.",
-                category: "Rücksendung"
-            },
-            {
-                title: "Größentabelle",
-                content: "Finde die richtige Größe für deine Bestellung mit unserer detaillierten Größentabelle.",
-                category: "Produkt"
-            },
-            {
-                title: "Materialien",
-                content: "Informationen über die verwendeten Materialien und Pflegehinweise.",
-                category: "Produkt"
-            },
-            {
-                title: "Design-Upload",
+                title: "Design-Upload Probleme",
                 content: "Probleme beim Hochladen deiner Designs und unterstützte Dateiformate.",
-                category: "Technisch"
+                category: "Technisch",
+                action: "showDetailContent('design-upload')"
             },
             {
                 title: "Website-Probleme",
                 content: "Lösungen für häufige Website-Probleme und Browser-Kompatibilität.",
-                category: "Technisch"
+                category: "Technisch",
+                action: "showDetailContent('website-problems')"
+            },
+            {
+                title: "Versand",
+                content: "Informationen zu Versandkosten, Lieferzeiten und internationalen Sendungen.",
+                category: "Versand",
+                action: "showDetailContent('shipping')"
+            },
+            {
+                title: "Rücksendungen",
+                content: "Wie du Artikel zurücksenden kannst und unsere Rückgabebedingungen.",
+                category: "Rücksendung",
+                action: "showDetailContent('returns')"
+            },
+            {
+                title: "Größentabelle",
+                content: "Finde die richtige Größe für deine Bestellung mit unserer detaillierten Größentabelle.",
+                category: "Produkt",
+                action: "showDetailContent('size-chart')"
+            },
+            {
+                title: "Materialien",
+                content: "Informationen über die verwendeten Materialien und Pflegehinweise.",
+                category: "Produkt",
+                action: "showDetailContent('materials')"
+            },
+            {
+                title: "Konto verwalten",
+                content: "Registrierung, Bestellübersicht, Adressbuch und Kontoeinstellungen.",
+                category: "Konto",
+                action: "showDetailContent('account')"
             }
         ];
 
@@ -837,6 +1161,14 @@ function yprint_help_shortcode() {
                     const resultItem = document.createElement('div');
                     resultItem.className = 'search-result-item';
                     
+                    if (result.action && result.action !== 'faq') {
+                        resultItem.onclick = function() {
+                            eval(result.action);
+                            searchResults.classList.remove('show');
+                            searchInput.value = '';
+                        };
+                    }
+                    
                     resultItem.innerHTML = `
                         <div class="search-result-title">${result.title}</div>
                         <div class="search-result-snippet">${result.content}</div>
@@ -847,34 +1179,6 @@ function yprint_help_shortcode() {
             }
 
             searchResults.classList.add('show');
-        }
-
-        // Common Issues Function
-        function showCommonIssues() {
-            const commonIssues = [
-                "Design wird nicht korrekt angezeigt",
-                "Upload dauert zu lange",
-                "Zahlungsfehler beim Checkout",
-                "E-Mail-Bestätigung nicht erhalten",
-                "Probleme mit der Größenauswahl"
-            ];
-
-            searchResultsList.innerHTML = '';
-            
-            commonIssues.forEach(issue => {
-                const resultItem = document.createElement('div');
-                resultItem.className = 'search-result-item';
-                
-                resultItem.innerHTML = `
-                    <div class="search-result-title">${issue}</div>
-                    <div class="search-result-snippet">Klicke hier für weitere Informationen zu diesem Problem.</div>
-                `;
-                
-                searchResultsList.appendChild(resultItem);
-            });
-
-            searchResults.classList.add('show');
-            searchInput.value = 'Häufige Probleme';
         }
 
         // Clear search when clicking outside
