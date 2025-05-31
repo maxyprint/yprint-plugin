@@ -214,7 +214,7 @@ function yprint_user_settings_shortcode() {
         echo '</div>';
     }
     
-    // Tabs definieren - entfernt: payment, checkout
+    // Tabs definieren
     $tabs = array(
         'personal' => array(
             'title' => 'Persönliche Daten',
@@ -2074,19 +2074,27 @@ function yprint_billing_settings_shortcode() {
             </div>
         </div>
         
-        <!-- Adressauswahl-Optionen -->
-        <div class="address-selection-options" style="margin-bottom: 30px;">
-            <h4>Rechnungsadresse auswählen</h4>
-            
-            <!-- Gespeicherte Adressen direkt anzeigen -->
+        <!-- Gespeicherte Adressen für Rechnungsadresse -->
         <?php if (!empty($additional_addresses)): ?>
         <h3>Gespeicherte Adressen</h3>
         <div class="yprint-saved-addresses billing-addresses">
             <div class="address-cards-grid">
                 <?php foreach ($additional_addresses as $address): ?>
                 <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
+                    <div class="address-card-header">
+                        <div class="address-card-title">
+                            <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
+                        </div>
+                        <div class="address-card-actions">
+                            <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten" data-address-id="<?php echo esc_attr($address['id'] ?? ''); ?>">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn-address-action btn-delete-address" title="Adresse löschen" data-address-id="<?php echo esc_attr($address['id'] ?? ''); ?>">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
                     <div class="address-card-content">
-                        <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
                         <p>
                             <?php if (!empty($address['company'])): ?>
                             <?php echo esc_html($address['company']); ?><br>
@@ -2097,9 +2105,12 @@ function yprint_billing_settings_shortcode() {
                             <?php echo esc_html($address['country'] ?? ''); ?>
                         </p>
                     </div>
-                    <button type="button" class="yprint-button btn-use-billing-address">
-                        Als Rechnungsadresse verwenden
-                    </button>
+                    <div class="address-card-footer">
+                        <button type="button" class="yprint-button btn-use-billing-address">
+                            <i class="fas fa-check mr-2"></i>
+                            Als Rechnungsadresse verwenden
+                        </button>
+                    </div>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -2107,22 +2118,6 @@ function yprint_billing_settings_shortcode() {
         
         <h3 style="margin-top: 30px;">Neue Rechnungsadresse</h3>
         <?php endif; ?>
-            
-            <!-- Option: Neue Adresse -->
-            <div class="address-option">
-                <label class="address-option-label">
-                    <input type="radio" 
-                           name="billing_address_type" 
-                           value="new_address" 
-                           id="billing_new_address"
-                           <?php checked($billing_same_as_shipping, false); ?>>
-                    <span class="address-option-content">
-                        <strong>Neue Rechnungsadresse eingeben</strong>
-                        <small>Abweichende Rechnungsadresse verwenden</small>
-                    </span>
-                </label>
-            </div>
-        </div>
         
         <input type="hidden" id="billing_same_as_shipping_value" name="billing_same_as_shipping_value" value="<?php echo $billing_same_as_shipping ? '1' : '0'; ?>">
         
@@ -2233,7 +2228,8 @@ function yprint_billing_settings_shortcode() {
                                name="billing_company" 
                                class="yprint-form-input" 
                                value="<?php echo esc_attr($billing_company); ?>" 
-                               placeholder="Unternehmensname">
+                               placeholder="Unternehmensname" 
+                               required>
                     </div>
                     
                     <div class="yprint-form-group">
@@ -3410,56 +3406,6 @@ function yprint_shipping_settings_shortcode() {
             </div>
         </form>
         
-        <!-- Gespeicherte Adressen -->
-        <h3 style="margin-top: 40px;">Gespeicherte Adressen</h3>
-        
-        <?php if (empty($additional_addresses)): ?>
-            <p>Du hast noch keine zusätzlichen Lieferadressen hinterlegt.</p>
-        <?php else: ?>
-        <div class="yprint-address-grid">
-            <?php foreach ($additional_addresses as $address): ?>
-            <div class="yprint-address-card <?php echo ($default_address_id === $address['id']) ? 'default' : ''; ?>">
-                <?php if ($default_address_id === $address['id']): ?>
-                <div class="yprint-address-default-badge">Standard</div>
-                <?php endif; ?>
-                
-                <h4><?php echo esc_html($address['name']); ?></h4>
-                <p>
-                    <?php if (!empty($address['company'])): ?>
-                    <?php echo esc_html($address['company']); ?><br>
-                    <?php endif; ?>
-                    <?php echo esc_html($address['first_name'] . ' ' . $address['last_name']); ?><br>
-                    <?php echo esc_html($address['address_1'] . ' ' . $address['address_2']); ?><br>
-                    <?php echo esc_html($address['postcode'] . ' ' . $address['city']); ?><br>
-                    <?php
-                    if (class_exists('WC_Countries')) {
-                        $countries_obj = new WC_Countries();
-                        $countries = $countries_obj->get_countries();
-                        echo isset($countries[$address['country']]) ? esc_html($countries[$address['country']]) : esc_html($address['country']);
-                    } else {
-                        echo esc_html($address['country']);
-                    }
-                    ?>
-                </p>
-                
-                <div class="yprint-address-actions">
-                    <a href="?tab=shipping&action=edit&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button">
-                        <i class="fas fa-edit"></i> Bearbeiten
-                    </a>
-                    <?php if ($default_address_id !== $address['id']): ?>
-                    <a href="?tab=shipping&action=set_default&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button yprint-button-secondary">
-                        <i class="fas fa-star"></i> Als Standard
-                    </a>
-                    <?php endif; ?>
-                    <a href="?tab=shipping&action=delete&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button yprint-button-danger" onclick="return confirm('Möchtest du diese Adresse wirklich löschen?');">
-                        <i class="fas fa-trash"></i> Löschen
-                    </a>
-                </div>
-            </div>
-            <?php endforeach; ?>
-        </div>
-        <?php endif; ?>
-        
         <!-- "Neue Adresse hinzufügen" Button direkt unterhalb der Standard-Adresse -->
         <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; text-align: center;">
             <a href="?tab=shipping&action=add" class="yprint-button">
@@ -3476,8 +3422,16 @@ function yprint_shipping_settings_shortcode() {
         const API_KEY = 'xPlTGXIrjg1O6Oea3e2gvo5lrN-iO1gT47Sc-VojWdU';
         
         // Unternehmensfeld umschalten
-        $('#is_company_shipping, #addr_is_company').change(function() {
-            const fieldId = (this.id === 'is_company_shipping') ? 'company_shipping_fields' : 'addr_company_field';
+        $('#is_company, #is_company_shipping, #addr_is_company').change(function() {
+            let fieldId;
+            if (this.id === 'is_company') {
+                fieldId = 'company_fields';
+            } else if (this.id === 'is_company_shipping') {
+                fieldId = 'company_shipping_fields';
+            } else {
+                fieldId = 'addr_company_field';
+            }
+            
             if (this.checked) {
                 $('#' + fieldId).slideDown(300);
             } else {
