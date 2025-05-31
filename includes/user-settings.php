@@ -197,66 +197,60 @@ function yprint_user_settings_shortcode() {
     // Beginn der Einstellungsseite
     ?>
     <div class="yprint-settings-container">
-        <!-- Seitenüberschrift und Intro -->
+        <!-- Kompakter Header -->
         <div class="yprint-settings-header">
             <h1>Mein Konto</h1>
-            <p class="yprint-settings-intro">Hier kannst du deine persönlichen Einstellungen verwalten und anpassen.</p>
+            <p class="yprint-settings-intro">Verwalte deine Einstellungen</p>
         </div>
 
-        <!-- Desktop-Tabs-Navigation -->
+        <!-- Mobile-first Navigation Grid -->
         <div class="yprint-settings-tabs-container">
-            <div class="yprint-settings-tabs">
+            <div class="yprint-settings-grid">
                 <?php foreach ($tabs as $tab_id => $tab_info) : 
                     $active_class = ($current_tab === $tab_id) ? ' active' : '';
                     ?>
-                    <a href="?tab=<?php echo esc_attr($tab_id); ?>" class="yprint-tab<?php echo esc_attr($active_class); ?>">
-                        <i class="fas fa-<?php echo esc_attr($tab_info['icon']); ?>"></i>
-                        <span><?php echo esc_html($tab_info['title']); ?></span>
+                    <a href="?tab=<?php echo esc_attr($tab_id); ?>" class="settings-item<?php echo esc_attr($active_class); ?>">
+                        <div class="settings-item-left">
+                            <div class="settings-icon">
+                                <i class="fas fa-<?php echo esc_attr($tab_info['icon']); ?>"></i>
+                            </div>
+                            <div class="settings-title"><?php echo esc_html($tab_info['title']); ?></div>
+                        </div>
+                        <div class="settings-chevron">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
                     </a>
                 <?php endforeach; ?>
             </div>
 
-            <!-- Hauptbereich für die Inhalte -->
+            <!-- Desktop Content Area (nur auf Desktop sichtbar) -->
             <div class="yprint-settings-content">
                 <?php
-                // Füge entsprechenden Shortcode basierend auf aktuellem Tab ein
-                switch ($current_tab) {
-                    case 'personal':
-                        echo do_shortcode('[yprint_personal_settings]');
-                        break;
-                    case 'billing':
-                        echo do_shortcode('[yprint_billing_settings]');
-                        break;
-                    case 'shipping':
-                        echo do_shortcode('[yprint_shipping_settings]');
-                        break;
-                    case 'payment':
-                        echo do_shortcode('[yprint_payment_settings]');
-                        break;
-                    case 'notifications':
-                        echo do_shortcode('[yprint_notification_settings]');
-                        break;
-                    case 'privacy':
-                        echo do_shortcode('[yprint_privacy_settings]');
-                        break;
-                    default:
-                        echo do_shortcode('[yprint_personal_settings]');
+                // Nur auf Desktop den Inhalt direkt anzeigen
+                if ($current_tab !== 'overview') {
+                    switch ($current_tab) {
+                        case 'personal':
+                            echo do_shortcode('[yprint_personal_settings]');
+                            break;
+                        case 'billing':
+                            echo do_shortcode('[yprint_billing_settings]');
+                            break;
+                        case 'shipping':
+                            echo do_shortcode('[yprint_shipping_settings]');
+                            break;
+                        case 'payment':
+                            echo do_shortcode('[yprint_payment_settings]');
+                            break;
+                        case 'notifications':
+                            echo do_shortcode('[yprint_notification_settings]');
+                            break;
+                        case 'privacy':
+                            echo do_shortcode('[yprint_privacy_settings]');
+                            break;
+                    }
                 }
                 ?>
             </div>
-        </div>
-
-        <!-- Mobile-Dropdown-Navigation -->
-        <div class="yprint-mobile-tabs">
-            <select class="yprint-mobile-select" id="yprint-mobile-tab-select">
-                <?php foreach ($tabs as $tab_id => $tab_info) : 
-                    $selected = ($current_tab === $tab_id) ? ' selected' : '';
-                    ?>
-                    <option value="<?php echo esc_attr($tab_id); ?>"<?php echo $selected; ?>>
-                        <?php echo esc_html($tab_info['title']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
         </div>
     </div>
 
@@ -310,111 +304,160 @@ function yprint_settings_styles() {
     ob_start();
     ?>
     <style>
-        /* Hauptcontainer für Einstellungen */
+        /* Mobile-first Hauptcontainer */
         .yprint-settings-container {
             font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 30px 20px;
-            color: #1d1d1f;
+            padding: 16px;
+            margin: 0;
+            background-color: #F8F9FB;
+            color: #1A1A1A;
+            min-height: 100vh;
         }
         
-        /* Header */
+        /* Kompakter Header für Mobile */
         .yprint-settings-header {
-            margin-bottom: 40px;
-        }
-        
-        .yprint-settings-header h1 {
-            font-size: 32px;
-            font-weight: 600;
-            color: #1d1d1f;
-            margin-bottom: 10px;
-        }
-        
-        .yprint-settings-intro {
-            font-size: 16px;
-            color: #6e6e73;
-            max-width: 600px;
-        }
-        
-        /* Tabs Container */
-        .yprint-settings-tabs-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-        }
-        
-        /* Tabs Navigation */
-        .yprint-settings-tabs {
-            flex: 0 0 250px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin-bottom: 30px;
-            position: sticky;
-            top: 30px;
-            height: fit-content;
-        }
-        
-        .yprint-tab {
-            display: flex;
-            align-items: center;
-            padding: 15px 20px;
-            text-decoration: none;
-            color: #1d1d1f;
-            font-weight: 500;
-            border-radius: 10px;
-            transition: all 0.2s ease;
-        }
-        
-        .yprint-tab:hover {
-            background-color: #f5f5f7;
-        }
-        
-        .yprint-tab.active {
-            background-color: #f5f5f7;
-            color: #2997FF;
-            font-weight: 600;
-        }
-        
-        .yprint-tab i {
-            width: 20px;
-            margin-right: 10px;
+            margin-bottom: 20px;
             text-align: center;
         }
         
-        /* Haupt-Inhaltsbereich */
-        .yprint-settings-content {
-            flex: 1;
-            min-width: 0;
-            background-color: #FFFFFF;
-            border-radius: 16px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-            padding: 30px;
-            border: 1px solid #e5e5e5;
+        .yprint-settings-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1A1A1A;
+            margin-bottom: 8px;
         }
         
-        /* Mobile Tabs */
+        .yprint-settings-intro {
+            font-size: 14px;
+            color: #7D7D7D;
+            line-height: 1.4;
+        }
+        
+        /* Mobile Settings Grid */
+        .yprint-settings-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        /* Settings Item - Mobile-first Design */
+        .settings-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #FFFFFF;
+            padding: 12px 16px;
+            border-radius: 12px;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.02);
+            transition: background-color 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            min-height: 48px;
+        }
+        
+        .settings-item:hover,
+        .settings-item:focus {
+            background-color: #F0F2F5;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .settings-item.active {
+            background-color: #EDF1F7;
+            border-left: 4px solid #2997FF;
+        }
+        
+        .settings-item-left {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .settings-icon {
+            background-color: #EDF1F7;
+            padding: 8px;
+            border-radius: 8px;
+            margin-right: 12px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .settings-icon i {
+            font-size: 14px;
+            color: #2997FF;
+        }
+        
+        .settings-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #1A1A1A;
+        }
+        
+        .settings-chevron {
+            color: #C4C4C4;
+            font-size: 12px;
+        }
+        
+        /* Desktop Anpassungen */
+        @media (min-width: 768px) {
+            .yprint-settings-container {
+                max-width: 1200px;
+                margin: 0 auto;
+                padding: 30px 20px;
+                background-color: transparent;
+            }
+            
+            .yprint-settings-header {
+                text-align: left;
+                margin-bottom: 40px;
+            }
+            
+            .yprint-settings-header h1 {
+                font-size: 32px;
+                margin-bottom: 10px;
+            }
+            
+            .yprint-settings-intro {
+                font-size: 16px;
+                max-width: 600px;
+            }
+            
+            /* Desktop Layout mit Sidebar */
+            .yprint-settings-tabs-container {
+                display: flex;
+                gap: 30px;
+            }
+            
+            .yprint-settings-grid {
+                flex: 0 0 250px;
+                gap: 5px;
+                position: sticky;
+                top: 30px;
+                height: fit-content;
+            }
+            
+            .settings-item {
+                border-radius: 10px;
+                padding: 15px 20px;
+            }
+            
+            .yprint-settings-content {
+                flex: 1;
+                background-color: #FFFFFF;
+                border-radius: 16px;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+                padding: 30px;
+                border: 1px solid #e5e5e5;
+            }
+        }
+        
+        /* Verstecke Desktop-spezifische Elemente auf Mobile */
+        .yprint-settings-tabs,
         .yprint-mobile-tabs {
             display: none;
-            margin-bottom: 30px;
-            width: 100%;
-        }
-        
-        .yprint-mobile-select {
-            width: 100%;
-            padding: 15px;
-            border: 1px solid #d1d1d6;
-            border-radius: 10px;
-            font-size: 16px;
-            background-color: #fff;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
-            background-repeat: no-repeat;
-            background-position: right 15px center;
-            padding-right: 40px;
         }
         
         /* Formularelemente */
@@ -4198,6 +4241,89 @@ $privacy_settings = $wpdb->get_row(
 if ($privacy_settings) {
     $user_data['privacy_settings'] = $privacy_settings;
 }
+
+/* Mobile-spezifische Anpassungen */
+echo '<style>
+@media (max-width: 767px) {
+    .yprint-settings-content {
+        display: none; /* Auf Mobile verstecken, da Navigation zur Unterseite führt */
+    }
+    
+    .yprint-settings-grid {
+        margin-bottom: 20px;
+    }
+    
+    /* Mobile Formular-Anpassungen */
+    .yprint-settings-page {
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
+        border: none;
+    }
+    
+    .yprint-form-row {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .yprint-form-input,
+    .yprint-form-select {
+        font-size: 16px; /* Verhindert Zoom auf iOS */
+    }
+    
+    /* Mobile Button-Anpassungen */
+    .yprint-button {
+        width: 100%;
+        padding: 14px 20px;
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+    
+    /* Mobile Address Cards */
+    .yprint-address-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .yprint-address-card {
+        padding: 16px;
+    }
+    
+    /* Mobile Payment Cards */
+    .yprint-payment-card {
+        padding: 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .yprint-payment-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* Tablet Anpassungen */
+@media (min-width: 768px) and (max-width: 992px) {
+    .yprint-settings-tabs-container {
+        flex-direction: column;
+    }
+    
+    .yprint-settings-grid {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .settings-item {
+        flex: 0 0 calc(50% - 5px);
+    }
+}
+</style>
+<?php
+return ob_get_clean();
+}
+</style>';
 
 // WooCommerce-Bestellungen hinzufügen, wenn verfügbar
 if (function_exists('wc_get_orders')) {
