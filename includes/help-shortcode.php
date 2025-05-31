@@ -102,39 +102,34 @@ function yprint_help_shortcode() {
         }
         
         .search-bar {
-            position: relative;
-            margin-bottom: 40px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            margin-bottom: 40px;
-        }
-        
-        .search-bar svg {
-            position: absolute;
-            left: 20px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 20px;
-            color: #6e6e73;
-            pointer-events: none;
-            z-index: 2;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 18px 20px 18px 56px;
-            background-color: #f6f7fa;
-            border: 1px solid #e5e5e5;
-            border-radius: 16px;
-            color: #1d1d1f;
-            font-size: 16px;
-            transition: all 0.2s ease;
-            box-sizing: border-box;
-            position: relative;
-            z-index: 1;
-        }
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #f5f5f7;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 8px;
+}
+
+.search-bar svg {
+  position: absolute;
+  left: 16px;
+  width: 20px;
+  height: 20px;
+  color: #6e6e73;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 10px 10px 44px; /* Platz für Icon */
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  color: #1d1d1f;
+  font-family: 'Roboto', sans-serif;
+}
+
         
         .search-input::placeholder {
             color: #6e6e73;
