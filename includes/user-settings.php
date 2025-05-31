@@ -1577,25 +1577,49 @@ function yprint_billing_settings_shortcode() {
         
         $email_changed = false;
         
-        // Standardfelder aktualisieren
-        $fields_to_update = [
-            'billing_first_name' => isset($_POST['billing_first_name']) ? sanitize_text_field($_POST['billing_first_name']) : '',
-            'billing_last_name' => isset($_POST['billing_last_name']) ? sanitize_text_field($_POST['billing_last_name']) : '',
-            'billing_address_1' => isset($_POST['billing_address_1']) ? sanitize_text_field($_POST['billing_address_1']) : '',
-            'billing_address_2' => isset($_POST['billing_address_2']) ? sanitize_text_field($_POST['billing_address_2']) : '',
-            'billing_postcode' => isset($_POST['billing_postcode']) ? sanitize_text_field($_POST['billing_postcode']) : '',
-            'billing_city' => isset($_POST['billing_city']) ? sanitize_text_field($_POST['billing_city']) : '',
-            'billing_country' => isset($_POST['billing_country']) ? sanitize_text_field($_POST['billing_country']) : 'DE',
-        ];
-
-        // Unternehmensdaten aktualisieren
-        $is_company = isset($_POST['is_company']);
-        update_user_meta($user_id, 'is_company', $is_company);
+        // Prüfen ob "Identisch mit Lieferadresse" gewählt wurde
+        $billing_same_as_shipping_selected = isset($_POST['billing_same_as_shipping_value']) && $_POST['billing_same_as_shipping_value'] === '1';
         
-        if ($is_company) {
-            $fields_to_update['billing_company'] = isset($_POST['billing_company']) ? sanitize_text_field($_POST['billing_company']) : '';
-            $fields_to_update['billing_vat'] = isset($_POST['billing_vat']) ? sanitize_text_field($_POST['billing_vat']) : '';
+        if ($billing_same_as_shipping_selected) {
+            // Lieferadresse in Rechnungsfelder kopieren
+            $fields_to_update = [
+                'billing_first_name' => $shipping_first_name,
+                'billing_last_name' => $shipping_last_name,
+                'billing_company' => $shipping_company,
+                'billing_address_1' => $shipping_address_1,
+                'billing_address_2' => $shipping_address_2,
+                'billing_postcode' => $shipping_postcode,
+                'billing_city' => $shipping_city,
+                'billing_country' => $shipping_country,
+            ];
+            
+            // Unternehmensstatus von Lieferadresse übernehmen
+            $is_company = get_user_meta($user_id, 'is_company_shipping', true);
+            update_user_meta($user_id, 'is_company', $is_company);
+        } else {
+            // Standardfelder aktualisieren
+            $fields_to_update = [
+                'billing_first_name' => isset($_POST['billing_first_name']) ? sanitize_text_field($_POST['billing_first_name']) : '',
+                'billing_last_name' => isset($_POST['billing_last_name']) ? sanitize_text_field($_POST['billing_last_name']) : '',
+                'billing_address_1' => isset($_POST['billing_address_1']) ? sanitize_text_field($_POST['billing_address_1']) : '',
+                'billing_address_2' => isset($_POST['billing_address_2']) ? sanitize_text_field($_POST['billing_address_2']) : '',
+                'billing_postcode' => isset($_POST['billing_postcode']) ? sanitize_text_field($_POST['billing_postcode']) : '',
+                'billing_city' => isset($_POST['billing_city']) ? sanitize_text_field($_POST['billing_city']) : '',
+                'billing_country' => isset($_POST['billing_country']) ? sanitize_text_field($_POST['billing_country']) : 'DE',
+            ];
+
+            // Unternehmensdaten aktualisieren
+            $is_company = isset($_POST['is_company']);
+            update_user_meta($user_id, 'is_company', $is_company);
+            
+            if ($is_company) {
+                $fields_to_update['billing_company'] = isset($_POST['billing_company']) ? sanitize_text_field($_POST['billing_company']) : '';
+                $fields_to_update['billing_vat'] = isset($_POST['billing_vat']) ? sanitize_text_field($_POST['billing_vat']) : '';
+            }
         }
+        
+        // Präferenz "Rechnungsadresse identisch" speichern
+        update_user_meta($user_id, 'billing_same_as_shipping', $billing_same_as_shipping_selected);
 
         // Alternative Rechnungs-E-Mail
         if (isset($_POST['different_billing_email']) && $_POST['different_billing_email'] === 'on') {
@@ -2201,6 +2225,9 @@ function yprint_shipping_settings_shortcode() {
                 update_user_meta($user_id, $key, $value);
             }
             
+            // Event für Address Manager auslösen
+            do_action('yprint_after_address_save', $user_id, $fields_to_update);
+            
             $message = 'Deine Lieferadresse wurde erfolgreich gespeichert.';
             $message_type = 'success';
             
@@ -2212,6 +2239,88 @@ function yprint_shipping_settings_shortcode() {
                     'type' => $message_type
                 ),
                 remove_query_arg(array('message', 'type'))
+            ));
+            exit;
+        }
+        
+        // Neue Adresse hinzufügen
+        if (isset($_POST['add_address_nonce']) && wp_verify_nonce($_POST['add_address_nonce'], 'add_shipping_address')) {
+            $new_address = [
+                'id' => uniqid('addr_'),
+                'name' => isset($_POST['address_name']) ? sanitize_text_field($_POST['address_name']) : 'Neue Adresse',
+                'first_name' => isset($_POST['addr_first_name']) ? sanitize_text_field($_POST['addr_first_name']) : '',
+                'last_name' => isset($_POST['addr_last_name']) ? sanitize_text_field($_POST['addr_last_name']) : '',
+                'company' => isset($_POST['addr_company']) ? sanitize_text_field($_POST['addr_company']) : '',
+                'address_1' => isset($_POST['addr_address_1']) ? sanitize_text_field($_POST['addr_address_1']) : '',
+                'address_2' => isset($_POST['addr_address_2']) ? sanitize_text_field($_POST['addr_address_2']) : '',
+                'postcode' => isset($_POST['addr_postcode']) ? sanitize_text_field($_POST['addr_postcode']) : '',
+                'city' => isset($_POST['addr_city']) ? sanitize_text_field($_POST['addr_city']) : '',
+                'country' => isset($_POST['addr_country']) ? sanitize_text_field($_POST['addr_country']) : 'DE',
+                'is_company' => isset($_POST['addr_is_company']) ? true : false,
+            ];
+            
+            $additional_addresses[] = $new_address;
+            update_user_meta($user_id, 'additional_shipping_addresses', $additional_addresses);
+            
+            // Event für Address Manager auslösen
+            do_action('yprint_after_address_save', $user_id, $new_address);
+            
+            $message = 'Neue Lieferadresse wurde erfolgreich hinzugefügt.';
+            $message_type = 'success';
+            
+            wp_redirect(add_query_arg(
+                array(
+                    'tab' => 'shipping',
+                    'message' => urlencode($message),
+                    'type' => $message_type
+                ),
+                remove_query_arg(array('message', 'type', 'action', 'address_id'))
+            ));
+            exit;
+        }
+        
+        // Adresse bearbeiten
+        if (isset($_POST['edit_address_nonce']) && wp_verify_nonce($_POST['edit_address_nonce'], 'edit_shipping_address')) {
+            $address_id = isset($_POST['address_id']) ? sanitize_text_field($_POST['address_id']) : '';
+            
+            if ($address_id) {
+                foreach ($additional_addresses as $key => $address) {
+                    if ($address['id'] === $address_id) {
+                        $updated_address = [
+                            'id' => $address_id,
+                            'name' => isset($_POST['address_name']) ? sanitize_text_field($_POST['address_name']) : $address['name'],
+                            'first_name' => isset($_POST['addr_first_name']) ? sanitize_text_field($_POST['addr_first_name']) : $address['first_name'],
+                            'last_name' => isset($_POST['addr_last_name']) ? sanitize_text_field($_POST['addr_last_name']) : $address['last_name'],
+                            'company' => isset($_POST['addr_company']) ? sanitize_text_field($_POST['addr_company']) : $address['company'],
+                            'address_1' => isset($_POST['addr_address_1']) ? sanitize_text_field($_POST['addr_address_1']) : $address['address_1'],
+                            'address_2' => isset($_POST['addr_address_2']) ? sanitize_text_field($_POST['addr_address_2']) : $address['address_2'],
+                            'postcode' => isset($_POST['addr_postcode']) ? sanitize_text_field($_POST['addr_postcode']) : $address['postcode'],
+                            'city' => isset($_POST['addr_city']) ? sanitize_text_field($_POST['addr_city']) : $address['city'],
+                            'country' => isset($_POST['addr_country']) ? sanitize_text_field($_POST['addr_country']) : $address['country'],
+                            'is_company' => isset($_POST['addr_is_company']) ? true : false,
+                        ];
+                        
+                        $additional_addresses[$key] = $updated_address;
+                        break;
+                    }
+                }
+                
+                update_user_meta($user_id, 'additional_shipping_addresses', $additional_addresses);
+                
+                // Event für Address Manager auslösen
+                do_action('yprint_after_address_save', $user_id, $updated_address);
+                
+                $message = 'Lieferadresse wurde erfolgreich aktualisiert.';
+                $message_type = 'success';
+            }
+            
+            wp_redirect(add_query_arg(
+                array(
+                    'tab' => 'shipping',
+                    'message' => urlencode($message),
+                    'type' => $message_type
+                ),
+                remove_query_arg(array('message', 'type', 'action', 'address_id'))
             ));
             exit;
         }
@@ -2297,9 +2406,12 @@ function yprint_shipping_settings_shortcode() {
         $address_id = sanitize_text_field($_GET['address_id']);
         
         if ($action === 'delete' && $address_id) {
+            $deleted_address = null;
+            
             // Adresse löschen
             foreach ($additional_addresses as $key => $address) {
                 if ($address['id'] === $address_id) {
+                    $deleted_address = $address;
                     unset($additional_addresses[$key]);
                     break;
                 }
@@ -2313,6 +2425,11 @@ function yprint_shipping_settings_shortcode() {
             if ($default_address_id === $address_id) {
                 delete_user_meta($user_id, 'default_shipping_address');
                 $default_address_id = '';
+            }
+            
+            // Event für Address Manager auslösen
+            if ($deleted_address) {
+                do_action('yprint_after_address_delete', $user_id, $deleted_address);
             }
             
             $message = 'Lieferadresse wurde erfolgreich gelöscht.';
@@ -2330,6 +2447,9 @@ function yprint_shipping_settings_shortcode() {
         } elseif ($action === 'set_default' && $address_id) {
             // Als Standard setzen
             update_user_meta($user_id, 'default_shipping_address', $address_id);
+            
+            // Event für Address Manager auslösen
+            do_action('yprint_after_default_address_change', $user_id, $address_id);
             
             $message = 'Standardadresse wurde erfolgreich festgelegt.';
             $message_type = 'success';
