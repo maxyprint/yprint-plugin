@@ -304,21 +304,27 @@ function yprint_settings_styles() {
     ob_start();
     ?>
     <style>
-        /* Mobile-first Hauptcontainer */
-        .yprint-settings-container {
-            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-            padding: 16px;
-            margin: 0;
-            background-color: #F8F9FB;
-            color: #1A1A1A;
-            min-height: 100vh;
-        }
-        
-        /* Kompakter Header für Mobile */
-        .yprint-settings-header {
-            margin-bottom: 20px;
-            text-align: center;
-        }
+        /* Mobile-first Hauptcontainer - Optimiert für Header/Footer Navigation */
+.yprint-settings-container {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    padding: 12px 16px 16px 16px; /* Weniger Top-Padding wegen Header */
+    margin: 0;
+    background-color: #F8F9FB;
+    color: #1A1A1A;
+    min-height: calc(100vh - 120px); /* Platz für Header/Footer */
+    padding-bottom: 100px; /* Extra Platz für Footer Navigation */
+}
+
+/* Go Back Button - Nur Desktop */
+.go-back-button {
+    display: none; /* Standard: Versteckt auf Mobile */
+}
+
+/* Kompakter Header für Mobile */
+.yprint-settings-header {
+    margin-bottom: 16px;
+    text-align: center;
+}
         
         .yprint-settings-header h1 {
             font-size: 24px;
@@ -402,13 +408,40 @@ function yprint_settings_styles() {
         }
         
         /* Desktop Anpassungen */
-        @media (min-width: 768px) {
-            .yprint-settings-container {
-                max-width: 1200px;
-                margin: 0 auto;
-                padding: 30px 20px;
-                background-color: transparent;
-            }
+@media (min-width: 768px) {
+    .yprint-settings-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 30px 20px;
+        background-color: transparent;
+        min-height: auto;
+        padding-bottom: 30px;
+    }
+    
+    /* Go Back Button nur auf Desktop anzeigen */
+    .go-back-button {
+        display: flex !important;
+    }
+    
+    /* Visuelle Trennung für Settings-Bereich auf Desktop */
+    .settings-section {
+        background-color: #FFFFFF;
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.04);
+        margin-top: 32px;
+    }
+    
+    .settings-section h3 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #1A1A1A;
+        border-bottom: 1px solid #e5e5e5;
+        padding-bottom: 12px;
+    }
+}
             
             .yprint-settings-header {
                 text-align: left;
@@ -440,9 +473,57 @@ function yprint_settings_styles() {
             }
             
             .settings-item {
-                border-radius: 10px;
-                padding: 15px 20px;
-            }
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #FFFFFF;
+    padding: 16px 20px; /* Größere Touch-Targets für Mobile */
+    border-radius: 12px;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.02);
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: inherit;
+    min-height: 56px; /* Größere Mindesthöhe für bessere Touch-Ergonomie */
+    margin-bottom: 8px;
+    position: relative;
+    border: 1px solid transparent;
+}
+
+.settings-item:hover,
+.settings-item:focus {
+    background-color: #F0F2F5;
+    text-decoration: none;
+    color: inherit;
+    transform: translateY(-1px);
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.04);
+}
+
+.settings-item:active {
+    transform: translateY(0);
+    background-color: #E8F0FE;
+}
+
+.settings-item.active {
+    background-color: #EDF1F7;
+    border-color: #2997FF;
+    border-left: 4px solid #2997FF;
+}
+
+/* Interaktive Chevron-Animation */
+.settings-chevron {
+    color: #C4C4C4;
+    font-size: 12px;
+    transition: transform 0.3s ease, color 0.2s ease;
+}
+
+.settings-item:hover .settings-chevron {
+    color: #2997FF;
+    transform: translateX(2px);
+}
+
+.settings-chevron.rotate {
+    transform: rotate(180deg);
+}
             
             .yprint-settings-content {
                 flex: 1;
@@ -1146,31 +1227,44 @@ function yprint_personal_settings_shortcode() {
             </div>
             
             <script>
-            jQuery(document).ready(function($) {
-                // Force logout and redirect
-                function forceLogoutAndRedirect() {
-                    // Show overlay
-                    $('#emailChangeOverlay').css('display', 'flex');
-                    
-                    // Forced Logout via AJAX
-                    $.ajax({
-                        url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                        type: 'POST',
-                        data: {
-                            action: 'custom_force_logout',
-                            security: '<?php echo wp_create_nonce('force_logout_nonce'); ?>'
-                        },
-                        success: function() {
-                            // Redirect after short delay
-                            setTimeout(function() {
-                                window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
-                            }, 2000);
-                        },
-                        error: function() {
-                            // On AJAX error, redirect anyway
-                            window.location.href = '<?php echo esc_url(home_url('/login/')); ?>';
-                        }
-                    });
+jQuery(document).ready(function($) {
+    // Mobile Tab Selection Handler mit Smooth Scrolling
+    $(".settings-item").on("click", function(e) {
+        var href = $(this).attr('href');
+        
+        // Auf Mobile: Smooth scroll zu Settings-Bereich falls vorhanden
+        if (window.innerWidth <= 768 && $('.settings-section').length > 0) {
+            e.preventDefault();
+            
+            // Chevron-Animation
+            $(this).find('.settings-chevron').addClass('rotate');
+            
+            // Smooth scroll
+            setTimeout(function() {
+                $('.settings-section')[0].scrollIntoView({ 
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 150);
+            
+            // Nach Animation zur URL navigieren
+            setTimeout(function() {
+                window.location.href = href;
+            }, 600);
+        }
+    });
+    
+    // Touch-Feedback für Mobile
+    $(".settings-item").on("touchstart", function() {
+        $(this).addClass('touching');
+    }).on("touchend touchcancel", function() {
+        $(this).removeClass('touching');
+    });
+    
+    $("#yprint-mobile-tab-select").on("change", function() {
+        var selectedTab = $(this).val();
+        window.location.href = window.location.pathname + "?tab=" + selectedTab;
+    });
                 }
                 
                 // Call logout function
@@ -4323,6 +4417,87 @@ echo '<style>
 <?php
 return ob_get_clean();
 }
+
+/* Touch-Feedback für Mobile */
+.settings-item.touching {
+    background-color: #E8F0FE;
+    transform: scale(0.98);
+}
+
+/* Settings Section - Visuell getrennt */
+.settings-section {
+    background-color: #FFFFFF;
+    padding: 20px 16px;
+    border-radius: 16px;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.04);
+    margin-top: 24px;
+    border: 1px solid #e5e5e5;
+}
+
+.settings-section h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1A1A1A;
+    border-bottom: 1px solid #e5e5e5;
+    padding-bottom: 8px;
+}
+
+/* Mobile Content Area - versteckt auf Mobile, sichtbar auf Desktop */
+@media (max-width: 767px) {
+    .yprint-settings-content {
+        display: none;
+    }
+    
+    /* Kompaktere Abstände auf Mobile */
+    .yprint-settings-container {
+        padding-bottom: 120px; /* Mehr Platz für Footer-Navigation */
+    }
+    
+    .yprint-settings-grid {
+        gap: 6px; /* Kompaktere Abstände zwischen Items */
+    }
+    
+    .settings-item {
+        padding: 14px 16px;
+        min-height: 52px;
+    }
+    
+    .settings-title {
+        font-size: 15px;
+    }
+    
+    .settings-icon {
+        width: 28px;
+        height: 28px;
+        padding: 6px;
+    }
+    
+    .settings-icon i {
+        font-size: 12px;
+    }
+}
+
+/* Größere Touch-Targets und bessere Lesbarkeit */
+@media (max-width: 480px) {
+    .yprint-settings-header h1 {
+        font-size: 22px;
+    }
+    
+    .yprint-settings-intro {
+        font-size: 13px;
+    }
+    
+    .settings-item {
+        padding: 16px 18px;
+        min-height: 58px;
+    }
+    
+    .settings-title {
+        font-size: 16px;
+    }
+}
 </style>';
 
 // WooCommerce-Bestellungen hinzufügen, wenn verfügbar
@@ -4385,3 +4560,4 @@ echo $json_data;
 exit;
 }
 add_action('admin_post_yprint_export_user_data', 'yprint_export_user_data');
+
