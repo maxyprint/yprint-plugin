@@ -55,7 +55,7 @@ function yprint_help_shortcode() {
 
 <div class="yprint-help-container">
     <style>
-        /* YPrint Help Page Styles - White Theme */
+        /* YPrint Help Page Styles - Responsive White Theme */
         .yprint-help-container {
             font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
             background-color: #ffffff;
@@ -63,13 +63,15 @@ function yprint_help_shortcode() {
             min-height: 100vh;
             padding: 16px;
             line-height: 1.5;
+            max-width: 1200px;
+            margin: 0 auto;
         }
         
         .help-header {
             display: flex;
             align-items: center;
-            margin-bottom: 24px;
-            padding: 8px 0;
+            margin-bottom: 32px;
+            padding: 12px 0;
         }
         
         .back-button {
@@ -78,7 +80,7 @@ function yprint_help_shortcode() {
             color: #0079FF;
             cursor: pointer;
             padding: 8px;
-            margin-right: 12px;
+            margin-right: 16px;
             border-radius: 8px;
             transition: background-color 0.2s ease;
         }
@@ -93,7 +95,7 @@ function yprint_help_shortcode() {
         }
         
         .help-title {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 600;
             margin: 0;
             color: #1d1d1f;
@@ -101,29 +103,37 @@ function yprint_help_shortcode() {
         
         .search-bar {
             position: relative;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            margin-bottom: 40px;
         }
         
         .search-bar svg {
             position: absolute;
-            left: 16px;
+            left: 20px;
             top: 50%;
             transform: translateY(-50%);
             width: 20px;
             height: 20px;
             color: #6e6e73;
+            pointer-events: none;
+            z-index: 2;
         }
         
         .search-input {
             width: 100%;
-            padding: 16px 16px 16px 52px;
+            padding: 18px 20px 18px 56px;
             background-color: #f6f7fa;
             border: 1px solid #e5e5e5;
-            border-radius: 12px;
+            border-radius: 16px;
             color: #1d1d1f;
             font-size: 16px;
-            transition: border-color 0.2s ease, background-color 0.2s ease;
+            transition: all 0.2s ease;
             box-sizing: border-box;
+            position: relative;
+            z-index: 1;
         }
         
         .search-input::placeholder {
@@ -136,26 +146,39 @@ function yprint_help_shortcode() {
             border-color: #0079FF;
             background-color: #ffffff;
             box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+            transform: translateY(-1px);
         }
         
         .help-section {
-            margin-bottom: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .help-content-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
         }
         
         .faq-dropdown, .tech-help-dropdown, .other-topics-dropdown {
             background-color: #ffffff;
             border: 1px solid #e5e5e5;
-            border-radius: 12px;
+            border-radius: 16px;
             overflow: hidden;
             margin-bottom: 24px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s ease;
+        }
+        
+        .faq-dropdown:hover, .tech-help-dropdown:hover, .other-topics-dropdown:hover {
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
         }
         
         .dropdown-title-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 20px;
+            padding: 24px;
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
@@ -165,7 +188,7 @@ function yprint_help_shortcode() {
         }
         
         .dropdown-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 600;
             margin: 0;
             color: #1d1d1f;
@@ -473,6 +496,56 @@ function yprint_help_shortcode() {
             color: #dc3545;
         }
         
+        /* Desktop Optimizations */
+        @media (min-width: 769px) {
+            .yprint-help-container {
+                padding: 40px 32px;
+            }
+            
+            .help-content-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 32px;
+            }
+            
+            .contact-support {
+                grid-column: 1 / -1;
+                max-width: 600px;
+                margin: 0 auto 32px auto;
+            }
+            
+            .contact-buttons {
+                max-width: 400px;
+                margin: 0 auto;
+            }
+            
+            .dropdown-content.open {
+                max-height: 500px;
+            }
+            
+            .search-results {
+                max-width: 600px;
+                margin: 0 auto 32px auto;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .yprint-help-container {
+                padding: 60px 40px;
+            }
+            
+            .help-content-grid {
+                grid-template-columns: 1fr 1fr 1fr;
+            }
+            
+            .help-title {
+                font-size: 36px;
+            }
+            
+            .search-bar {
+                max-width: 800px;
+            }
+        }
+        
         /* Mobile Optimizations */
         @media (max-width: 768px) {
             .yprint-help-container {
@@ -481,6 +554,19 @@ function yprint_help_shortcode() {
             
             .help-title {
                 font-size: 24px;
+            }
+            
+            .search-bar {
+                margin-bottom: 24px;
+            }
+            
+            .search-input {
+                padding: 16px 16px 16px 52px;
+                border-radius: 12px;
+            }
+            
+            .search-bar svg {
+                left: 16px;
             }
             
             .contact-buttons {
@@ -669,15 +755,16 @@ function yprint_help_shortcode() {
     </div>
     <?php endif; ?>
 
-    <div class="faq-dropdown">
-        <div class="dropdown-title-container" onclick="toggleDropdown('faq')">
-            <h2 class="dropdown-title">Häufig gestellte Fragen</h2>
-            <svg class="chevron-icon" id="faqChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 9l6 6 6-6"/>
-            </svg>
-        </div>
-        <div class="dropdown-content" id="faqContent">
-            <ul class="faq-list">
+    <div class="help-content-grid">
+        <div class="faq-dropdown">
+            <div class="dropdown-title-container" onclick="toggleDropdown('faq')">
+                <h2 class="dropdown-title">Häufig gestellte Fragen</h2>
+                <svg class="chevron-icon" id="faqChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="faqContent">
+                <ul class="faq-list">
                 <li class="faq-item">
                     <div class="faq-question">Wie kann ich meine Bestellung verfolgen?</div>
                     <div class="faq-answer">Du erhältst eine E-Mail mit der Sendungsverfolgungsnummer, sobald deine Bestellung versendet wurde. Du kannst den Status auch in deinem Konto unter "Meine Bestellungen" einsehen.</div>
@@ -800,6 +887,8 @@ function yprint_help_shortcode() {
             </ul>
         </div>
     </div>
+    
+    </div> <!-- Ende help-content-grid -->
 
     <footer class="help-footer">
         <div class="footer-links">
