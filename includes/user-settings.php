@@ -2145,38 +2145,7 @@ function yprint_billing_settings_shortcode() {
         </div>
         
         <!-- Adressverwaltung Integration -->
-        <div id="billing-address-selection" <?php echo $billing_same_as_shipping ? 'style="display: none;"' : ''; ?>>
-            <?php if (!empty($additional_addresses)): ?>
-            <h4>Gespeicherte Adressen verwenden</h4>
-            <div class="yprint-saved-addresses billing-addresses">
-                <div class="address-cards-grid">
-                    <?php foreach ($additional_addresses as $address): ?>
-                    <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
-                        <div class="address-card-content">
-                            <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
-                            <p>
-                                <?php if (!empty($address['company'])): ?>
-                                <?php echo esc_html($address['company']); ?><br>
-                                <?php endif; ?>
-                                <?php echo esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')); ?><br>
-                                <?php echo esc_html(($address['address_1'] ?? '') . ' ' . ($address['address_2'] ?? '')); ?><br>
-                                <?php echo esc_html(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')); ?><br>
-                                <?php echo esc_html($address['country'] ?? ''); ?>
-                            </p>
-                        </div>
-                        <button type="button" class="yprint-button btn-use-billing-address">
-                            Für Rechnung verwenden
-                        </button>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            
-            <div class="billing-separator" style="text-align: center; margin: 20px 0;">
-                <span style="background: white; padding: 0 15px; color: #999;">oder neue Adresse eingeben</span>
-                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #e5e5e5; z-index: -1;"></div>
-            </div>
-            <?php endif; ?>
+        
         
             <form method="POST" class="yprint-settings-form" id="billing-settings-form">
                 <?php wp_nonce_field('save_billing_settings', 'billing_settings_nonce'); ?>
