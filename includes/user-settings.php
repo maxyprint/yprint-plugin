@@ -307,12 +307,24 @@ function yprint_settings_styles() {
         /* Mobile-first Hauptcontainer - Optimiert für Header/Footer Navigation */
 .yprint-settings-container {
     font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-    padding: 12px 16px 16px 16px; /* Weniger Top-Padding wegen Header */
+    padding: 12px 16px 16px 16px;
     margin: 0;
     background-color: #F8F9FB;
     color: #1A1A1A;
-    min-height: calc(100vh - 120px); /* Platz für Header/Footer */
-    padding-bottom: 100px; /* Extra Platz für Footer Navigation */
+    min-height: calc(100vh - 120px);
+    padding-bottom: 100px;
+    position: relative;
+}
+
+/* Navigation Area - Lower z-index */
+.yprint-settings-tabs-container {
+    position: relative;
+    z-index: 1;
+}
+
+.yprint-settings-grid {
+    position: relative;
+    z-index: 2;
 }
 
 /* Go Back Button - Nur Desktop */
@@ -1228,31 +1240,66 @@ function yprint_personal_settings_shortcode() {
             
             <script>
 jQuery(document).ready(function($) {
-    // Mobile Tab Selection Handler mit Smooth Scrolling
-    $(".settings-item").on("click", function(e) {
-        var href = $(this).attr('href');
+    // Mobile Tab Selection Handler mit Overlay
+$(".settings-item").on("click", function(e) {
+    var href = $(this).attr('href');
+    
+    // Auf Mobile: Overlay anzeigen
+    if (window.innerWidth <= 768) {
+        e.preventDefault();
         
-        // Auf Mobile: Smooth scroll zu Settings-Bereich falls vorhanden
-        if (window.innerWidth <= 768 && $('.settings-section').length > 0) {
-            e.preventDefault();
-            
-            // Chevron-Animation
-            $(this).find('.settings-chevron').addClass('rotate');
-            
-            // Smooth scroll
-            setTimeout(function() {
-                $('.settings-section')[0].scrollIntoView({ 
-                    behavior: 'smooth',
-                    block: 'start'
-                });
-            }, 150);
-            
-            // Nach Animation zur URL navigieren
-            setTimeout(function() {
-                window.location.href = href;
-            }, 600);
+        // Chevron-Animation
+        $(this).find('.settings-chevron').addClass('rotate');
+        
+        // Overlay erstellen falls nicht vorhanden
+        if ($('.settings-overlay').length === 0) {
+            $('body').append('<div class="settings-overlay"></div>');
         }
-    });
+        
+        // Content-Bereich laden (AJAX oder direkte Navigation)
+        loadSettingsContent(href);
+        
+        // Overlay und Settings anzeigen
+        setTimeout(function() {
+            $('.settings-overlay').addClass('show');
+            $('.settings-section').addClass('show');
+            $('body').css('overflow', 'hidden'); // Verhindert Scrollen im Hintergrund
+        }, 100);
+        
+        // Close-Button hinzufügen falls nicht vorhanden
+        if ($('.settings-close-btn').length === 0) {
+            $('.settings-section').prepend('<button class="settings-close-btn" type="button">&times;</button>');
+        }
+    }
+});
+
+// Close-Handler für Settings-Overlay
+$(document).on('click', '.settings-close-btn, .settings-overlay', function(e) {
+    if (e.target === this) {
+        $('.settings-overlay').removeClass('show');
+        $('.settings-section').removeClass('show');
+        $('body').css('overflow', 'auto');
+        $('.settings-chevron').removeClass('rotate');
+    }
+});
+
+// Escape-Key zum Schließen
+$(document).on('keydown', function(e) {
+    if (e.key === 'Escape' && $('.settings-section.show').length > 0) {
+        $('.settings-overlay').removeClass('show');
+        $('.settings-section').removeClass('show');
+        $('body').css('overflow', 'auto');
+        $('.settings-chevron').removeClass('rotate');
+    }
+});
+
+function loadSettingsContent(href) {
+    // Hier kannst du AJAX-Content laden oder zur neuen Seite navigieren
+    // Für jetzt navigieren wir einfach nach kurzer Verzögerung
+    setTimeout(function() {
+        window.location.href = href;
+    }, 400);
+}
     
     // Touch-Feedback für Mobile
     $(".settings-item").on("touchstart", function() {
@@ -4452,8 +4499,74 @@ return ob_get_clean();
     
     /* Kompaktere Abstände auf Mobile */
     .yprint-settings-container {
-        padding-bottom: 120px; /* Mehr Platz für Footer-Navigation */
+        padding-bottom: 120px;
+        overflow-x: hidden; /* Verhindert horizontales Scrollen */
     }
+    
+    /* Navigation Area - Fixierte Position */
+    .yprint-settings-tabs-container {
+        position: relative;
+        z-index: 1;
+        background-color: #F8F9FB;
+        padding-bottom: 16px;
+    }
+    
+    .yprint-settings-grid {
+        position: relative;
+        z-index: 2;
+        background-color: #F8F9FB;
+        padding-bottom: 8px;
+    }
+    
+    /* Settings Section - Vollständige Mobile Überlagerung */
+    .settings-section {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 50;
+        margin: 0;
+        padding: 24px 20px;
+        border-radius: 0;
+        border: none;
+        width: 100%;
+        height: 100vh;
+        overflow-y: auto;
+        
+        /* Vollständiger weißer Hintergrund */
+        background-color: #FFFFFF;
+        box-shadow: none;
+        
+        /* Smooth Transition */
+        transform: translateY(100%);
+        transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    /* Settings Section - Sichtbar wenn aktiv */
+    .settings-section.show {
+        transform: translateY(0);
+    }
+    
+    /* Überlagerung für Navigation dahinter */
+    .settings-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.3);
+        z-index: 49;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    }
+    
+    .settings-overlay.show {
+        opacity: 1;
+        visibility: visible;
+    }
+}
     
     .yprint-settings-grid {
         gap: 6px; /* Kompaktere Abstände zwischen Items */
@@ -4476,6 +4589,54 @@ return ob_get_clean();
     
     .settings-icon i {
         font-size: 12px;
+    }
+}
+
+/* Close-Button für Mobile Settings */
+.settings-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background-color: #f5f5f7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    z-index: 51;
+    transition: all 0.2s ease;
+}
+
+.settings-close-btn:hover {
+    background-color: #e5e5ea;
+    color: #333;
+    transform: scale(1.05);
+}
+
+.settings-close-btn:active {
+    transform: scale(0.95);
+}
+
+/* Desktop - Close-Button verstecken */
+@media (min-width: 768px) {
+    .settings-close-btn {
+        display: none;
+    }
+    
+    .settings-overlay {
+        display: none;
+    }
+    
+    .settings-section {
+        position: relative !important;
+        transform: none !important;
+        height: auto !important;
     }
 }
 
