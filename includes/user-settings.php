@@ -24,6 +24,9 @@ function yprint_init_settings_system() {
     add_shortcode('yprint_privacy_settings', 'yprint_privacy_settings_shortcode');
     add_shortcode('yprint_notification_settings', 'yprint_notification_settings_shortcode');
     
+    // Styles und Scripts für User Settings
+    add_action('wp_enqueue_scripts', 'yprint_enqueue_settings_assets');
+    
     // Overlay-Styles für Benachrichtigungen
     add_action('wp_head', 'yprint_add_overlay_styles');
     
@@ -41,6 +44,51 @@ function yprint_init_settings_system() {
     yprint_create_settings_tables();
 }
 add_action('init', 'yprint_init_settings_system');
+
+/**
+ * Enqueue Settings Assets
+ */
+function yprint_enqueue_settings_assets() {
+    global $post;
+    
+    // Nur laden wenn User Settings Shortcode vorhanden
+    if (is_a($post, 'WP_Post') && (
+        has_shortcode($post->post_content, 'yprint_user_settings') ||
+        has_shortcode($post->post_content, 'yprint_personal_settings') ||
+        has_shortcode($post->post_content, 'yprint_billing_settings') ||
+        has_shortcode($post->post_content, 'yprint_shipping_settings') ||
+        has_shortcode($post->post_content, 'yprint_payment_settings') ||
+        has_shortcode($post->post_content, 'yprint_notification_settings') ||
+        has_shortcode($post->post_content, 'yprint_privacy_settings')
+    )) {
+        
+        // Address Manager Assets
+        wp_enqueue_style('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/css/yprint-address-manager.css', array(), YPRINT_PLUGIN_VERSION);
+        wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+        
+        // Settings-spezifische Styles inline hinzufügen
+        wp_add_inline_style('yprint-address-manager', yprint_settings_styles());
+        
+        // Address Manager JavaScript-Variablen
+        wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('yprint_save_address_action'),
+            'messages' => array(
+                'delete_address' => __('Adresse wirklich löschen?', 'yprint-plugin'),
+                'set_as_default' => __('Als Standard setzen', 'yprint-plugin'),
+                'standard_address' => __('Standard-Adresse', 'yprint-plugin'),
+            ),
+        ));
+        
+        // Settings JavaScript für Events
+        wp_enqueue_script('yprint-settings-js', YPRINT_PLUGIN_URL . 'assets/js/yprint-settings.js', array('jquery', 'yprint-address-manager'), YPRINT_PLUGIN_VERSION, true);
+        
+        wp_localize_script('yprint-settings-js', 'yprint_settings_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('yprint_settings_nonce'),
+        ));
+    }
+}
 
 /**
  * Erstelle die benötigten Datenbanktabellen
@@ -305,16 +353,279 @@ function yprint_settings_styles() {
     ?>
     <style>
         /* Mobile-first Hauptcontainer - Optimiert für Header/Footer Navigation */
-.yprint-settings-container {
-    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
-    padding: 12px 16px 16px 16px;
-    margin: 0;
-    background-color: #F8F9FB;
-    color: #1A1A1A;
-    min-height: calc(100vh - 120px);
-    padding-bottom: 100px;
-    position: relative;
-}
+        .yprint-settings-container {
+            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            padding: 12px 16px 16px 16px;
+            margin: 0;
+            background-color: #F8F9FB;
+            color: #1A1A1A;
+            min-height: calc(100vh - 120px);
+            padding-bottom: 100px;
+            position: relative;
+        }
+
+        /* Address Manager Integration Styles */
+        .yprint-saved-addresses {
+            margin-bottom: 20px;
+        }
+
+        .address-cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .address-card {
+            background: #FFFFFF;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .address-card:hover {
+            border-color: #2997FF;
+            box-shadow: 0 4px 12px rgba(41, 151, 255, 0.1);
+        }
+
+        .address-card.selected {
+            border-color: #2997FF;
+            background-color: #F0F8FF;
+        }
+
+        .address-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .address-card-title {
+            font-weight: 600;
+            color: #1A1A1A;
+            display: flex;
+            align-items: center;
+        }
+
+        .address-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-address-action {
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-address-action:hover {
+            color: #2997FF;
+            background-color: #F0F8FF;
+        }
+
+        .address-card-content {
+            margin-bottom: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+            color: #666;
+        }
+
+        .address-card-footer {
+            margin-top: 12px;
+        }
+
+        .btn-select-address {
+            width: 100%;
+            background-color: #2997FF;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-select-address:hover {
+            background-color: #0080FF;
+        }
+
+        .add-new-address-card {
+            border: 2px dashed #e5e5e5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 120px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .add-new-address-card:hover {
+            border-color: #2997FF;
+            background-color: #F9FBFF;
+        }
+
+        /* Modal Styles für Address Manager */
+        .yprint-address-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .address-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .address-modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            z-index: 10001;
+        }
+
+        .address-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+
+        .btn-close-modal {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 4px;
+        }
+
+        .address-form-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .change-address-link {
+            margin-top: 16px;
+            text-align: center;
+        }
+
+        .change-address-link button {
+            background: none;
+            border: none;
+            color: #2997FF;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        /* Loading States */
+        .loading-addresses {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading-addresses i {
+            margin-right: 8px;
+        }
+
+        /* Address Selection Options */
+        .address-selection-options {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+        }
+
+        .address-option {
+            margin-bottom: 12px;
+        }
+
+        .address-option-label {
+            display: flex;
+            align-items: flex-start;
+            cursor: pointer;
+            padding: 16px;
+            border: 2px solid #e5e5e5;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .address-option-label:hover {
+            border-color: #2997FF;
+            background-color: #F9FBFF;
+        }
+
+        .address-option input[type="radio"] {
+            margin-right: 12px;
+            margin-top: 2px;
+        }
+
+        .address-option input[type="radio"]:checked + .address-option-content {
+            color: #2997FF;
+        }
+
+        .address-option-label:has(input:checked) {
+            border-color: #2997FF;
+            background-color: #F0F8FF;
+        }
+
+        .address-option-content {
+            flex: 1;
+        }
+
+        .address-option-content strong {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .address-option-content small {
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* Mobile Anpassungen für Address Options */
+        @media (max-width: 767px) {
+            .address-selection-options {
+                padding: 16px;
+                margin-bottom: 20px;
+            }
+            
+            .address-option-label {
+                padding: 12px;
+            }
+            
+            .address-cards-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
 
 /* Navigation Area - Niedrigere z-index */
 .yprint-settings-tabs-container {
@@ -1718,13 +2029,85 @@ function yprint_billing_settings_shortcode() {
             </div>
         </div>
         
-        <!-- Option: Identisch mit Lieferadresse -->
-        <div class="yprint-checkbox-row" style="margin-bottom: 20px;">
-            <input type="checkbox" 
-                   id="billing_same_as_shipping" 
-                   name="billing_same_as_shipping" 
-                   <?php checked($billing_same_as_shipping, true); ?>>
-            <label for="billing_same_as_shipping">Rechnungsadresse ist identisch mit Lieferadresse</label>
+        <!-- Adressauswahl-Optionen -->
+        <div class="address-selection-options" style="margin-bottom: 30px;">
+            <h4>Rechnungsadresse auswählen</h4>
+            
+            <!-- Option: Identisch mit Lieferadresse -->
+            <div class="address-option">
+                <label class="address-option-label">
+                    <input type="radio" 
+                           name="billing_address_type" 
+                           value="same_as_shipping" 
+                           id="billing_same_as_shipping"
+                           <?php checked($billing_same_as_shipping, true); ?>>
+                    <span class="address-option-content">
+                        <strong>Identisch mit Lieferadresse</strong>
+                        <small>Rechnungsadresse entspricht der Hauptlieferadresse</small>
+                    </span>
+                </label>
+            </div>
+            
+            <!-- Option: Gespeicherte Adresse -->
+            <?php if (!empty($additional_addresses)): ?>
+            <div class="address-option">
+                <label class="address-option-label">
+                    <input type="radio" 
+                           name="billing_address_type" 
+                           value="saved_address" 
+                           id="billing_from_saved">
+                    <span class="address-option-content">
+                        <strong>Aus gespeicherten Adressen wählen</strong>
+                        <small>Eine der bereits gespeicherten Adressen verwenden</small>
+                    </span>
+                </label>
+            </div>
+            <?php endif; ?>
+            
+            <!-- Option: Neue Adresse -->
+            <div class="address-option">
+                <label class="address-option-label">
+                    <input type="radio" 
+                           name="billing_address_type" 
+                           value="new_address" 
+                           id="billing_new_address"
+                           <?php checked($billing_same_as_shipping, false); ?>>
+                    <span class="address-option-content">
+                        <strong>Neue Rechnungsadresse eingeben</strong>
+                        <small>Abweichende Rechnungsadresse verwenden</small>
+                    </span>
+                </label>
+            </div>
+        </div>
+        
+        <input type="hidden" id="billing_same_as_shipping_value" name="billing_same_as_shipping_value" value="<?php echo $billing_same_as_shipping ? '1' : '0'; ?>">
+        
+        <!-- Gespeicherte Adressen für Rechnungsadresse -->
+        <div id="billing-saved-addresses" style="display: none; margin-bottom: 20px;">
+            <?php if (!empty($additional_addresses)): ?>
+            <div class="address-cards-grid">
+                <?php foreach ($additional_addresses as $address): ?>
+                <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
+                    <div class="address-card-content">
+                        <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
+                        <p>
+                            <?php if (!empty($address['company'])): ?>
+                            <?php echo esc_html($address['company']); ?><br>
+                            <?php endif; ?>
+                            <?php echo esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')); ?><br>
+                            <?php echo esc_html(($address['address_1'] ?? '') . ' ' . ($address['address_2'] ?? '')); ?><br>
+                            <?php echo esc_html(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')); ?><br>
+                            <?php echo esc_html($address['country'] ?? ''); ?>
+                        </p>
+                    </div>
+                    <button type="button" class="btn btn-primary btn-use-billing-address">
+                        <i class="fas fa-check mr-2"></i>
+                        Für Rechnung verwenden
+                    </button>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
         
         <!-- Adressverwaltung Integration -->
@@ -1956,16 +2339,23 @@ function yprint_billing_settings_shortcode() {
     </div>
     
     <script>
-    jQuery(document).ready(function($) {
-        // HERE API Initialisierung
-        const API_KEY = 'xPlTGXIrjg1O6Oea3e2gvo5lrN-iO1gT47Sc-VojWdU';
+jQuery(document).ready(function($) {
+    // HERE API Initialisierung
+    const API_KEY = 'xPlTGXIrjg1O6Oea3e2gvo5lrN-iO1gT47Sc-VojWdU';
+    
+    // Adresstyp-Auswahl Handler
+    $('input[name="billing_address_type"]').change(function() {
+        const selectedType = $(this).val();
         
-        // Rechnungsadresse identisch mit Lieferadresse umschalten
-        $('#billing_same_as_shipping').change(function() {
-            const isChecked = this.checked;
-            $('#billing_same_as_shipping_value').val(isChecked ? '1' : '0');
-            
-            if (isChecked) {
+        // Alle Bereiche zunächst verstecken
+        $('#billing-address-selection').hide();
+        $('#billing-saved-addresses').hide();
+        
+        // Update hidden field
+        $('#billing_same_as_shipping_value').val(selectedType === 'same_as_shipping' ? '1' : '0');
+        
+        switch(selectedType) {
+            case 'same_as_shipping':
                 // Lieferadresse in Rechnungsfelder kopieren
                 $('#billing_first_name').val('<?php echo esc_js($shipping_first_name); ?>');
                 $('#billing_last_name').val('<?php echo esc_js($shipping_last_name); ?>');
@@ -1974,172 +2364,49 @@ function yprint_billing_settings_shortcode() {
                 $('#billing_postcode').val('<?php echo esc_js($shipping_postcode); ?>');
                 $('#billing_city').val('<?php echo esc_js($shipping_city); ?>');
                 $('#billing_country').val('<?php echo esc_js($shipping_country); ?>');
+                break;
                 
-                // Adressauswahl verstecken
-                $('#billing-address-selection').slideUp(300);
-            } else {
-                // Adressauswahl anzeigen
+            case 'saved_address':
+                $('#billing-saved-addresses').slideDown(300);
+                break;
+                
+            case 'new_address':
                 $('#billing-address-selection').slideDown(300);
-            }
-        });
-        
-        // Gespeicherte Adresse für Rechnung verwenden
-        $('.btn-use-billing-address').on('click', function() {
-            const addressCard = $(this).closest('.address-card');
-            const addressData = JSON.parse(addressCard.attr('data-address-data'));
-            
-            // Felder ausfüllen
-            $('#billing_first_name').val(addressData.first_name || '');
-            $('#billing_last_name').val(addressData.last_name || '');
-            $('#billing_company').val(addressData.company || '');
-            $('#billing_address_1').val(addressData.address_1 || '');
-            $('#billing_address_2').val(addressData.address_2 || '');
-            $('#billing_postcode').val(addressData.postcode || '');
-            $('#billing_city').val(addressData.city || '');
-            $('#billing_country').val(addressData.country || 'DE');
-            
-            // Visuelles Feedback
-            addressCard.addClass('selected');
-            setTimeout(() => addressCard.removeClass('selected'), 2000);
-            
-            // Event triggern für weitere Integration
-            $(document).trigger('yprint_billing_address_selected', [addressData]);
-        });
-        
-        // Unternehmensfeld umschalten
-        $('#is_company').change(function() {
-            if (this.checked) {
-                $('#company_fields').slideDown(300);
-            } else {
-                $('#company_fields').slideUp(300);
-            }
-        });
-
-        // Alternative Rechnungs-E-Mail umschalten
-        $('#different_billing_email').change(function() {
-            if (this.checked) {
-                $('#different_billing_email_field').slideDown(300);
-            } else {
-                $('#different_billing_email_field').slideUp(300);
-                $('#alt_billing_email').val('');
-            }
-        });
-
-        <?php if (isset($email_changed) && $email_changed): ?>
-        // Overlay anzeigen
-        $('#emailChangeOverlay').css('display', 'flex');
-        <?php endif; ?>
-        
-        // Erfolgsmeldung nach 3 Sekunden ausblenden
-        setTimeout(function() {
-            $('.yprint-message-success').fadeOut(500);
-        }, 3000);
-        
-        // Adresssuche für Rechnungsadresse einrichten
-        setupAddressSearch('billing');
-        
-        // Adresssuche-Funktion
-        function setupAddressSearch(prefix) {
-            let searchTimeout;
-            $(`#address_search_${prefix}`).on('input', function() {
-                clearTimeout(searchTimeout);
-                const query = $(this).val();
-                
-                $(`#${prefix}_address_loader`).hide();
-                
-                if (query.length < 3) {
-                    $(`#${prefix}_address_suggestions`).hide();
-                    return;
-                }
-
-                $(`#${prefix}_address_loader`).show();
-
-                searchTimeout = setTimeout(function() {
-                    $.ajax({
-                        url: 'https://geocode.search.hereapi.com/v1/geocode',
-                        data: {
-                            q: query,
-                            apiKey: API_KEY,
-                            limit: 5,
-                            lang: 'de',
-                            in: 'countryCode:DEU,AUT,CHE'
-                        },
-                        type: 'GET',
-                        success: function(data) {
-                            $(`#${prefix}_address_loader`).hide();
-                            const $suggestions = $(`#${prefix}_address_suggestions`);
-                            $suggestions.empty();
-
-                            if (data && data.items && data.items.length > 0) {
-                                data.items.forEach(function(item) {
-                                    const address = item.address;
-                                    
-                                    // Hauptadresszeile
-                                    const mainLine = [
-                                        address.street,
-                                        address.houseNumber,
-                                        address.postalCode,
-                                        address.city
-                                    ].filter(Boolean).join(' ');
-
-                                    // Zusätzliche Informationen
-                                    const secondaryLine = [
-                                        address.district,
-                                        address.state,
-                                        address.countryName
-                                    ].filter(Boolean).join(', ');
-
-                                    const $suggestion = $('<div>').addClass('yprint-address-suggestion')
-                                        .append($('<div>').addClass('yprint-suggestion-main').text(mainLine))
-                                        .append($('<div>').addClass('yprint-suggestion-secondary').text(secondaryLine))
-                                        .data('address', address);
-
-                                    $suggestion.on('click', function() {
-                                        const address = $(this).data('address');
-                                        
-                                        // Straße und Hausnummer trennen
-                                        const street = address.street || '';
-                                        const houseNumber = address.houseNumber || '';
-                                        
-                                        // Felder ausfüllen
-                                        $(`#${prefix}_address_1`).val(street);
-                                        $(`#${prefix}_address_2`).val(houseNumber);
-                                        $(`#${prefix}_postcode`).val(address.postalCode || '');
-                                        $(`#${prefix}_city`).val(address.city || '');
-                                        
-                                        // Land setzen
-                                        if (address.countryCode) {
-                                            const countryCode = address.countryCode.toUpperCase();
-                                            $(`#${prefix}_country`).val(countryCode);
-                                        }
-
-                                        $suggestions.hide();
-                                        $(`#address_search_${prefix}`).val('');
-                                    });
-
-                                    $suggestions.append($suggestion);
-                                });
-
-                                $suggestions.show();
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            $(`#${prefix}_address_loader`).hide();
-                            console.error('Fehler bei der Adresssuche:', error);
-                        }
-                    });
-                }, 500);
-            });
-            
-            // Klick außerhalb schließt Vorschläge
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest(`#address_search_${prefix}, #${prefix}_address_suggestions`).length) {
-                    $(`#${prefix}_address_suggestions`).hide();
-                }
-            });
+                // Felder leeren für neue Eingabe
+                $('#billing_first_name, #billing_last_name, #billing_address_1, #billing_address_2, #billing_postcode, #billing_city').val('');
+                break;
         }
+        
+        // Event für Integration triggern
+        $(document).trigger('yprint_billing_type_changed', [selectedType]);
     });
-    </script>
+    
+    // Gespeicherte Adresse für Rechnung verwenden
+    $('.btn-use-billing-address').on('click', function() {
+        const addressCard = $(this).closest('.address-card');
+        const addressData = JSON.parse(addressCard.attr('data-address-data'));
+        
+        // Felder ausfüllen
+        $('#billing_first_name').val(addressData.first_name || '');
+        $('#billing_last_name').val(addressData.last_name || '');
+        $('#billing_company').val(addressData.company || '');
+        $('#billing_address_1').val(addressData.address_1 || '');
+        $('#billing_address_2').val(addressData.address_2 || '');
+        $('#billing_postcode').val(addressData.postcode || '');
+        $('#billing_city').val(addressData.city || '');
+        $('#billing_country').val(addressData.country || 'DE');
+        
+        // Visuelles Feedback
+        addressCard.addClass('selected');
+        setTimeout(() => addressCard.removeClass('selected'), 2000);
+        
+        // Bereich verstecken
+        $('#billing-saved-addresses').slideUp(300);
+        $('#billing-address-selection').slideDown(300);
+        
+        // Event triggern
+        $(document).trigger('yprint_billing_address_selected', [addressData]);
+    });
     <?php
     
     return ob_get_clean();
@@ -2158,9 +2425,12 @@ function yprint_shipping_settings_shortcode() {
     $message = '';
     $message_type = '';
     
-    // Address Manager Styles und Scripts einbinden
+    // Address Manager Integration - Styles und Scripts einbinden
     wp_enqueue_style('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/css/yprint-address-manager.css', array(), YPRINT_PLUGIN_VERSION);
     wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    
+    // Zusätzliche Settings-Styles einbinden
+    wp_add_inline_style('yprint-address-manager', yprint_settings_styles());
     
     // Address Manager JavaScript-Variablen
     wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
@@ -2189,13 +2459,17 @@ function yprint_shipping_settings_shortcode() {
     $is_company_billing = get_user_meta($user_id, 'is_company', true);
     
     // Prüfen, ob Zusatzadressen vorhanden sind
-    $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
-    if (!is_array($additional_addresses)) {
-        $additional_addresses = array();
-    }
-    
-    // Defaultadresse abrufen
-    $default_address_id = get_user_meta($user_id, 'default_shipping_address', true);
+        $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
+        if (!is_array($additional_addresses)) {
+            $additional_addresses = array();
+        }
+        
+        // Defaultadresse abrufen
+        $default_address_id = get_user_meta($user_id, 'default_shipping_address', true);
+        
+        // Falls Unternehmen in Rechnungsdaten gesetzt ist, auch hier vorschlagen
+        $billing_company = get_user_meta($user_id, 'billing_company', true);
+        $is_company_billing = get_user_meta($user_id, 'is_company', true);
     
     // Wenn POST-Anfrage zur Speicherung
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
