@@ -175,8 +175,8 @@ function yprint_user_settings_shortcode() {
     // Google Fonts für Roboto
     echo '<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@700&display=swap" rel="stylesheet">';
     
-    // Go Back Button
-    echo '<a href="https://yprint.de/dashboard" style="
+    // Go Back Button - nur auf Desktop
+    echo '<a href="https://yprint.de/dashboard" class="go-back-button" style="
         background: transparent;
         border: none;
         font-family: \'Roboto\', sans-serif;
@@ -185,7 +185,7 @@ function yprint_user_settings_shortcode() {
         cursor: pointer;
         padding: 0;
         margin-bottom: 20px;
-        display: flex;
+        display: none;
         align-items: center;
         font-weight: bold;
         text-decoration: none;
@@ -214,7 +214,7 @@ function yprint_user_settings_shortcode() {
         echo '</div>';
     }
     
-    // Tabs definieren
+    // Tabs definieren - entfernt: payment, checkout
     $tabs = array(
         'personal' => array(
             'title' => 'Persönliche Daten',
@@ -227,10 +227,6 @@ function yprint_user_settings_shortcode() {
         'shipping' => array(
             'title' => 'Lieferadressen',
             'icon' => 'shipping-fast'
-        ),
-        'payment' => array(
-            'title' => 'Zahlungsmethoden',
-            'icon' => 'credit-card'
         ),
         'notifications' => array(
             'title' => 'Benachrichtigungen',
@@ -285,9 +281,6 @@ function yprint_user_settings_shortcode() {
                             break;
                         case 'shipping':
                             echo do_shortcode('[yprint_shipping_settings]');
-                            break;
-                        case 'payment':
-                            echo do_shortcode('[yprint_payment_settings]');
                             break;
                         case 'notifications':
                             echo do_shortcode('[yprint_notification_settings]');
@@ -652,8 +645,45 @@ function yprint_settings_styles() {
 
 /* Go Back Button - Nur Desktop */
 .go-back-button {
-    display: none; /* Standard: Versteckt auf Mobile */
-}
+            display: none !important; /* Standard: Versteckt auf Mobile */
+        }
+        
+        /* Privacy Action Buttons */
+        .privacy-action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            border-color: #2997FF;
+        }
+        
+        .privacy-action-button.danger:hover {
+            background: #fef2f2;
+            border-color: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.1);
+        }
+        
+        /* Mobile Privacy Buttons */
+        @media (max-width: 768px) {
+            .privacy-buttons-grid {
+                gap: 12px !important;
+            }
+            
+            .privacy-action-button {
+                padding: 18px 20px !important;
+                font-size: 16px !important;
+            }
+        }
+        
+        /* Mobile Content Sections */
+        @media (max-width: 767px) {
+            .settings-section {
+                margin: 15px -16px 0 -16px;
+                border-radius: 0;
+                border-left: none;
+                border-right: none;
+                padding: 20px 16px;
+            }
+        }
 
 /* Kompakter Header für Mobile */
 .yprint-settings-header {
@@ -1558,6 +1588,21 @@ function yprint_personal_settings_shortcode() {
                 $update_result = $wpdb->insert($wpdb->prefix . 'personal_data', $fields_to_update);
             }
             
+            // Daten nach Update neu laden
+            $user_data = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}personal_data WHERE user_id = %d",
+                    $user_id
+                ),
+                ARRAY_A
+            );
+            
+            // Aktualisierte Werte setzen
+            $first_name = isset($user_data['first_name']) ? esc_attr($user_data['first_name']) : '';
+            $last_name = isset($user_data['last_name']) ? esc_attr($user_data['last_name']) : '';
+            $birthdate = isset($user_data['birthdate']) ? esc_attr($user_data['birthdate']) : '';
+            $phone = isset($user_data['phone']) ? esc_attr($user_data['phone']) : '';
+            
             $message = 'Deine persönlichen Daten wurden erfolgreich gespeichert.';
             $message_type = 'success';
         }
@@ -2033,36 +2078,35 @@ function yprint_billing_settings_shortcode() {
         <div class="address-selection-options" style="margin-bottom: 30px;">
             <h4>Rechnungsadresse auswählen</h4>
             
-            <!-- Option: Identisch mit Lieferadresse -->
-            <div class="address-option">
-                <label class="address-option-label">
-                    <input type="radio" 
-                           name="billing_address_type" 
-                           value="same_as_shipping" 
-                           id="billing_same_as_shipping"
-                           <?php checked($billing_same_as_shipping, true); ?>>
-                    <span class="address-option-content">
-                        <strong>Identisch mit Lieferadresse</strong>
-                        <small>Rechnungsadresse entspricht der Hauptlieferadresse</small>
-                    </span>
-                </label>
+            <!-- Gespeicherte Adressen direkt anzeigen -->
+        <?php if (!empty($additional_addresses)): ?>
+        <h3>Gespeicherte Adressen</h3>
+        <div class="yprint-saved-addresses billing-addresses">
+            <div class="address-cards-grid">
+                <?php foreach ($additional_addresses as $address): ?>
+                <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
+                    <div class="address-card-content">
+                        <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
+                        <p>
+                            <?php if (!empty($address['company'])): ?>
+                            <?php echo esc_html($address['company']); ?><br>
+                            <?php endif; ?>
+                            <?php echo esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')); ?><br>
+                            <?php echo esc_html(($address['address_1'] ?? '') . ' ' . ($address['address_2'] ?? '')); ?><br>
+                            <?php echo esc_html(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')); ?><br>
+                            <?php echo esc_html($address['country'] ?? ''); ?>
+                        </p>
+                    </div>
+                    <button type="button" class="yprint-button btn-use-billing-address">
+                        Als Rechnungsadresse verwenden
+                    </button>
+                </div>
+                <?php endforeach; ?>
             </div>
-            
-            <!-- Option: Gespeicherte Adresse -->
-            <?php if (!empty($additional_addresses)): ?>
-            <div class="address-option">
-                <label class="address-option-label">
-                    <input type="radio" 
-                           name="billing_address_type" 
-                           value="saved_address" 
-                           id="billing_from_saved">
-                    <span class="address-option-content">
-                        <strong>Aus gespeicherten Adressen wählen</strong>
-                        <small>Eine der bereits gespeicherten Adressen verwenden</small>
-                    </span>
-                </label>
-            </div>
-            <?php endif; ?>
+        </div>
+        
+        <h3 style="margin-top: 30px;">Neue Rechnungsadresse</h3>
+        <?php endif; ?>
             
             <!-- Option: Neue Adresse -->
             <div class="address-option">
@@ -2308,29 +2352,7 @@ function yprint_billing_settings_shortcode() {
                 </select>
             </div>
             
-            <!-- Alternative Rechnungs-E-Mail -->
-            <h3>Kommunikation</h3>
-            <div class="yprint-checkbox-row">
-                <input type="checkbox" 
-                       id="different_billing_email" 
-                       name="different_billing_email" 
-                       <?php checked(!empty($alt_billing_email), true); ?>>
-                <label for="different_billing_email">Rechnungen an abweichende E-Mail-Adresse senden</label>
-            </div>
-            
-            <div id="different_billing_email_field" class="yprint-company-fields" 
-                 <?php echo !empty($alt_billing_email) ? 'style="display: block;"' : 'style="display: none;"'; ?>>
-                <div class="yprint-form-group">
-                    <label for="alt_billing_email" class="yprint-form-label">E-Mail für Rechnungen</label>
-                    <input type="email" 
-                           id="alt_billing_email" 
-                           name="alt_billing_email" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($alt_billing_email); ?>" 
-                           placeholder="rechnungen@beispiel.de">
-                    <div class="yprint-form-hint">Diese E-Mail-Adresse wird für Rechnungen und bestellbezogene Mitteilungen verwendet.</div>
-                </div>
-            </div>
+            <!-- Alternative Rechnungs-E-Mail entfernt -->
             
             <div>
                 <button type="submit" class="yprint-button">Änderungen speichern</button>
@@ -3388,8 +3410,8 @@ function yprint_shipping_settings_shortcode() {
             </div>
         </form>
         
-        <!-- Zusätzliche Adressen -->
-        <h3 style="margin-top: 40px;">Weitere Adressen</h3>
+        <!-- Gespeicherte Adressen -->
+        <h3 style="margin-top: 40px;">Gespeicherte Adressen</h3>
         
         <?php if (empty($additional_addresses)): ?>
             <p>Du hast noch keine zusätzlichen Lieferadressen hinterlegt.</p>
@@ -3421,20 +3443,29 @@ function yprint_shipping_settings_shortcode() {
                 </p>
                 
                 <div class="yprint-address-actions">
-                    <a href="?tab=shipping&action=edit&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button">Bearbeiten</a>
+                    <a href="?tab=shipping&action=edit&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button">
+                        <i class="fas fa-edit"></i> Bearbeiten
+                    </a>
                     <?php if ($default_address_id !== $address['id']): ?>
-                    <a href="?tab=shipping&action=set_default&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button yprint-button-secondary">Als Standard</a>
+                    <a href="?tab=shipping&action=set_default&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button yprint-button-secondary">
+                        <i class="fas fa-star"></i> Als Standard
+                    </a>
                     <?php endif; ?>
-                    <a href="?tab=shipping&action=delete&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button yprint-button-danger" onclick="return confirm('Möchtest du diese Adresse wirklich löschen?');">Löschen</a>
+                    <a href="?tab=shipping&action=delete&address_id=<?php echo esc_attr($address['id']); ?>" class="yprint-button yprint-button-danger" onclick="return confirm('Möchtest du diese Adresse wirklich löschen?');">
+                        <i class="fas fa-trash"></i> Löschen
+                    </a>
                 </div>
             </div>
             <?php endforeach; ?>
         </div>
         <?php endif; ?>
         
-        <p style="margin-top: 20px;">
-            <a href="?tab=shipping&action=add" class="yprint-button">Neue Adresse hinzufügen</a>
-        </p>
+        <!-- "Neue Adresse hinzufügen" Button direkt unterhalb der Standard-Adresse -->
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; text-align: center;">
+            <a href="?tab=shipping&action=add" class="yprint-button">
+                <i class="fas fa-plus"></i> Neue Adresse hinzufügen
+            </a>
+        </div>
         
         <?php endif; ?>
     </div>
@@ -4324,10 +4355,35 @@ function yprint_privacy_settings_shortcode() {
         <h3 style="margin-top: 40px;">Datenschutz und deine Rechte</h3>
         <p>Du hast jederzeit das Recht, Auskunft über deine gespeicherten Daten zu erhalten, diese zu berichtigen, zu löschen oder deren Verarbeitung einzuschränken.</p>
         
-        <div class="yprint-form-row" style="margin-top: 15px;">
-            <a href="<?php echo esc_url(home_url('/datenschutz/')); ?>" class="yprint-button yprint-button-secondary" style="flex: 1; text-align: center;">Datenschutzerklärung ansehen</a>
-            <a href="#" id="data-export-button" class="yprint-button yprint-button-secondary" style="flex: 1; text-align: center;">Meine Daten herunterladen</a>
-            <a href="#" id="delete-data-button" class="yprint-button yprint-button-danger" style="flex: 1; text-align: center;">Konto löschen</a>
+        <div class="privacy-actions-section" style="margin-top: 30px; padding: 25px; background: #f8f9fa; border-radius: 15px; border: 1px solid #e5e5e5;">
+            <h4 style="margin-top: 0; margin-bottom: 20px; color: #1d1d1f;">Deine Datenrechte</h4>
+            <p style="margin-bottom: 25px; color: #6e6e73; font-size: 14px;">
+                Deine Daten werden sicher in unserer Datenbank gespeichert und für die Bereitstellung unserer Services verwendet. 
+                Du hast jederzeit Kontrolle über deine Informationen.
+            </p>
+            
+            <div class="privacy-buttons-grid" style="display: grid; grid-template-columns: 1fr; gap: 15px;">
+                <a href="<?php echo esc_url(home_url('/datenschutz/')); ?>" 
+                   class="privacy-action-button" 
+                   style="display: flex; align-items: center; justify-content: center; padding: 15px 20px; background: #ffffff; border: 2px solid #e5e5e5; border-radius: 12px; text-decoration: none; color: #1d1d1f; font-weight: 500; transition: all 0.2s ease;">
+                    <i class="fas fa-shield-alt" style="margin-right: 12px; color: #2997FF;"></i>
+                    Datenschutzerklärung ansehen
+                </a>
+                
+                <a href="#" id="data-export-button" 
+                   class="privacy-action-button" 
+                   style="display: flex; align-items: center; justify-content: center; padding: 15px 20px; background: #ffffff; border: 2px solid #e5e5e5; border-radius: 12px; text-decoration: none; color: #1d1d1f; font-weight: 500; transition: all 0.2s ease;">
+                    <i class="fas fa-download" style="margin-right: 12px; color: #2997FF;"></i>
+                    Meine Daten herunterladen
+                </a>
+                
+                <a href="#" id="delete-data-button" 
+                   class="privacy-action-button danger" 
+                   style="display: flex; align-items: center; justify-content: center; padding: 15px 20px; background: #fff5f5; border: 2px solid #fecaca; border-radius: 12px; text-decoration: none; color: #dc2626; font-weight: 500; transition: all 0.2s ease;">
+                    <i class="fas fa-user-times" style="margin-right: 12px;"></i>
+                    Konto vollständig löschen
+                </a>
+            </div>
         </div>
         
         <div id="delete-account-overlay" class="yprint-overlay">
