@@ -58,6 +58,7 @@ function yprint_help_shortcode() {
         /* YPrint Help Page Styles - White Theme */
         .yprint-help-container {
             font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            background-color: #ffffff;
             color: #1d1d1f;
             min-height: 100vh;
             padding: 16px;
@@ -122,16 +123,19 @@ function yprint_help_shortcode() {
             color: #1d1d1f;
             font-size: 16px;
             transition: border-color 0.2s ease, background-color 0.2s ease;
+            box-sizing: border-box;
         }
         
         .search-input::placeholder {
             color: #6e6e73;
+            font-weight: 400;
         }
         
         .search-input:focus {
             outline: none;
             border-color: #0079FF;
             background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
         }
         
         .help-section {
@@ -186,8 +190,9 @@ function yprint_help_shortcode() {
         }
         
         .dropdown-content.open {
-            max-height: 500px;
+            max-height: 400px;
             padding: 0 20px 20px 20px;
+            overflow-y: auto;
         }
         
         .faq-list, .help-list {
@@ -272,13 +277,10 @@ function yprint_help_shortcode() {
         }
         
         .help-list-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: block;
             padding: 12px 0;
             border-bottom: 1px solid #e5e5e5;
-            cursor: pointer;
-            transition: color 0.2s ease;
+            transition: background-color 0.2s ease;
         }
         
         .help-list-item:last-child {
@@ -286,12 +288,10 @@ function yprint_help_shortcode() {
         }
         
         .help-list-item:hover {
-            color: #0079FF;
-        }
-        
-        .help-list-item span {
-            color: #6e6e73;
-            font-size: 18px;
+            background-color: #f6f7fa;
+            margin: 0 -12px;
+            padding: 12px;
+            border-radius: 8px;
         }
         
         .help-footer {
@@ -730,17 +730,23 @@ function yprint_help_shortcode() {
         </div>
         <div class="dropdown-content" id="techHelpContent">
             <ul class="help-list">
-                <li class="help-list-item" onclick="showDetailContent('common-issues')">
-                    Häufige Probleme
-                    <span>→</span>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Häufige Probleme</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Design wird nicht angezeigt, Upload-Probleme, Zahlungsfehler</div>
+                    </div>
                 </li>
-                <li class="help-list-item" onclick="showDetailContent('design-upload')">
-                    Design-Upload Probleme
-                    <span>→</span>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Design-Upload Probleme</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Unterstützte Formate, maximale Dateigröße, Auflösung</div>
+                    </div>
                 </li>
-                <li class="help-list-item" onclick="showDetailContent('website-problems')">
-                    Website-Probleme
-                    <span>→</span>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Website-Probleme</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Browser-Kompatibilität, Cache-Probleme, Login-Schwierigkeiten</div>
+                    </div>
                 </li>
             </ul>
         </div>
@@ -755,12 +761,42 @@ function yprint_help_shortcode() {
         </div>
         <div class="dropdown-content" id="otherTopicsContent">
             <ul class="help-list">
-                <li class="help-list-item" onclick="showDetailContent('shipping')">Versand</li>
-                <li class="help-list-item" onclick="showDetailContent('returns')">Rücksendungen</li>
-                <li class="help-list-item" onclick="showDetailContent('payments')">Zahlungen</li>
-                <li class="help-list-item" onclick="showDetailContent('account')">Konto</li>
-                <li class="help-list-item" onclick="showDetailContent('size-chart')">Größentabelle</li>
-                <li class="help-list-item" onclick="showDetailContent('materials')">Materialien</li>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Versand</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Versandkosten, Lieferzeiten, Sendungsverfolgung</div>
+                    </div>
+                </li>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Rücksendungen</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Rückgaberecht, Bedingungen, Erstattung</div>
+                    </div>
+                </li>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Zahlungen</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Verfügbare Zahlungsmethoden, Sicherheit</div>
+                    </div>
+                </li>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Konto</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Registrierung, Bestellübersicht, Einstellungen</div>
+                    </div>
+                </li>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Größentabelle</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Größenführer für alle Produktkategorien</div>
+                    </div>
+                </li>
+                <li class="help-list-item">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Materialien</div>
+                        <div style="color: #6e6e73; font-size: 14px;">Stoffqualität, Druckverfahren, Pflegehinweise</div>
+                    </div>
+                </li>
             </ul>
         </div>
     </div>
