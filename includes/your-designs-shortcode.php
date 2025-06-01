@@ -68,6 +68,20 @@ class YPrint_Your_Designs {
      * Handle update design title AJAX request
      */
     public static function handle_update_design_title() {
+        wp_send_json_success(array(
+            'message' => 'Test erfolgreich - AJAX funktioniert',
+            'debug' => true
+        ));
+    }
+
+if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
+    wp_send_json_error('Ungültige Parameter: Titel ist erforderlich und darf maximal 255 Zeichen lang sein');
+    return;
+
+    /**
+     * Handle update design title AJAX request
+     */
+    public static function handle_update_design_title() {
         // Debug-Ausgabe
         error_log('YPrint: handle_update_design_title called');
         error_log('YPrint: POST data: ' . print_r($_POST, true));
@@ -85,6 +99,56 @@ class YPrint_Your_Designs {
 if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
     wp_send_json_error('Ungültige Parameter: Titel ist erforderlich und darf maximal 255 Zeichen lang sein');
     return;
+}
+
+        $current_user_id = get_current_user_id();
+        if (!$current_user_id) {
+            error_log('YPrint: User not logged in');
+            wp_send_json_error('Du musst angemeldet sein');
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'octo_user_designs';
+        
+        // Prüfen ob Design existiert und dem User gehört
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE id = %d AND user_id = %d",
+            $design_id,
+            $current_user_id
+        ));
+        
+        if (!$existing) {
+            error_log('YPrint: Design not found or no permission');
+            wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
+            return;
+        }
+        
+        $result = $wpdb->update(
+            $table_name,
+            array('name' => $new_title),
+            array(
+                'id' => $design_id,
+                'user_id' => $current_user_id
+            ),
+            array('%s'),
+            array('%d', '%d')
+        );
+
+        error_log('YPrint: Update result: ' . var_export($result, true));
+
+        if ($result === false) {
+            error_log('YPrint: Database update failed: ' . $wpdb->last_error);
+            wp_send_json_error('Fehler beim Speichern des Titels');
+            return;
+        }
+
+        wp_send_json_success(array(
+            'message' => 'Titel wurde erfolgreich geändert',
+            'design_id' => $design_id,
+            'new_title' => $new_title
+        ));
+    }
 }
 
         $current_user_id = get_current_user_id();
