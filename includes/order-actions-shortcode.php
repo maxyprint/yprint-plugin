@@ -124,14 +124,17 @@ class YPrint_Order_Actions_Screenshot_Final {
 }
 
 .yprint-last-order-label {
-    font-weight: 500;
-    font-size: 12px;
-    color: #0079FF;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 2px;
-    line-height: 1.2;
+  font-family: "Roboto", sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  color: #0079FF; /* edles, zurückhaltendes Dunkelgrau */
+  text-transform: none;
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  margin-bottom: 4px;
 }
+
+
 
 .yprint-last-order-status {
     font-weight: 600;
