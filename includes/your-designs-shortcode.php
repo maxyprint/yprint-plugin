@@ -25,6 +25,8 @@ class YPrint_Your_Designs {
         add_action('wp_ajax_nopriv_yprint_reorder_design', array(__CLASS__, 'handle_reorder_design'));
         add_action('wp_ajax_yprint_delete_design', array(__CLASS__, 'handle_delete_design'));
         add_action('wp_ajax_nopriv_yprint_delete_design', array(__CLASS__, 'handle_delete_design'));
+        add_action('wp_ajax_yprint_update_design_title', array(__CLASS__, 'handle_update_design_title'));
+        add_action('wp_ajax_nopriv_yprint_update_design_title', array(__CLASS__, 'handle_update_design_title'));
     }
 
     /**
@@ -61,6 +63,57 @@ class YPrint_Your_Designs {
     padding: 1.5rem;
     border: 1px solid #DFDFDF;
     margin: 0;
+
+    /**
+     * Handle update design title AJAX request
+     */
+    public static function handle_update_design_title() {
+        check_ajax_referer('yprint_design_actions_nonce', 'nonce');
+
+        $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+        $new_title = isset($_POST['new_title']) ? sanitize_text_field($_POST['new_title']) : '';
+        
+        if (!$design_id || !$new_title) {
+            wp_send_json_error('Ungültige Parameter');
+            return;
+        }
+
+        $current_user_id = get_current_user_id();
+        if (!$current_user_id) {
+            wp_send_json_error('Du musst angemeldet sein');
+            return;
+        }
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'octo_user_designs';
+        
+        $result = $wpdb->update(
+            $table_name,
+            array('name' => $new_title),
+            array(
+                'id' => $design_id,
+                'user_id' => $current_user_id
+            ),
+            array('%s'),
+            array('%d', '%d')
+        );
+
+        if ($result === false) {
+            wp_send_json_error('Fehler beim Speichern des Titels');
+            return;
+        }
+
+        if ($result === 0) {
+            wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
+            return;
+        }
+
+        wp_send_json_success(array(
+            'message' => 'Titel wurde erfolgreich geändert',
+            'design_id' => $design_id,
+            'new_title' => $new_title
+        ));
+    }
 }
 
         .yprint-your-designs-header {
@@ -166,6 +219,30 @@ class YPrint_Your_Designs {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .yprint-design-name-input {
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            margin: 0 0 0.25rem 0;
+            line-height: 1.3;
+            width: 100%;
+            border: 1px solid #0079FF;
+            border-radius: 4px;
+            padding: 2px 4px;
+            background-color: #ffffff;
+            font-family: inherit;
+        }
+
+        .yprint-design-name-input:focus {
+            outline: none;
+            border-color: #0056b3;
+            box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.1);
+        }
+
+        .yprint-design-name.editing {
+            display: none;
         }
 
         .yprint-design-meta {
@@ -510,9 +587,17 @@ class YPrint_Your_Designs {
                                     </div>
                                     
                                     <div class="yprint-design-content">
-                                        <h3 class="yprint-design-name" title="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>">
+                                        <h3 class="yprint-design-name" 
+                                            data-design-id="<?php echo esc_attr($design->id); ?>"
+                                            title="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>">
                                             <?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?>
                                         </h3>
+                                        <input type="text" 
+                                               class="yprint-design-name-input" 
+                                               data-design-id="<?php echo esc_attr($design->id); ?>"
+                                               value="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>"
+                                               style="display: none;"
+                                               maxlength="50">
                                         <p class="yprint-design-meta">
                                             <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
                                                 date_i18n('d.m.Y', strtotime($design->created_at))); ?>
@@ -526,15 +611,12 @@ class YPrint_Your_Designs {
                                 </div>
 
                                 <div class="yprint-design-actions">
-                                    <?php if ($template_id) : ?>
                                     <div class="yprint-design-action edit" 
                                          data-design-id="<?php echo esc_attr($design->id); ?>"
-                                         data-template-id="<?php echo esc_attr($template_id); ?>"
-                                         title="<?php _e('Design bearbeiten', 'yprint-plugin'); ?>">
+                                         title="<?php _e('Titel bearbeiten', 'yprint-plugin'); ?>">
                                         <i class="fas fa-edit"></i>
-                                        <div class="yprint-design-action-label"><?php _e('Bearbeiten', 'yprint-plugin'); ?></div>
+                                        <div class="yprint-design-action-label"><?php _e('Umbenennen', 'yprint-plugin'); ?></div>
                                     </div>
-                                    <?php endif; ?>
                                     
                                     <div class="yprint-design-action reorder" 
                                          data-design-id="<?php echo esc_attr($design->id); ?>"
@@ -575,41 +657,6 @@ class YPrint_Your_Designs {
 
             console.log('YPrint Designs: Initializing...', container);
 
-            // Handle clickable area (main card area above buttons)
-            const clickableAreas = container.querySelectorAll('.yprint-design-clickable-area');
-            console.log('YPrint Designs: Found clickable areas:', clickableAreas.length);
-            
-            clickableAreas.forEach((area, index) => {
-                const designId = area.dataset.designId;
-                const templateId = area.dataset.templateId;
-                console.log('YPrint Designs: Setting up clickable area', index, 'Design ID:', designId, 'Template ID:', templateId);
-                
-                area.addEventListener('click', function(e) {
-                    console.log('YPrint Designs: Clickable area clicked!', e.target);
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    const designId = this.dataset.designId;
-                    const templateId = this.dataset.templateId;
-                    
-                    console.log('YPrint Designs: Design ID:', designId, 'Template ID:', templateId);
-                    
-                    if (designId && templateId) {
-                        const url = '<?php echo esc_url(home_url('/designer/?design_id=')); ?>' + designId + '&template_id=' + templateId;
-                        console.log('YPrint Designs: Navigating to:', url);
-                        window.location.href = url;
-                    } else {
-                        console.warn('YPrint Designs: Missing design_id or template_id', {designId, templateId});
-                        // Fallback: nur mit template_id wenn verfügbar
-                        if (templateId) {
-                            const fallbackUrl = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
-                            console.log('YPrint Designs: Fallback navigation to:', fallbackUrl);
-                            window.location.href = fallbackUrl;
-                        }
-                    }
-                });
-            });
-
             // Handle reorder buttons
             const reorderButtons = container.querySelectorAll('.reorder');
             reorderButtons.forEach(button => {
@@ -620,22 +667,13 @@ class YPrint_Your_Designs {
                 });
             });
 
-            // Handle edit buttons
+            // Handle edit buttons (now for title editing)
             const editButtons = container.querySelectorAll('.edit');
             editButtons.forEach(button => {
                 button.addEventListener('click', function(e) {
                     e.stopPropagation();
                     const designId = this.dataset.designId;
-                    const templateId = this.dataset.templateId;
-                    
-                    if (designId && templateId) {
-                        const url = '<?php echo esc_url(home_url('/designer/?design_id=')); ?>' + designId + '&template_id=' + templateId;
-                        window.location.href = url;
-                    } else if (templateId) {
-                        // Fallback: nur template_id
-                        const fallbackUrl = '<?php echo esc_url(home_url('/designer/?template_id=')); ?>' + templateId;
-                        window.location.href = fallbackUrl;
-                    }
+                    startTitleEdit(designId);
                 });
             });
 
@@ -650,6 +688,75 @@ class YPrint_Your_Designs {
                     }
                 });
             });
+
+            function startTitleEdit(designId) {
+                const titleElement = container.querySelector(`.yprint-design-name[data-design-id="${designId}"]`);
+                const inputElement = container.querySelector(`.yprint-design-name-input[data-design-id="${designId}"]`);
+                
+                if (!titleElement || !inputElement) return;
+
+                // Hide title, show input
+                titleElement.style.display = 'none';
+                inputElement.style.display = 'block';
+                inputElement.focus();
+                inputElement.select();
+
+                // Handle save on Enter or blur
+                function saveTitleEdit() {
+                    const newTitle = inputElement.value.trim();
+                    if (newTitle === '') {
+                        inputElement.value = titleElement.textContent;
+                        cancelTitleEdit();
+                        return;
+                    }
+
+                    // Save to database
+                    jQuery.ajax({
+                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+                        type: 'POST',
+                        data: {
+                            action: 'yprint_update_design_title',
+                            design_id: designId,
+                            new_title: newTitle,
+                            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+                        }
+                    })
+                    .done(function(response) {
+                        if (response.success) {
+                            titleElement.textContent = newTitle;
+                            titleElement.title = newTitle;
+                            cancelTitleEdit();
+                        } else {
+                            alert(response.data || '<?php echo esc_js(__('Fehler beim Speichern des Titels', 'yprint-plugin')); ?>');
+                            cancelTitleEdit();
+                        }
+                    })
+                    .fail(function() {
+                        alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>');
+                        cancelTitleEdit();
+                    });
+                }
+
+                function cancelTitleEdit() {
+                    titleElement.style.display = 'block';
+                    inputElement.style.display = 'none';
+                    inputElement.removeEventListener('blur', saveTitleEdit);
+                    inputElement.removeEventListener('keydown', handleKeyDown);
+                }
+
+                function handleKeyDown(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        saveTitleEdit();
+                    } else if (e.key === 'Escape') {
+                        inputElement.value = titleElement.textContent;
+                        cancelTitleEdit();
+                    }
+                }
+
+                inputElement.addEventListener('blur', saveTitleEdit);
+                inputElement.addEventListener('keydown', handleKeyDown);
+            }
 
             function handleReorder(designId, button) {
                 const originalContent = button.innerHTML;
