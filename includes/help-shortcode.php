@@ -2,7 +2,7 @@
 /*
 Plugin Name: YPrint Hilfe-Seite
 Description: Umfassende Hilfe-Seite mit FAQ, Support-Kontakt und technischer Hilfe im YPrint White Theme
-Version: 2.0
+Version: 3.0
 Author: YPrint Team
 */
 
@@ -55,23 +55,25 @@ function yprint_help_shortcode() {
 
 <div class="yprint-help-container">
     <style>
-        /* YPrint Help Page Styles - Responsive White Theme */
+        /* YPrint Help Page Styles - Clean & Responsive */
         .yprint-help-container {
-            font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            font-family: 'Roboto', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
             background-color: #ffffff;
             color: #1d1d1f;
             min-height: 100vh;
-            padding: 16px;
+            padding: 20px;
             line-height: 1.5;
             max-width: 1200px;
             margin: 0 auto;
+            box-sizing: border-box;
         }
         
+        /* Header Section */
         .help-header {
             display: flex;
             align-items: center;
-            margin-bottom: 32px;
-            padding: 12px 0;
+            margin-bottom: 40px;
+            padding: 20px 0;
         }
         
         .back-button {
@@ -79,10 +81,13 @@ function yprint_help_shortcode() {
             border: none;
             color: #0079FF;
             cursor: pointer;
-            padding: 8px;
+            padding: 12px;
             margin-right: 16px;
             border-radius: 8px;
             transition: background-color 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .back-button:hover {
@@ -90,58 +95,58 @@ function yprint_help_shortcode() {
         }
         
         .back-button svg {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
         }
         
         .help-title {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 600;
             margin: 0;
             color: #1d1d1f;
         }
         
-    .search-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  background-color: #f5f5f7;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  padding: 8px;
-  max-width: 600px;
-  min-width: 300px;
-  overflow: hidden;
-  margin: 0 auto 24px auto;
-}
-
-.search-bar svg {
-  position: absolute;
-  left: 16px;
-  width: 20px;
-  height: 20px;
-  color: #6e6e73;
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 10px 10px 44px;
-  border: none;
-  background: transparent;
-  font-size: 16px;
-  color: #1d1d1f;
-  font-family: 'Roboto', sans-serif;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-sizing: border-box;
-}
-
+        /* Search Bar */
+        .search-container {
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .search-bar {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            background-color: #f6f7fa;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .search-bar svg {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            color: #6e6e73;
+            pointer-events: none;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 16px 16px 16px 52px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            color: #1d1d1f;
+            font-family: 'Roboto', sans-serif;
+            box-sizing: border-box;
+        }
         
         .search-input::placeholder {
             color: #6e6e73;
-            font-weight: 400;
         }
         
         .search-input:focus {
@@ -149,57 +154,181 @@ function yprint_help_shortcode() {
             border-color: #0079FF;
             background-color: #ffffff;
             box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
-            transform: translateY(-1px);
         }
         
-        .help-section {
+        /* Search Results */
+        .search-results {
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+            display: none;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+        }
+        
+        .search-results.show {
+            display: block;
+        }
+        
+        .search-result-item {
+            padding: 16px 0;
+            border-bottom: 1px solid #e5e5e5;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        
+        .search-result-item:hover {
+            background-color: #f6f7fa;
+            margin: 0 -16px;
+            padding: 16px;
+            border-radius: 8px;
+        }
+        
+        .search-result-title {
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .search-result-snippet {
+            color: #6e6e73;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .no-results {
+            text-align: center;
+            color: #6e6e73;
+            padding: 40px 20px;
+            font-size: 16px;
+        }
+        
+        /* Messages */
+        .success-message, .error-message {
+            padding: 16px 20px;
+            border-radius: 12px;
             margin-bottom: 32px;
+            font-weight: 500;
         }
         
+        .success-message {
+            background-color: #f0f9ff;
+            border: 1px solid #28a745;
+            color: #28a745;
+        }
+        
+        .error-message {
+            background-color: #fff5f5;
+            border: 1px solid #dc3545;
+            color: #dc3545;
+        }
+        
+        /* Main Content Grid */
         .help-content-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 24px;
+            gap: 32px;
+            margin-bottom: 40px;
         }
         
-        .faq-dropdown, .tech-help-dropdown, .other-topics-dropdown {
+        /* Contact Support Section */
+        .contact-support {
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 16px;
+            padding: 32px;
+            text-align: center;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+            margin-bottom: 32px;
+        }
+        
+        .section-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0 0 24px 0;
+            color: #1d1d1f;
+        }
+        
+        .contact-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        .contact-button {
+            padding: 16px 32px;
+            background-color: #0079FF;
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.2s ease;
+            min-width: 160px;
+        }
+        
+        .contact-button:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 121, 255, 0.3);
+        }
+        
+        .contact-button svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Dropdown Sections */
+        .help-dropdown {
             background-color: #ffffff;
             border: 1px solid #e5e5e5;
             border-radius: 16px;
             overflow: hidden;
-            margin-bottom: 24px;
             box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
             transition: all 0.2s ease;
         }
         
-        .faq-dropdown:hover, .tech-help-dropdown:hover, .other-topics-dropdown:hover {
+        .help-dropdown:hover {
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
             transform: translateY(-2px);
         }
         
-        .dropdown-title-container {
+        .dropdown-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 24px;
+            padding: 32px;
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
         
-        .dropdown-title-container:hover {
+        .dropdown-header:hover {
             background-color: #f6f7fa;
         }
         
         .dropdown-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 600;
             margin: 0;
             color: #1d1d1f;
         }
         
         .chevron-icon {
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             color: #6e6e73;
             transition: transform 0.3s ease;
         }
@@ -209,126 +338,61 @@ function yprint_help_shortcode() {
         }
         
         .dropdown-content {
-  padding: 0 20px;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease;
-  word-wrap: break-word;
-  word-break: break-word;
-}
-
-.dropdown-content.open {
-  max-height: 400px;
-  padding: 0 20px 20px 20px;
-  overflow-y: auto;
-  overflow-x: hidden;
-}
-
-.help-list-item {
-  display: block;
-  padding: 12px 0;
-  border-bottom: 1px solid #e5e5e5;
-  transition: background-color 0.2s ease;
-  overflow: hidden;
-  word-wrap: break-word;
-  word-break: break-word;
-  line-height: 1.5;
-}
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
         
-        .faq-list, .help-list {
+        .dropdown-content.open {
+            max-height: 600px;
+            overflow: visible;
+        }
+        
+        .dropdown-inner {
+            padding: 0 32px 32px 32px;
+        }
+        
+        /* FAQ Items */
+        .faq-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
         
         .faq-item {
-            margin-bottom: 16px;
-            padding-bottom: 16px;
+            padding: 20px 0;
             border-bottom: 1px solid #e5e5e5;
         }
         
         .faq-item:last-child {
             border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
         }
         
         .faq-question {
             font-weight: 600;
             color: #1d1d1f;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            font-size: 16px;
         }
         
         .faq-answer {
             color: #6e6e73;
             line-height: 1.6;
+            font-size: 15px;
         }
         
-        .contact-support {
-            background-color: #ffffff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-        }
-        
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0 0 16px 0;
-            color: #1d1d1f;
-        }
-        
-        .contact-buttons {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.contact-button {
-  flex: 1 1 auto;
-  min-width: 120px;
-  max-width: 180px;
-  padding: 14px 20px;
-  background-color: #0079FF;
-  color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-sizing: border-box;
-}
-        
-        .contact-button:hover {
-            background-color: #0056b3;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
-        }
-        
-        .contact-button svg {
-            width: 18px;
-            height: 18px;
+        /* Help List Items */
+        .help-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
         
         .help-list-item {
-            display: block;
-            padding: 12px 0;
+            padding: 20px 0;
             border-bottom: 1px solid #e5e5e5;
-            transition: background-color 0.2s ease;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
         
         .help-list-item:last-child {
@@ -337,16 +401,256 @@ function yprint_help_shortcode() {
         
         .help-list-item:hover {
             background-color: #f6f7fa;
-            margin: 0 -12px;
-            padding: 12px;
+            margin: 0 -20px;
+            padding: 20px;
             border-radius: 8px;
         }
         
+        .help-item-title {
+            font-weight: 600;
+            color: #1d1d1f;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .help-item-description {
+            color: #6e6e73;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        /* Detail Content */
+        .detail-content {
+            background-color: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+        
+        .detail-content.show {
+            display: block;
+        }
+        
+        .detail-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .detail-back-button {
+            background: transparent;
+            border: none;
+            color: #0079FF;
+            cursor: pointer;
+            padding: 12px;
+            margin-right: 16px;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+        
+        .detail-back-button:hover {
+            background-color: rgba(0, 121, 255, 0.1);
+        }
+        
+        .detail-back-button svg {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .detail-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin: 0;
+            color: #1d1d1f;
+        }
+        
+        .detail-text p {
+            color: #1d1d1f;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        
+        .detail-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+        }
+        
+        .detail-list-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e5e5;
+            color: #1d1d1f;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        
+        .detail-list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-list-item strong {
+            color: #0079FF;
+            font-weight: 600;
+        }
+        
+        /* Contact Modal */
+        .contact-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .contact-modal.show {
+            display: flex;
+        }
+        
+        .contact-modal-content {
+            background-color: #ffffff;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid #e5e5e5;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+            color: #1d1d1f;
+        }
+        
+        .close-button {
+            background: none;
+            border: none;
+            color: #6e6e73;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        
+        .close-button:hover {
+            color: #1d1d1f;
+            background-color: #f6f7fa;
+        }
+        
+        .close-button svg {
+            width: 24px;
+            height: 24px;
+        }
+        
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1d1d1f;
+            font-size: 14px;
+        }
+        
+        .form-input, .form-textarea {
+            width: 100%;
+            padding: 16px;
+            background-color: #f6f7fa;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            color: #1d1d1f;
+            font-size: 16px;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+        
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: #6e6e73;
+        }
+        
+        .form-input:focus, .form-textarea:focus {
+            outline: none;
+            border-color: #0079FF;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+        }
+        
+        .form-textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: flex-end;
+            margin-top: 32px;
+        }
+        
+        .btn-secondary {
+            padding: 16px 32px;
+            background-color: #f6f7fa;
+            color: #1d1d1f;
+            border: 1px solid #e5e5e5;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #e5e5ea;
+        }
+        
+        .btn-primary {
+            padding: 16px 32px;
+            background-color: #0079FF;
+            color: #ffffff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(0, 121, 255, 0.3);
+        }
+        
+        /* Footer */
         .help-footer {
             text-align: center;
-            padding: 20px 0;
+            padding: 40px 0;
             border-top: 1px solid #e5e5e5;
-            margin-top: 32px;
+            margin-top: 60px;
         }
         
         .footer-links {
@@ -364,406 +668,129 @@ function yprint_help_shortcode() {
             color: #0079FF;
         }
         
-        /* Contact Form Modal */
-        .contact-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 16px;
-        }
-        
-        .contact-modal.show {
-            display: flex;
-        }
-        
-        .contact-modal-content {
-  background-color: #ffffff;
-  border-radius: 16px;
-  padding: 24px;
-  max-width: 500px;
-  min-width: 320px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  border: 1px solid #e5e5e5;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  box-sizing: border-box;
-  word-wrap: break-word;
-}
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .modal-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin: 0;
-            color: #1d1d1f;
-        }
-        
-        .close-button {
-            background: none;
-            border: none;
-            color: #6e6e73;
-            cursor: pointer;
-            padding: 4px;
-            border-radius: 4px;
-            transition: color 0.2s ease;
-        }
-        
-        .close-button:hover {
-            color: #1d1d1f;
-        }
-        
-        .close-button svg {
-            width: 24px;
-            height: 24px;
-        }
-        
-        .form-group {
-            margin-bottom: 16px;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #1d1d1f;
-        }
-        
-        .form-input, .form-textarea {
-            width: 100%;
-            padding: 12px 16px;
-            background-color: #f6f7fa;
-            border: 1px solid #e5e5e5;
-            border-radius: 8px;
-            color: #1d1d1f;
-            font-size: 16px;
-            transition: border-color 0.2s ease, background-color 0.2s ease;
-            box-sizing: border-box;
-        }
-        
-        .form-input::placeholder, .form-textarea::placeholder {
-            color: #6e6e73;
-        }
-        
-        .form-input:focus, .form-textarea:focus {
-            outline: none;
-            border-color: #0079FF;
-            background-color: #ffffff;
-        }
-        
-        .form-textarea {
-            min-height: 120px;
-            resize: vertical;
-        }
-        
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 24px;
-        }
-        
-        .btn-secondary {
-            padding: 12px 20px;
-            background-color: #f6f7fa;
-            color: #1d1d1f;
-            border: 1px solid #e5e5e5;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.2s ease;
-        }
-        
-        .btn-secondary:hover {
-            background-color: #e5e5ea;
-        }
-        
-        .btn-primary {
-            padding: 12px 20px;
-            background-color: #0079FF;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 16px;
-            transition: background-color 0.2s ease;
-        }
-        
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-        
-        .success-message {
-            background-color: #f6f7fa;
-            border: 1px solid #28a745;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
-            color: #28a745;
-        }
-        
-        .error-message {
-            background-color: #f6f7fa;
-            border: 1px solid #dc3545;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 20px;
-            color: #dc3545;
-        }
-        
-        /* Desktop Optimizations */
-        @media (min-width: 769px) {
-            .yprint-help-container {
-                padding: 40px 32px;
-            }
-            
+        /* Desktop Grid Layout */
+        @media (min-width: 992px) {
             .help-content-grid {
                 grid-template-columns: 1fr 1fr;
-                gap: 32px;
+                gap: 40px;
             }
             
             .contact-support {
                 grid-column: 1 / -1;
-                max-width: 600px;
-                margin: 0 auto 32px auto;
-            }
-            
-            .contact-buttons {
-                max-width: 400px;
-                margin: 0 auto;
-            }
-            
-            .dropdown-content.open {
-                max-height: 500px;
-            }
-            
-            .search-results {
-                max-width: 600px;
-                margin: 0 auto 32px auto;
+                max-width: 800px;
+                margin: 0 auto 40px auto;
             }
         }
         
-        @media (min-width: 1024px) {
+        /* Tablet Responsive */
+        @media (max-width: 991px) and (min-width: 769px) {
             .yprint-help-container {
-                padding: 60px 40px;
-            }
-            
-            .help-content-grid {
-                grid-template-columns: 1fr 1fr 1fr;
+                padding: 32px 24px;
             }
             
             .help-title {
-                font-size: 36px;
+                font-size: 32px;
             }
             
-            .search-bar {
-                max-width: 800px;
+            .contact-buttons {
+                gap: 12px;
+            }
+            
+            .contact-button {
+                min-width: 140px;
+                padding: 14px 24px;
             }
         }
         
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-  .yprint-help-container {
-    padding: 12px;
-    overflow-x: hidden;
-  }
-  
-  .help-title {
-    font-size: 24px;
-    word-wrap: break-word;
-  }
-  
-  .search-bar {
-    margin-bottom: 24px;
-    min-width: 280px;
-    max-width: 100%;
-  }
-  
-  .search-input {
-    padding: 16px 16px 16px 52px;
-    border-radius: 12px;
-    font-size: 16px;
-  }
-  
-  .search-bar svg {
-    left: 16px;
-  }
-  
-  .contact-buttons {
-    flex-direction: column;
-    max-width: 100%;
-  }
-  
-  .contact-button {
-    min-width: auto;
-    max-width: 100%;
-    font-size: 14px;
-    padding: 12px 16px;
-  }
-  
-  .contact-modal-content {
-    margin: 16px;
-    padding: 20px;
-    min-width: 280px;
-  }
-  
-  .form-actions {
-    flex-direction: column;
-  }
-  
-  .btn-secondary, .btn-primary {
-    width: 100%;
-    font-size: 14px;
-    padding: 12px;
-  }
-  
-  .dropdown-title {
-    font-size: 18px;
-    word-wrap: break-word;
-  }
-  
-  .faq-question {
-    font-size: 14px;
-    word-wrap: break-word;
-  }
-  
-  .faq-answer {
-    font-size: 13px;
-    line-height: 1.6;
-  }
-}
-        
-        /* Search functionality styles */
-        .search-results {
-            background-color: #ffffff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            display: none;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+            .yprint-help-container {
+                padding: 16px;
+            }
+            
+            .help-header {
+                margin-bottom: 24px;
+                padding: 16px 0;
+            }
+            
+            .help-title {
+                font-size: 28px;
+            }
+            
+            .search-container {
+                margin-bottom: 32px;
+            }
+            
+            .search-input {
+                padding: 14px 14px 14px 48px;
+                font-size: 16px;
+            }
+            
+            .section-title {
+                font-size: 20px;
+            }
+            
+            .dropdown-title {
+                font-size: 20px;
+            }
+            
+            .dropdown-header, .dropdown-inner, .contact-support, .detail-content {
+                padding: 24px;
+            }
+            
+            .contact-buttons {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .contact-button {
+                width: 100%;
+                min-width: auto;
+                padding: 16px 24px;
+                font-size: 16px;
+            }
+            
+            .contact-modal-content {
+                margin: 16px;
+                padding: 24px;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .btn-secondary, .btn-primary {
+                width: 100%;
+                padding: 16px;
+            }
+            
+            .detail-title {
+                font-size: 24px;
+            }
+            
+            .help-content-grid {
+                gap: 24px;
+                margin-bottom: 32px;
+            }
         }
         
-        .search-results.show {
-            display: block;
-        }
-        
-        .search-result-item {
-            padding: 12px 0;
-            border-bottom: 1px solid #e5e5e5;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-        
-        .search-result-item:last-child {
-            border-bottom: none;
-        }
-        
-        .search-result-item:hover {
-            background-color: #f6f7fa;
-            margin: 0 -12px;
-            padding: 12px;
-            border-radius: 8px;
-        }
-        
-        .search-result-title {
-            font-weight: 600;
-            color: #1d1d1f;
-            margin-bottom: 4px;
-        }
-        
-        .search-result-snippet {
-            color: #6e6e73;
-            font-size: 14px;
-        }
-        
-        .no-results {
-            text-align: center;
-            color: #6e6e73;
-            padding: 20px;
-        }
-        
-        .detail-content {
-  background-color: #ffffff;
-  border: 1px solid #e5e5e5;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-  display: none;
-  min-width: 280px;
-  max-height: 80vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  word-wrap: break-word;
-  word-break: break-word;
-  box-sizing: border-box;
-}
-        
-        .detail-content.show {
-            display: block;
-        }
-        
-        .detail-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        
-        .detail-back-button {
-            background: transparent;
-            border: none;
-            color: #0079FF;
-            cursor: pointer;
-            padding: 8px;
-            margin-right: 12px;
-            border-radius: 8px;
-            transition: background-color 0.2s ease;
-        }
-        
-        .detail-back-button:hover {
-            background-color: rgba(0, 121, 255, 0.1);
-        }
-        
-        .detail-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin: 0;
-            color: #1d1d1f;
-        }
-        
-        .detail-text {
-            color: #6e6e73;
-            line-height: 1.6;
-        }
-        
-        .detail-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        
-        .detail-list-item {
-            padding: 8px 0;
-            border-bottom: 1px solid #e5e5e5;
-            color: #6e6e73;
-        }
-        
-        .detail-list-item:last-child {
-            border-bottom: none;
+        /* Very Small Mobile */
+        @media (max-width: 480px) {
+            .yprint-help-container {
+                padding: 12px;
+            }
+            
+            .help-title {
+                font-size: 24px;
+            }
+            
+            .section-title, .dropdown-title {
+                font-size: 18px;
+            }
+            
+            .dropdown-header, .dropdown-inner, .contact-support, .detail-content {
+                padding: 20px;
+            }
         }
     </style>
 
@@ -776,12 +803,14 @@ function yprint_help_shortcode() {
         <h1 class="help-title">Hilfe</h1>
     </header>
 
-    <div class="search-bar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/>
-            <path d="M21 21l-4.35-4.35"/>
-        </svg>
-        <input type="text" class="search-input" placeholder="Wonach suchst du?" id="helpSearch">
+    <div class="search-container">
+        <div class="search-bar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+            </svg>
+            <input type="text" class="search-input" placeholder="Wonach suchst du?" id="helpSearch">
+        </div>
     </div>
 
     <div class="search-results" id="searchResults">
@@ -789,7 +818,6 @@ function yprint_help_shortcode() {
         <div id="searchResultsList"></div>
     </div>
 
-    <!-- Detail Content Container -->
     <div class="detail-content" id="detailContent">
         <div class="detail-header">
             <button class="detail-back-button" onclick="hideDetailContent()">
@@ -804,61 +832,27 @@ function yprint_help_shortcode() {
 
     <?php if ($message_sent): ?>
     <div class="success-message">
-        Deine Nachricht wurde erfolgreich gesendet. Wir werden uns bald bei dir melden!
+        ✅ Deine Nachricht wurde erfolgreich gesendet. Wir werden uns bald bei dir melden!
     </div>
     <?php endif; ?>
 
     <?php if (!empty($form_errors)): ?>
     <div class="error-message">
-        <?php foreach ($form_errors as $error): ?>
+        ❌ <?php foreach ($form_errors as $error): ?>
             <div><?php echo esc_html($error); ?></div>
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
 
-    <div class="help-content-grid">
-        <div class="faq-dropdown">
-            <div class="dropdown-title-container" onclick="toggleDropdown('faq')">
-                <h2 class="dropdown-title">Häufig gestellte Fragen</h2>
-                <svg class="chevron-icon" id="faqChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 9l6 6 6-6"/>
-                </svg>
-            </div>
-            <div class="dropdown-content" id="faqContent">
-                <ul class="faq-list">
-                <li class="faq-item">
-                    <div class="faq-question">Wie kann ich meine Bestellung verfolgen?</div>
-                    <div class="faq-answer">Du erhältst eine E-Mail mit der Sendungsverfolgungsnummer, sobald deine Bestellung versendet wurde. Du kannst den Status auch in deinem Konto unter "Meine Bestellungen" einsehen.</div>
-                </li>
-                <li class="faq-item">
-                    <div class="faq-question">Welche Zahlungsmethoden akzeptiert ihr?</div>
-                    <div class="faq-answer">Wir akzeptieren alle gängigen Kreditkarten, PayPal, Apple Pay, Google Pay und SEPA-Lastschrift.</div>
-                </li>
-                <li class="faq-item">
-                    <div class="faq-question">Wie lange dauert die Produktion?</div>
-                    <div class="faq-answer">Die Produktion dauert in der Regel 2-5 Werktage. Print-on-Demand Artikel werden erst nach der Bestellung für dich produziert.</div>
-                </li>
-                <li class="faq-item">
-                    <div class="faq-question">Kann ich meine Bestellung stornieren?</div>
-                    <div class="faq-answer">Du kannst deine Bestellung innerhalb von 2 Stunden nach der Bestellung stornieren. Danach ist eine Stornierung leider nicht mehr möglich, da die Produktion bereits begonnen hat.</div>
-                </li>
-                <li class="faq-item">
-                    <div class="faq-question">Welche Größen sind verfügbar?</div>
-                    <div class="faq-answer">Wir bieten Größen von XS bis 3XL an. Die genauen Maße findest du in unserer Größentabelle bei jedem Produkt.</div>
-                </li>
-            </ul>
-        </div>
-    </div>
-
     <div class="contact-support">
-        <h3 class="section-title">Support kontaktieren</h3>
+        <h2 class="section-title">Support kontaktieren</h2>
         <div class="contact-buttons">
             <button class="contact-button" onclick="openContactModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                     <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                Nachricht
+                Nachricht schreiben
             </button>
             <a href="tel:+4915123456789" class="contact-button">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -869,87 +863,108 @@ function yprint_help_shortcode() {
         </div>
     </div>
 
-    <div class="tech-help-dropdown">
-        <div class="dropdown-title-container" onclick="toggleDropdown('techHelp')">
-            <h3 class="dropdown-title">Technische Hilfe</h3>
-            <svg class="chevron-icon" id="techHelpChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 9l6 6 6-6"/>
-            </svg>
+    <div class="help-content-grid">
+        <div class="help-dropdown">
+            <div class="dropdown-header" onclick="toggleDropdown('faq')">
+                <h3 class="dropdown-title">Häufig gestellte Fragen</h3>
+                <svg class="chevron-icon" id="faqChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="faqContent">
+                <div class="dropdown-inner">
+                    <ul class="faq-list">
+                        <li class="faq-item">
+                            <div class="faq-question">Wie kann ich meine Bestellung verfolgen?</div>
+                            <div class="faq-answer">Du erhältst eine E-Mail mit der Sendungsverfolgungsnummer, sobald deine Bestellung versendet wurde. Du kannst den Status auch in deinem Konto unter "Meine Bestellungen" einsehen.</div>
+                        </li>
+                        <li class="faq-item">
+                            <div class="faq-question">Welche Zahlungsmethoden akzeptiert ihr?</div>
+                            <div class="faq-answer">Wir akzeptieren alle gängigen Kreditkarten, PayPal, Apple Pay, Google Pay und SEPA-Lastschrift.</div>
+                        </li>
+                        <li class="faq-item">
+                            <div class="faq-question">Wie lange dauert die Produktion?</div>
+                            <div class="faq-answer">Die Produktion dauert in der Regel 2-5 Werktage. Print-on-Demand Artikel werden erst nach der Bestellung für dich produziert.</div>
+                        </li>
+                        <li class="faq-item">
+                            <div class="faq-question">Kann ich meine Bestellung stornieren?</div>
+                            <div class="faq-answer">Du kannst deine Bestellung innerhalb von 2 Stunden nach der Bestellung stornieren. Danach ist eine Stornierung leider nicht mehr möglich, da die Produktion bereits begonnen hat.</div>
+                        </li>
+                        <li class="faq-item">
+                            <div class="faq-question">Welche Größen sind verfügbar?</div>
+                            <div class="faq-answer">Wir bieten Größen von XS bis 3XL an. Die genauen Maße findest du in unserer Größentabelle bei jedem Produkt.</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-        <div class="dropdown-content" id="techHelpContent">
-            <ul class="help-list">
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Häufige Probleme</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Design wird nicht angezeigt, Upload-Probleme, Zahlungsfehler</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Design-Upload Probleme</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Unterstützte Formate, maximale Dateigröße, Auflösung</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Website-Probleme</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Browser-Kompatibilität, Cache-Probleme, Login-Schwierigkeiten</div>
-                    </div>
-                </li>
-            </ul>
-        </div>
-    </div>
 
-    <div class="other-topics-dropdown">
-        <div class="dropdown-title-container" onclick="toggleDropdown('otherTopics')">
-            <h3 class="dropdown-title">Weitere Themen</h3>
-            <svg class="chevron-icon" id="otherTopicsChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M6 9l6 6 6-6"/>
-            </svg>
+        <div class="help-dropdown">
+            <div class="dropdown-header" onclick="toggleDropdown('techHelp')">
+                <h3 class="dropdown-title">Technische Hilfe</h3>
+                <svg class="chevron-icon" id="techHelpChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="techHelpContent">
+                <div class="dropdown-inner">
+                    <ul class="help-list">
+                        <li class="help-list-item" onclick="showDetailContent('common-issues')">
+                            <div class="help-item-title">Häufige Probleme</div>
+                            <div class="help-item-description">Design wird nicht angezeigt, Upload-Probleme, Zahlungsfehler</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('design-upload')">
+                            <div class="help-item-title">Design-Upload Probleme</div>
+                            <div class="help-item-description">Unterstützte Formate, maximale Dateigröße, Auflösung</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('website-problems')">
+                            <div class="help-item-title">Website-Probleme</div>
+                            <div class="help-item-description">Browser-Kompatibilität, Cache-Probleme, Login-Schwierigkeiten</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
-        <div class="dropdown-content" id="otherTopicsContent">
-            <ul class="help-list">
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Versand</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Versandkosten, Lieferzeiten, Sendungsverfolgung</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Rücksendungen</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Rückgaberecht, Bedingungen, Erstattung</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Zahlungen</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Verfügbare Zahlungsmethoden, Sicherheit</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Konto</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Registrierung, Bestellübersicht, Einstellungen</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Größentabelle</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Größenführer für alle Produktkategorien</div>
-                    </div>
-                </li>
-                <li class="help-list-item">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Materialien</div>
-                        <div style="color: #6e6e73; font-size: 14px;">Stoffqualität, Druckverfahren, Pflegehinweise</div>
-                    </div>
-                </li>
-            </ul>
+
+        <div class="help-dropdown">
+            <div class="dropdown-header" onclick="toggleDropdown('otherTopics')">
+                <h3 class="dropdown-title">Weitere Themen</h3>
+                <svg class="chevron-icon" id="otherTopicsChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9l6 6 6-6"/>
+                </svg>
+            </div>
+            <div class="dropdown-content" id="otherTopicsContent">
+                <div class="dropdown-inner">
+                    <ul class="help-list">
+                        <li class="help-list-item" onclick="showDetailContent('shipping')">
+                            <div class="help-item-title">Versand</div>
+                            <div class="help-item-description">Versandkosten, Lieferzeiten, Sendungsverfolgung</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('returns')">
+                            <div class="help-item-title">Rücksendungen</div>
+                            <div class="help-item-description">Rückgaberecht, Bedingungen, Erstattung</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('payments')">
+                            <div class="help-item-title">Zahlungen</div>
+                            <div class="help-item-description">Verfügbare Zahlungsmethoden, Sicherheit</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('account')">
+                            <div class="help-item-title">Konto</div>
+                            <div class="help-item-description">Registrierung, Bestellübersicht, Einstellungen</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('size-chart')">
+                            <div class="help-item-title">Größentabelle</div>
+                            <div class="help-item-description">Größenführer für alle Produktkategorien</div>
+                        </li>
+                        <li class="help-list-item" onclick="showDetailContent('materials')">
+                            <div class="help-item-title">Materialien</div>
+                            <div class="help-item-description">Stoffqualität, Druckverfahren, Pflegehinweise</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
-    
-    </div> <!-- Ende help-content-grid -->
 
     <footer class="help-footer">
         <div class="footer-links">
@@ -1181,32 +1196,30 @@ function yprint_help_shortcode() {
         function hideAllSections() {
             const sections = [
                 'searchResults',
-                document.querySelector('.faq-dropdown'),
-                document.querySelector('.contact-support'),
-                document.querySelector('.tech-help-dropdown'),
-                document.querySelector('.other-topics-dropdown'),
-                document.querySelector('.help-footer')
+                '.contact-support',
+                '.help-content-grid',
+                '.help-footer'
             ];
             
-            sections.forEach(section => {
-                if (section) {
-                    section.style.display = 'none';
+            sections.forEach(selector => {
+                const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
+                if (element) {
+                    element.style.display = 'none';
                 }
             });
         }
 
         function showAllSections() {
             const sections = [
-                document.querySelector('.faq-dropdown'),
-                document.querySelector('.contact-support'),
-                document.querySelector('.tech-help-dropdown'),
-                document.querySelector('.other-topics-dropdown'),
-                document.querySelector('.help-footer')
+                '.contact-support',
+                '.help-content-grid', 
+                '.help-footer'
             ];
             
-            sections.forEach(section => {
-                if (section) {
-                    section.style.display = 'block';
+            sections.forEach(selector => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    element.style.display = '';
                 }
             });
         }
@@ -1219,7 +1232,7 @@ function yprint_help_shortcode() {
 
         function closeContactModal() {
             document.getElementById('contactModal').classList.remove('show');
-            document.body.style.overflow = 'auto';
+            document.body.style.overflow = '';
         }
 
         // Close modal when clicking outside
@@ -1229,18 +1242,12 @@ function yprint_help_shortcode() {
             }
         });
 
-        // Search Functionality
-        const searchInput = document.getElementById('helpSearch');
-        const searchResults = document.getElementById('searchResults');
-        const searchResultsList = document.getElementById('searchResultsList');
-
-        // Enhanced search data including detail content
+        // Enhanced search data
         const searchData = [
             {
                 title: "Bestellung verfolgen",
                 content: "Du erhältst eine E-Mail mit der Sendungsverfolgungsnummer, sobald deine Bestellung versendet wurde.",
-                category: "FAQ",
-                action: "faq"
+                category: "FAQ"
             },
             {
                 title: "Zahlungsmethoden",
@@ -1251,14 +1258,12 @@ function yprint_help_shortcode() {
             {
                 title: "Produktionszeit",
                 content: "Die Produktion dauert in der Regel 2-5 Werktage. Print-on-Demand Artikel werden erst nach der Bestellung produziert.",
-                category: "FAQ",
-                action: "faq"
+                category: "FAQ"
             },
             {
-                title: "Bestellung stornieren",
+                title: "Bestellung stornieren", 
                 content: "Du kannst deine Bestellung innerhalb von 2 Stunden nach der Bestellung stornieren.",
-                category: "FAQ",
-                action: "faq"
+                category: "FAQ"
             },
             {
                 title: "Häufige Probleme",
@@ -1267,7 +1272,7 @@ function yprint_help_shortcode() {
                 action: "showDetailContent('common-issues')"
             },
             {
-                title: "Design-Upload Probleme",
+                title: "Design-Upload Probleme", 
                 content: "Probleme beim Hochladen deiner Designs und unterstützte Dateiformate.",
                 category: "Technisch",
                 action: "showDetailContent('design-upload')"
@@ -1275,7 +1280,7 @@ function yprint_help_shortcode() {
             {
                 title: "Website-Probleme",
                 content: "Lösungen für häufige Website-Probleme und Browser-Kompatibilität.",
-                category: "Technisch",
+                category: "Technisch", 
                 action: "showDetailContent('website-problems')"
             },
             {
@@ -1291,7 +1296,7 @@ function yprint_help_shortcode() {
                 action: "showDetailContent('returns')"
             },
             {
-                title: "Größentabelle",
+                title: "Größentabelle", 
                 content: "Finde die richtige Größe für deine Bestellung mit unserer detaillierten Größentabelle.",
                 category: "Produkt",
                 action: "showDetailContent('size-chart')"
@@ -1299,7 +1304,7 @@ function yprint_help_shortcode() {
             {
                 title: "Materialien",
                 content: "Informationen über die verwendeten Materialien und Pflegehinweise.",
-                category: "Produkt",
+                category: "Produkt", 
                 action: "showDetailContent('materials')"
             },
             {
@@ -1310,6 +1315,10 @@ function yprint_help_shortcode() {
             }
         ];
 
+        // Search Functionality
+        const searchInput = document.getElementById('helpSearch');
+        const searchResults = document.getElementById('searchResults');
+        const searchResultsList = document.getElementById('searchResultsList');
         let searchTimeout;
 
         searchInput.addEventListener('input', function() {
@@ -1346,7 +1355,7 @@ function yprint_help_shortcode() {
                     const resultItem = document.createElement('div');
                     resultItem.className = 'search-result-item';
                     
-                    if (result.action && result.action !== 'faq') {
+                    if (result.action) {
                         resultItem.onclick = function() {
                             eval(result.action);
                             searchResults.classList.remove('show');
@@ -1368,7 +1377,7 @@ function yprint_help_shortcode() {
 
         // Clear search when clicking outside
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.search-bar') && !e.target.closest('.search-results')) {
+            if (!e.target.closest('.search-container') && !e.target.closest('.search-results')) {
                 searchResults.classList.remove('show');
             }
         });
@@ -1387,17 +1396,6 @@ function yprint_help_shortcode() {
             openContactModal();
         });
         <?php endif; ?>
-
-        // Smooth scroll for better UX
-        document.querySelectorAll('.help-list-item').forEach(item => {
-            item.addEventListener('click', function() {
-                // Add a subtle animation when clicking list items
-                this.style.transform = 'scale(0.98)';
-                setTimeout(() => {
-                    this.style.transform = 'scale(1)';
-                }, 150);
-            });
-        });
 
         // Back button enhancement
         const backButton = document.querySelector('.back-button');
