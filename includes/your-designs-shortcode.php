@@ -55,13 +55,13 @@ class YPrint_Your_Designs {
 
         <style>
         .yprint-your-designs {
-            font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
-            background-color: #ffffff;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            margin-bottom: 2rem;
-        }
+    font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
+    background-color: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #DFDFDF;
+    margin: 0;
+}
 
         .yprint-your-designs-header {
             display: flex;
@@ -100,24 +100,23 @@ class YPrint_Your_Designs {
         }
 
         .yprint-design-card {
-            display: flex;
-            flex-direction: column;
-            width: 200px;
-            min-width: 200px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            border: 1px solid #e5e5e5;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-            transition: all 0.2s ease;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+    min-width: 200px;
+    background-color: #ffffff;
+    border-radius: 8px;
+    border: 1px solid #e5e5e5;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
 
-        .yprint-design-card:hover {
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-        }
+.yprint-design-card:hover {
+    border-color: #0079FF;
+    transform: translateY(-2px);
+}
 
         .yprint-design-clickable-area {
             flex: 1;
@@ -335,10 +334,11 @@ class YPrint_Your_Designs {
 
         /* Mobile Responsive */
         @media (max-width: 768px) {
-            .yprint-your-designs {
-                padding: 1rem;
-                border-radius: 8px;
-            }
+    .yprint-your-designs {
+        padding: 1rem;
+        border-radius: 8px;
+        margin: 0;
+    }
 
             .yprint-your-designs-title {
                 font-size: 16px;
