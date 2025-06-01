@@ -946,7 +946,7 @@ function yprint_help_shortcode() {
     <!-- Footer -->
     <footer class="help-footer">
         <div class="help-footer-links">
-            <a href="/datenschutz/">Rechtliches</a> | <a href="/about/">App Info</a>
+            <a href="/datenschutz/">Rechtliches</a>
         </div>
     </footer>
 
