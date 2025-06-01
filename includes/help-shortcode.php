@@ -197,12 +197,11 @@ function yprint_help_shortcode() {
         /* Search Results */
         .help-shortcode .help-search-results {
             background-color: #ffffff;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #DFDFDF;
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 32px;
             display: none;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
         }
         
         .help-shortcode .help-search-results.show {
@@ -271,11 +270,10 @@ function yprint_help_shortcode() {
         /* Contact Support Section */
         .help-shortcode .help-contact-support {
             background-color: #ffffff;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #DFDFDF;
             border-radius: 16px;
             padding: 24px;
             text-align: center;
-            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
             margin-bottom: 24px;
         }
         
@@ -303,20 +301,11 @@ function yprint_help_shortcode() {
         
         .help-shortcode .help-contact-buttons {
             display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        @media (min-width: 480px) {
-            .help-shortcode .help-contact-buttons {
-                flex-direction: row;
-                justify-content: center;
-                gap: 16px;
-            }
+            justify-content: center;
         }
         
         .help-shortcode .help-contact-button {
-            padding: 16px 24px;
+            padding: 16px 32px;
             background-color: #0079FF;
             color: #ffffff;
             border: none;
@@ -331,18 +320,10 @@ function yprint_help_shortcode() {
             gap: 8px;
             transition: all 0.2s ease;
             min-height: 48px;
-            flex: 1;
-            max-width: 200px;
-            margin: 0 auto;
+            max-width: 250px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-        }
-        
-        @media (min-width: 480px) {
-            .help-shortcode .help-contact-button {
-                margin: 0;
-            }
         }
         
         .help-shortcode .help-contact-button:hover {
@@ -360,16 +341,14 @@ function yprint_help_shortcode() {
         /* Help Cards */
         .help-shortcode .help-card {
             background-color: #ffffff;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #DFDFDF;
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
             transition: all 0.2s ease;
         }
         
         .help-shortcode .help-card:hover {
-            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
-            transform: translateY(-2px);
+            border-color: #0079FF;
         }
         
         .help-shortcode .help-card-header {
@@ -507,11 +486,10 @@ function yprint_help_shortcode() {
         /* Detail Content */
         .help-shortcode .help-detail {
             background-color: #ffffff;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #DFDFDF;
             border-radius: 16px;
             padding: 24px;
             margin-bottom: 32px;
-            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.08);
             display: none;
         }
         
@@ -623,7 +601,7 @@ function yprint_help_shortcode() {
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
-            border: 1px solid #e5e5e5;
+            border: 1px solid #DFDFDF;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
         
@@ -846,6 +824,7 @@ function yprint_help_shortcode() {
     <!-- Contact Support -->
     <div class="help-contact-support">
         <h2 class="help-section-title">Support kontaktieren</h2>
+        <p style="color: #6e6e73; margin-bottom: 20px; font-size: 15px;">Hast du Fragen oder benötigst Hilfe? Unser Support-Team ist für dich da!</p>
         <div class="help-contact-buttons">
             <button class="help-contact-button" onclick="openContactModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -854,12 +833,6 @@ function yprint_help_shortcode() {
                 </svg>
                 Nachricht schreiben
             </button>
-            <a href="tel:+4915123456789" class="help-contact-button">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-                </svg>
-                Anrufen
-            </a>
         </div>
     </div>
 
