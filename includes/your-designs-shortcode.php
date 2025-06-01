@@ -381,7 +381,7 @@ class YPrint_Your_Designs {
             justify-content: center;
             width: 200px;
             min-width: 200px;
-            height: 240px;
+            height: 278px;
             background-color: #F9FAFB;
             border: 2px dashed #D1D5DB;
             border-radius: 8px;
@@ -421,7 +421,7 @@ class YPrint_Your_Designs {
             .yprint-create-new-card {
                 width: 160px;
                 min-width: 160px;
-                height: 200px;
+                height: 238px;
             }
 
             .yprint-create-new-icon {
@@ -448,7 +448,7 @@ class YPrint_Your_Designs {
             .yprint-create-new-card {
                 width: 140px;
                 min-width: 140px;
-                height: 180px;
+                height: 218px;
             }
 
             .yprint-create-new-icon {
@@ -556,7 +556,7 @@ class YPrint_Your_Designs {
                         <!-- New "Design something!" card -->
                         <a href="<?php echo esc_url(home_url('/basics')); ?>" class="yprint-create-new-card">
                             <div class="yprint-create-new-icon">
-                                <i class="fab fa-wordpress"></i>
+                                <i class="fas fa-tshirt"></i>
                             </div>
                             <p class="yprint-create-new-text"><?php _e('Design something!', 'yprint-plugin'); ?></p>
                         </a>
