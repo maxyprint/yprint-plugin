@@ -3975,27 +3975,51 @@ function yprint_privacy_settings_shortcode() {
     return ob_get_clean();
 }
 
-/**
- * AJAX-Handler für das Speichern von Benachrichtigungseinstellungen
- */
-function yprint_save_notification_settings_callback() {
-    check_ajax_referer('notification_settings_nonce', 'security');
+// Login-optimierter gesammelter Settings-AJAX-Handler
+function yprint_save_unified_settings_callback() {
+    check_ajax_referer('yprint_settings_nonce', 'security');
     
     // Prüfen, ob Benutzer angemeldet ist
     if (!is_user_logged_in()) {
-        wp_send_json_error(array('message' => 'Du musst angemeldet sein, um deine Benachrichtigungseinstellungen zu ändern.'));
+        wp_send_json_error(array('message' => 'Du musst angemeldet sein, um deine Einstellungen zu ändern.'));
         return;
     }
     
     $user_id = get_current_user_id();
-    $settings = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : array();
+    $settings_type = isset($_POST['settings_type']) ? sanitize_text_field($_POST['settings_type']) : '';
+    $settings_data = isset($_POST['settings']) ? wp_unslash($_POST['settings']) : array();
     
-    if (empty($settings)) {
-        wp_send_json_error(array('message' => 'Ungültige Daten übermittelt.'));
-        return;
+    $result = array('success' => false, 'message' => 'Unbekannter Einstellungstyp');
+    
+    switch ($settings_type) {
+        case 'notifications':
+            $result = $this->save_notification_settings($user_id, $settings_data);
+            break;
+        case 'privacy':
+            $result = $this->save_privacy_settings($user_id, $settings_data);
+            break;
+        case 'personal':
+            $result = $this->save_personal_settings($user_id, $settings_data);
+            break;
+        case 'checkout_preferences':
+            $result = $this->save_checkout_preferences($user_id, $settings_data);
+            break;
+        default:
+            $result = array('success' => false, 'message' => 'Unbekannter Einstellungstyp: ' . $settings_type);
     }
     
-    // Daten validieren und aufbereiten
+    if ($result['success']) {
+        wp_send_json_success($result);
+    } else {
+        wp_send_json_error($result);
+    }
+}
+
+// Hilfsfunktionen für die verschiedenen Settings-Typen
+function save_notification_settings($user_id, $settings) {
+    // Originaler Code aus yprint_save_notification_settings_callback() hier
+    global $wpdb;
+    
     $clean_settings = array(
         'email_orders' => isset($settings['email_orders']) ? intval($settings['email_orders']) : 0,
         'email_marketing' => isset($settings['email_marketing']) ? intval($settings['email_marketing']) : 0,
@@ -4004,22 +4028,18 @@ function yprint_save_notification_settings_callback() {
         'sms_marketing' => isset($settings['sms_marketing']) ? intval($settings['sms_marketing']) : 0
     );
     
-    // Prüfen, ob bereits Einstellungen vorhanden sind
-    global $wpdb;
     $exists = $wpdb->get_var($wpdb->prepare(
         "SELECT COUNT(*) FROM {$wpdb->prefix}notification_settings WHERE user_id = %d",
         $user_id
     ));
     
     if ($exists) {
-        // Bestehende Einstellungen aktualisieren
         $result = $wpdb->update(
             $wpdb->prefix . 'notification_settings',
             $clean_settings,
             array('user_id' => $user_id)
         );
     } else {
-        // Neue Einstellungen einfügen
         $clean_settings['user_id'] = $user_id;
         $clean_settings['created_at'] = current_time('mysql');
         $clean_settings['updated_at'] = current_time('mysql');
@@ -4030,13 +4050,14 @@ function yprint_save_notification_settings_callback() {
         );
     }
     
-    if ($result !== false) {
-        wp_send_json_success(array('message' => 'Benachrichtigungseinstellungen wurden erfolgreich gespeichert.'));
-    } else {
-        wp_send_json_error(array('message' => 'Fehler beim Speichern der Einstellungen. Bitte versuche es später erneut.'));
-    }
+    return array(
+        'success' => $result !== false,
+        'message' => $result !== false ? 'Benachrichtigungseinstellungen erfolgreich gespeichert.' : 'Fehler beim Speichern.'
+    );
 }
-add_action('wp_ajax_yprint_save_notification_settings', 'yprint_save_notification_settings_callback');
+
+// Ersetze alte einzelne AJAX-Handler durch einheitlichen
+add_action('wp_ajax_yprint_save_unified_settings', 'yprint_save_unified_settings_callback');
 
 /**
  * AJAX-Handler für das Speichern von Datenschutzeinstellungen

@@ -535,16 +535,42 @@ function showStep(stepNumber) {
     currentStep = stepNumber;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Address Manager reinitialisieren wenn zu Schritt 1 zurückgekehrt wird
-    if (stepNumber === 1 && window.YPrintAddressManager) {
-        console.log('Reinitialisiere Address Manager für Schritt 1');
-        // Address Manager neu laden
+    // Login-optimierte Address Manager Initialisierung
+if (stepNumber === 1 && window.YPrintAddressManager) {
+    console.log('Verzögerte Address Manager Initialisierung für bessere Login-Performance');
+    
+    // Nur laden wenn wirklich benötigt UND Nutzer bereits eingeloggt
+    if (isUserLoggedIn() && !isInitialPageLoad()) {
         setTimeout(() => {
             if (window.YPrintAddressManager.loadSavedAddresses) {
                 window.YPrintAddressManager.loadSavedAddresses();
             }
-        }, 100);
+        }, 500); // Reduzierte Verzögerung nach Login
+    } else {
+        // Bei initialem Seitenaufruf: Deutlich verzögern
+        setTimeout(() => {
+            if (window.YPrintAddressManager.loadSavedAddresses && shouldLoadAddresses()) {
+                window.YPrintAddressManager.loadSavedAddresses();
+            }
+        }, 3000); // 3 Sekunden Verzögerung
     }
+}
+
+// Neue Hilfsfunktionen
+function isUserLoggedIn() {
+    return document.body.classList.contains('logged-in') || 
+           yprint_checkout_params?.is_logged_in === 'yes';
+}
+
+function isInitialPageLoad() {
+    return performance.timing.loadEventEnd - performance.timing.navigationStart < 2000;
+}
+
+function shouldLoadAddresses() {
+    // Nur laden wenn Address-UI sichtbar ist
+    const addressElements = document.querySelectorAll('.address-cards-grid, .yprint-saved-addresses');
+    return Array.from(addressElements).some(el => el.offsetParent !== null);
+}
 
     // Sammle Daten wenn zum Zahlungsschritt gewechselt wird
     if (stepNumber === 2) {
@@ -1152,25 +1178,58 @@ if (initialStep === 1) {
     }
 }
 
-// Performance-optimierter Start - nur bei Bedarf laden
+// Login-optimierte Performance - drastisch reduzierte AJAX-Calls
 document.addEventListener('DOMContentLoaded', function() {
+    // Beim Login/Registrierung: KEINE sofortigen Cart-Calls
+    if (isLoginPage() || isRegistrationPage()) {
+        console.log('Login/Registrierung: Überspringe Cart-Daten-Laden');
+        return; // Komplett überspringen
+    }
+    
     // Prüfe ob Checkout-Daten wirklich benötigt werden
-    if (isCheckoutPage() || isCartPage()) {
-        // Sofort laden nur auf relevanten Seiten
+    if (isCheckoutPage()) {
+        // Nur auf Checkout-Seite sofort laden
         loadRealCartData().then(() => {
             updateCartDisplays();
         });
-    } else {
-        // Verzögertes Laden für bessere Login-Performance
+    } else if (isCartPage()) {
+        // Cart-Seite: Verzögert laden für bessere Performance
         setTimeout(() => {
-            if (shouldLoadCartData()) {
-                loadRealCartData().then(() => {
+            loadRealCartData().then(() => {
+                updateCartDisplays();
+            });
+        }, 1000); // Reduziert auf 1 Sekunde
+    } else {
+        // Alle anderen Seiten: Nur laden wenn UI-Elemente vorhanden UND sichtbar
+        setTimeout(() => {
+            if (shouldLoadCartData() && isUserInteracting()) {
+                loadRealCartData(true).then(() => { // Minimal-Modus
                     updateCartDisplays();
                 });
             }
-        }, 2000); // 2 Sekunden Verzögerung
+        }, 5000); // Deutlich verzögert: 5 Sekunden
     }
 });
+
+// Neue Hilfsfunktionen für Login-Optimierung
+function isLoginPage() {
+    return window.location.href.includes('/login/') || 
+           window.location.href.includes('/my-account/') ||
+           document.querySelector('.login-form') !== null ||
+           document.querySelector('#loginform') !== null;
+}
+
+function isRegistrationPage() {
+    return window.location.href.includes('/register/') ||
+           document.querySelector('.registration-form') !== null ||
+           document.querySelector('[yprint_registration_form_mobile]') !== null;
+}
+
+function isUserInteracting() {
+    // Prüfe ob Nutzer schon mit der Seite interagiert hat
+    return document.hasFocus() && 
+           (document.body.scrollTop > 100 || document.documentElement.scrollTop > 100);
+}
 
 function isCheckoutPage() {
     return window.location.href.includes('/checkout/') || 
