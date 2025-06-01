@@ -89,8 +89,7 @@ class YPrint_Order_Actions_Screenshot_Final {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    border: 1px solid #e5e7eb;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    border: 1px solid #DFDFDF;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
