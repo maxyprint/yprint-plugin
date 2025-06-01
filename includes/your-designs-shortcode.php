@@ -374,6 +374,65 @@ class YPrint_Your_Designs {
             }
         }
 
+        .yprint-create-new-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 200px;
+            min-width: 200px;
+            height: 240px;
+            background-color: #F9FAFB;
+            border: 2px dashed #D1D5DB;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: #6B7280;
+        }
+
+        .yprint-create-new-card:hover {
+            border-color: #0079FF;
+            background-color: #F3F9FF;
+            color: #0079FF;
+            transform: translateY(-2px);
+        }
+
+        .yprint-create-new-icon {
+            font-size: 32px;
+            margin-bottom: 0.75rem;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+
+        .yprint-create-new-card:hover .yprint-create-new-icon {
+            opacity: 1;
+        }
+
+        .yprint-create-new-text {
+            font-size: 14px;
+            font-weight: 600;
+            text-align: center;
+            line-height: 1.3;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .yprint-create-new-card {
+                width: 160px;
+                min-width: 160px;
+                height: 200px;
+            }
+
+            .yprint-create-new-icon {
+                font-size: 28px;
+            }
+
+            .yprint-create-new-text {
+                font-size: 12px;
+            }
+        }
+
         @media (max-width: 480px) {
             .yprint-your-designs-header {
                 flex-direction: column;
@@ -384,6 +443,20 @@ class YPrint_Your_Designs {
             .yprint-design-card {
                 width: 140px;
                 min-width: 140px;
+            }
+
+            .yprint-create-new-card {
+                width: 140px;
+                min-width: 140px;
+                height: 180px;
+            }
+
+            .yprint-create-new-icon {
+                font-size: 24px;
+            }
+
+            .yprint-create-new-text {
+                font-size: 11px;
             }
         }
         </style>
@@ -479,6 +552,14 @@ class YPrint_Your_Designs {
                                 </div>
                             </div>
                         <?php endforeach; ?>
+                        
+                        <!-- New "Design something!" card -->
+                        <a href="<?php echo esc_url(home_url('/basics')); ?>" class="yprint-create-new-card">
+                            <div class="yprint-create-new-icon">
+                                <i class="fab fa-wordpress"></i>
+                            </div>
+                            <p class="yprint-create-new-text"><?php _e('Design something!', 'yprint-plugin'); ?></p>
+                        </a>
                     </div>
                 </div>
             <?php endif; ?>
