@@ -68,24 +68,47 @@ class YPrint_Your_Designs {
      * Handle update design title AJAX request
      */
     public static function handle_update_design_title() {
-        check_ajax_referer('yprint_design_actions_nonce', 'nonce');
-
-        $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
-        $new_title = isset($_POST['new_title']) ? sanitize_text_field($_POST['new_title']) : '';
+        // Debug-Ausgabe
+        error_log('YPrint: handle_update_design_title called');
+        error_log('YPrint: POST data: ' . print_r($_POST, true));
         
-        if (!$design_id || !$new_title) {
-            wp_send_json_error('Ungültige Parameter');
+        // Nonce prüfen
+        if (!wp_verify_nonce($_POST['nonce'], 'yprint_design_actions_nonce')) {
+            error_log('YPrint: Nonce verification failed');
+            wp_send_json_error('Sicherheitsprüfung fehlgeschlagen');
             return;
         }
 
+        $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+        $new_title = isset($_POST['new_title']) ? trim(sanitize_text_field($_POST['new_title'])) : '';
+
+if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
+    wp_send_json_error('Ungültige Parameter: Titel ist erforderlich und darf maximal 255 Zeichen lang sein');
+    return;
+}
+
         $current_user_id = get_current_user_id();
         if (!$current_user_id) {
+            error_log('YPrint: User not logged in');
             wp_send_json_error('Du musst angemeldet sein');
             return;
         }
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'octo_user_designs';
+        
+        // Prüfen ob Design existiert und dem User gehört
+        $existing = $wpdb->get_row($wpdb->prepare(
+            "SELECT id FROM $table_name WHERE id = %d AND user_id = %d",
+            $design_id,
+            $current_user_id
+        ));
+        
+        if (!$existing) {
+            error_log('YPrint: Design not found or no permission');
+            wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
+            return;
+        }
         
         $result = $wpdb->update(
             $table_name,
@@ -98,13 +121,11 @@ class YPrint_Your_Designs {
             array('%d', '%d')
         );
 
-        if ($result === false) {
-            wp_send_json_error('Fehler beim Speichern des Titels');
-            return;
-        }
+        error_log('YPrint: Update result: ' . var_export($result, true));
 
-        if ($result === 0) {
-            wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
+        if ($result === false) {
+            error_log('YPrint: Database update failed: ' . $wpdb->last_error);
+            wp_send_json_error('Fehler beim Speichern des Titels');
             return;
         }
 
@@ -480,10 +501,15 @@ class YPrint_Your_Designs {
             margin-bottom: 0.75rem;
             opacity: 0.7;
             transition: opacity 0.2s ease;
+            color: inherit;
         }
 
         .yprint-create-new-card:hover .yprint-create-new-icon {
             opacity: 1;
+        }
+
+        .yprint-create-new-icon i {
+            display: block;
         }
 
         .yprint-create-new-text {
@@ -731,8 +757,9 @@ class YPrint_Your_Designs {
                             cancelTitleEdit();
                         }
                     })
-                    .fail(function() {
-                        alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>');
+                    .fail(function(xhr, status, error) {
+                        console.error('AJAX Error:', xhr.responseText, status, error);
+                        alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>: ' + error);
                         cancelTitleEdit();
                     });
                 }
