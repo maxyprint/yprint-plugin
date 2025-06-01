@@ -929,19 +929,39 @@ public function ajax_validate_voucher() {
 }
 
     /**
- * AJAX handler to get real cart data using central data manager
+ * AJAX handler to get real cart data using central data manager with performance optimization
  */
 public function ajax_get_cart_data() {
     check_ajax_referer('yprint_checkout_nonce', 'nonce');
 
+    $minimal = isset($_POST['minimal']) && $_POST['minimal'] === '1';
+    
     $cart_data_manager = YPrint_Cart_Data::get_instance();
-    $checkout_context = $cart_data_manager->get_checkout_context('full');
+    
+    if ($minimal) {
+        // Minimale Daten für bessere Performance auf nicht-kritischen Seiten
+        $cart_count = WC()->cart ? WC()->cart->get_cart_contents_count() : 0;
+        $cart_total = WC()->cart ? WC()->cart->get_total('edit') : 0;
+        
+        wp_send_json_success(array(
+            'items' => array(), // Leeres Array für minimale Last
+            'totals' => array(
+                'total' => (float) $cart_total,
+                'count' => $cart_count
+            ),
+            'minimal' => true
+        ));
+    } else {
+        // Vollständiger Kontext nur wenn wirklich benötigt
+        $checkout_context = $cart_data_manager->get_checkout_context('full');
 
-    wp_send_json_success(array(
-        'items' => $checkout_context['cart_items'],
-        'totals' => $checkout_context['cart_totals'],
-        'context' => $checkout_context, // Vollständiger Kontext für erweiterte Nutzung
-    ));
+        wp_send_json_success(array(
+            'items' => $checkout_context['cart_items'],
+            'totals' => $checkout_context['cart_totals'],
+            'context' => $checkout_context,
+            'minimal' => false
+        ));
+    }
 }
 
     /**

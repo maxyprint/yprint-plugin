@@ -24,8 +24,19 @@ let cartTotals = {
     vat: 0
 };
 
-// Lade reale Warenkorbdaten mit zentraler Datenverwaltung
-async function loadRealCartData() {
+// Performance-optimierte Warenkorbdaten mit Cache
+let cartDataCache = null;
+let cartDataCacheTime = 0;
+const CACHE_DURATION = 30000; // 30 Sekunden Cache
+
+async function loadRealCartData(forceRefresh = false) {
+    // Cache prüfen für bessere Performance
+    if (!forceRefresh && cartDataCache && (Date.now() - cartDataCacheTime) < CACHE_DURATION) {
+        console.log('Verwende Cache für Warenkorbdaten');
+        applyCartData(cartDataCache);
+        return;
+    }
+
     try {
         const response = await fetch(yprint_checkout_params.ajax_url, {
             method: 'POST',
@@ -34,32 +45,19 @@ async function loadRealCartData() {
             },
             body: new URLSearchParams({
                 action: 'yprint_get_cart_data',
-                nonce: yprint_checkout_params.nonce
+                nonce: yprint_checkout_params.nonce,
+                minimal: isMinimalLoadNeeded() ? '1' : '0' // Neue Option für reduzierte Daten
             })
         });
 
         const data = await response.json();
         
         if (data.success) {
-            cartItems = data.data.items || [];
-            cartTotals = data.data.totals || cartTotals;
+            // Cache aktualisieren
+            cartDataCache = data.data;
+            cartDataCacheTime = Date.now();
             
-            // Erweiterte Kontext-Daten verfügbar machen
-            if (data.data.context) {
-                window.checkoutContext = data.data.context;
-                console.log('Vollständiger Checkout-Kontext geladen:', window.checkoutContext);
-            }
-            
-            // UI aktualisieren nach dem Laden der Daten
-            updateCartSummaryDisplay(document.getElementById('checkout-cart-summary-items'));
-            updateCartTotalsDisplay(document.getElementById('checkout-cart-summary-totals'));
-            updatePaymentStepSummary();
-            
-            // Express Payment aktualisieren falls verfügbar
-            if (window.YPrintExpressCheckout && window.checkoutContext.express_payment) {
-                window.YPrintExpressCheckout.updateAmount(window.checkoutContext.express_payment.total.amount);
-            }
-            
+            applyCartData(data.data);
             console.log('Zentrale Warenkorbdaten geladen:', cartItems);
         } else {
             console.error('Fehler beim Laden der Warenkorbdaten:', data.data);
@@ -67,6 +65,46 @@ async function loadRealCartData() {
     } catch (error) {
         console.error('AJAX-Fehler beim Laden der Warenkorbdaten:', error);
     }
+}
+
+function applyCartData(data) {
+    cartItems = data.items || [];
+    cartTotals = data.totals || cartTotals;
+    
+    // Nur relevante UI-Updates durchführen
+    if (data.context) {
+        window.checkoutContext = data.context;
+    }
+    
+    // UI-Updates nur wenn Elemente sichtbar sind
+    const summaryElement = document.getElementById('checkout-cart-summary-items');
+    if (summaryElement && isElementVisible(summaryElement)) {
+        updateCartSummaryDisplay(summaryElement);
+    }
+    
+    const totalsElement = document.getElementById('checkout-cart-summary-totals');
+    if (totalsElement && isElementVisible(totalsElement)) {
+        updateCartTotalsDisplay(totalsElement);
+    }
+    
+    // Payment Summary nur auf Checkout-Seite
+    if (isCheckoutPage()) {
+        updatePaymentStepSummary();
+    }
+    
+    // Express Payment nur wenn verfügbar und benötigt
+    if (window.YPrintExpressCheckout && window.checkoutContext?.express_payment) {
+        window.YPrintExpressCheckout.updateAmount(window.checkoutContext.express_payment.total.amount);
+    }
+}
+
+function isMinimalLoadNeeded() {
+    // Auf nicht-Checkout-Seiten nur minimale Daten laden
+    return !isCheckoutPage() && !isCartPage();
+}
+
+function isElementVisible(element) {
+    return element && element.offsetParent !== null;
 }
 
     // DOM-Elemente auswählen (optimiert, falls Elemente nicht immer vorhanden sind)
@@ -1114,9 +1152,44 @@ if (initialStep === 1) {
     }
 }
 
-// Lade reale Warenkorbdaten beim Start
-loadRealCartData().then(() => {
-    // Warenkorb-Zusammenfassung nach dem Laden der Daten aktualisieren
+// Performance-optimierter Start - nur bei Bedarf laden
+document.addEventListener('DOMContentLoaded', function() {
+    // Prüfe ob Checkout-Daten wirklich benötigt werden
+    if (isCheckoutPage() || isCartPage()) {
+        // Sofort laden nur auf relevanten Seiten
+        loadRealCartData().then(() => {
+            updateCartDisplays();
+        });
+    } else {
+        // Verzögertes Laden für bessere Login-Performance
+        setTimeout(() => {
+            if (shouldLoadCartData()) {
+                loadRealCartData().then(() => {
+                    updateCartDisplays();
+                });
+            }
+        }, 2000); // 2 Sekunden Verzögerung
+    }
+});
+
+function isCheckoutPage() {
+    return window.location.href.includes('/checkout/') || 
+           document.querySelector('.yprint-checkout-container') !== null;
+}
+
+function isCartPage() {
+    return window.location.href.includes('/cart/') || 
+           document.querySelector('.woocommerce-cart') !== null;
+}
+
+function shouldLoadCartData() {
+    // Nur laden wenn Warenkorb-Elemente auf der Seite sind
+    return document.querySelector('#checkout-cart-summary-items') !== null ||
+           document.querySelector('.cart-summary') !== null ||
+           document.querySelector('.mini-cart') !== null;
+}
+
+function updateCartDisplays() {
     const cartSummaryContainer = document.getElementById('checkout-cart-summary-items');
     if (cartSummaryContainer) {
         updateCartSummaryDisplay(cartSummaryContainer);
@@ -1125,7 +1198,7 @@ loadRealCartData().then(() => {
     if (cartTotalsContainer) {
         updateCartTotalsDisplay(cartTotalsContainer);
     }
-});
+}
 }); // Ende jQuery Document Ready
 
 // Debug-Button entfernt
