@@ -24,59 +24,17 @@ let cartTotals = {
     vat: 0
 };
 
-// Login-optimierte Performance mit verlängertem Cache
+// Performance-optimierte Warenkorbdaten mit Cache
 let cartDataCache = null;
 let cartDataCacheTime = 0;
-let loginOptimizedCache = null;
-let loginCacheTime = 0;
-const CACHE_DURATION = 60000; // 60 Sekunden Cache (verdoppelt)
-const LOGIN_CACHE_DURATION = 300000; // 5 Minuten Cache nach Login
+const CACHE_DURATION = 30000; // 30 Sekunden Cache
 
-async function loadRealCartData(forceRefresh = false, minimalMode = false) {
-    // Login-spezifischer langzeit Cache
-    if (!forceRefresh && isRecentLogin() && loginOptimizedCache && 
-        (Date.now() - loginCacheTime) < LOGIN_CACHE_DURATION) {
-        console.log('Verwende Login-optimierten Langzeit-Cache');
-        applyCartData(loginOptimizedCache);
-        return;
-    }
-    
-    // Standard Cache prüfen
+async function loadRealCartData(forceRefresh = false) {
+    // Cache prüfen für bessere Performance
     if (!forceRefresh && cartDataCache && (Date.now() - cartDataCacheTime) < CACHE_DURATION) {
-        console.log('Verwende Standard-Cache für Warenkorbdaten');
+        console.log('Verwende Cache für Warenkorbdaten');
         applyCartData(cartDataCache);
         return;
-    }
-
-    // Minimaler Modus für Login-Performance
-    if (minimalMode) {
-        try {
-            const response = await fetch(yprint_checkout_params.ajax_url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: new URLSearchParams({
-                    action: 'yprint_get_cart_data',
-                    nonce: yprint_checkout_params.nonce,
-                    minimal: '1' // Nur Basis-Daten
-                })
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                // Minimal-Cache für Login-Optimierung
-                loginOptimizedCache = data.data;
-                loginCacheTime = Date.now();
-                
-                applyCartData(data.data);
-                console.log('Minimal Warenkorbdaten für Login-Performance geladen');
-            }
-            return;
-        } catch (error) {
-            console.error('Minimal-AJAX-Fehler:', error);
-        }
     }
 
     try {

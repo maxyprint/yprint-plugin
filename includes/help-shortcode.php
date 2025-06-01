@@ -101,7 +101,7 @@ function yprint_help_shortcode() {
             color: #1d1d1f;
         }
         
-        .search-bar {
+    .search-bar {
   position: relative;
   display: flex;
   align-items: center;
@@ -109,6 +109,10 @@ function yprint_help_shortcode() {
   border: 1px solid #ccc;
   border-radius: 6px;
   padding: 8px;
+  max-width: 600px;
+  min-width: 300px;
+  overflow: hidden;
+  margin: 0 auto 24px auto;
 }
 
 .search-bar svg {
@@ -122,12 +126,16 @@ function yprint_help_shortcode() {
 
 .search-input {
   width: 100%;
-  padding: 10px 10px 10px 44px; /* Platz für Icon */
+  padding: 10px 10px 10px 44px;
   border: none;
   background: transparent;
   font-size: 16px;
   color: #1d1d1f;
   font-family: 'Roboto', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
 }
 
         
@@ -201,17 +209,31 @@ function yprint_help_shortcode() {
         }
         
         .dropdown-content {
-            padding: 0 20px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease, padding 0.3s ease;
-        }
-        
-        .dropdown-content.open {
-            max-height: 400px;
-            padding: 0 20px 20px 20px;
-            overflow-y: auto;
-        }
+  padding: 0 20px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  word-wrap: break-word;
+  word-break: break-word;
+}
+
+.dropdown-content.open {
+  max-height: 400px;
+  padding: 0 20px 20px 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.help-list-item {
+  display: block;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e5e5;
+  transition: background-color 0.2s ease;
+  overflow: hidden;
+  word-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.5;
+}
         
         .faq-list, .help-list {
             list-style: none;
@@ -259,29 +281,37 @@ function yprint_help_shortcode() {
         }
         
         .contact-buttons {
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-        
-        .contact-button {
-            flex: 1;
-            min-width: 120px;
-            padding: 14px 20px;
-            background-color: #0079FF;
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-        }
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.contact-button {
+  flex: 1 1 auto;
+  min-width: 120px;
+  max-width: 180px;
+  padding: 14px 20px;
+  background-color: #0079FF;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
         
         .contact-button:hover {
             background-color: #0056b3;
@@ -354,16 +384,20 @@ function yprint_help_shortcode() {
         }
         
         .contact-modal-content {
-            background-color: #ffffff;
-            border-radius: 16px;
-            padding: 24px;
-            max-width: 500px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 1px solid #e5e5e5;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 500px;
+  min-width: 320px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: 1px solid #e5e5e5;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  word-wrap: break-word;
+}
         
         .modal-header {
             display: flex;
@@ -541,50 +575,76 @@ function yprint_help_shortcode() {
             }
         }
         
-        /* Mobile Optimizations */
         @media (max-width: 768px) {
-            .yprint-help-container {
-                padding: 12px;
-            }
-            
-            .help-title {
-                font-size: 24px;
-            }
-            
-            .search-bar {
-                margin-bottom: 24px;
-            }
-            
-            .search-input {
-                padding: 16px 16px 16px 52px;
-                border-radius: 12px;
-            }
-            
-            .search-bar svg {
-                left: 16px;
-            }
-            
-            .contact-buttons {
-                flex-direction: column;
-            }
-            
-            .contact-button {
-                min-width: auto;
-            }
-            
-            .contact-modal-content {
-                margin: 16px;
-                padding: 20px;
-            }
-            
-            .form-actions {
-                flex-direction: column;
-            }
-            
-            .btn-secondary, .btn-primary {
-                width: 100%;
-            }
-        }
+  .yprint-help-container {
+    padding: 12px;
+    overflow-x: hidden;
+  }
+  
+  .help-title {
+    font-size: 24px;
+    word-wrap: break-word;
+  }
+  
+  .search-bar {
+    margin-bottom: 24px;
+    min-width: 280px;
+    max-width: 100%;
+  }
+  
+  .search-input {
+    padding: 16px 16px 16px 52px;
+    border-radius: 12px;
+    font-size: 16px;
+  }
+  
+  .search-bar svg {
+    left: 16px;
+  }
+  
+  .contact-buttons {
+    flex-direction: column;
+    max-width: 100%;
+  }
+  
+  .contact-button {
+    min-width: auto;
+    max-width: 100%;
+    font-size: 14px;
+    padding: 12px 16px;
+  }
+  
+  .contact-modal-content {
+    margin: 16px;
+    padding: 20px;
+    min-width: 280px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn-secondary, .btn-primary {
+    width: 100%;
+    font-size: 14px;
+    padding: 12px;
+  }
+  
+  .dropdown-title {
+    font-size: 18px;
+    word-wrap: break-word;
+  }
+  
+  .faq-question {
+    font-size: 14px;
+    word-wrap: break-word;
+  }
+  
+  .faq-answer {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+}
         
         /* Search functionality styles */
         .search-results {
@@ -636,16 +696,22 @@ function yprint_help_shortcode() {
             padding: 20px;
         }
         
-        /* Detail Content Styles */
         .detail-content {
-            background-color: #ffffff;
-            border: 1px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
-            display: none;
-        }
+  background-color: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  display: none;
+  min-width: 280px;
+  max-height: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  word-wrap: break-word;
+  word-break: break-word;
+  box-sizing: border-box;
+}
         
         .detail-content.show {
             display: block;
