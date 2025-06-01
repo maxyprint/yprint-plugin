@@ -503,6 +503,9 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             opacity: 0.7;
             transition: opacity 0.2s ease;
             color: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .yprint-create-new-card:hover .yprint-create-new-icon {
@@ -510,7 +513,21 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         }
 
         .yprint-create-new-icon i {
-            display: block;
+            display: block !important;
+            font-style: normal !important;
+            font-weight: 900 !important;
+            font-family: "Font Awesome 5 Free" !important;
+            line-height: 1 !important;
+        }
+
+        .yprint-create-new-icon i:before {
+            content: "\f553" !important; /* T-shirt Unicode für FontAwesome */
+        }
+
+        /* Fallback wenn FontAwesome nicht lädt */
+        .yprint-create-new-icon i.fa-tshirt:before {
+            content: "👕" !important;
+            font-family: inherit !important;
         }
 
         .yprint-create-new-text {
@@ -646,7 +663,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                         <!-- New "Design something!" card -->
                         <a href="<?php echo esc_url(home_url('/basics')); ?>" class="yprint-create-new-card">
                             <div class="yprint-create-new-icon">
-                                <i class="fas fa-tshirt"></i>
+                                <i class="fas fa-tshirt" aria-hidden="true"></i>
                             </div>
                             <p class="yprint-create-new-text"><?php _e('Design something!', 'yprint-plugin'); ?></p>
                         </a>
