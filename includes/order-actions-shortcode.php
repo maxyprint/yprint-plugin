@@ -123,6 +123,16 @@ class YPrint_Order_Actions_Screenshot_Final {
     min-width: 0;
 }
 
+.yprint-last-order-label {
+    font-weight: 500;
+    font-size: 12px;
+    color: #0079FF;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    line-height: 1.2;
+}
+
 .yprint-last-order-status {
     font-weight: 600;
     font-size: 16px;
@@ -391,9 +401,10 @@ class YPrint_Order_Actions_Screenshot_Final {
                     </div>
                 <?php endif; ?>
                 <div class="yprint-last-order-details">
-                    <div class="yprint-last-order-status"><?php echo esc_html($order_status); ?></div>
-                    <div class="yprint-last-order-number"><?php echo esc_html('#' . $order_number); ?></div>
-                </div>
+    <div class="yprint-last-order-label"><?php _e('Letzte Bestellung', 'yprint-plugin'); ?></div>
+    <div class="yprint-last-order-status"><?php echo esc_html($order_status); ?></div>
+    <div class="yprint-last-order-number"><?php echo esc_html('#' . $order_number); ?></div>
+</div>
                 <a href="<?php echo esc_url(home_url('/orders')); ?>" class="yprint-last-order-arrow" title="Alle Bestellungen anzeigen">&rarr;</a>
             </div>
             <div class="yprint-last-order-actions-buttons">
