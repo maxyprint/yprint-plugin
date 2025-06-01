@@ -19,14 +19,12 @@ class YPrint_Your_Designs {
     /**
      * Initialize the class
      */
-    public static function init() {
+     public static function init() {
         add_shortcode('your_designs', array(__CLASS__, 'render_your_designs'));
         add_action('wp_ajax_yprint_reorder_design', array(__CLASS__, 'handle_reorder_design'));
         add_action('wp_ajax_nopriv_yprint_reorder_design', array(__CLASS__, 'handle_reorder_design'));
         add_action('wp_ajax_yprint_delete_design', array(__CLASS__, 'handle_delete_design'));
         add_action('wp_ajax_nopriv_yprint_delete_design', array(__CLASS__, 'handle_delete_design'));
-        add_action('wp_ajax_yprint_update_design_title', array(__CLASS__, 'handle_update_design_title'));
-        add_action('wp_ajax_nopriv_yprint_update_design_title', array(__CLASS__, 'handle_update_design_title'));
     }
 
     /**
@@ -63,16 +61,6 @@ class YPrint_Your_Designs {
     padding: 1.5rem;
     border: 1px solid #DFDFDF;
     margin: 0;
-
-    /**
-     * Handle update design title AJAX request
-     */
-    public static function handle_update_design_title() {
-        wp_send_json_success(array(
-            'message' => 'Test erfolgreich - AJAX funktioniert',
-            'debug' => true
-        ));
-    }
 
 if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
     wp_send_json_error('Ungültige Parameter: Titel ist erforderlich und darf maximal 255 Zeichen lang sein');
@@ -264,7 +252,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         .yprint-design-image-container {
             position: relative;
             width: 100%;
-            height: 120px;
+            height: 160px;
             overflow: hidden;
         }
 
@@ -304,57 +292,6 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-        }
-
-        .yprint-design-name-input {
-            font-size: 14px;
-            font-weight: 600;
-            color: #111827;
-            margin: 0 0 0.25rem 0;
-            line-height: 1.3;
-            width: 100%;
-            border: 1px solid #0079FF;
-            border-radius: 4px;
-            padding: 2px 4px;
-            background-color: #ffffff;
-            font-family: inherit;
-        }
-
-        .yprint-design-name-input:focus {
-            outline: none;
-            border-color: #0056b3;
-            box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.1);
-        }
-
-        .yprint-design-name.editing {
-            display: none;
-        }
-
-        .yprint-design-meta {
-            font-size: 12px;
-            color: #6B7280;
-            margin: 0 0 0.5rem 0;
-            line-height: 1.4;
-        }
-
-        .yprint-design-status {
-            display: inline-block;
-            padding: 0.125rem 0.5rem;
-            border-radius: 12px;
-            font-size: 10px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .yprint-design-status.saved {
-            background-color: #dbeafe;
-            color: #1e40af;
-        }
-
-        .yprint-design-status.ordered {
-            background-color: #d1fae5;
-            color: #065f46;
         }
 
         .yprint-design-actions {
@@ -512,7 +449,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             }
 
             .yprint-design-image-container {
-                height: 100px;
+                height: 130px;
             }
 
             .yprint-design-content {
@@ -677,37 +614,18 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                                     </div>
                                     
                                     <div class="yprint-design-content">
-                                        <h3 class="yprint-design-name" 
-                                            data-design-id="<?php echo esc_attr($design->id); ?>"
+                                    <h3 class="yprint-design-name" 
                                             title="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>">
                                             <?php echo esc_html($design->name ?: 'Unbenanntes Design'); ?>
                                         </h3>
-                                        <input type="text" 
-                                               class="yprint-design-name-input" 
-                                               data-design-id="<?php echo esc_attr($design->id); ?>"
-                                               value="<?php echo esc_attr($design->name ?: 'Unbenanntes Design'); ?>"
-                                               style="display: none;"
-                                               maxlength="50">
                                         <p class="yprint-design-meta">
                                             <?php echo sprintf(__('Erstellt am %s', 'yprint-plugin'), 
                                                 date_i18n('d.m.Y', strtotime($design->created_at))); ?>
                                         </p>
-                                        <?php if (self::design_has_orders($design->id)) : ?>
-                                            <span class="yprint-design-status ordered"><?php _e('Bestellt', 'yprint-plugin'); ?></span>
-                                        <?php else : ?>
-                                            <span class="yprint-design-status saved"><?php _e('Gespeichert', 'yprint-plugin'); ?></span>
-                                        <?php endif; ?>
                                     </div>
                                 </div>
 
                                 <div class="yprint-design-actions">
-                                    <div class="yprint-design-action edit" 
-                                         data-design-id="<?php echo esc_attr($design->id); ?>"
-                                         title="<?php _e('Titel bearbeiten', 'yprint-plugin'); ?>">
-                                        <i class="fas fa-edit"></i>
-                                        <div class="yprint-design-action-label"><?php _e('Umbenennen', 'yprint-plugin'); ?></div>
-                                    </div>
-                                    
                                     <div class="yprint-design-action reorder" 
                                          data-design-id="<?php echo esc_attr($design->id); ?>"
                                          title="<?php _e('Erneut bestellen', 'yprint-plugin'); ?>">
@@ -757,15 +675,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 });
             });
 
-            // Handle edit buttons (now for title editing)
-            const editButtons = container.querySelectorAll('.edit');
-            editButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const designId = this.dataset.designId;
-                    startTitleEdit(designId);
-                });
-            });
+             
 
             // Handle delete buttons
             const deleteButtons = container.querySelectorAll('.delete');
@@ -778,76 +688,6 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                     }
                 });
             });
-
-            function startTitleEdit(designId) {
-                const titleElement = container.querySelector(`.yprint-design-name[data-design-id="${designId}"]`);
-                const inputElement = container.querySelector(`.yprint-design-name-input[data-design-id="${designId}"]`);
-                
-                if (!titleElement || !inputElement) return;
-
-                // Hide title, show input
-                titleElement.style.display = 'none';
-                inputElement.style.display = 'block';
-                inputElement.focus();
-                inputElement.select();
-
-                // Handle save on Enter or blur
-                function saveTitleEdit() {
-                    const newTitle = inputElement.value.trim();
-                    if (newTitle === '') {
-                        inputElement.value = titleElement.textContent;
-                        cancelTitleEdit();
-                        return;
-                    }
-
-                    // Save to database
-                    jQuery.ajax({
-                        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-                        type: 'POST',
-                        data: {
-                            action: 'yprint_update_design_title',
-                            design_id: designId,
-                            new_title: newTitle,
-                            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-                        }
-                    })
-                    .done(function(response) {
-                        if (response.success) {
-                            titleElement.textContent = newTitle;
-                            titleElement.title = newTitle;
-                            cancelTitleEdit();
-                        } else {
-                            alert(response.data || '<?php echo esc_js(__('Fehler beim Speichern des Titels', 'yprint-plugin')); ?>');
-                            cancelTitleEdit();
-                        }
-                    })
-                    .fail(function(xhr, status, error) {
-                        console.error('AJAX Error:', xhr.responseText, status, error);
-                        alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>: ' + error);
-                        cancelTitleEdit();
-                    });
-                }
-
-                function cancelTitleEdit() {
-                    titleElement.style.display = 'block';
-                    inputElement.style.display = 'none';
-                    inputElement.removeEventListener('blur', saveTitleEdit);
-                    inputElement.removeEventListener('keydown', handleKeyDown);
-                }
-
-                function handleKeyDown(e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        saveTitleEdit();
-                    } else if (e.key === 'Escape') {
-                        inputElement.value = titleElement.textContent;
-                        cancelTitleEdit();
-                    }
-                }
-
-                inputElement.addEventListener('blur', saveTitleEdit);
-                inputElement.addEventListener('keydown', handleKeyDown);
-            }
 
             function handleReorder(designId, button) {
                 const originalContent = button.innerHTML;
