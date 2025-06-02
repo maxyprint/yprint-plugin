@@ -252,152 +252,262 @@ class YPrint_Dynamic_Mobile_Product {
     }
     
     /**
-     * Render color selection
-     */
-    private static function render_color_selection($product, $config) {
-        if (!$product) return '';
+ * Render color selection
+ */
+private static function render_color_selection($product, $config) {
+    if (!$product) return '';
+    
+    // Get colors from WooCommerce product custom field
+    $colors = get_post_meta($product->get_id(), '_yprint_colors', true);
+    $sizing_data = get_post_meta($product->get_id(), '_yprint_sizing', true);
+    
+    // Don't display if no colors and no sizing
+    if (empty($colors) && empty($sizing_data)) {
+        return '';
+    }
+    
+    $product_id = $product->get_id();
+    $unique_id = 'wc-product-colors-' . $product_id;
+    
+    ob_start();
+    ?>
+    <div class="yprint-dynamic-color-selection" id="<?php echo esc_attr($unique_id); ?>">
+        <?php if (!empty($colors)): ?>
+        <div class="yprint-dynamic-color-options">
+            <!-- Will be populated by JavaScript if colors are available -->
+        </div>
+        <?php endif; ?>
         
-        $colors = get_post_meta($product->get_id(), '_yprint_colors', true);
-        $sizing_data = get_post_meta($product->get_id(), '_yprint_sizing', true);
+        <?php if (!empty($sizing_data)): ?>
+        <a href="#" class="yprint-dynamic-sizing-link" data-sizing-content="<?php echo esc_attr($sizing_data); ?>">
+            <?php echo esc_html($config['texts']['sizing_link']); ?>
+        </a>
+        <?php endif; ?>
+    </div>
+    
+    <!-- Sizing Chart Popup -->
+    <div id="yprint-sizing-popup-<?php echo esc_attr($product_id); ?>" class="yprint-sizing-popup" style="display: none;">
+        <div class="yprint-sizing-popup-overlay">
+            <div class="yprint-sizing-popup-content">
+                <div class="yprint-sizing-popup-header">
+                    <h3><?php echo esc_html(__('Size Chart', 'yprint')); ?></h3>
+                    <span class="yprint-sizing-popup-close">&times;</span>
+                </div>
+                <div class="yprint-sizing-popup-body">
+                    <!-- Sizing content will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const colorContainer = document.getElementById('<?php echo esc_js($unique_id); ?>');
+        if (!colorContainer) return;
         
-        // Don't display if no colors and no sizing
-        if (empty($colors) && empty($sizing_data)) {
-            return '';
+        const colorOptions = colorContainer.querySelector('.yprint-dynamic-color-options');
+        const productId = '<?php echo esc_js($product_id); ?>';
+        const storagePrefix = '<?php echo esc_js($config['storage_prefix']); ?>' + productId + '_';
+        const eventConfig = <?php echo json_encode($config['events']); ?>;
+        
+        let selectedColorId = null;
+        
+        // Color mapping for common colors
+        const colorMap = {
+            'black': '#000000',
+            'white': '#FFFFFF',
+            'red': '#FF0000',
+            'blue': '#0000FF',
+            'green': '#00FF00',
+            'yellow': '#FFFF00',
+            'orange': '#FFA500',
+            'purple': '#800080',
+            'pink': '#FFC0CB',
+            'brown': '#8B4513',
+            'grey': '#808080',
+            'gray': '#808080',
+            'navy': '#000080',
+            'maroon': '#800000',
+            'olive': '#808000',
+            'lime': '#00FF00',
+            'aqua': '#00FFFF',
+            'teal': '#008080',
+            'silver': '#C0C0C0',
+            'fuchsia': '#FF00FF'
+        };
+        
+        function parseColorOptions(colorString) {
+            if (!colorString) return [];
+            
+            const colors = [];
+            // Split by comma and clean up
+            const colorItems = colorString.split(',').map(item => item.trim().toLowerCase()).filter(item => item.length > 0);
+            
+            colorItems.forEach((colorName, index) => {
+                // Get color code from mapping or use default gray
+                const colorCode = colorMap[colorName] || '#CCCCCC';
+                
+                colors.push({
+                    name: colorName.charAt(0).toUpperCase() + colorName.slice(1), // Capitalize first letter
+                    id: (index + 1).toString(), // Generate sequential ID
+                    code: colorCode
+                });
+            });
+            
+            return colors;
         }
         
-        $product_id = $product->get_id();
-        $unique_id = 'wc-product-colors-' . $product_id;
-        
-        ob_start();
-        ?>
-        <div class="yprint-dynamic-color-selection" id="<?php echo esc_attr($unique_id); ?>">
-            <?php if (!empty($colors)): ?>
-            <div class="yprint-dynamic-color-options">
-                <!-- Will be populated by JavaScript if colors are available -->
-            </div>
-            <?php endif; ?>
+        function createColorCircles(colors) {
+            if (!colorOptions) return;
             
-            <?php if (!empty($sizing_data)): ?>
-            <a href="#" class="yprint-dynamic-sizing-link" data-sizing-content="<?php echo esc_attr($sizing_data); ?>">
-                <?php echo esc_html($config['texts']['sizing_link']); ?>
-            </a>
-            <?php endif; ?>
-        </div>
-        
-        <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const colorContainer = document.getElementById('<?php echo esc_js($unique_id); ?>');
-            if (!colorContainer) return;
+            colorOptions.innerHTML = '';
             
-            const colorOptions = colorContainer.querySelector('.yprint-dynamic-color-options');
-            const productId = '<?php echo esc_js($product_id); ?>';
-            const storagePrefix = '<?php echo esc_js($config['storage_prefix']); ?>' + productId + '_';
-            const eventConfig = <?php echo json_encode($config['events']); ?>;
-            
-            let selectedColorId = null;
-            
-            function parseColorOptions(colorString) {
-                if (!colorString) return [];
+            colors.forEach(color => {
+                const colorCircle = document.createElement('div');
+                colorCircle.className = 'yprint-dynamic-color-circle';
+                colorCircle.dataset.colorId = color.id;
+                colorCircle.dataset.colorName = color.name;
+                colorCircle.style.backgroundColor = color.code;
+                colorCircle.title = color.name;
                 
-                const colors = [];
-                const colorItems = colorString.split(/[;,]/);
+                // Special styling for white/light colors
+                if (color.code === '#FFFFFF' || color.code.toLowerCase() === '#ffffff') {
+                    colorCircle.style.borderColor = '#CCCCCC';
+                }
                 
-                colorItems.forEach(item => {
-                    const trimmedItem = item.trim();
-                    if (!trimmedItem) return;
-                    
-                    // Format: "Colorname (ID=1, HEX=#FF0000)" or "Colorname (ID=1)"
-                    const matchWithHex = trimmedItem.match(/(.+?)\s*\(ID=(\d+),?\s*HEX=(#[A-Fa-f0-9]{6})\)/i);
-                    const matchWithoutHex = trimmedItem.match(/(.+?)\s*\(ID=(\d+)\)/i);
-                    
-                    if (matchWithHex) {
-                        colors.push({
-                            name: matchWithHex[1].trim(),
-                            id: matchWithHex[2],
-                            code: matchWithHex[3]
-                        });
-                    } else if (matchWithoutHex) {
-                        // If no HEX value, create a neutral color
-                        colors.push({
-                            name: matchWithoutHex[1].trim(),
-                            id: matchWithoutHex[2],
-                            code: '#f0f0f0'
-                        });
-                    }
-                });
-                
-                return colors;
-            }
-            
-            function createColorCircles(colors) {
-                if (!colorOptions) return;
-                
-                colorOptions.innerHTML = '';
-                
-                colors.forEach(color => {
-                    const colorCircle = document.createElement('div');
-                    colorCircle.className = 'yprint-dynamic-color-circle';
-                    colorCircle.dataset.colorId = color.id;
-                    colorCircle.dataset.colorName = color.name;
-                    colorCircle.style.backgroundColor = color.code;
-                    colorCircle.title = color.name;
-                    
-                    // Special styling for white/light colors
-                    if (color.code === '#FFFFFF' || color.code.toLowerCase() === '#ffffff') {
-                        colorCircle.style.borderColor = '#CCCCCC';
-                    }
-                    
-                    colorCircle.addEventListener('click', function() {
-                        document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
-                            circle.classList.remove('selected');
-                        });
-                        
-                        colorCircle.classList.add('selected');
-                        selectedColorId = color.id;
-                        
-                        sessionStorage.setItem(storagePrefix + 'color_id', selectedColorId);
-                        sessionStorage.setItem(storagePrefix + 'color_name', color.name);
-                        
-                        // Dispatch color selected event
-                        document.dispatchEvent(new CustomEvent(eventConfig.color_selected, {
-                            detail: { colorId: selectedColorId, colorName: color.name, productId: productId }
-                        }));
+                colorCircle.addEventListener('click', function() {
+                    document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
+                        circle.classList.remove('selected');
                     });
                     
-                    colorOptions.appendChild(colorCircle);
-                });
-            }
-            
-            // Load colors from product data
-            const customColors = '<?php echo esc_js($colors); ?>';
-            const colors = parseColorOptions(customColors);
-            
-            if (colors.length > 0) {
-                createColorCircles(colors);
-            } else if (colorOptions) {
-                // Hide color section if no colors available
-                colorOptions.style.display = 'none';
-            }
-            
-            // Sizing link functionality
-            const sizingLink = colorContainer.querySelector('.yprint-dynamic-sizing-link');
-            if (sizingLink) {
-                sizingLink.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    // Dispatch sizing chart event
-                    document.dispatchEvent(new CustomEvent(eventConfig.sizing_chart, {
-                        detail: { 
-                            productId: productId,
-                            sizingData: this.dataset.sizingContent
-                        }
+                    colorCircle.classList.add('selected');
+                    selectedColorId = color.id;
+                    
+                    sessionStorage.setItem(storagePrefix + 'color_id', selectedColorId);
+                    sessionStorage.setItem(storagePrefix + 'color_name', color.name);
+                    
+                    // Dispatch color selected event
+                    document.dispatchEvent(new CustomEvent(eventConfig.color_selected, {
+                        detail: { colorId: selectedColorId, colorName: color.name, productId: productId }
                     }));
+                    
+                    console.log('Color selected:', color.name, 'ID:', selectedColorId);
+                });
+                
+                colorOptions.appendChild(colorCircle);
+            });
+        }
+        
+        // Load colors from product data
+        const customColors = '<?php echo esc_js($colors); ?>';
+        const colors = parseColorOptions(customColors);
+        
+        if (colors.length > 0) {
+            createColorCircles(colors);
+            console.log('Created color circles for colors:', colors);
+        } else if (colorOptions) {
+            // Hide color section if no colors available
+            colorOptions.style.display = 'none';
+        }
+        
+        // Sizing link functionality
+        const sizingLink = colorContainer.querySelector('.yprint-dynamic-sizing-link');
+        const sizingPopup = document.getElementById('yprint-sizing-popup-<?php echo esc_js($product_id); ?>');
+        
+        if (sizingLink && sizingPopup) {
+            sizingLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                // Get sizing data
+                const sizingData = this.dataset.sizingContent;
+                const popupBody = sizingPopup.querySelector('.yprint-sizing-popup-body');
+                
+                if (popupBody) {
+                    // Parse sizing data and create table or display as text
+                    if (sizingData.includes('|') || sizingData.includes(';')) {
+                        // Table format
+                        const table = createSizingTable(sizingData);
+                        popupBody.innerHTML = '';
+                        popupBody.appendChild(table);
+                    } else {
+                        // Plain text format
+                        popupBody.innerHTML = '<div class="sizing-text">' + sizingData.replace(/\n/g, '<br>') + '</div>';
+                    }
+                }
+                
+                // Show popup
+                sizingPopup.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                
+                console.log('Sizing chart opened for product:', productId);
+            });
+            
+            // Close popup functionality
+            const closeBtn = sizingPopup.querySelector('.yprint-sizing-popup-close');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    sizingPopup.style.display = 'none';
+                    document.body.style.overflow = '';
                 });
             }
-        });
-        </script>
-        <?php
-        return ob_get_clean();
-    }
+            
+            // Close on overlay click
+            const overlay = sizingPopup.querySelector('.yprint-sizing-popup-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', function(e) {
+                    if (e.target === overlay) {
+                        sizingPopup.style.display = 'none';
+                        document.body.style.overflow = '';
+                    }
+                });
+            }
+        }
+        
+        function createSizingTable(sizingData) {
+            const table = document.createElement('table');
+            table.className = 'yprint-sizing-table';
+            
+            let delimiter = '|';
+            if (sizingData.includes(';')) delimiter = ';';
+            
+            const rows = sizingData.split('\n').map(row => row.trim()).filter(row => row.length > 0);
+            
+            if (rows.length > 0) {
+                // Create header
+                const headerRow = document.createElement('tr');
+                const headerCells = rows[0].split(delimiter);
+                headerCells.forEach(cellText => {
+                    const th = document.createElement('th');
+                    th.textContent = cellText.trim();
+                    headerRow.appendChild(th);
+                });
+                
+                const thead = document.createElement('thead');
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                
+                // Create body
+                const tbody = document.createElement('tbody');
+                for (let i = 1; i < rows.length; i++) {
+                    const bodyRow = document.createElement('tr');
+                    const bodyCells = rows[i].split(delimiter);
+                    bodyCells.forEach(cellText => {
+                        const td = document.createElement('td');
+                        td.textContent = cellText.trim();
+                        bodyRow.appendChild(td);
+                    });
+                    tbody.appendChild(bodyRow);
+                }
+                table.appendChild(tbody);
+            }
+            
+            return table;
+        }
+    });
+    </script>
+    <?php
+    return ob_get_clean();
+}
     
     /**
      * Render action buttons (Designer & Buy Blank)
@@ -846,6 +956,129 @@ class YPrint_Dynamic_Mobile_Product {
                     gap: 12px;
                 }
             }
+/* Sizing Popup Styles */
+.yprint-sizing-popup {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.yprint-sizing-popup-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.yprint-sizing-popup-content {
+    background-color: white;
+    border-radius: 12px;
+    max-width: 600px;
+    max-height: 80vh;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.yprint-sizing-popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e5e5e5;
+    background-color: #f8f9fa;
+}
+
+.yprint-sizing-popup-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1d1d1f;
+}
+
+.yprint-sizing-popup-close {
+    font-size: 24px;
+    cursor: pointer;
+    color: #707070;
+    background: none;
+    border: none;
+    padding: 0;
+    line-height: 1;
+}
+
+.yprint-sizing-popup-close:hover {
+    color: #0079FF;
+}
+
+.yprint-sizing-popup-body {
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(80vh - 80px);
+}
+
+.yprint-sizing-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Roboto', sans-serif;
+}
+
+.yprint-sizing-table th,
+.yprint-sizing-table td {
+    border: 1px solid #e0e0e0;
+    padding: 12px;
+    text-align: center;
+}
+
+.yprint-sizing-table th {
+    background-color: #f5f5f5;
+    color: #707070;
+    font-weight: 600;
+}
+
+.yprint-sizing-table tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.sizing-text {
+    line-height: 1.6;
+    color: #333;
+}
+
+@media (max-width: 480px) {
+    .yprint-sizing-popup-overlay {
+        padding: 10px;
+    }
+    
+    .yprint-sizing-popup-content {
+        max-height: 90vh;
+    }
+    
+    .yprint-sizing-popup-header,
+    .yprint-sizing-popup-body {
+        padding: 15px;
+    }
+    
+    .yprint-sizing-table th,
+    .yprint-sizing-table td {
+        padding: 8px 4px;
+        font-size: 14px;
+    }
+}
+
         </style>
         
         <div class="yprint-dynamic-product-container" data-product-id="<?php echo esc_attr($product_id); ?>">
