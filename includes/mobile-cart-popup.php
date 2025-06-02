@@ -16,7 +16,14 @@ if (!defined('ABSPATH')) {
 function yprint_cart_popup_html() {
     ?>
     <div id="mobile-cart-popup" class="mobile-cart-popup">
-        <?php echo yprint_minimalist_cart_shortcode(); ?>
+        <div class="cart-container">
+            <button class="mobile-cart-back-button" type="button" aria-label="Warenkorb schließen">
+                ←
+            </button>
+            <div class="cart-content">
+                <?php echo yprint_minimalist_cart_shortcode(); ?>
+            </div>
+        </div>
     </div>
     <?php
 }
@@ -50,18 +57,43 @@ function yprint_add_mobile_cart_popup_css() {
         }
 
         #mobile-cart-popup > div { /* Direktes div-Kind (der Warenkorb) */
-            background-color: #fff;
-            color: #1d1d1f;
-            padding: 20px;
-            width: 300px; /* Beispielbreite für den Warenkorb */
-            height: 100%;
-            position: absolute;
-            top: 0;
-            right: 0;
-            box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
-            overflow-y: auto;
-            box-sizing: border-box;
-        }
+    background-color: #fff;
+    color: #1d1d1f;
+    padding: 20px;
+    width: 300px; /* Beispielbreite für den Warenkorb */
+    height: 100%;
+    position: absolute;
+    top: 0;
+    right: 0;
+    box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+/* Back Button Styles */
+.mobile-cart-back-button {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #1d1d1f;
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    z-index: 10;
+    transition: color 0.2s ease;
+}
+
+.mobile-cart-back-button:hover {
+    color: #0079FF;
+}
+
+/* Adjust cart content for back button */
+#mobile-cart-popup .cart-content {
+    padding-top: 50px;
+}
 
         body.cart-popup-open {
             overflow: hidden; /* Verhindert Body-Scroll, wenn Warenkorb offen ist */
@@ -78,72 +110,132 @@ function yprint_add_mobile_cart_popup_js() {
     ?>
     <script type="text/javascript">
         jQuery(document).ready(function($) {
-            var $cartPopup = $('#mobile-cart-popup');
-            var $cartTriggerLinks = $('a[href="#mobile-cart"], button[data-target="#mobile-cart"]');
+    var $cartPopup = $('#mobile-cart-popup');
+    var $cartTriggerLinks = $('a[href="#mobile-cart"], button[data-target="#mobile-cart"]');
 
-            // Funktion zum Öffnen des Warenkorb-Popups
-            function openCartPopup() {
-                $cartPopup.addClass('open');
-                $('body').addClass('cart-popup-open');
-                $cartTriggerLinks.attr('aria-expanded', 'true');
-                $cartPopup.attr('aria-hidden', 'false');
-            }
+    // Funktion zum Öffnen des Warenkorb-Popups
+    function openCartPopup() {
+        $cartPopup.addClass('open');
+        $('body').addClass('cart-popup-open');
+        $cartTriggerLinks.attr('aria-expanded', 'true');
+        $cartPopup.attr('aria-hidden', 'false');
+        console.log('Cart popup opened');
+    }
 
-            // Funktion zum Schließen des Warenkorb-Popups
-            function closeCartPopup() {
-                $cartPopup.removeClass('open');
-                $('body').removeClass('cart-popup-open');
-                $cartTriggerLinks.attr('aria-expanded', 'false');
-                $cartPopup.attr('aria-hidden', 'true');
-            }
+    // Funktion zum Schließen des Warenkorb-Popups
+    function closeCartPopup() {
+        $cartPopup.removeClass('open');
+        $('body').removeClass('cart-popup-open');
+        $cartTriggerLinks.attr('aria-expanded', 'false');
+        $cartPopup.attr('aria-hidden', 'true');
+        console.log('Cart popup closed');
+    }
 
-            // Event-Listener für Klicks auf Trigger-Elemente
-            $cartTriggerLinks.on('click', function(e) {
-                e.preventDefault();
-                $cartPopup.toggleClass('open');
-                $('body').toggleClass('cart-popup-open');
-                var isExpanded = $cartPopup.hasClass('open');
-                $(this).attr('aria-expanded', isExpanded);
-                $cartPopup.attr('aria-hidden', !isExpanded);
-            });
+    // Event-Listener für Klicks auf Trigger-Elemente
+    $cartTriggerLinks.on('click', function(e) {
+        e.preventDefault();
+        $cartPopup.toggleClass('open');
+        $('body').toggleClass('cart-popup-open');
+        var isExpanded = $cartPopup.hasClass('open');
+        $(this).attr('aria-expanded', isExpanded);
+        $cartPopup.attr('aria-hidden', !isExpanded);
+    });
 
-            // Schließen des Popups beim Klicken außerhalb des Warenkorbs (auf das Overlay)
-            $cartPopup.on('click', function(event) {
-                if ($(event.target).is(this)) {
-                    closeCartPopup();
-                }
-            });
+    // Back Button Event-Listener
+    $cartPopup.on('click', '.mobile-cart-back-button', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeCartPopup();
+    });
 
-            // Optional: Schließen des Popups mit der Escape-Taste
-            $(document).on('keydown', function(event) {
-                if (event.key === 'Escape' && $cartPopup.hasClass('open')) {
-                    closeCartPopup();
-                }
-            });
+    // Schließen des Popups beim Klicken außerhalb des Warenkorbs (auf das Overlay)
+    $cartPopup.on('click', function(event) {
+        if ($(event.target).is(this)) {
+            closeCartPopup();
+        }
+    });
 
-            // Überprüfe beim Laden der Seite, ob '#mobile-cart' im Hash ist
-            if (window.location.hash === '#mobile-cart') {
-                openCartPopup();
-            }
+    // Optional: Schließen des Popups mit der Escape-Taste
+    $(document).on('keydown', function(event) {
+        if (event.key === 'Escape' && $cartPopup.hasClass('open')) {
+            closeCartPopup();
+        }
+    });
 
-            // Überwache Änderungen des Hash-Werts in der URL
-            $(window).on('hashchange', function() {
-                if (window.location.hash === '#mobile-cart') {
-                    openCartPopup();
-                } else if ($cartPopup.hasClass('open')) {
-                    closeCartPopup();
-                }
-            });
+    // Überprüfe beim Laden der Seite, ob '#mobile-cart' im Hash ist
+    if (window.location.hash === '#mobile-cart') {
+        openCartPopup();
+    }
 
-            // Aktualisiere den Warenkorb, wenn ein Produkt hinzugefügt wurde (AJAX-Event aus minimalistischem Warenkorb)
-            $(document.body).on('yprint_mini_cart_refreshed yprint_cart_updated', function() {
-                // Wenn das Cart-Popup geöffnet ist, aktualisiere es (der Inhalt wird ja bereits über den Shortcode geladen/aktualisiert)
-                if ($cartPopup.hasClass('open')) {
-                    // Optional: Hier könnten Sie eine visuelle Bestätigung einfügen
-                    console.log('Cart popup content potentially updated.');
-                }
-            });
-        });
+    // Überwache Änderungen des Hash-Werts in der URL
+    $(window).on('hashchange', function() {
+        if (window.location.hash === '#mobile-cart') {
+            openCartPopup();
+        } else if ($cartPopup.hasClass('open')) {
+            closeCartPopup();
+        }
+    });
+
+    // Aktualisiere den Warenkorb, wenn ein Produkt hinzugefügt wurde (AJAX-Event aus minimalistischem Warenkorb)
+    $(document.body).on('yprint_mini_cart_refreshed yprint_cart_updated', function() {
+        // Wenn das Cart-Popup geöffnet ist, aktualisiere es (der Inhalt wird ja bereits über den Shortcode geladen/aktualisiert)
+        if ($cartPopup.hasClass('open')) {
+            // Optional: Hier könnten Sie eine visuelle Bestätigung einfügen
+            console.log('Cart popup content potentially updated.');
+        }
+    });
+
+    // Event-Listener für automatisches Öffnen des Carts nach dem Hinzufügen eines Produkts
+    $(document.body).on('added_to_cart', function(event, fragments, cart_hash, button) {
+        console.log('Product added to cart - opening cart popup');
+        openCartPopup();
+    });
+
+    // Custom Event-Listener für YPrint Cart Open Events
+    $(document).on('yprint:open-cart-popup', function(e) {
+        console.log('YPrint cart open event received');
+        openCartPopup();
+    });
+
+    // Global function for external cart opening
+    window.openYPrintCart = function() {
+        openCartPopup();
+    };
+
+    // Legacy support for various cart opening methods
+    $(document).on('open-cart-popup', function(e) {
+        console.log('Legacy cart open event received');
+        openCartPopup();
+
+        // Try to trigger YPrint mobile cart popup
+const mobileCartPopup = document.querySelector('#mobile-cart-popup');
+if (mobileCartPopup && typeof jQuery !== 'undefined') {
+    // Use YPrint mobile cart
+    if (typeof window.openYPrintCart === 'function') {
+        window.openYPrintCart();
+    } else {
+        jQuery(document).trigger('yprint:open-cart-popup');
+    }
+} else {
+    // Fallback to regular cart popup
+    const cartPopup = document.querySelector('#cart');
+    if (cartPopup) {
+        cartPopup.style.display = 'block';
+        cartPopup.classList.add('show');
+        
+        // jQuery fallback
+        if (typeof jQuery !== 'undefined') {
+            jQuery('#cart').fadeIn();
+        }
+    }
+}
+
+// Dispatch custom event
+document.dispatchEvent(new CustomEvent(eventConfig.cart_open, { 
+    detail: { productId: productId, action: 'buy_blank' } 
+}));
+    });
+});
     </script>
     <?php
 }
