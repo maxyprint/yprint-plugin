@@ -727,24 +727,6 @@ if (class_exists('YPrint_Stripe_Checkout')) {
         </div>
     </div>
 
-    <!-- Warenkorb-Zusammenfassung -->
-    <div class="mt-6 border-t border-yprint-medium-gray pt-6">
-        <h3 class="text-lg font-semibold mb-2"><?php esc_html_e('Gesamtübersicht', 'yprint-checkout'); ?></h3>
-        <!-- Preisdetails -->
-        <div class="flex justify-between text-lg">
-            <span><?php esc_html_e('Zwischensumme:', 'yprint-checkout'); ?></span>
-            <span id="subtotal-price">€0,00</span>
-        </div>
-        <div class="flex justify-between text-lg">
-            <span><?php esc_html_e('Versandkosten:', 'yprint-checkout'); ?></span>
-            <span id="shipping-price">€0,00</span>
-        </div>
-        <div class="flex justify-between text-xl font-bold mt-2 text-yprint-blue">
-            <span><?php esc_html_e('Gesamtpreis:', 'yprint-checkout'); ?></span>
-            <span id="total-price-payment">€0,00</span>
-        </div>
-    </div>
-
     <!-- Gutscheincode -->
     <div class="mt-4">
         <label for="voucher" class="form-label"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
