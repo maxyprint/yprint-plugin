@@ -92,19 +92,27 @@ add_filter( 'body_class', function( $classes ) {
         margin-bottom: 1.5rem; /* Mehr Abstand zwischen den Karten */
     }
 
-    /* Checkout Header Integration */
-    .yprint-checkout-main-content .yprint-checkout-header {
-        margin-bottom: 20px;
-        margin-top: 0;
-        border: 1px solid #DFDFDF;
-        background-color: #ffffff;
+    /* Checkout Header Integration - innerhalb der Card */
+    .checkout-step .yprint-checkout-header {
+        margin: -15px -15px 20px -15px; /* Negatives Margin um Card-Padding zu kompensieren */
+        border: none; /* Kein eigener Rahmen, da Teil der Card */
+        border-bottom: 1px solid #DFDFDF; /* Nur unterer Rahmen als Trenner */
+        border-radius: 8px 8px 0 0; /* Nur obere Ecken abgerundet */
+        background-color: #f8f9fa; /* Leicht abgesetzter Hintergrund */
     }
 
-    /* Responsive Anpassungen für Header */
+    /* Responsive Anpassungen für integrierten Header */
     @media (max-width: 768px) {
-        .yprint-checkout-main-content .yprint-checkout-header {
-            margin-bottom: 15px;
-            border-radius: 8px;
+        .checkout-step .yprint-checkout-header {
+            margin: -15px -15px 15px -15px;
+            border-radius: 8px 8px 0 0;
+        }
+    }
+
+    /* Größere Bildschirme - mehr Padding */
+    @media (min-width: 768px) {
+        .checkout-step .yprint-checkout-header {
+            margin: -20px -20px 20px -20px;
         }
     }
 
@@ -359,8 +367,14 @@ add_filter( 'body_class', function( $classes ) {
     }
 </style>
 
+<?php 
+// Checkout Header für Payment-Schritt
+echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
+?>
+
 
     <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
+    
 <?php if ($current_step_slug !== 'thankyou') : ?>
     <div class="progress-bar-wrapper mb-8">
     <?php include( $partials_dir . 'checkout-progress.php' ); ?>
@@ -369,22 +383,6 @@ add_filter( 'body_class', function( $classes ) {
 
 <div class="yprint-checkout-layout">
     <div class="yprint-checkout-main-content">
-        <?php 
-        // Checkout Header nur anzeigen, wenn nicht auf der Danke-Seite
-        if ($current_step_slug !== 'thankyou') : 
-            // Mapping für Header Steps
-            $header_step_mapping = [
-                'address' => 'information',
-                'payment' => 'payment', 
-                'confirmation' => 'payment'
-            ];
-            $header_step = $header_step_mapping[$current_step_slug] ?? 'information';
-            
-            // Checkout Header Shortcode ausgeben
-            echo do_shortcode('[yprint_checkout_header step="' . esc_attr($header_step) . '" show_total="yes" show_progress="yes"]');
-        endif; 
-        ?>
-        
         <div class="card">
         <?php
         // Debug-Information ausgeben (kann in Produktion entfernt werden)
@@ -405,8 +403,11 @@ add_filter( 'body_class', function( $classes ) {
         // Jeder Schritt sollte in einer eigenen Partial-Datei liegen
         ?>
 
-        <div id="step-1" class="checkout-step <?php echo ($current_step_id === 'step-1') ? 'active' : ''; ?>">
-            <?php
+<div id="step-1" class="checkout-step active">
+    <?php 
+    // Checkout Header für Adress-Schritt
+    echo do_shortcode('[yprint_checkout_header step="information" show_total="yes" show_progress="yes"]');
+    
             // Prüfe, ob die Partial-Datei existiert, bevor sie eingebunden wird
             if (file_exists($partials_dir . 'checkout-step-address.php')) {
                 include($partials_dir . 'checkout-step-address.php');
@@ -436,6 +437,10 @@ add_filter( 'body_class', function( $classes ) {
         </div>
 
         <div id="step-3" class="checkout-step <?php echo ($current_step_id === 'step-3') ? 'active' : ''; ?>">
+        <?php 
+    // Checkout Header für Bestätigungs-Schritt
+    echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
+    ?>
             <?php
             if (file_exists($partials_dir . 'checkout-step-confirmation.php')) {
                 include($partials_dir . 'checkout-step-confirmation.php');
