@@ -78,66 +78,69 @@ add_filter( 'body_class', function( $classes ) {
 ?>
 
 <style>
-    /* Globale Anpassungen für bessere Mobile-Erfahrung */
+    /* YPrint Checkout - Globale Styles */
     body.yprint-checkout-page {
-        font-size: 16px; /* Grundlegende Schriftgröße für Mobilgeräte */
+        font-size: 16px;
         line-height: 1.6;
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
     }
 
-    .card {
-        border: 1px solid #DFDFDF !important;
-        background-color: #ffffff !important;
-        border-radius: 8px;
-        padding: 15px; /* Weniger Padding für kleinere Bildschirme */
-        margin-bottom: 1.5rem; /* Mehr Abstand zwischen den Karten */
+    /* Single Column Layout Container */
+    .yprint-checkout-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
     }
 
-    /* Checkout Header Integration - innerhalb der Card */
+    /* Card Styling */
+    .yprint-checkout-card {
+        border: 1px solid #DFDFDF;
+        background-color: #ffffff;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Progress Bar Styling */
+    .yprint-progress-wrapper {
+        margin-bottom: 30px;
+    }
+
+    /* Checkout Header Integration */
     .checkout-step .yprint-checkout-header {
-        margin: -15px -15px 20px -15px; /* Negatives Margin um Card-Padding zu kompensieren */
-        border: none; /* Kein eigener Rahmen, da Teil der Card */
-        border-bottom: 1px solid #DFDFDF; /* Nur unterer Rahmen als Trenner */
-        border-radius: 8px 8px 0 0; /* Nur obere Ecken abgerundet */
-        background-color: #f8f9fa; /* Leicht abgesetzter Hintergrund */
+        margin: -30px -30px 30px -30px;
+        border: none;
+        border-bottom: 1px solid #DFDFDF;
+        border-radius: 12px 12px 0 0;
+        background-color: #F6F7FA;
     }
 
-    /* Responsive Anpassungen für integrierten Header */
+    /* Font Awesome Icons sicherstellen */
+    .fas, .far, .fab {
+        font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "FontAwesome";
+        font-weight: 900;
+        font-style: normal;
+        font-variant: normal;
+        text-rendering: auto;
+        line-height: 1;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Mobile Responsive */
     @media (max-width: 768px) {
-        .checkout-step .yprint-checkout-header {
-            margin: -15px -15px 15px -15px;
-            border-radius: 8px 8px 0 0;
+        .yprint-checkout-container {
+            padding: 15px;
         }
-    }
-
-    /* Größere Bildschirme - mehr Padding */
-    @media (min-width: 768px) {
+        
+        .yprint-checkout-card {
+            padding: 20px;
+        }
+        
         .checkout-step .yprint-checkout-header {
             margin: -20px -20px 20px -20px;
         }
-    }
-
-    /* Fortschrittsbalken (Anpassungen für Mobilgeräte sind oft im Partial selbst) */
-    .progress-bar-wrapper {
-        margin-bottom: 1.5rem;
-    }
-
-    /* Hauptinhaltsbereich und Sidebar */
-    .yprint-checkout-layout {
-        display: flex;
-        flex-direction: column; /* Standardmäßig untereinander auf kleinen Bildschirmen */
-        gap: 1.5rem;
-        align-items: stretch; /* Elemente dehnen, um die volle Breite zu nutzen */
-    }
-
-    .yprint-checkout-main-content,
-    .yprint-checkout-sidebar {
-        flex: 1 1 auto; /* Gleichmäßige Verteilung, wenn nebeneinander möglich */
-        min-width: 0; /* Verhindert Überlaufen */
-    }
-
-    /* Warenkorb-Zusammenfassung (Sidebar) */
-    .yprint-checkout-sidebar {
-        /* Reihenfolge kann mit order in Flexbox angepasst werden, falls nötig */
     }
 
     .order-summary-bold-final {
@@ -269,54 +272,7 @@ add_filter( 'body_class', function( $classes ) {
         color: #6c757d;
     }
 
-    /* Layout spezifisches CSS */
-    .yprint-checkout-layout {
-        display: flex;
-        flex-direction: column; /* Standardmäßig untereinander auf kleinen Bildschirmen */
-        gap: 1.5rem;
-        align-items: stretch;
-    }
-
-    .yprint-checkout-main-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .yprint-checkout-sidebar {
-        flex: 1;
-        min-width: 0;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* Responsiveness für größere Bildschirme */
-    @media (min-width: 768px) {
-        .yprint-checkout-layout {
-            flex-direction: row;
-            gap: 2rem;
-        }
-
-        .yprint-checkout-main-content {
-            flex: 2;
-        }
-
-        .yprint-checkout-sidebar {
-            flex: 1;
-        }
-
-        .order-summary-bold-final {
-            max-width: 350px;
-            margin: 0 0 1.5rem 0;
-        }
-
-        .bold-header-final {
-            text-align: left;
-        }
-
-        .card {
-            padding: 20px;
-        }
-    }
+    /* Entfernt - nicht mehr benötigt für Single Column Layout */
 
     /* Styling für den Footer (aus Original-Code) */
     .yprint-checkout-footer {
@@ -366,17 +322,19 @@ add_filter( 'body_class', function( $classes ) {
         100% { transform: rotate(360deg); }
     }
 </style>
-    <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
-    
-<?php if ($current_step_slug !== 'thankyou') : ?>
-    <div class="progress-bar-wrapper mb-8">
-    <?php include( $partials_dir . 'checkout-progress.php' ); ?>
-</div>
+    <?php 
+// Font Awesome sicherstellen
+wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', array(), '6.0.0');
+
+// Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite
+if ($current_step_slug !== 'thankyou') : ?>
+    <div class="yprint-progress-wrapper">
+        <?php include( $partials_dir . 'checkout-progress.php' ); ?>
+    </div>
 <?php endif; ?>
 
-<div class="yprint-checkout-layout">
-    <div class="yprint-checkout-main-content">
-        <div class="card">
+<div class="yprint-checkout-container">
+    <div class="yprint-checkout-card">
         <?php
         // Debug-Information ausgeben (kann in Produktion entfernt werden)
         error_log('Debug Checkout Steps:');
@@ -458,9 +416,7 @@ add_filter( 'body_class', function( $classes ) {
 
 </div>
 
-        <div class="yprint-checkout-sidebar">
         </div>
-    </div>
 
     <!-- Footer-Bereich für rechtliche Hinweise -->
     <div class="yprint-checkout-footer">
