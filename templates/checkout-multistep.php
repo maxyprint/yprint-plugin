@@ -78,37 +78,65 @@ add_filter( 'body_class', function( $classes ) {
 ?>
 
 <style>
-    /* Anpassungen für die 'card'-Klasse */
-    .card {
-        border: none !important;
-        background-color: #ffffff !important;
-        border-width: 1px
-        border: 1px solid #DFDFDF; /* Gleicher Rahmen wie andere Karten */
-        border-radius: 8px;
-        padding: 20px;
+    /* Globale Anpassungen für bessere Mobile-Erfahrung */
+    body.yprint-checkout-page {
+        font-size: 16px; /* Grundlegende Schriftgröße für Mobilgeräte */
+        line-height: 1.6;
     }
 
-    /* Das Styling für die Warenkorb-Zusammenfassung */
+    .card {
+        border: 1px solid #DFDFDF !important;
+        background-color: #ffffff !important;
+        border-radius: 8px;
+        padding: 15px; /* Weniger Padding für kleinere Bildschirme */
+        margin-bottom: 1.5rem; /* Mehr Abstand zwischen den Karten */
+    }
+
+    /* Fortschrittsbalken (Anpassungen für Mobilgeräte sind oft im Partial selbst) */
+    .progress-bar-wrapper {
+        margin-bottom: 1.5rem;
+    }
+
+    /* Hauptinhaltsbereich und Sidebar */
+    .yprint-checkout-layout {
+        display: flex;
+        flex-direction: column; /* Standardmäßig untereinander auf kleinen Bildschirmen */
+        gap: 1.5rem;
+        align-items: stretch; /* Elemente dehnen, um die volle Breite zu nutzen */
+    }
+
+    .yprint-checkout-main-content,
+    .yprint-checkout-sidebar {
+        flex: 1 1 auto; /* Gleichmäßige Verteilung, wenn nebeneinander möglich */
+        min-width: 0; /* Verhindert Überlaufen */
+    }
+
+    /* Warenkorb-Zusammenfassung (Sidebar) */
+    .yprint-checkout-sidebar {
+        /* Reihenfolge kann mit order in Flexbox angepasst werden, falls nötig */
+    }
+
     .order-summary-bold-final {
-        border: 2px solid #ccc;
-        padding: 25px;
+        border: 1px solid #ccc; /* Dünnere Border für Mobilgeräte */
+        padding: 15px; /* Weniger Padding */
         font-family: sans-serif;
         background-color: #ffffff;
-        border-radius: 20px;
-        max-width: 350px;
-        margin: 0 auto;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        border-radius: 15px; /* Etwas weniger Rundung */
+        margin: 0 auto 1.5rem; /* Zentriert und mit Abstand nach unten */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); /* Dezenterer Schatten */
+        max-width: 100%; /* Nimmt standardmäßig die volle Breite ein */
     }
 
     .bold-header-final {
         color: #333;
-        font-size: 1.5em;
-        margin-bottom: 20px;
+        font-size: 1.2em; /* Kleinere Überschrift */
+        margin-bottom: 15px;
+        text-align: center; /* Zentriert die Überschrift */
     }
 
     .items {
-        margin-bottom: 20px;
-        max-height: 200px;
+        margin-bottom: 15px;
+        max-height: 150px; /* Weniger Höhe für den Scrollbereich */
         overflow-y: auto;
         padding-right: 5px;
     }
@@ -116,20 +144,16 @@ add_filter( 'body_class', function( $classes ) {
     .item {
         display: flex;
         align-items: center;
-        padding: 12px 0;
+        padding: 10px 0;
         border-bottom: 1px solid #eee;
     }
 
-    .item:last-child {
-        border-bottom: none;
-    }
-
     .item-image {
-        width: 60px;
-        height: 60px;
+        width: 50px;
+        height: 50px;
         object-fit: cover;
         border-radius: 4px;
-        margin-right: 15px;
+        margin-right: 10px;
         flex-shrink: 0;
     }
 
@@ -140,12 +164,12 @@ add_filter( 'body_class', function( $classes ) {
     .item-name {
         font-weight: bold;
         color: #333;
-        margin-bottom: 3px;
-        font-size: 0.95em;
+        margin-bottom: 2px;
+        font-size: 0.9em;
     }
 
     .item-quantity {
-        font-size: 0.8em;
+        font-size: 0.75em;
         color: #666;
     }
 
@@ -153,46 +177,36 @@ add_filter( 'body_class', function( $classes ) {
         font-weight: bold;
         color: #333;
         white-space: nowrap;
-        font-size: 0.95em;
+        font-size: 0.9em;
     }
 
     .totals div {
         display: flex;
         justify-content: space-between;
-        padding: 6px 0;
-        font-size: 0.95em;
+        padding: 5px 0;
+        font-size: 0.9em;
         color: #555;
-    }
-
-    .discount {
-        color: #28a745;
-    }
-
-    .total-divider-final {
-        border: none;
-        border-top: 1px solid #ddd;
-        margin: 10px 0;
     }
 
     .total-final {
         font-weight: bold;
-        font-size: 1.3em;
+        font-size: 1.1em;
         color: #333;
         display: flex;
         justify-content: space-between;
-        padding-top: 10px;
+        padding-top: 8px;
     }
 
     .voucher {
-        margin-top: 25px;
+        margin-top: 20px;
     }
 
     .voucher label {
         display: block;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         font-weight: bold;
         color: #555;
-        font-size: 0.95em;
+        font-size: 0.9em;
     }
 
     .voucher-input-group-final {
@@ -202,27 +216,23 @@ add_filter( 'body_class', function( $classes ) {
 
     .voucher-input-group-final input {
         flex-grow: 1;
-        padding: 10px;
+        padding: 8px;
         border: 1px solid #ccc;
         border-radius: 5px 0 0 5px;
         outline: none;
-        font-size: 0.9em;
+        font-size: 0.85em;
     }
 
     .voucher-button-final {
-        padding: 10px 15px;
+        padding: 8px 12px;
         background-color: #007bff;
         color: white;
         border: none;
         border-radius: 0 5px 5px 0;
         cursor: pointer;
-        font-size: 0.9em;
+        font-size: 0.85em;
         white-space: nowrap;
         transition: background-color 0.2s ease;
-    }
-
-    .voucher-button-final:hover {
-        background-color: #0056b3;
     }
 
     #cart-voucher-feedback {
@@ -238,44 +248,59 @@ add_filter( 'body_class', function( $classes ) {
     /* Layout spezifisches CSS */
     .yprint-checkout-layout {
         display: flex;
-        gap: 2rem;
-        flex-wrap: wrap;
+        flex-direction: column; /* Standardmäßig untereinander auf kleinen Bildschirmen */
+        gap: 1.5rem;
         align-items: stretch;
     }
 
     .yprint-checkout-main-content {
-        flex: 2;
-        min-width: 300px;
+        flex: 1;
+        min-width: 0;
     }
 
     .yprint-checkout-sidebar {
         flex: 1;
-        min-width: 280px;
+        min-width: 0;
         display: flex;
         flex-direction: column;
     }
 
-    /* Responsiveness für kleinere Bildschirme */
-    @media (max-width: 768px) {
+    /* Responsiveness für größere Bildschirme */
+    @media (min-width: 768px) {
         .yprint-checkout-layout {
-            flex-direction: column;
-            gap: 1.5rem;
+            flex-direction: row;
+            gap: 2rem;
         }
 
-        .yprint-checkout-main-content,
+        .yprint-checkout-main-content {
+            flex: 2;
+        }
+
         .yprint-checkout-sidebar {
-            flex: none;
-            width: 100%;
-            min-width: unset;
+            flex: 1;
+        }
+
+        .order-summary-bold-final {
+            max-width: 350px;
+            margin: 0 0 1.5rem 0;
+        }
+
+        .bold-header-final {
+            text-align: left;
+        }
+
+        .card {
+            padding: 20px;
         }
     }
 
     /* Styling für den Footer (aus Original-Code) */
     .yprint-checkout-footer {
         text-align: center;
-        margin-top: 2rem;
+        margin-top: 1.5rem;
         padding-top: 1rem;
         border-top: 1px solid #eee;
+        font-size: 0.85em;
     }
 
     .yprint-checkout-footer a {
@@ -303,13 +328,13 @@ add_filter( 'body_class', function( $classes ) {
     }
 
     .spinner {
-        border: 4px solid rgba(0, 0, 0, 0.1);
+        border: 3px solid rgba(0, 0, 0, 0.1); /* Etwas kleiner */
         border-left-color: #007bff;
         border-radius: 50%;
-        width: 40px;
-        height: 40px;
+        width: 30px; /* Kleinerer Spinner */
+        height: 30px; /* Kleinerer Spinner */
         animation: spin 1s linear infinite;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
 
     @keyframes spin {
@@ -396,63 +421,3 @@ add_filter( 'body_class', function( $classes ) {
                 echo '<p>Fehler: Danke-Seite-Template nicht gefunden.</p>';
             }
             ?>
-        </div>
-
-        </div> <?php // Ende .card ?>
-    </div> <?php // Ende .yprint-checkout-main-content ?>
-
-    <?php // Warenkorb-Zusammenfassung (Sidebar) nur anzeigen, wenn nicht auf der Danke-Seite ?>
-    <?php if ($current_step_slug !== 'thankyou') : ?>
-    <aside class="yprint-checkout-sidebar">
-        <?php
-        // Hier wird das Warenkorb-Zusammenfassungs-Partial geladen
-        // und die benötigten Daten übergeben.
-        $cart_items_data_for_summary = $cart_items_data; // Dummy-Daten
-        $cart_totals_data_for_summary = $cart_totals_data; // Dummy-Daten
-
-        include( $partials_dir . 'checkout-cart-summary.php' ); ?>
-    </aside>
-<?php endif; ?>
-</div> <?php // Ende .yprint-checkout-layout ?>
-
-    <?php // Footer-Bereich mit Links ?>
-    <footer class="yprint-checkout-footer">
-        <p class="mt-1">
-            <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('FAQ', 'yprint-checkout'); ?></a> |
-            <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('Rückgabe', 'yprint-checkout'); ?></a> |
-            <a href="#" class="hover:text-yprint-blue"><?php esc_html_e('Datenschutz', 'yprint-checkout'); ?></a>
-        </p>
-    </footer>
-
-<?php // Ladeanimation Overlay (global für alle Schritte) ?>
-<div id="loading-overlay" class="hidden">
-    <div class="spinner"></div>
-    <p class="text-lg text-yprint-black"><?php esc_html_e('Ihre Bestellung wird verarbeitet...', 'yprint-checkout'); ?></p>
-
-    <?php if (current_user_can('administrator') && isset($_GET['debug'])) : ?>
-<div style="margin-top: 30px; padding: 10px; background: #f8f8f8; border: 1px solid #ddd; font-family: monospace;">
-    <h3>Debug Info:</h3>
-    <p>Current Step: <?php echo esc_html($current_step_slug); ?></p>
-    <p>Partials Dir: <?php echo esc_html($partials_dir); ?></p>
-    <p>Payment Step File: <?php echo esc_html($partials_dir . 'checkout-step-payment.php'); ?></p>
-    <p>File Exists: <?php echo file_exists($partials_dir . 'checkout-step-payment.php') ? 'Yes' : 'No'; ?></p>
-    <h4>Active Steps:</h4>
-    <ul id="debug-steps"></ul>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const activeSteps = document.querySelectorAll('.checkout-step.active');
-            const debugList = document.getElementById('debug-steps');
-            if (activeSteps.length === 0) {
-                debugList.innerHTML = '<li>No active steps found!</li>';
-            } else {
-                activeSteps.forEach(step => {
-                    const li = document.createElement('li');
-                    li.textContent = `#${step.id} - Display: ${getComputedStyle(step).display}`;
-                    debugList.appendChild(li);
-                });
-            }
-        });
-    </script>
-</div>
-<?php endif; ?>
-</div>
