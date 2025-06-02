@@ -459,10 +459,6 @@ add_filter( 'body_class', function( $classes ) {
 </div>
 
         <div class="yprint-checkout-sidebar">
-            <?php
-            // Cart Summary (Sidebar)
-            include( $partials_dir . 'checkout-cart-summary.php' );
-            ?>
         </div>
     </div>
 
