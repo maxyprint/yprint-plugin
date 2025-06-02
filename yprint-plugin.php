@@ -32,6 +32,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/legal-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/product-fields.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/help-shortcode.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/mobile-product-shortcode.php';
 
 // Include Stripe files
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/yprint-stripe.php';
