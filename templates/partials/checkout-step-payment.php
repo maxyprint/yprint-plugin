@@ -813,24 +813,88 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Express Payment Integration
+// Express Payment Integration - Stripe Payment Request Button
 setTimeout(() => {
-        console.log('Initializing Express Payment after delay...');
+    console.log('Initializing Express Payment Buttons...');
+    
+    // Prüfe ob Stripe verfügbar ist
+    if (typeof Stripe === 'undefined') {
+        console.warn('Stripe.js not loaded');
+        return;
+    }
+    
+    // Stripe instance mit publishable key
+    const stripe = Stripe(yprint_stripe_params?.publishable_key || '');
+    if (!stripe) {
+        console.warn('Could not initialize Stripe');
+        return;
+    }
+    
+    // Payment Request erstellen
+    const paymentRequest = stripe.paymentRequest({
+        country: 'DE', // Deutschland
+        currency: 'eur',
+        total: {
+            label: 'Gesamtbetrag',
+            amount: 2000, // 20.00 EUR in Cents - wird später dynamisch gesetzt
+        },
+        requestPayerName: true,
+        requestPayerEmail: true,
+    });
+    
+    // Elements erstellen
+    const elements = stripe.elements();
+    const prButton = elements.create('paymentRequestButton', {
+        paymentRequest: paymentRequest,
+        style: {
+            paymentRequestButton: {
+                type: 'default', // 'default', 'book', 'buy', or 'donate'
+                theme: 'dark', // 'dark', 'light', or 'light-outline'
+                height: '48px',
+            },
+        },
+    });
+    
+    // Prüfen ob Payment Request verfügbar ist (Apple Pay, Google Pay)
+    paymentRequest.canMakePayment().then(function(result) {
+        console.log('Payment Request availability:', result);
         
-        // Prüfe ob Express Checkout verfügbar ist
-        if (typeof YPrintExpressCheckout !== 'undefined') {
-            console.log('YPrintExpressCheckout found, should initialize automatically');
-        } else {
-            console.log('YPrintExpressCheckout not found, may need to wait longer');
+        if (result) {
+            // Button mounten
+            prButton.mount('#yprint-payment-request-button');
             
-            // Versuche erneut nach weiterer Verzögerung
-            setTimeout(() => {
-                if (typeof YPrintExpressCheckout !== 'undefined') {
-                    console.log('YPrintExpressCheckout found on second attempt');
-                } else {
-                    console.warn('YPrintExpressCheckout still not found - check if script is loaded');
-                }
-            }, 2000);
+            // Container anzeigen
+            const container = document.getElementById('yprint-express-payment-container');
+            if (container) {
+                container.style.display = 'block';
+            }
+            
+            console.log('Express payment buttons mounted successfully');
+        } else {
+            console.log('No express payment methods available');
+            // Container verstecken wenn keine Express Payment verfügbar
+            const container = document.getElementById('yprint-express-payment-container');
+            if (container) {
+                container.style.display = 'none';
+            }
         }
-    }, 1000);
+    }).catch(function(error) {
+        console.error('Error checking payment request availability:', error);
+    });
+    
+    // Payment Request Event Handler
+    paymentRequest.on('paymentmethod', function(event) {
+        console.log('Payment method received:', event);
+        
+        // Hier würdest du normalerweise die Zahlung verarbeiten
+        // Für jetzt bestätigen wir nur das Payment
+        event.complete('success');
+        
+        // Event für weitere Verarbeitung dispatchen
+        document.dispatchEvent(new CustomEvent('expressPaymentCompleted', {
+            detail: event
+        }));
+    });
+    
+}, 1000);
 </script>
