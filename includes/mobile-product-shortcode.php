@@ -734,7 +734,6 @@ private static function render_color_selection($product, $config) {
                 max-width: 600px;
                 margin: 0 auto;
                 padding: 20px 16px 80px 16px;
-                background-color: #fff;
                 color: #333;
                 line-height: 1.6;
             }
