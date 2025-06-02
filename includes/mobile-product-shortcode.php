@@ -251,15 +251,14 @@ class YPrint_Dynamic_Mobile_Product {
         );
     }
     
-    /**
+/**
  * Render color selection
  */
 private static function render_color_selection($product, $config) {
     if (!$product) return '';
     
-    // Get colors and color variants from WooCommerce product custom fields
+    // Get colors from WooCommerce product custom field (now includes product IDs)
     $colors = get_post_meta($product->get_id(), '_yprint_colors', true);
-    $color_variants = get_post_meta($product->get_id(), '_yprint_color_variants', true);
     $sizing_data = get_post_meta($product->get_id(), '_yprint_sizing', true);
     
     // Don't display if no colors and no sizing
@@ -269,7 +268,6 @@ private static function render_color_selection($product, $config) {
     
     $product_id = $product->get_id();
     $unique_id = 'wc-product-colors-' . $product_id;
-    $current_url_params = $_GET;
     
     ob_start();
     ?>
@@ -335,48 +333,53 @@ private static function render_color_selection($product, $config) {
             'aqua': '#00FFFF',
             'teal': '#008080',
             'silver': '#C0C0C0',
-            'fuchsia': '#FF00FF'
+            'fuchsia': '#FF00FF',
+            'beige': '#F5F5DC',
+            'khaki': '#F0E68C',
+            'coral': '#FF7F50',
+            'salmon': '#FA8072',
+            'gold': '#FFD700',
+            'turquoise': '#40E0D0',
+            'violet': '#EE82EE',
+            'indigo': '#4B0082',
+            'crimson': '#DC143C'
         };
         
-        function parseColorVariants(variantsString) {
-            const variants = {};
-            if (!variantsString) return variants;
-            
-            // Format: "black:3799,white:3800,green:3801"
-            const variantPairs = variantsString.split(',');
-            variantPairs.forEach(pair => {
-                const [colorName, productId] = pair.split(':');
-                if (colorName && productId) {
-                    variants[colorName.trim().toLowerCase()] = productId.trim();
-                }
-            });
-            
-            return variants;
-        }
-        
-        function parseColorOptions(colorString) {
+        function parseColorsWithProductIds(colorString) {
             if (!colorString) return [];
             
             const colors = [];
-            // Split by comma and clean up
-            const colorItems = colorString.split(',').map(item => item.trim().toLowerCase()).filter(item => item.length > 0);
+            const currentProductId = productId;
             
-            colorItems.forEach((colorName, index) => {
+            // Split by comma and clean up
+            const colorItems = colorString.split(',').map(item => item.trim()).filter(item => item.length > 0);
+            
+            colorItems.forEach((item, index) => {
+                // Parse format: "black:3799" or just "black"
+                const parts = item.split(':');
+                const colorName = parts[0].trim().toLowerCase();
+                const linkedProductId = parts[1] ? parts[1].trim() : null;
+                
                 // Get color code from mapping or use default gray
                 const colorCode = colorMap[colorName] || '#CCCCCC';
+                
+                // Determine if this color represents the current product
+                const isCurrentProduct = linkedProductId === currentProductId;
                 
                 colors.push({
                     name: colorName.charAt(0).toUpperCase() + colorName.slice(1), // Capitalize first letter
                     id: (index + 1).toString(), // Generate sequential ID
                     code: colorCode,
-                    originalName: colorName.toLowerCase()
+                    originalName: colorName,
+                    productId: linkedProductId,
+                    isCurrent: isCurrentProduct
                 });
             });
             
             return colors;
         }
         
-        function createColorCircles(colors, colorVariants) {
+        function createColorCircles(colors) {
             if (!colorOptions) return;
             
             colorOptions.innerHTML = '';
@@ -387,16 +390,15 @@ private static function render_color_selection($product, $config) {
                 colorCircle.dataset.colorId = color.id;
                 colorCircle.dataset.colorName = color.name;
                 colorCircle.dataset.originalName = color.originalName;
+                colorCircle.dataset.productId = color.productId || '';
                 colorCircle.style.backgroundColor = color.code;
                 colorCircle.title = color.name;
                 
-                // Check if this is the current product's color
-                const currentProductId = '<?php echo esc_js($product_id); ?>';
-                const variantProductId = colorVariants[color.originalName];
-                
-                if (variantProductId === currentProductId) {
+                // Mark current product's color as selected
+                if (color.isCurrent) {
                     colorCircle.classList.add('selected');
                     selectedColorId = color.id;
+                    console.log('Current product color detected:', color.name);
                 }
                 
                 // Special styling for white/light colors
@@ -405,31 +407,32 @@ private static function render_color_selection($product, $config) {
                 }
                 
                 colorCircle.addEventListener('click', function() {
-                    const targetProductId = colorVariants[color.originalName];
+                    const targetProductId = color.productId;
                     
-                    if (targetProductId && targetProductId !== currentProductId) {
+                    if (targetProductId && targetProductId !== productId) {
                         // Redirect to the color variant product
                         const currentUrl = new URL(window.location.href);
                         currentUrl.searchParams.set('product_id', targetProductId);
                         
-                        // Add loading state
-                        colorCircle.style.opacity = '0.6';
-                        colorCircle.style.pointerEvents = 'none';
-                        
-                        // Show loading feedback
+                        // Add loading state to all circles
                         document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
+                            circle.style.opacity = '0.6';
                             circle.style.pointerEvents = 'none';
                         });
                         
+                        // Add special loading state to clicked circle
+                        colorCircle.style.transform = 'scale(1.1)';
+                        colorCircle.style.borderColor = '#0079FF';
+                        
                         console.log('Redirecting to product:', targetProductId, 'for color:', color.name);
                         
-                        // Redirect after short delay for user feedback
+                        // Show loading feedback and redirect
                         setTimeout(() => {
                             window.location.href = currentUrl.toString();
-                        }, 200);
+                        }, 150);
                         
-                    } else {
-                        // Just select the color (current product)
+                    } else if (!targetProductId) {
+                        // No product ID linked - just select the color
                         document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
                             circle.classList.remove('selected');
                         });
@@ -445,7 +448,18 @@ private static function render_color_selection($product, $config) {
                             detail: { colorId: selectedColorId, colorName: color.name, productId: productId }
                         }));
                         
-                        console.log('Color selected:', color.name, 'ID:', selectedColorId);
+                        console.log('Color selected (no redirect):', color.name, 'ID:', selectedColorId);
+                        
+                    } else {
+                        // Same product - just select
+                        document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
+                            circle.classList.remove('selected');
+                        });
+                        
+                        colorCircle.classList.add('selected');
+                        selectedColorId = color.id;
+                        
+                        console.log('Same product color selected:', color.name);
                     }
                 });
                 
@@ -453,22 +467,20 @@ private static function render_color_selection($product, $config) {
             });
         }
         
-        // Load colors and variants from product data
+        // Load and parse colors from product data
         const customColors = '<?php echo esc_js($colors); ?>';
-        const colorVariantsData = '<?php echo esc_js($color_variants); ?>';
+        const colors = parseColorsWithProductIds(customColors);
         
-        const colors = parseColorOptions(customColors);
-        const colorVariants = parseColorVariants(colorVariantsData);
-        
-        console.log('Available colors:', colors);
-        console.log('Color variants mapping:', colorVariants);
+        console.log('Parsed colors with product IDs:', colors);
+        console.log('Current product ID:', productId);
         
         if (colors.length > 0) {
-            createColorCircles(colors, colorVariants);
-            console.log('Created color circles for colors:', colors);
+            createColorCircles(colors);
+            console.log('Created color circles for', colors.length, 'colors');
         } else if (colorOptions) {
             // Hide color section if no colors available
             colorOptions.style.display = 'none';
+            console.log('No colors available, hiding color options');
         }
         
         // Sizing link functionality
@@ -522,6 +534,14 @@ private static function render_color_selection($product, $config) {
                     }
                 });
             }
+            
+            // ESC key closes popup
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && sizingPopup.style.display === 'flex') {
+                    sizingPopup.style.display = 'none';
+                    document.body.style.overflow = '';
+                }
+            });
         }
         
         function createSizingTable(sizingData) {
