@@ -1,7 +1,7 @@
 <?php
 /**
- * Mobile Product Page Shortcode for YPrint
- * Combines all product components into a single, mobile-optimized layout
+ * Fully Dynamic Mobile Product Page Shortcode for YPrint
+ * All content is dynamically sourced from WooCommerce with no static fallbacks
  *
  * @package YPrint
  */
@@ -12,24 +12,62 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Class to manage the mobile product page shortcode
+ * Class to manage the fully dynamic mobile product page shortcode
  */
-class YPrint_Mobile_Product_Page {
+class YPrint_Dynamic_Mobile_Product {
     
     /**
      * Initialize the class
      */
     public static function init() {
-        add_shortcode('yprint_mobile_product', array(__CLASS__, 'render_mobile_product_page'));
-        add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue_mobile_product_styles'));
+        add_shortcode('yprint_dynamic_mobile_product', array(__CLASS__, 'render_dynamic_mobile_product_page'));
+        add_action('wp_enqueue_scripts', array(__CLASS__, 'enqueue_dynamic_mobile_styles'));
+        add_action('init', array(__CLASS__, 'load_textdomain'));
+    }
+    
+    /**
+     * Load plugin textdomain for translations
+     */
+    public static function load_textdomain() {
+        load_plugin_textdomain('yprint', false, dirname(plugin_basename(__FILE__)) . '/languages/');
     }
     
     /**
      * Enqueue necessary styles for the mobile product page
      */
-    public static function enqueue_mobile_product_styles() {
-        // Enqueue Google Fonts
+    public static function enqueue_dynamic_mobile_styles() {
         wp_enqueue_style('google-fonts-roboto', 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;600;700&display=swap');
+    }
+    
+    /**
+     * Get plugin configuration with filters for customization
+     */
+    private static function get_config() {
+        return array(
+            'designer_base_url' => apply_filters('yprint_designer_base_url', get_option('yprint_designer_url', home_url('/designer'))),
+            'texts' => array(
+                'design_button' => __('Design', 'yprint'),
+                'buy_blank_button' => __('Buy Blank', 'yprint'),
+                'sizing_link' => __('Sizing', 'yprint'),
+                'product_note' => __('Product Note', 'yprint'),
+                'no_images' => __('No product images available', 'yprint'),
+                'no_product' => __('No product found', 'yprint'),
+                'woocommerce_inactive' => __('WooCommerce is not activated', 'yprint'),
+                'accordion_titles' => array(
+                    'details' => __('Details', 'yprint'),
+                    'features' => __('Features', 'yprint'),
+                    'care' => __('Care Instructions', 'yprint'),
+                    'customizations' => __('Customizations', 'yprint'),
+                    'fabric' => __('Fabric', 'yprint')
+                )
+            ),
+            'events' => array(
+                'sizing_chart' => apply_filters('yprint_sizing_chart_event', 'yprint:open-sizing-chart'),
+                'color_selected' => apply_filters('yprint_color_selected_event', 'yprint:color-selected'),
+                'cart_open' => apply_filters('yprint_cart_open_event', 'yprint:open-cart-popup')
+            ),
+            'storage_prefix' => apply_filters('yprint_storage_prefix', 'yprint_product_')
+        );
     }
     
     /**
@@ -58,7 +96,10 @@ class YPrint_Mobile_Product_Page {
         return false;
     }
     
-    private static function render_product_gallery($product) {
+    /**
+     * Render product image gallery slider
+     */
+    private static function render_product_gallery($product, $config) {
         if (!$product) return '';
         
         $gallery_images = array();
@@ -83,30 +124,33 @@ class YPrint_Mobile_Product_Page {
             }
         }
         
-        // Wenn keine Bilder vorhanden sind, Galerie nicht anzeigen
+        // If no images found, don't display gallery
         if (empty($gallery_images)) {
-            return '<div class="yprint-mobile-no-images"><p>Keine Produktbilder verfügbar</p></div>';
+            return '<div class="yprint-dynamic-no-images"><p>' . 
+                   esc_html($config['texts']['no_images']) . 
+                   '</p></div>';
         }
         
-        $unique_id = 'mobile-gallery-' . uniqid();
+        $product_id = $product->get_id();
+        $unique_id = 'wc-product-gallery-' . $product_id;
         $gallery_images_json = json_encode($gallery_images);
         
         ob_start();
         ?>
-        <div class="yprint-mobile-gallery-container" id="<?php echo esc_attr($unique_id); ?>">
-            <div class="yprint-mobile-gallery-slider">
-                <div class="yprint-mobile-gallery-slides">
+        <div class="yprint-dynamic-gallery-container" id="<?php echo esc_attr($unique_id); ?>">
+            <div class="yprint-dynamic-gallery-slider">
+                <div class="yprint-dynamic-gallery-slides">
                     <?php foreach ($gallery_images as $index => $image_url): ?>
-                    <div class="yprint-mobile-gallery-slide">
-                        <img src="<?php echo esc_url($image_url); ?>" alt="Produktbild <?php echo $index + 1; ?>">
+                    <div class="yprint-dynamic-gallery-slide">
+                        <img src="<?php echo esc_url($image_url); ?>" alt="<?php echo esc_attr($product->get_name() . ' - ' . sprintf(__('Image %d', 'yprint'), $index + 1)); ?>">
                     </div>
                     <?php endforeach; ?>
                 </div>
             </div>
-            <div class="yprint-mobile-gallery-nav">
+            <div class="yprint-dynamic-gallery-nav">
                 <?php foreach ($gallery_images as $index => $image_url): ?>
-                <div class="yprint-mobile-gallery-thumbnail <?php echo $index === 0 ? 'active' : ''; ?>" data-slide="<?php echo $index; ?>">
-                    <img src="<?php echo esc_url($image_url); ?>" alt="Thumbnail <?php echo $index + 1; ?>">
+                <div class="yprint-dynamic-gallery-thumbnail <?php echo $index === 0 ? 'active' : ''; ?>" data-slide="<?php echo $index; ?>">
+                    <img src="<?php echo esc_url($image_url); ?>" alt="<?php echo esc_attr(sprintf(__('Thumbnail %d', 'yprint'), $index + 1)); ?>">
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -117,8 +161,8 @@ class YPrint_Mobile_Product_Page {
             const galleryContainer = document.getElementById('<?php echo esc_js($unique_id); ?>');
             if (!galleryContainer) return;
             
-            const slidesContainer = galleryContainer.querySelector('.yprint-mobile-gallery-slides');
-            const thumbnails = galleryContainer.querySelectorAll('.yprint-mobile-gallery-thumbnail');
+            const slidesContainer = galleryContainer.querySelector('.yprint-dynamic-gallery-slides');
+            const thumbnails = galleryContainer.querySelectorAll('.yprint-dynamic-gallery-thumbnail');
             
             let currentSlide = 0;
             const galleryImages = <?php echo $gallery_images_json; ?>;
@@ -145,6 +189,9 @@ class YPrint_Mobile_Product_Page {
         return ob_get_clean();
     }
     
+    /**
+     * Render product title and info
+     */
     private static function render_product_header($product) {
         if (!$product) return '';
         
@@ -152,23 +199,23 @@ class YPrint_Mobile_Product_Page {
         $sku = $product->get_sku();
         $manufacturer = get_post_meta($product->get_id(), '_yprint_manufacturer', true);
         
-        // Nur anzeigen wenn Daten vorhanden sind
+        // Only display info if data is available
         $info_parts = array();
         if (!empty($sku)) {
             $info_parts[] = '#' . $sku;
         }
         if (!empty($manufacturer)) {
-            $info_parts[] = 'by ' . $manufacturer;
+            $info_parts[] = sprintf(__('by %s', 'yprint'), $manufacturer);
         }
         
         $info_html = '';
         if (!empty($info_parts)) {
-            $info_html = '<p class="yprint-mobile-product-info">' . esc_html(implode(' ', $info_parts)) . '</p>';
+            $info_html = '<p class="yprint-dynamic-product-info">' . esc_html(implode(' ', $info_parts)) . '</p>';
         }
         
         return sprintf(
-            '<div class="yprint-mobile-product-header">
-                <h1 class="yprint-mobile-product-title">%s</h1>
+            '<div class="yprint-dynamic-product-header">
+                <h1 class="yprint-dynamic-product-title">%s</h1>
                 %s
             </div>',
             esc_html($product_name),
@@ -176,13 +223,16 @@ class YPrint_Mobile_Product_Page {
         );
     }
     
+    /**
+     * Render product description
+     */
     private static function render_product_description($product) {
         if (!$product) return '';
         
         $description = $product->get_description();
         $short_description = $product->get_short_description();
         
-        // Nutze kurze Beschreibung wenn vorhanden, sonst lange Beschreibung
+        // Use short description if available, otherwise long description
         $content = '';
         if (!empty($short_description)) {
             $content = $short_description;
@@ -190,13 +240,13 @@ class YPrint_Mobile_Product_Page {
             $content = $description;
         }
         
-        // Nur anzeigen wenn Inhalt vorhanden ist
+        // Only display if content is available
         if (empty($content)) {
             return '';
         }
         
         return sprintf(
-            '<div class="yprint-mobile-product-description">%s</div>',
+            '<div class="yprint-dynamic-product-description">%s</div>',
             wp_kses_post($content)
         );
     }
@@ -204,25 +254,46 @@ class YPrint_Mobile_Product_Page {
     /**
      * Render color selection
      */
-    private static function render_color_selection($product) {
+    private static function render_color_selection($product, $config) {
         if (!$product) return '';
         
         $colors = get_post_meta($product->get_id(), '_yprint_colors', true);
-        $unique_id = 'mobile-colors-' . uniqid();
+        $sizing_data = get_post_meta($product->get_id(), '_yprint_sizing', true);
+        
+        // Don't display if no colors and no sizing
+        if (empty($colors) && empty($sizing_data)) {
+            return '';
+        }
+        
+        $product_id = $product->get_id();
+        $unique_id = 'wc-product-colors-' . $product_id;
         
         ob_start();
         ?>
-        <div class="yprint-mobile-color-selection" id="<?php echo esc_attr($unique_id); ?>">
-        <div class="yprint-mobile-color-options">
-    <!-- Wird nur gefüllt wenn echte WooCommerce-Farben vorhanden sind -->
-</div>
-            <a href="#" class="yprint-mobile-sizing-link">Sizing</a>
+        <div class="yprint-dynamic-color-selection" id="<?php echo esc_attr($unique_id); ?>">
+            <?php if (!empty($colors)): ?>
+            <div class="yprint-dynamic-color-options">
+                <!-- Will be populated by JavaScript if colors are available -->
+            </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($sizing_data)): ?>
+            <a href="#" class="yprint-dynamic-sizing-link" data-sizing-content="<?php echo esc_attr($sizing_data); ?>">
+                <?php echo esc_html($config['texts']['sizing_link']); ?>
+            </a>
+            <?php endif; ?>
         </div>
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             const colorContainer = document.getElementById('<?php echo esc_js($unique_id); ?>');
-            const colorOptions = colorContainer.querySelector('.yprint-mobile-color-options');
+            if (!colorContainer) return;
+            
+            const colorOptions = colorContainer.querySelector('.yprint-dynamic-color-options');
+            const productId = '<?php echo esc_js($product_id); ?>';
+            const storagePrefix = '<?php echo esc_js($config['storage_prefix']); ?>' + productId + '_';
+            const eventConfig = <?php echo json_encode($config['events']); ?>;
+            
             let selectedColorId = null;
             
             function parseColorOptions(colorString) {
@@ -235,29 +306,22 @@ class YPrint_Mobile_Product_Page {
                     const trimmedItem = item.trim();
                     if (!trimmedItem) return;
                     
-                    const match = trimmedItem.match(/(.+?)\s*\(ID=(\d+)\)/i);
-                    if (match) {
-                        const colorName = match[1].trim();
-                        const colorId = match[2];
-                        
-                        let colorCode = '#CCCCCC';
-                        const lowerCaseName = colorName.toLowerCase();
-                        if (lowerCaseName.includes('schwarz')) colorCode = '#000000';
-                        else if (lowerCaseName.includes('weiß') || lowerCaseName.includes('weiss')) colorCode = '#FFFFFF';
-                        else if (lowerCaseName.includes('rot')) colorCode = '#FF0000';
-                        else if (lowerCaseName.includes('blau')) colorCode = '#0000FF';
-                        else if (lowerCaseName.includes('grün') || lowerCaseName.includes('gruen')) colorCode = '#00FF00';
-                        else if (lowerCaseName.includes('gelb')) colorCode = '#FFFF00';
-                        else if (lowerCaseName.includes('orange')) colorCode = '#FFA500';
-                        else if (lowerCaseName.includes('lila') || lowerCaseName.includes('violett')) colorCode = '#800080';
-                        else if (lowerCaseName.includes('pink')) colorCode = '#FFC0CB';
-                        else if (lowerCaseName.includes('braun')) colorCode = '#8B4513';
-                        else if (lowerCaseName.includes('grau') || lowerCaseName.includes('gray')) colorCode = '#808080';
-                        
+                    // Format: "Colorname (ID=1, HEX=#FF0000)" or "Colorname (ID=1)"
+                    const matchWithHex = trimmedItem.match(/(.+?)\s*\(ID=(\d+),?\s*HEX=(#[A-Fa-f0-9]{6})\)/i);
+                    const matchWithoutHex = trimmedItem.match(/(.+?)\s*\(ID=(\d+)\)/i);
+                    
+                    if (matchWithHex) {
                         colors.push({
-                            name: colorName,
-                            id: colorId,
-                            code: colorCode
+                            name: matchWithHex[1].trim(),
+                            id: matchWithHex[2],
+                            code: matchWithHex[3]
+                        });
+                    } else if (matchWithoutHex) {
+                        // If no HEX value, create a neutral color
+                        colors.push({
+                            name: matchWithoutHex[1].trim(),
+                            id: matchWithoutHex[2],
+                            code: '#f0f0f0'
                         });
                     }
                 });
@@ -266,29 +330,38 @@ class YPrint_Mobile_Product_Page {
             }
             
             function createColorCircles(colors) {
+                if (!colorOptions) return;
+                
                 colorOptions.innerHTML = '';
                 
                 colors.forEach(color => {
                     const colorCircle = document.createElement('div');
-                    colorCircle.className = 'yprint-mobile-color-circle';
+                    colorCircle.className = 'yprint-dynamic-color-circle';
                     colorCircle.dataset.colorId = color.id;
                     colorCircle.dataset.colorName = color.name;
                     colorCircle.style.backgroundColor = color.code;
+                    colorCircle.title = color.name;
                     
-                    if (color.code === '#FFFFFF') {
+                    // Special styling for white/light colors
+                    if (color.code === '#FFFFFF' || color.code.toLowerCase() === '#ffffff') {
                         colorCircle.style.borderColor = '#CCCCCC';
                     }
                     
                     colorCircle.addEventListener('click', function() {
-                        document.querySelectorAll('.yprint-mobile-color-circle').forEach(circle => {
+                        document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
                             circle.classList.remove('selected');
                         });
                         
                         colorCircle.classList.add('selected');
                         selectedColorId = color.id;
                         
-                        sessionStorage.setItem('selectedColorId', selectedColorId);
-                        sessionStorage.setItem('selectedColorName', color.name);
+                        sessionStorage.setItem(storagePrefix + 'color_id', selectedColorId);
+                        sessionStorage.setItem(storagePrefix + 'color_name', color.name);
+                        
+                        // Dispatch color selected event
+                        document.dispatchEvent(new CustomEvent(eventConfig.color_selected, {
+                            detail: { colorId: selectedColorId, colorName: color.name, productId: productId }
+                        }));
                     });
                     
                     colorOptions.appendChild(colorCircle);
@@ -296,71 +369,96 @@ class YPrint_Mobile_Product_Page {
             }
             
             // Load colors from product data
-const customColors = '<?php echo esc_js($colors); ?>';
-const colors = parseColorOptions(customColors);
-
-if (colors.length > 0) {
-    createColorCircles(colors);
-} else {
-    // Keine Farben verfügbar - Farbauswahl ausblenden
-    colorContainer.style.display = 'none';
-}
+            const customColors = '<?php echo esc_js($colors); ?>';
+            const colors = parseColorOptions(customColors);
+            
+            if (colors.length > 0) {
+                createColorCircles(colors);
+            } else if (colorOptions) {
+                // Hide color section if no colors available
+                colorOptions.style.display = 'none';
+            }
             
             // Sizing link functionality
-            const sizingLink = colorContainer.querySelector('.yprint-mobile-sizing-link');
-            sizingLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                // Trigger sizing chart - can be connected to existing sizing functionality
-                document.dispatchEvent(new CustomEvent('openSizingChart'));
-            });
+            const sizingLink = colorContainer.querySelector('.yprint-dynamic-sizing-link');
+            if (sizingLink) {
+                sizingLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Dispatch sizing chart event
+                    document.dispatchEvent(new CustomEvent(eventConfig.sizing_chart, {
+                        detail: { 
+                            productId: productId,
+                            sizingData: this.dataset.sizingContent
+                        }
+                    }));
+                });
+            }
         });
         </script>
         <?php
         return ob_get_clean();
     }
     
-    private static function render_action_buttons($product) {
+    /**
+     * Render action buttons (Designer & Buy Blank)
+     */
+    private static function render_action_buttons($product, $config) {
         if (!$product) return '';
         
         $product_id = $product->get_id();
         $sku = $product->get_sku();
         
-        $buttons_html = '<div class="yprint-mobile-action-buttons">';
+        $buttons_html = '<div class="yprint-dynamic-action-buttons">';
         
-        // Designer Button nur anzeigen wenn SKU vorhanden
+        // Designer Button only if SKU is available
         if (!empty($sku)) {
-            $designer_url = add_query_arg('template_id', $sku, 'https://yprint.de/designer');
+            $designer_url = add_query_arg('template_id', $sku, $config['designer_base_url']);
             $buttons_html .= sprintf(
-                '<a href="%s" class="yprint-mobile-designer-btn">Design</a>',
-                esc_url($designer_url)
+                '<a href="%s" class="yprint-dynamic-designer-btn">%s</a>',
+                esc_url($designer_url),
+                esc_html($config['texts']['design_button'])
             );
         }
         
-        // Buy Blank Button nur anzeigen wenn Produkt kaufbar ist
+        // Buy Blank Button only if product is purchasable and in stock
         if ($product->is_purchasable() && $product->is_in_stock()) {
             $buy_blank_url = '/?add-to-cart=' . $product_id;
+            $price_html = $product->get_price_html();
+            
+            $button_text = $config['texts']['buy_blank_button'];
+            if (!empty($price_html)) {
+                $button_text .= ' - ' . $price_html;
+            }
+            
             $buttons_html .= sprintf(
-                '<a href="%s" class="yprint-mobile-buy-blank-btn" data-product-id="%s">Buy Blank - %s</a>',
+                '<a href="%s" class="yprint-dynamic-buy-blank-btn" data-product-id="%s">%s</a>',
                 esc_url($buy_blank_url),
                 esc_attr($product_id),
-                $product->get_price_html()
+                wp_kses_post($button_text)
             );
         }
         
         $buttons_html .= '</div>';
         
-        return $buttons_html;
+        // Only return if we have buttons
+        if (strpos($buttons_html, 'yprint-dynamic-designer-btn') !== false || 
+            strpos($buttons_html, 'yprint-dynamic-buy-blank-btn') !== false) {
+            return $buttons_html;
+        }
+        
+        return '';
     }
     
     /**
      * Render product accordion with all details
      */
-    private static function render_product_accordion($product) {
+    private static function render_product_accordion($product, $config) {
         if (!$product) return '';
         
         $product_id = $product->get_id();
-        $accordion_id = 'mobile-accordion-' . uniqid();
+        $accordion_id = 'wc-product-accordion-' . $product_id;
         
+        // Get all product data
         $product_data = array(
             'note' => get_post_meta($product_id, '_yprint_note', true),
             'details' => get_post_meta($product_id, '_yprint_details', true),
@@ -370,74 +468,52 @@ if (colors.length > 0) {
             'fabric' => get_post_meta($product_id, '_yprint_fabric', true)
         );
         
-        // Nur Bereiche anzeigen die auch Inhalt haben
+        // Only show sections that have content
         $available_sections = array_filter($product_data, function($value) {
             return !empty($value);
         });
         
-        // Wenn keine Daten vorhanden sind, kein Accordion anzeigen
+        // If no data available, don't show accordion
         if (empty($available_sections)) {
             return '';
         }
         
         ob_start();
         ?>
-        <div class="yprint-mobile-accordion" id="<?php echo esc_attr($accordion_id); ?>">
-            <div class="yprint-mobile-note">
-                <h3>Note</h3>
+        <div class="yprint-dynamic-accordion" id="<?php echo esc_attr($accordion_id); ?>">
+            <?php if (!empty($product_data['note'])): ?>
+            <div class="yprint-dynamic-note">
+                <h3><?php echo esc_html($config['texts']['product_note']); ?></h3>
                 <div><?php echo wpautop(esc_html($product_data['note'])); ?></div>
             </div>
+            <?php endif; ?>
             
-            <div class="yprint-mobile-accordion-item">
-                <div class="yprint-mobile-accordion-header">
-                    <span>Details</span>
-                    <span class="yprint-mobile-accordion-icon">+</span>
-                </div>
-                <div class="yprint-mobile-accordion-content"><?php echo wpautop(esc_html($product_data['details'])); ?></div>
-            </div>
-            
-            <div class="yprint-mobile-accordion-item">
-                <div class="yprint-mobile-accordion-header">
-                    <span>Features</span>
-                    <span class="yprint-mobile-accordion-icon">+</span>
-                </div>
-                <div class="yprint-mobile-accordion-content"><?php echo wpautop(esc_html($product_data['features'])); ?></div>
-            </div>
-            
-            <div class="yprint-mobile-accordion-item">
-                <div class="yprint-mobile-accordion-header">
-                    <span>Care Instructions</span>
-                    <span class="yprint-mobile-accordion-icon">+</span>
-                </div>
-                <div class="yprint-mobile-accordion-content"><?php echo wpautop(esc_html($product_data['care'])); ?></div>
-            </div>
-            
-            <div class="yprint-mobile-accordion-item">
-                <div class="yprint-mobile-accordion-header">
-                    <span>Customizations</span>
-                    <span class="yprint-mobile-accordion-icon">+</span>
-                </div>
-                <div class="yprint-mobile-accordion-content"><?php echo wpautop(esc_html($product_data['customizations'])); ?></div>
-            </div>
-            
-            <div class="yprint-mobile-accordion-item">
-                <div class="yprint-mobile-accordion-header">
-                    <span>Fabric</span>
-                    <span class="yprint-mobile-accordion-icon">+</span>
-                </div>
-                <div class="yprint-mobile-accordion-content"><?php echo wpautop(esc_html($product_data['fabric'])); ?></div>
-            </div>
+            <?php
+            foreach ($config['texts']['accordion_titles'] as $key => $title) {
+                if (!empty($product_data[$key])) {
+                    echo '<div class="yprint-dynamic-accordion-item">';
+                    echo '<div class="yprint-dynamic-accordion-header">';
+                    echo '<span>' . esc_html($title) . '</span>';
+                    echo '<span class="yprint-dynamic-accordion-icon">+</span>';
+                    echo '</div>';
+                    echo '<div class="yprint-dynamic-accordion-content">' . wpautop(esc_html($product_data[$key])) . '</div>';
+                    echo '</div>';
+                }
+            }
+            ?>
         </div>
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             const accordion = document.getElementById('<?php echo esc_js($accordion_id); ?>');
-            const headers = accordion.querySelectorAll('.yprint-mobile-accordion-header');
+            if (!accordion) return;
+            
+            const headers = accordion.querySelectorAll('.yprint-dynamic-accordion-header');
             
             headers.forEach(header => {
                 header.addEventListener('click', function() {
                     const content = this.nextElementSibling;
-                    const icon = this.querySelector('.yprint-mobile-accordion-icon');
+                    const icon = this.querySelector('.yprint-dynamic-accordion-icon');
                     
                     // Toggle current
                     content.classList.toggle('active');
@@ -447,7 +523,7 @@ if (colors.length > 0) {
                     headers.forEach(otherHeader => {
                         if (otherHeader !== header) {
                             const otherContent = otherHeader.nextElementSibling;
-                            const otherIcon = otherHeader.querySelector('.yprint-mobile-accordion-icon');
+                            const otherIcon = otherHeader.querySelector('.yprint-dynamic-accordion-icon');
                             otherContent.classList.remove('active');
                             otherIcon.classList.remove('active');
                         }
@@ -463,21 +539,26 @@ if (colors.length > 0) {
     /**
      * Main shortcode rendering function
      */
-    public static function render_mobile_product_page($atts) {
+    public static function render_dynamic_mobile_product_page($atts) {
         // Check if WooCommerce is active
         if (!class_exists('WooCommerce')) {
-            return '<p>WooCommerce ist nicht aktiviert.</p>';
+            $config = self::get_config();
+            return '<p>' . esc_html($config['texts']['woocommerce_inactive']) . '</p>';
         }
         
         $product = self::get_current_product();
         if (!$product) {
-            return '<p>Kein Produkt gefunden.</p>';
+            $config = self::get_config();
+            return '<p>' . esc_html($config['texts']['no_product']) . '</p>';
         }
+        
+        $config = self::get_config();
+        $product_id = $product->get_id();
         
         ob_start();
         ?>
         <style>
-            .yprint-mobile-product-container {
+            .yprint-dynamic-product-container {
                 font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
                 max-width: 600px;
                 margin: 0 auto;
@@ -488,7 +569,7 @@ if (colors.length > 0) {
             }
             
             /* Gallery Styles */
-            .yprint-mobile-gallery-container {
+            .yprint-dynamic-gallery-container {
                 margin-bottom: 24px;
                 background-color: white;
                 border-radius: 20px;
@@ -499,7 +580,7 @@ if (colors.length > 0) {
                 gap: 12px;
             }
             
-            .yprint-mobile-gallery-slider {
+            .yprint-dynamic-gallery-slider {
                 overflow: hidden;
                 position: relative;
                 background: #F6F7FA;
@@ -507,30 +588,30 @@ if (colors.length > 0) {
                 border: 1px solid #DFDFDF;
             }
             
-            .yprint-mobile-gallery-slides {
+            .yprint-dynamic-gallery-slides {
                 display: flex;
                 transition: transform 0.3s ease;
             }
             
-            .yprint-mobile-gallery-slide {
+            .yprint-dynamic-gallery-slide {
                 min-width: 100%;
                 box-sizing: border-box;
             }
             
-            .yprint-mobile-gallery-slide img {
+            .yprint-dynamic-gallery-slide img {
                 width: 100%;
                 height: auto;
                 display: block;
             }
             
-            .yprint-mobile-gallery-nav {
+            .yprint-dynamic-gallery-nav {
                 display: flex;
                 gap: 8px;
                 justify-content: center;
                 flex-wrap: wrap;
             }
             
-            .yprint-mobile-gallery-thumbnail {
+            .yprint-dynamic-gallery-thumbnail {
                 width: 60px;
                 height: 60px;
                 cursor: pointer;
@@ -542,31 +623,45 @@ if (colors.length > 0) {
                 background: #F6F7FA;
             }
             
-            .yprint-mobile-gallery-thumbnail img {
+            .yprint-dynamic-gallery-thumbnail img {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
             }
             
-            .yprint-mobile-gallery-thumbnail.active {
+            .yprint-dynamic-gallery-thumbnail.active {
                 opacity: 1;
                 border: 2px solid #0079FF;
             }
             
+            .yprint-dynamic-no-images {
+                text-align: center;
+                padding: 40px 20px;
+                background-color: #f8f9fa;
+                border-radius: 20px;
+                margin-bottom: 24px;
+            }
+            
+            .yprint-dynamic-no-images p {
+                color: #6c757d;
+                font-style: italic;
+                margin: 0;
+            }
+            
             /* Header Styles */
-            .yprint-mobile-product-header {
+            .yprint-dynamic-product-header {
                 text-align: center;
                 margin-bottom: 20px;
             }
             
-            .yprint-mobile-product-title {
+            .yprint-dynamic-product-title {
                 font-size: 32px;
                 font-weight: 700;
                 margin: 0 0 8px 0;
                 color: #1d1d1f;
             }
             
-            .yprint-mobile-product-info {
+            .yprint-dynamic-product-info {
                 font-size: 16px;
                 font-weight: 500;
                 color: #707070;
@@ -574,7 +669,7 @@ if (colors.length > 0) {
             }
             
             /* Description Styles */
-            .yprint-mobile-product-description {
+            .yprint-dynamic-product-description {
                 font-size: 16px;
                 color: #707070;
                 margin-bottom: 20px;
@@ -582,7 +677,7 @@ if (colors.length > 0) {
             }
             
             /* Color Selection Styles */
-            .yprint-mobile-color-selection {
+            .yprint-dynamic-color-selection {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
@@ -590,13 +685,13 @@ if (colors.length > 0) {
                 gap: 16px;
             }
             
-            .yprint-mobile-color-options {
+            .yprint-dynamic-color-options {
                 display: flex;
                 gap: 8px;
                 flex-wrap: wrap;
             }
             
-            .yprint-mobile-color-circle {
+            .yprint-dynamic-color-circle {
                 width: 24px;
                 height: 24px;
                 border-radius: 50%;
@@ -605,30 +700,35 @@ if (colors.length > 0) {
                 transition: transform 0.2s, border-color 0.2s;
             }
             
-            .yprint-mobile-color-circle:hover {
+            .yprint-dynamic-color-circle:hover {
                 transform: scale(1.1);
             }
             
-            .yprint-mobile-color-circle.selected {
+            .yprint-dynamic-color-circle.selected {
                 border-color: #0079FF;
                 transform: scale(1.2);
             }
             
-            .yprint-mobile-sizing-link {
+            .yprint-dynamic-sizing-link {
                 font-size: 15px;
                 color: #707070;
                 text-decoration: underline;
+                cursor: pointer;
+            }
+            
+            .yprint-dynamic-sizing-link:hover {
+                color: #0079FF;
             }
             
             /* Action Buttons Styles */
-            .yprint-mobile-action-buttons {
+            .yprint-dynamic-action-buttons {
                 display: flex;
                 flex-direction: column;
                 gap: 12px;
                 margin-bottom: 32px;
             }
             
-            .yprint-mobile-designer-btn {
+            .yprint-dynamic-designer-btn {
                 display: block;
                 text-align: center;
                 padding: 14px 20px;
@@ -641,11 +741,12 @@ if (colors.length > 0) {
                 transition: background-color 0.3s ease;
             }
             
-            .yprint-mobile-designer-btn:hover {
+            .yprint-dynamic-designer-btn:hover {
                 background-color: #0062cc;
+                color: white;
             }
             
-            .yprint-mobile-buy-blank-btn {
+            .yprint-dynamic-buy-blank-btn {
                 display: block;
                 text-align: center;
                 padding: 14px 20px;
@@ -659,35 +760,35 @@ if (colors.length > 0) {
                 transition: background-color 0.3s ease;
             }
             
-            .yprint-mobile-buy-blank-btn:hover {
+            .yprint-dynamic-buy-blank-btn:hover {
                 background-color: #f5f5f5;
             }
             
             /* Accordion Styles */
-            .yprint-mobile-accordion {
+            .yprint-dynamic-accordion {
                 border-top: 1px solid #e5e5e5;
                 margin-bottom: 20px;
             }
             
-            .yprint-mobile-note {
+            .yprint-dynamic-note {
                 margin-bottom: 20px;
                 padding: 16px;
                 background-color: #f8f9fa;
                 border-radius: 12px;
             }
             
-            .yprint-mobile-note h3 {
+            .yprint-dynamic-note h3 {
                 font-size: 18px;
                 font-weight: 600;
                 margin: 0 0 8px 0;
                 color: #1d1d1f;
             }
             
-            .yprint-mobile-accordion-item {
+            .yprint-dynamic-accordion-item {
                 border-bottom: 1px solid #e5e5e5;
             }
             
-            .yprint-mobile-accordion-header {
+            .yprint-dynamic-accordion-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
@@ -698,62 +799,74 @@ if (colors.length > 0) {
                 color: #1d1d1f;
             }
             
-            .yprint-mobile-accordion-header:hover {
+            .yprint-dynamic-accordion-header:hover {
                 opacity: 0.8;
             }
             
-            .yprint-mobile-accordion-content {
+            .yprint-dynamic-accordion-content {
                 max-height: 0;
                 overflow: hidden;
                 transition: max-height 0.3s ease-out;
                 padding: 0;
             }
             
-            .yprint-mobile-accordion-content.active {
+            .yprint-dynamic-accordion-content.active {
                 max-height: 500px;
                 padding: 0 0 16px 0;
             }
             
-            .yprint-mobile-accordion-icon {
+            .yprint-dynamic-accordion-icon {
                 font-size: 20px;
                 transition: transform 0.3s ease;
                 color: #0079FF;
             }
             
-            .yprint-mobile-accordion-icon.active {
+            .yprint-dynamic-accordion-icon.active {
                 transform: rotate(45deg);
             }
             
             /* Responsive adjustments */
             @media (max-width: 480px) {
-                .yprint-mobile-product-container {
+                .yprint-dynamic-product-container {
                     padding: 16px 12px 80px 12px;
                 }
                 
-                .yprint-mobile-product-title {
+                .yprint-dynamic-product-title {
                     font-size: 28px;
                 }
                 
-                .yprint-mobile-gallery-thumbnail {
+                .yprint-dynamic-gallery-thumbnail {
                     width: 50px;
                     height: 50px;
+                }
+                
+                .yprint-dynamic-color-selection {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 12px;
                 }
             }
         </style>
         
-        <div class="yprint-mobile-product-container">
-            <?php echo self::render_product_gallery($product); ?>
+        <div class="yprint-dynamic-product-container" data-product-id="<?php echo esc_attr($product_id); ?>">
+            <?php echo self::render_product_gallery($product, $config); ?>
             <?php echo self::render_product_header($product); ?>
             <?php echo self::render_product_description($product); ?>
-            <?php echo self::render_color_selection($product); ?>
-            <?php echo self::render_action_buttons($product); ?>
-            <?php echo self::render_product_accordion($product); ?>
+            <?php echo self::render_color_selection($product, $config); ?>
+            <?php echo self::render_action_buttons($product, $config); ?>
+            <?php echo self::render_product_accordion($product, $config); ?>
         </div>
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const productContainer = document.querySelector('[data-product-id="<?php echo esc_js($product_id); ?>"]');
+            if (!productContainer) return;
+            
+            const eventConfig = <?php echo json_encode($config['events']); ?>;
+            const productId = '<?php echo esc_js($product_id); ?>';
+            
             // Buy Blank button functionality
-            const buyBlankButtons = document.querySelectorAll('.yprint-mobile-buy-blank-btn');
+            const buyBlankButtons = productContainer.querySelectorAll('.yprint-dynamic-buy-blank-btn');
             buyBlankButtons.forEach(button => {
                 button.addEventListener('click', function(e) {
                     e.preventDefault();
@@ -761,28 +874,73 @@ if (colors.length > 0) {
                     const productId = this.dataset.productId;
                     if (!productId) return;
                     
+                    // Show loading state
+                    const originalText = this.textContent;
+                    this.textContent = '<?php echo esc_js(__('Adding...', 'yprint')); ?>';
+                    this.style.opacity = '0.6';
+                    this.style.pointerEvents = 'none';
+                    
                     // Add to cart
                     fetch('/?add-to-cart=' + productId, {
                         method: 'GET',
                         credentials: 'same-origin'
                     })
-                    .then(() => {
-                        // Try to trigger cart popup
-                        const cartPopup = document.querySelector('#cart');
-                        if (cartPopup) {
-                            cartPopup.style.display = 'block';
-                            cartPopup.classList.add('show');
-                        }
+                    .then(response => {
+                        // Reset button state
+                        this.textContent = originalText;
+                        this.style.opacity = '1';
+                        this.style.pointerEvents = 'auto';
                         
-                        // Trigger custom event
-                        document.dispatchEvent(new CustomEvent('open-cart-popup', { 
-                            detail: { productId: productId } 
-                        }));
+                        if (response.ok) {
+                            // Try to trigger cart popup
+                            const cartPopup = document.querySelector('#cart');
+                            if (cartPopup) {
+                                cartPopup.style.display = 'block';
+                                cartPopup.classList.add('show');
+                                
+                                // jQuery fallback
+                                if (typeof jQuery !== 'undefined') {
+                                    jQuery('#cart').fadeIn();
+                                }
+                            }
+                            
+                            // Dispatch custom event
+                            document.dispatchEvent(new CustomEvent(eventConfig.cart_open, { 
+                                detail: { productId: productId, action: 'buy_blank' } 
+                            }));
+                        } else {
+                            throw new Error('Failed to add to cart');
+                        }
                     })
                     .catch(error => {
                         console.error('Error adding to cart:', error);
+                        
+                        // Reset button state
+                        this.textContent = originalText;
+                        this.style.opacity = '1';
+                        this.style.pointerEvents = 'auto';
+                        
+                        // Show error message
+                        alert('<?php echo esc_js(__('Error adding product to cart. Please try again.', 'yprint')); ?>');
                     });
                 });
+            });
+            
+            // Global event listeners for external integrations
+            document.addEventListener(eventConfig.sizing_chart, function(e) {
+                if (e.detail && e.detail.productId === productId) {
+                    console.log('Sizing chart requested for product:', e.detail.productId);
+                    console.log('Sizing data:', e.detail.sizingData);
+                    // External sizing chart integration can hook into this event
+                }
+            });
+            
+            document.addEventListener(eventConfig.color_selected, function(e) {
+                if (e.detail && e.detail.productId === productId) {
+                    console.log('Color selected for product:', e.detail.productId);
+                    console.log('Color:', e.detail.colorName, 'ID:', e.detail.colorId);
+                    // External color handling can hook into this event
+                }
             });
         });
         </script>
@@ -792,5 +950,5 @@ if (colors.length > 0) {
     }
 }
 
-// Initialize the mobile product page
-YPrint_Mobile_Product_Page::init();
+// Initialize the dynamic mobile product page
+YPrint_Dynamic_Mobile_Product::init();
