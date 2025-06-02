@@ -102,10 +102,7 @@ add_filter( 'body_class', function( $classes ) {
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
     }
 
-    /* Progress Bar Styling */
-    .yprint-progress-wrapper {
-        margin-bottom: 30px;
-    }
+    /* Progress Bar CSS entfernt - jetzt im Header integriert */
 
     /* Checkout Header Integration */
     .checkout-step .yprint-checkout-header {
@@ -325,13 +322,7 @@ add_filter( 'body_class', function( $classes ) {
     <?php 
 // Font Awesome sicherstellen
 wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', array(), '6.0.0');
-
-// Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite
-if ($current_step_slug !== 'thankyou') : ?>
-    <div class="yprint-progress-wrapper">
-        <?php include( $partials_dir . 'checkout-progress.php' ); ?>
-    </div>
-<?php endif; ?>
+?>
 
 <div class="yprint-checkout-container">
     <div class="yprint-checkout-card">
@@ -357,7 +348,7 @@ if ($current_step_slug !== 'thankyou') : ?>
 <div id="step-1" class="checkout-step active">
     <?php 
     // Checkout Header für Adress-Schritt
-    echo do_shortcode('[yprint_checkout_header step="information" show_total="yes" show_progress="yes"]');
+    echo do_shortcode('[yprint_checkout_header step="address" show_total="yes" show_progress="yes"]');
     
             // Prüfe, ob die Partial-Datei existiert, bevor sie eingebunden wird
             if (file_exists($partials_dir . 'checkout-step-address.php')) {
@@ -370,8 +361,8 @@ if ($current_step_slug !== 'thankyou') : ?>
 
         <div id="step-2" class="checkout-step <?php echo ($current_step_id === 'step-2') ? 'active' : ''; ?>">
         <?php 
-    // Checkout Header für Adress-Schritt
-    echo do_shortcode('[yprint_checkout_header step="information" show_total="yes" show_progress="yes"]');
+    // Checkout Header für Zahlungs-Schritt
+    echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
             if (file_exists($partials_dir . 'checkout-step-payment.php')) {
                 include($partials_dir . 'checkout-step-payment.php');
             } else {
@@ -392,7 +383,7 @@ if ($current_step_slug !== 'thankyou') : ?>
         <div id="step-3" class="checkout-step <?php echo ($current_step_id === 'step-3') ? 'active' : ''; ?>">
         <?php 
     // Checkout Header für Bestätigungs-Schritt
-    echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
+    echo do_shortcode('[yprint_checkout_header step="confirmation" show_total="yes" show_progress="yes"]');
     ?>
             <?php
             if (file_exists($partials_dir . 'checkout-step-confirmation.php')) {
@@ -441,20 +432,36 @@ if ($current_step_slug !== 'thankyou') : ?>
     jQuery(document).ready(function($) {
         // Event für Schritt-Wechsel
         $(document).on('yprint_step_changed', function(event, stepData) {
-            // Header Step mapping
+            // Header Step mapping - direkte Zuordnung
             const headerStepMapping = {
-                'address': 'information',
+                'address': 'address',
                 'payment': 'payment',
-                'confirmation': 'payment'
+                'confirmation': 'confirmation',
+                'thankyou': 'confirmation'
             };
             
-            const headerStep = headerStepMapping[stepData.step] || 'information';
+            const headerStep = headerStepMapping[stepData.step] || 'address';
             
-            // Update Header Step (falls Header bereits geladen)
-            if (typeof updateCheckoutHeaderStep === 'function') {
-                updateCheckoutHeaderStep(headerStep);
-            }
+            // Update Header Step Progress
+            updateCheckoutHeaderProgress(headerStep);
         });
+        
+        // Funktion zum Aktualisieren der Fortschrittsanzeige im Header
+        function updateCheckoutHeaderProgress(currentStep) {
+            const steps = ['cart', 'address', 'payment', 'confirmation'];
+            const currentIndex = steps.indexOf(currentStep);
+            
+            $('.yprint-progress-step').each(function(index) {
+                const $step = $(this);
+                $step.removeClass('active completed');
+                
+                if (index < currentIndex) {
+                    $step.addClass('completed');
+                } else if (index === currentIndex) {
+                    $step.addClass('active');
+                }
+            });
+        }
         
         // Event für Warenkorb-Updates
         $(document).on('yprint_cart_updated', function(event, cartData) {

@@ -345,9 +345,9 @@ function yprint_render_checkout_header($atts = []) {
             <?php
             $steps = [
                 'cart' => __('Warenkorb', 'yprint-checkout'),
-                'information' => __('Informationen', 'yprint-checkout'),
-                'shipping' => __('Versand', 'yprint-checkout'),
-                'payment' => __('Zahlung', 'yprint-checkout')
+                'address' => __('Adresse', 'yprint-checkout'),
+                'payment' => __('Zahlung', 'yprint-checkout'),
+                'confirmation' => __('Bestätigung', 'yprint-checkout')
             ];
             
             $step_keys = array_keys($steps);
