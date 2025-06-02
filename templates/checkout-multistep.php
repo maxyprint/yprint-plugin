@@ -113,9 +113,9 @@ add_filter( 'body_class', function( $classes ) {
         background-color: #F6F7FA;
     }
 
-    /* Font Awesome Icons sicherstellen */
-    .fas, .far, .fab {
-        font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "FontAwesome";
+    /* Font Awesome Icons sicherstellen - Erweiterte Definition */
+    .fas, .far, .fab, .fa {
+        font-family: "Font Awesome 6 Free", "Font Awesome 6 Pro", "Font Awesome 5 Free", "FontAwesome" !important;
         font-weight: 900;
         font-style: normal;
         font-variant: normal;
@@ -123,7 +123,34 @@ add_filter( 'body_class', function( $classes ) {
         line-height: 1;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        display: inline-block;
+        text-decoration: inherit;
     }
+    
+    .far {
+        font-weight: 400 !important;
+    }
+    
+    .fab {
+        font-weight: 400 !important;
+    }
+    
+    /* Fallback für Icon-Display */
+    i[class*="fa-"]::before {
+        font-family: "Font Awesome 6 Free" !important;
+        font-weight: 900;
+        font-style: normal;
+    }
+    
+    /* Spezifische Icon-Fixes */
+    .fa-map-marker-alt::before { content: "\f3c5"; }
+    .fa-credit-card::before { content: "\f09d"; }
+    .fa-check-circle::before { content: "\f058"; }
+    .fa-shopping-bag::before { content: "\f290"; }
+    .fa-chevron-down::before { content: "\f078"; }
+    .fa-arrow-left::before { content: "\f060"; }
+    .fa-arrow-right::before { content: "\f061"; }
+    .fa-check::before { content: "\f00c"; }
 
     /* Mobile Responsive */
     @media (max-width: 768px) {
@@ -320,9 +347,12 @@ add_filter( 'body_class', function( $classes ) {
     }
 </style>
     <?php 
-// Font Awesome sicherstellen
-wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css', array(), '6.0.0');
+// Font Awesome sicherstellen - sowohl für Frontend als auch Backend
+wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css', array(), '6.4.0');
+
+// Zusätzliche Font Awesome Styles direkt einbinden für sofortige Verfügbarkeit
 ?>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
 <div class="yprint-checkout-container">
     <div class="yprint-checkout-card">
@@ -349,6 +379,16 @@ wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-aw
     <?php 
     // Checkout Header für Adress-Schritt
     echo do_shortcode('[yprint_checkout_header step="address" show_total="yes" show_progress="yes"]');
+    
+    // Font Awesome Test für Debug
+    if (current_user_can('administrator') && isset($_GET['debug'])) {
+        echo '<div style="background: #f0f0f0; padding: 10px; margin: 10px 0; font-size: 12px;">';
+        echo '<strong>Icon Test:</strong> ';
+        echo '<i class="fas fa-check"></i> Check ';
+        echo '<i class="fas fa-map-marker-alt"></i> Location ';
+        echo '<i class="fas fa-credit-card"></i> Payment ';
+        echo '</div>';
+    }
     
             // Prüfe, ob die Partial-Datei existiert, bevor sie eingebunden wird
             if (file_exists($partials_dir . 'checkout-step-address.php')) {
@@ -428,8 +468,34 @@ wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-aw
     </div>
 
     <script>
+    // Font Awesome Check und Fallback
+    function ensureFontAwesome() {
+        // Prüfe ob Font Awesome geladen ist
+        const testElement = document.createElement('i');
+        testElement.className = 'fas fa-check';
+        testElement.style.position = 'absolute';
+        testElement.style.left = '-9999px';
+        document.body.appendChild(testElement);
+        
+        const computedStyle = window.getComputedStyle(testElement, '::before');
+        const isLoaded = computedStyle.getPropertyValue('font-family').includes('Font Awesome');
+        
+        document.body.removeChild(testElement);
+        
+        if (!isLoaded) {
+            console.warn('Font Awesome nicht geladen, lade Fallback...');
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+            link.crossOrigin = 'anonymous';
+            document.head.appendChild(link);
+        }
+    }
+    
     // Checkout Header Integration
     jQuery(document).ready(function($) {
+        // Font Awesome sicherstellen
+        ensureFontAwesome();
         // Event für Schritt-Wechsel
         $(document).on('yprint_step_changed', function(event, stepData) {
             // Header Step mapping - direkte Zuordnung

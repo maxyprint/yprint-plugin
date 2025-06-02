@@ -152,6 +152,12 @@ function yprint_render_checkout_header($atts = []) {
         color: #28a745;
     }
     
+    .yprint-progress-step.completed::before {
+        content: "✓ ";
+        font-weight: bold;
+        margin-right: 3px;
+    }
+    
     .yprint-progress-separator {
         color: #e5e5e5;
         font-size: 12px;
@@ -322,6 +328,23 @@ function yprint_render_checkout_header($atts = []) {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
     }
+    
+    /* Font Awesome Icons für Checkout Header */
+    .yprint-checkout-header .fas,
+    .yprint-checkout-header .far,
+    .yprint-checkout-header .fab {
+        font-family: "Font Awesome 6 Free" !important;
+        font-weight: 900;
+        font-style: normal;
+        display: inline-block;
+        text-rendering: auto;
+        -webkit-font-smoothing: antialiased;
+    }
+    
+    /* Spezifische Header Icons */
+    .yprint-checkout-header .fa-shopping-bag::before { content: "\f290"; }
+    .yprint-checkout-header .fa-chevron-down::before { content: "\f078"; }
+    .yprint-checkout-header .fa-check::before { content: "\f00c"; }
     </style>
     
     <div class="yprint-checkout-header" id="yprint-checkout-header">
