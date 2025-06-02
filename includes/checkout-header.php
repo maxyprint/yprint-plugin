@@ -62,8 +62,6 @@ function yprint_render_checkout_header($atts = []) {
     <style>
     /* YPrint Checkout Header Styles */
     .yprint-checkout-header {
-        background: #ffffff;
-        border: 1px solid #DFDFDF;
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 20px;
