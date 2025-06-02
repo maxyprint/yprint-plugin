@@ -83,7 +83,7 @@ add_filter( 'body_class', function( $classes ) {
         border: none !important;
         background-color: #ffffff !important;
         border-width: 1px
-        border-color: #6D6D6D;
+        border: 1px solid #DFDFDF; /* Gleicher Rahmen wie andere Karten */
         border-radius: 8px;
         padding: 20px;
     }
