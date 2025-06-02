@@ -58,21 +58,16 @@ class YPrint_Mobile_Product_Page {
         return false;
     }
     
-    /**
-     * Render product image gallery slider
-     */
     private static function render_product_gallery($product) {
         if (!$product) return '';
         
         $gallery_images = array();
-        $default_image = 'https://yprint.de/wp-content/uploads/2025/03/front.webp';
         
         // Get main image
         $main_image_id = $product->get_image_id();
         if ($main_image_id) {
             $main_image_url = wp_get_attachment_image_url($main_image_id, 'full');
             if ($main_image_url) {
-                $default_image = $main_image_url;
                 $gallery_images[] = $main_image_url;
             }
         }
@@ -88,9 +83,9 @@ class YPrint_Mobile_Product_Page {
             }
         }
         
-        // If no images found, use default
+        // Wenn keine Bilder vorhanden sind, Galerie nicht anzeigen
         if (empty($gallery_images)) {
-            $gallery_images[] = $default_image;
+            return '<div class="yprint-mobile-no-images"><p>Keine Produktbilder verfügbar</p></div>';
         }
         
         $unique_id = 'mobile-gallery-' . uniqid();
@@ -150,44 +145,59 @@ class YPrint_Mobile_Product_Page {
         return ob_get_clean();
     }
     
-    /**
-     * Render product title and info
-     */
     private static function render_product_header($product) {
         if (!$product) return '';
         
         $product_name = $product->get_name();
-        $sku = $product->get_sku() ?: 'SS250187';
-        $manufacturer = get_post_meta($product->get_id(), '_yprint_manufacturer', true) ?: 'yprint';
+        $sku = $product->get_sku();
+        $manufacturer = get_post_meta($product->get_id(), '_yprint_manufacturer', true);
+        
+        // Nur anzeigen wenn Daten vorhanden sind
+        $info_parts = array();
+        if (!empty($sku)) {
+            $info_parts[] = '#' . $sku;
+        }
+        if (!empty($manufacturer)) {
+            $info_parts[] = 'by ' . $manufacturer;
+        }
+        
+        $info_html = '';
+        if (!empty($info_parts)) {
+            $info_html = '<p class="yprint-mobile-product-info">' . esc_html(implode(' ', $info_parts)) . '</p>';
+        }
         
         return sprintf(
             '<div class="yprint-mobile-product-header">
                 <h1 class="yprint-mobile-product-title">%s</h1>
-                <p class="yprint-mobile-product-info">#%s by %s</p>
+                %s
             </div>',
             esc_html($product_name),
-            esc_html($sku),
-            esc_html($manufacturer)
+            $info_html
         );
     }
     
-    /**
-     * Render product description with bullets
-     */
     private static function render_product_description($product) {
         if (!$product) return '';
         
         $description = $product->get_description();
+        $short_description = $product->get_short_description();
         
-        if (empty($description)) {
-            $description = '✔ 280 GSM – Fühlt sich einfach gut an, und macht alles mit.<br>
-                           ✔ Timeless Loose Fit – Für jeden Anlass geeignet, fällt nicht aus der Mode.<br>
-                           ✔ Hochwertige Baumwolle – Weich, atmungsaktiv & komfortabel.';
+        // Nutze kurze Beschreibung wenn vorhanden, sonst lange Beschreibung
+        $content = '';
+        if (!empty($short_description)) {
+            $content = $short_description;
+        } elseif (!empty($description)) {
+            $content = $description;
+        }
+        
+        // Nur anzeigen wenn Inhalt vorhanden ist
+        if (empty($content)) {
+            return '';
         }
         
         return sprintf(
             '<div class="yprint-mobile-product-description">%s</div>',
-            wp_kses_post($description)
+            wp_kses_post($content)
         );
     }
     
@@ -203,13 +213,9 @@ class YPrint_Mobile_Product_Page {
         ob_start();
         ?>
         <div class="yprint-mobile-color-selection" id="<?php echo esc_attr($unique_id); ?>">
-            <div class="yprint-mobile-color-options">
-                <!-- Default colors - will be replaced by JavaScript if custom colors are available -->
-                <div class="yprint-mobile-color-circle" data-color-id="1" data-color-name="Schwarz" style="background-color: #000000;"></div>
-                <div class="yprint-mobile-color-circle" data-color-id="2" data-color-name="Weiß" style="background-color: #FFFFFF; border-color: #CCCCCC;"></div>
-                <div class="yprint-mobile-color-circle" data-color-id="3" data-color-name="Blau" style="background-color: #0000FF;"></div>
-                <div class="yprint-mobile-color-circle" data-color-id="4" data-color-name="Rot" style="background-color: #FF0000;"></div>
-            </div>
+        <div class="yprint-mobile-color-options">
+    <!-- Wird nur gefüllt wenn echte WooCommerce-Farben vorhanden sind -->
+</div>
             <a href="#" class="yprint-mobile-sizing-link">Sizing</a>
         </div>
         
@@ -290,12 +296,15 @@ class YPrint_Mobile_Product_Page {
             }
             
             // Load colors from product data
-            const customColors = '<?php echo esc_js($colors); ?>';
-            const colors = parseColorOptions(customColors);
-            
-            if (colors.length > 0) {
-                createColorCircles(colors);
-            }
+const customColors = '<?php echo esc_js($colors); ?>';
+const colors = parseColorOptions(customColors);
+
+if (colors.length > 0) {
+    createColorCircles(colors);
+} else {
+    // Keine Farben verfügbar - Farbauswahl ausblenden
+    colorContainer.style.display = 'none';
+}
             
             // Sizing link functionality
             const sizingLink = colorContainer.querySelector('.yprint-mobile-sizing-link');
@@ -310,26 +319,37 @@ class YPrint_Mobile_Product_Page {
         return ob_get_clean();
     }
     
-    /**
-     * Render action buttons (Designer & Buy Blank)
-     */
     private static function render_action_buttons($product) {
         if (!$product) return '';
         
         $product_id = $product->get_id();
-        $template_id = $product->get_sku() ?: '3657';
-        $designer_url = add_query_arg('template_id', $template_id, 'https://yprint.de/designer');
-        $buy_blank_url = '/?add-to-cart=' . $product_id;
+        $sku = $product->get_sku();
         
-        return sprintf(
-            '<div class="yprint-mobile-action-buttons">
-                <a href="%s" class="yprint-mobile-designer-btn">Design</a>
-                <a href="%s" class="yprint-mobile-buy-blank-btn" data-product-id="%s">Buy Blank</a>
-            </div>',
-            esc_url($designer_url),
-            esc_url($buy_blank_url),
-            esc_attr($product_id)
-        );
+        $buttons_html = '<div class="yprint-mobile-action-buttons">';
+        
+        // Designer Button nur anzeigen wenn SKU vorhanden
+        if (!empty($sku)) {
+            $designer_url = add_query_arg('template_id', $sku, 'https://yprint.de/designer');
+            $buttons_html .= sprintf(
+                '<a href="%s" class="yprint-mobile-designer-btn">Design</a>',
+                esc_url($designer_url)
+            );
+        }
+        
+        // Buy Blank Button nur anzeigen wenn Produkt kaufbar ist
+        if ($product->is_purchasable() && $product->is_in_stock()) {
+            $buy_blank_url = '/?add-to-cart=' . $product_id;
+            $buttons_html .= sprintf(
+                '<a href="%s" class="yprint-mobile-buy-blank-btn" data-product-id="%s">Buy Blank - %s</a>',
+                esc_url($buy_blank_url),
+                esc_attr($product_id),
+                $product->get_price_html()
+            );
+        }
+        
+        $buttons_html .= '</div>';
+        
+        return $buttons_html;
     }
     
     /**
@@ -342,13 +362,23 @@ class YPrint_Mobile_Product_Page {
         $accordion_id = 'mobile-accordion-' . uniqid();
         
         $product_data = array(
-            'note' => get_post_meta($product_id, '_yprint_note', true) ?: 'Keine besonderen Hinweise verfügbar.',
-            'details' => get_post_meta($product_id, '_yprint_details', true) ?: 'Keine Detailinformationen verfügbar.',
-            'features' => get_post_meta($product_id, '_yprint_features', true) ?: 'Keine Features verfügbar.',
-            'care' => get_post_meta($product_id, '_yprint_care', true) ?: 'Keine Pflegehinweise verfügbar.',
-            'customizations' => get_post_meta($product_id, '_yprint_customizations', true) ?: 'Keine Anpassungsinformationen verfügbar.',
-            'fabric' => get_post_meta($product_id, '_yprint_fabric', true) ?: 'Keine Materialinformationen verfügbar.'
+            'note' => get_post_meta($product_id, '_yprint_note', true),
+            'details' => get_post_meta($product_id, '_yprint_details', true),
+            'features' => get_post_meta($product_id, '_yprint_features', true),
+            'care' => get_post_meta($product_id, '_yprint_care', true),
+            'customizations' => get_post_meta($product_id, '_yprint_customizations', true),
+            'fabric' => get_post_meta($product_id, '_yprint_fabric', true)
         );
+        
+        // Nur Bereiche anzeigen die auch Inhalt haben
+        $available_sections = array_filter($product_data, function($value) {
+            return !empty($value);
+        });
+        
+        // Wenn keine Daten vorhanden sind, kein Accordion anzeigen
+        if (empty($available_sections)) {
+            return '';
+        }
         
         ob_start();
         ?>
