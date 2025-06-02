@@ -366,13 +366,6 @@ add_filter( 'body_class', function( $classes ) {
         100% { transform: rotate(360deg); }
     }
 </style>
-
-<?php 
-// Checkout Header für Payment-Schritt
-echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
-?>
-
-
     <?php // Fortschrittsbalken nur anzeigen, wenn nicht auf der Danke-Seite ?>
     
 <?php if ($current_step_slug !== 'thankyou') : ?>
@@ -418,7 +411,9 @@ echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_
         </div>
 
         <div id="step-2" class="checkout-step <?php echo ($current_step_id === 'step-2') ? 'active' : ''; ?>">
-            <?php
+        <?php 
+    // Checkout Header für Adress-Schritt
+    echo do_shortcode('[yprint_checkout_header step="information" show_total="yes" show_progress="yes"]');
             if (file_exists($partials_dir . 'checkout-step-payment.php')) {
                 include($partials_dir . 'checkout-step-payment.php');
             } else {
