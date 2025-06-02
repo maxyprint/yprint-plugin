@@ -346,38 +346,54 @@ private static function render_color_selection($product, $config) {
         };
         
         function parseColorsWithProductIds(colorString) {
-            if (!colorString) return [];
-            
-            const colors = [];
-            const currentProductId = productId;
-            
-            // Split by comma and clean up
-            const colorItems = colorString.split(',').map(item => item.trim()).filter(item => item.length > 0);
-            
-            colorItems.forEach((item, index) => {
-                // Parse format: "black:3799" or just "black"
-                const parts = item.split(':');
-                const colorName = parts[0].trim().toLowerCase();
-                const linkedProductId = parts[1] ? parts[1].trim() : null;
-                
-                // Get color code from mapping or use default gray
-                const colorCode = colorMap[colorName] || '#CCCCCC';
-                
-                // Determine if this color represents the current product
-                const isCurrentProduct = linkedProductId === currentProductId;
-                
-                colors.push({
-                    name: colorName.charAt(0).toUpperCase() + colorName.slice(1), // Capitalize first letter
-                    id: (index + 1).toString(), // Generate sequential ID
-                    code: colorCode,
-                    originalName: colorName,
-                    productId: linkedProductId,
-                    isCurrent: isCurrentProduct
-                });
-            });
-            
-            return colors;
+    if (!colorString) return [];
+    
+    const colors = [];
+    const currentProductId = productId;
+    
+    // Split by comma and clean up
+    const colorItems = colorString.split(',').map(item => item.trim()).filter(item => item.length > 0);
+    
+    colorItems.forEach((item, index) => {
+        // Parse format: "black:3799", "black=3799", or just "black"
+        // Support both : and = as separators
+        let parts;
+        if (item.includes(':')) {
+            parts = item.split(':');
+        } else if (item.includes('=')) {
+            parts = item.split('=');
+        } else {
+            parts = [item]; // No separator, just color name
         }
+        
+        const colorName = parts[0].trim().toLowerCase();
+        const linkedProductId = parts[1] ? parts[1].trim() : null;
+        
+        // Get color code from mapping or use default gray
+        const colorCode = colorMap[colorName] || '#CCCCCC';
+        
+        // Determine if this color represents the current product
+        const isCurrentProduct = linkedProductId === currentProductId;
+        
+        colors.push({
+            name: colorName.charAt(0).toUpperCase() + colorName.slice(1), // Capitalize first letter
+            id: (index + 1).toString(), // Generate sequential ID
+            code: colorCode,
+            originalName: colorName,
+            productId: linkedProductId,
+            isCurrent: isCurrentProduct
+        });
+        
+        console.log('Parsed color:', {
+            name: colorName,
+            productId: linkedProductId,
+            currentProductId: currentProductId,
+            isCurrent: isCurrentProduct
+        });
+    });
+    
+    return colors;
+}
         
         function createColorCircles(colors) {
             if (!colorOptions) return;
@@ -602,14 +618,14 @@ private static function render_color_selection($product, $config) {
         $buttons_html = '<div class="yprint-dynamic-action-buttons">';
         
         // Designer Button only if SKU is available
-        if (!empty($sku)) {
-            $designer_url = add_query_arg('template_id', $sku, $config['designer_base_url']);
-            $buttons_html .= sprintf(
-                '<a href="%s" class="yprint-dynamic-designer-btn">%s</a>',
-                esc_url($designer_url),
-                esc_html($config['texts']['design_button'])
-            );
-        }
+if (!empty($sku)) {
+    $buttons_html .= sprintf(
+        '<a href="#" class="yprint-dynamic-designer-btn" data-template-id="%s" data-designer-base-url="%s">%s</a>',
+        esc_attr($sku),
+        esc_url($config['designer_base_url']),
+        esc_html($config['texts']['design_button'])
+    );
+}
         
         // Buy Blank Button only if product is purchasable and in stock
         if ($product->is_purchasable() && $product->is_in_stock()) {
@@ -1200,66 +1216,174 @@ private static function render_color_selection($product, $config) {
             const eventConfig = <?php echo json_encode($config['events']); ?>;
             const productId = '<?php echo esc_js($product_id); ?>';
             
-            // Buy Blank button functionality
-            const buyBlankButtons = productContainer.querySelectorAll('.yprint-dynamic-buy-blank-btn');
-            buyBlankButtons.forEach(button => {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
+            // Designer Button functionality with color check
+const designerButtons = productContainer.querySelectorAll('.yprint-dynamic-designer-btn');
+designerButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const templateId = this.dataset.templateId;
+        const baseUrl = this.dataset.designerBaseUrl;
+        
+        if (!templateId || !baseUrl) return;
+        
+        // Check if a color is selected
+        const selectedColorCircle = productContainer.querySelector('.yprint-dynamic-color-circle.selected');
+        
+        if (!selectedColorCircle) {
+            // No color selected - show alert
+            alert('<?php echo esc_js(__('Please select a color first.', 'yprint')); ?>');
+            return;
+        }
+        
+        // Get selected color info
+        const selectedColorName = selectedColorCircle.dataset.originalName || selectedColorCircle.dataset.colorName;
+        const selectedProductId = selectedColorCircle.dataset.productId;
+        
+        console.log('Designer button clicked with:', {
+            templateId: templateId,
+            selectedColor: selectedColorName,
+            selectedProductId: selectedProductId,
+            currentProductId: productId
+        });
+        
+        // If selected color has different product ID, redirect to that product first
+        if (selectedProductId && selectedProductId !== productId) {
+            console.log('Redirecting to correct product for design:', selectedProductId);
+            
+            // Show loading state
+            this.textContent = '<?php echo esc_js(__('Loading...', 'yprint')); ?>';
+            this.style.opacity = '0.6';
+            this.style.pointerEvents = 'none';
+            
+            // Redirect to correct product page with design intent
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('product_id', selectedProductId);
+            currentUrl.searchParams.set('auto_design', 'true');
+            currentUrl.searchParams.set('template_id', templateId);
+            
+            setTimeout(() => {
+                window.location.href = currentUrl.toString();
+            }, 200);
+            
+        } else {
+            // Same product or no product ID - open designer directly
+            let designerUrl = baseUrl;
+            
+            // Add template ID
+            const url = new URL(designerUrl);
+            url.searchParams.set('template_id', templateId);
+            
+            // Add color parameter if available
+            if (selectedColorName) {
+                url.searchParams.set('color', selectedColorName);
+            }
+            
+            console.log('Opening designer with URL:', url.toString());
+            
+            // Open designer in new tab/window
+            window.open(url.toString(), '_blank');
+        }
+    });
+});
+
+// Check for auto-design parameter on page load
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('auto_design') === 'true') {
+    const templateId = urlParams.get('template_id');
+    if (templateId) {
+        console.log('Auto-opening designer for template:', templateId);
+        
+        // Wait a moment for page to load, then open designer
+        setTimeout(() => {
+            const designerButton = productContainer.querySelector('.yprint-dynamic-designer-btn');
+            if (designerButton) {
+                // Simulate click but skip the color check since we just redirected
+                const baseUrl = designerButton.dataset.designerBaseUrl;
+                const url = new URL(baseUrl);
+                url.searchParams.set('template_id', templateId);
+                
+                // Get selected color if available
+                const selectedColorCircle = productContainer.querySelector('.yprint-dynamic-color-circle.selected');
+                if (selectedColorCircle) {
+                    const selectedColorName = selectedColorCircle.dataset.originalName || selectedColorCircle.dataset.colorName;
+                    if (selectedColorName) {
+                        url.searchParams.set('color', selectedColorName);
+                    }
+                }
+                
+                window.open(url.toString(), '_blank');
+                
+                // Clean up URL parameters
+                const cleanUrl = new URL(window.location.href);
+                cleanUrl.searchParams.delete('auto_design');
+                cleanUrl.searchParams.delete('template_id');
+                window.history.replaceState({}, '', cleanUrl.toString());
+            }
+        }, 500);
+    }
+}
+
+// Buy Blank button functionality
+const buyBlankButtons = productContainer.querySelectorAll('.yprint-dynamic-buy-blank-btn');
+buyBlankButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const productId = this.dataset.productId;
+        if (!productId) return;
+        
+        // Show loading state
+        const originalText = this.textContent;
+        this.textContent = '<?php echo esc_js(__('Adding...', 'yprint')); ?>';
+        this.style.opacity = '0.6';
+        this.style.pointerEvents = 'none';
+        
+        // Add to cart
+        fetch('/?add-to-cart=' + productId, {
+            method: 'GET',
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            // Reset button state
+            this.textContent = originalText;
+            this.style.opacity = '1';
+            this.style.pointerEvents = 'auto';
+            
+            if (response.ok) {
+                // Try to trigger cart popup
+                const cartPopup = document.querySelector('#cart');
+                if (cartPopup) {
+                    cartPopup.style.display = 'block';
+                    cartPopup.classList.add('show');
                     
-                    const productId = this.dataset.productId;
-                    if (!productId) return;
-                    
-                    // Show loading state
-                    const originalText = this.textContent;
-                    this.textContent = '<?php echo esc_js(__('Adding...', 'yprint')); ?>';
-                    this.style.opacity = '0.6';
-                    this.style.pointerEvents = 'none';
-                    
-                    // Add to cart
-                    fetch('/?add-to-cart=' + productId, {
-                        method: 'GET',
-                        credentials: 'same-origin'
-                    })
-                    .then(response => {
-                        // Reset button state
-                        this.textContent = originalText;
-                        this.style.opacity = '1';
-                        this.style.pointerEvents = 'auto';
-                        
-                        if (response.ok) {
-                            // Try to trigger cart popup
-                            const cartPopup = document.querySelector('#cart');
-                            if (cartPopup) {
-                                cartPopup.style.display = 'block';
-                                cartPopup.classList.add('show');
-                                
-                                // jQuery fallback
-                                if (typeof jQuery !== 'undefined') {
-                                    jQuery('#cart').fadeIn();
-                                }
-                            }
-                            
-                            // Dispatch custom event
-                            document.dispatchEvent(new CustomEvent(eventConfig.cart_open, { 
-                                detail: { productId: productId, action: 'buy_blank' } 
-                            }));
-                        } else {
-                            throw new Error('Failed to add to cart');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error adding to cart:', error);
-                        
-                        // Reset button state
-                        this.textContent = originalText;
-                        this.style.opacity = '1';
-                        this.style.pointerEvents = 'auto';
-                        
-                        // Show error message
-                        alert('<?php echo esc_js(__('Error adding product to cart. Please try again.', 'yprint')); ?>');
-                    });
-                });
-            });
+                    // jQuery fallback
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery('#cart').fadeIn();
+                    }
+                }
+                
+                // Dispatch custom event
+                document.dispatchEvent(new CustomEvent(eventConfig.cart_open, { 
+                    detail: { productId: productId, action: 'buy_blank' } 
+                }));
+            } else {
+                throw new Error('Failed to add to cart');
+            }
+        })
+        .catch(error => {
+            console.error('Error adding to cart:', error);
+            
+            // Reset button state
+            this.textContent = originalText;
+            this.style.opacity = '1';
+            this.style.pointerEvents = 'auto';
+            
+            // Show error message
+            alert('<?php echo esc_js(__('Error adding product to cart. Please try again.', 'yprint')); ?>');
+        });
+    });
+});
             
             // Global event listeners for external integrations
             document.addEventListener(eventConfig.sizing_chart, function(e) {
