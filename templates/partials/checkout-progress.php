@@ -51,6 +51,7 @@ $current_step_number = isset($checkout_steps_config[$current_step_slug]['number'
         /* Das komplette CSS aus deinem Design-Beispiel, unverändert übernommen */
         body {
             font-family: 'Montserrat', sans-serif;
+            background-color: #eef1f5;
             display: flex;
             justify-content: center;
             align-items: center;
