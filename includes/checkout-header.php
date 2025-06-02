@@ -66,7 +66,6 @@ function yprint_render_checkout_header($atts = []) {
         padding: 20px;
         margin-bottom: 20px;
         font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
     }
     
     .yprint-header-top {

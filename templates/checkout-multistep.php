@@ -92,6 +92,22 @@ add_filter( 'body_class', function( $classes ) {
         margin-bottom: 1.5rem; /* Mehr Abstand zwischen den Karten */
     }
 
+    /* Checkout Header Integration */
+    .yprint-checkout-main-content .yprint-checkout-header {
+        margin-bottom: 20px;
+        margin-top: 0;
+        border: 1px solid #DFDFDF;
+        background-color: #ffffff;
+    }
+
+    /* Responsive Anpassungen für Header */
+    @media (max-width: 768px) {
+        .yprint-checkout-main-content .yprint-checkout-header {
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+    }
+
     /* Fortschrittsbalken (Anpassungen für Mobilgeräte sind oft im Partial selbst) */
     .progress-bar-wrapper {
         margin-bottom: 1.5rem;
@@ -353,6 +369,22 @@ add_filter( 'body_class', function( $classes ) {
 
 <div class="yprint-checkout-layout">
     <div class="yprint-checkout-main-content">
+        <?php 
+        // Checkout Header nur anzeigen, wenn nicht auf der Danke-Seite
+        if ($current_step_slug !== 'thankyou') : 
+            // Mapping für Header Steps
+            $header_step_mapping = [
+                'address' => 'information',
+                'payment' => 'payment', 
+                'confirmation' => 'payment'
+            ];
+            $header_step = $header_step_mapping[$current_step_slug] ?? 'information';
+            
+            // Checkout Header Shortcode ausgeben
+            echo do_shortcode('[yprint_checkout_header step="' . esc_attr($header_step) . '" show_total="yes" show_progress="yes"]');
+        endif; 
+        ?>
+        
         <div class="card">
         <?php
         // Debug-Information ausgeben (kann in Produktion entfernt werden)
@@ -421,3 +453,63 @@ add_filter( 'body_class', function( $classes ) {
                 echo '<p>Fehler: Danke-Seite-Template nicht gefunden.</p>';
             }
             ?>
+
+</div>
+
+</div>
+
+        <div class="yprint-checkout-sidebar">
+            <?php
+            // Cart Summary (Sidebar)
+            include( $partials_dir . 'checkout-cart-summary.php' );
+            ?>
+        </div>
+    </div>
+
+    <!-- Footer-Bereich für rechtliche Hinweise -->
+    <div class="yprint-checkout-footer">
+        <p><?php printf(
+            wp_kses(
+                __('Sichere Zahlung über SSL. Lesen Sie unsere <a href="%1$s">AGB</a> und <a href="%2$s">Datenschutzbestimmungen</a>.', 'yprint-checkout'),
+                array( 'a' => array( 'href' => array() ) )
+            ),
+            esc_url( home_url('/agb') ),
+            esc_url( home_url('/datenschutz') )
+        ); ?></p>
+    </div>
+
+    <!-- Loading Overlay für AJAX-Requests -->
+    <div id="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p><?php esc_html_e('Verarbeitung läuft...', 'yprint-checkout'); ?></p>
+    </div>
+
+    <script>
+    // Checkout Header Integration
+    jQuery(document).ready(function($) {
+        // Event für Schritt-Wechsel
+        $(document).on('yprint_step_changed', function(event, stepData) {
+            // Header Step mapping
+            const headerStepMapping = {
+                'address': 'information',
+                'payment': 'payment',
+                'confirmation': 'payment'
+            };
+            
+            const headerStep = headerStepMapping[stepData.step] || 'information';
+            
+            // Update Header Step (falls Header bereits geladen)
+            if (typeof updateCheckoutHeaderStep === 'function') {
+                updateCheckoutHeaderStep(headerStep);
+            }
+        });
+        
+        // Event für Warenkorb-Updates
+        $(document).on('yprint_cart_updated', function(event, cartData) {
+            // Header Total aktualisieren
+            if (cartData.totals && cartData.totals.total) {
+                $('#yprint-header-total').text('€' + parseFloat(cartData.totals.total).toFixed(2).replace('.', ','));
+            }
+        });
+    });
+    </script>
