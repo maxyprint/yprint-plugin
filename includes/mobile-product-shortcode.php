@@ -257,8 +257,9 @@ class YPrint_Dynamic_Mobile_Product {
 private static function render_color_selection($product, $config) {
     if (!$product) return '';
     
-    // Get colors from WooCommerce product custom field
+    // Get colors and color variants from WooCommerce product custom fields
     $colors = get_post_meta($product->get_id(), '_yprint_colors', true);
+    $color_variants = get_post_meta($product->get_id(), '_yprint_color_variants', true);
     $sizing_data = get_post_meta($product->get_id(), '_yprint_sizing', true);
     
     // Don't display if no colors and no sizing
@@ -268,6 +269,7 @@ private static function render_color_selection($product, $config) {
     
     $product_id = $product->get_id();
     $unique_id = 'wc-product-colors-' . $product_id;
+    $current_url_params = $_GET;
     
     ob_start();
     ?>
@@ -336,6 +338,22 @@ private static function render_color_selection($product, $config) {
             'fuchsia': '#FF00FF'
         };
         
+        function parseColorVariants(variantsString) {
+            const variants = {};
+            if (!variantsString) return variants;
+            
+            // Format: "black:3799,white:3800,green:3801"
+            const variantPairs = variantsString.split(',');
+            variantPairs.forEach(pair => {
+                const [colorName, productId] = pair.split(':');
+                if (colorName && productId) {
+                    variants[colorName.trim().toLowerCase()] = productId.trim();
+                }
+            });
+            
+            return variants;
+        }
+        
         function parseColorOptions(colorString) {
             if (!colorString) return [];
             
@@ -350,14 +368,15 @@ private static function render_color_selection($product, $config) {
                 colors.push({
                     name: colorName.charAt(0).toUpperCase() + colorName.slice(1), // Capitalize first letter
                     id: (index + 1).toString(), // Generate sequential ID
-                    code: colorCode
+                    code: colorCode,
+                    originalName: colorName.toLowerCase()
                 });
             });
             
             return colors;
         }
         
-        function createColorCircles(colors) {
+        function createColorCircles(colors, colorVariants) {
             if (!colorOptions) return;
             
             colorOptions.innerHTML = '';
@@ -367,8 +386,18 @@ private static function render_color_selection($product, $config) {
                 colorCircle.className = 'yprint-dynamic-color-circle';
                 colorCircle.dataset.colorId = color.id;
                 colorCircle.dataset.colorName = color.name;
+                colorCircle.dataset.originalName = color.originalName;
                 colorCircle.style.backgroundColor = color.code;
                 colorCircle.title = color.name;
+                
+                // Check if this is the current product's color
+                const currentProductId = '<?php echo esc_js($product_id); ?>';
+                const variantProductId = colorVariants[color.originalName];
+                
+                if (variantProductId === currentProductId) {
+                    colorCircle.classList.add('selected');
+                    selectedColorId = color.id;
+                }
                 
                 // Special styling for white/light colors
                 if (color.code === '#FFFFFF' || color.code.toLowerCase() === '#ffffff') {
@@ -376,34 +405,66 @@ private static function render_color_selection($product, $config) {
                 }
                 
                 colorCircle.addEventListener('click', function() {
-                    document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
-                        circle.classList.remove('selected');
-                    });
+                    const targetProductId = colorVariants[color.originalName];
                     
-                    colorCircle.classList.add('selected');
-                    selectedColorId = color.id;
-                    
-                    sessionStorage.setItem(storagePrefix + 'color_id', selectedColorId);
-                    sessionStorage.setItem(storagePrefix + 'color_name', color.name);
-                    
-                    // Dispatch color selected event
-                    document.dispatchEvent(new CustomEvent(eventConfig.color_selected, {
-                        detail: { colorId: selectedColorId, colorName: color.name, productId: productId }
-                    }));
-                    
-                    console.log('Color selected:', color.name, 'ID:', selectedColorId);
+                    if (targetProductId && targetProductId !== currentProductId) {
+                        // Redirect to the color variant product
+                        const currentUrl = new URL(window.location.href);
+                        currentUrl.searchParams.set('product_id', targetProductId);
+                        
+                        // Add loading state
+                        colorCircle.style.opacity = '0.6';
+                        colorCircle.style.pointerEvents = 'none';
+                        
+                        // Show loading feedback
+                        document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
+                            circle.style.pointerEvents = 'none';
+                        });
+                        
+                        console.log('Redirecting to product:', targetProductId, 'for color:', color.name);
+                        
+                        // Redirect after short delay for user feedback
+                        setTimeout(() => {
+                            window.location.href = currentUrl.toString();
+                        }, 200);
+                        
+                    } else {
+                        // Just select the color (current product)
+                        document.querySelectorAll('.yprint-dynamic-color-circle').forEach(circle => {
+                            circle.classList.remove('selected');
+                        });
+                        
+                        colorCircle.classList.add('selected');
+                        selectedColorId = color.id;
+                        
+                        sessionStorage.setItem(storagePrefix + 'color_id', selectedColorId);
+                        sessionStorage.setItem(storagePrefix + 'color_name', color.name);
+                        
+                        // Dispatch color selected event
+                        document.dispatchEvent(new CustomEvent(eventConfig.color_selected, {
+                            detail: { colorId: selectedColorId, colorName: color.name, productId: productId }
+                        }));
+                        
+                        console.log('Color selected:', color.name, 'ID:', selectedColorId);
+                    }
                 });
                 
                 colorOptions.appendChild(colorCircle);
             });
         }
         
-        // Load colors from product data
+        // Load colors and variants from product data
         const customColors = '<?php echo esc_js($colors); ?>';
+        const colorVariantsData = '<?php echo esc_js($color_variants); ?>';
+        
         const colors = parseColorOptions(customColors);
+        const colorVariants = parseColorVariants(colorVariantsData);
+        
+        console.log('Available colors:', colors);
+        console.log('Color variants mapping:', colorVariants);
         
         if (colors.length > 0) {
-            createColorCircles(colors);
+            createColorCircles(colors, colorVariants);
             console.log('Created color circles for colors:', colors);
         } else if (colorOptions) {
             // Hide color section if no colors available
@@ -678,25 +739,36 @@ private static function render_color_selection($product, $config) {
                 line-height: 1.6;
             }
             
-            /* Gallery Styles */
             .yprint-dynamic-gallery-container {
-                margin-bottom: 24px;
-                background-color: white;
-                border-radius: 20px;
-                border: 1px solid #e0e0e0;
-                padding: 16px;
-                display: flex;
-                flex-direction: column;
-                gap: 12px;
-            }
-            
-            .yprint-dynamic-gallery-slider {
-                overflow: hidden;
-                position: relative;
-                background: #F6F7FA;
-                border-radius: 16px;
-                border: 1px solid #DFDFDF;
-            }
+    margin-bottom: 24px;
+    background-color: white;
+    border-radius: 20px;
+    border: 1px solid #e0e0e0;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.yprint-dynamic-gallery-slider {
+    overflow: hidden;
+    position: relative;
+    background: #F6F7FA;
+    border-radius: 16px;
+    border: 1px solid #DFDFDF;
+    max-height: 400px;
+}
+
+.yprint-dynamic-gallery-slide img {
+    width: 100%;
+    height: auto;
+    display: block;
+    max-height: 400px;
+    object-fit: contain;
+}
             
             .yprint-dynamic-gallery-slides {
                 display: flex;
@@ -935,27 +1007,38 @@ private static function render_color_selection($product, $config) {
                 transform: rotate(45deg);
             }
             
-            /* Responsive adjustments */
             @media (max-width: 480px) {
-                .yprint-dynamic-product-container {
-                    padding: 16px 12px 80px 12px;
-                }
-                
-                .yprint-dynamic-product-title {
-                    font-size: 28px;
-                }
-                
-                .yprint-dynamic-gallery-thumbnail {
-                    width: 50px;
-                    height: 50px;
-                }
-                
-                .yprint-dynamic-color-selection {
-                    flex-direction: column;
-                    align-items: flex-start;
-                    gap: 12px;
-                }
-            }
+    .yprint-dynamic-product-container {
+        padding: 16px 12px 80px 12px;
+    }
+    
+    .yprint-dynamic-product-title {
+        font-size: 28px;
+    }
+    
+    .yprint-dynamic-gallery-container {
+        max-width: 350px;
+    }
+    
+    .yprint-dynamic-gallery-slider {
+        max-height: 350px;
+    }
+    
+    .yprint-dynamic-gallery-slide img {
+        max-height: 350px;
+    }
+    
+    .yprint-dynamic-gallery-thumbnail {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .yprint-dynamic-color-selection {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+}
 /* Sizing Popup Styles */
 .yprint-sizing-popup {
     position: fixed;
