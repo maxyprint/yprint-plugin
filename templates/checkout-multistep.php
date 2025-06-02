@@ -82,7 +82,8 @@ add_filter( 'body_class', function( $classes ) {
     .card {
         border: none !important;
         background-color: #ffffff !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        border-width: 1px
+        border-color: #6D6D6D;
         border-radius: 8px;
         padding: 20px;
     }
