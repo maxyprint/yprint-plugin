@@ -74,11 +74,11 @@ class YPrint_Stripe_Checkout {
         add_action('wp_ajax_nopriv_yprint_process_final_checkout', array($instance, 'ajax_process_final_checkout'));
 
         // Add Express Checkout AJAX handlers
-$instance->add_express_checkout_ajax_handlers();
+        $instance->add_express_checkout_ajax_handlers();
 
-// Add Payment Method Processing AJAX handlers - Direct registration
-add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
-add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+        // Add Payment Method Processing AJAX handlers - Direct registration
+        add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+        add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
 
         // Add custom checkout endpoint
         add_action('init', array(__CLASS__, 'add_checkout_endpoints'));
@@ -87,11 +87,15 @@ add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'aja
         add_action('woocommerce_checkout_update_order_meta', array(__CLASS__, 'capture_order_details'));
 
         // New AJAX handlers for unified data management
-add_action('wp_ajax_yprint_get_checkout_context', array($instance, 'ajax_get_checkout_context'));
-add_action('wp_ajax_nopriv_yprint_get_checkout_context', array($instance, 'ajax_get_checkout_context'));
+        add_action('wp_ajax_yprint_get_checkout_context', array($instance, 'ajax_get_checkout_context'));
+        add_action('wp_ajax_nopriv_yprint_get_checkout_context', array($instance, 'ajax_get_checkout_context'));
 
-add_action('wp_ajax_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
-add_action('wp_ajax_nopriv_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
+        add_action('wp_ajax_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
+        add_action('wp_ajax_nopriv_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
+
+        // Add handler for pending order data
+        add_action('wp_ajax_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
+        add_action('wp_ajax_nopriv_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
     }
 
     /**
@@ -288,6 +292,22 @@ public function ajax_refresh_checkout_context() {
 
         // Return the buffered content
         return ob_get_clean();
+    }
+
+
+/**
+     * AJAX handler to get pending order data
+     */
+    public function ajax_get_pending_order() {
+        check_ajax_referer('yprint_checkout_nonce', 'nonce');
+        
+        $pending_order = WC()->session->get('yprint_pending_order');
+        
+        if ($pending_order) {
+            wp_send_json_success($pending_order);
+        } else {
+            wp_send_json_error(array('message' => 'No pending order found'));
+        }
     }
 
     /**
