@@ -788,6 +788,34 @@ if (voucherButton) {
         // Lade aktuelle Warenkorbdaten
         await loadRealCartData();
         
+        // Check for pending order data from payment processing
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('step') === 'confirmation') {
+            // Try to get pending order data
+            try {
+                const response = await fetch(yprint_checkout_params.ajax_url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        action: 'yprint_get_pending_order',
+                        nonce: yprint_checkout_params.nonce
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success && data.data) {
+                    console.log('Found pending order data:', data.data);
+                    // Use pending order data for confirmation
+                    populateConfirmationWithOrderData(data.data);
+                    return;
+                }
+            } catch (error) {
+                console.log('No pending order data found, using standard confirmation');
+            }
+        }
+        
         // Adressen (bestehender Code bleibt)
         const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
         if (confirmShippingAddressEl) {
@@ -997,7 +1025,10 @@ if (voucherButton) {
         const selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value || 
                               document.getElementById('selected-payment-method')?.value;
         
+        console.log('Validating payment method:', selectedMethod);
+        
         if (!selectedMethod) {
+            console.log('No payment method selected');
             return false;
         }
         
@@ -1008,32 +1039,57 @@ if (voucherButton) {
                 const activeSliderOption = document.querySelector('.slider-option.active');
                 const paymentMethod = activeSliderOption?.dataset.method;
                 
+                console.log('Active payment method:', paymentMethod);
+                
                 if (paymentMethod === 'card') {
                     // Prüfe Card Element
-                    return await validateStripeCardElement();
+                    const isValid = await validateStripeCardElement();
+                    console.log('Card element validation result:', isValid);
+                    return isValid;
                 } else if (paymentMethod === 'sepa') {
                     // Prüfe SEPA Element  
-                    return await validateStripeSepaElement();
+                    const isValid = await validateStripeSepaElement();
+                    console.log('SEPA element validation result:', isValid);
+                    return isValid;
                 }
+            } else {
+                console.log('Stripe checkout not initialized');
+                return false;
             }
-            return false;
         }
         
+        console.log('Non-Stripe payment method is valid');
         return true; // Andere Zahlungsmethoden sind ok wenn ausgewählt
     }
     
     async function validateStripeCardElement() {
-        if (!window.YPrintStripeCheckout.cardElement) return false;
+        if (!window.YPrintStripeCheckout || !window.YPrintStripeCheckout.cardElement) {
+            console.log('Card element not available');
+            return false;
+        }
         
         try {
+            const stripe = window.YPrintStripeService.getStripe();
+            if (!stripe) {
+                console.log('Stripe not available');
+                return false;
+            }
+            
             // Teste ob Card Element gültig ist
-            const {error} = await window.YPrintStripeCheckout.stripe.createPaymentMethod({
+            const {paymentMethod, error} = await stripe.createPaymentMethod({
                 type: 'card',
                 card: window.YPrintStripeCheckout.cardElement,
             });
             
-            return !error;
+            if (error) {
+                console.log('Card validation error:', error.message);
+                return false;
+            }
+            
+            console.log('Card validation successful:', paymentMethod.id);
+            return true;
         } catch (e) {
+            console.log('Card validation exception:', e);
             return false;
         }
     }

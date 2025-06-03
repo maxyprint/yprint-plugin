@@ -222,6 +222,18 @@ console.log('URLSearchParams size:', new URLSearchParams(requestData).toString()
             console.log('Success Data:', data.data);
             event.complete('success');
             this.emit('payment_success', data.data);
+            
+            // Redirect to confirmation page after successful payment
+            if (data.data && data.data.redirect_url) {
+                setTimeout(() => {
+                    window.location.href = data.data.redirect_url;
+                }, 1500); // Small delay to show success state
+            } else {
+                // Fallback redirect to checkout confirmation
+                setTimeout(() => {
+                    window.location.href = window.location.pathname + '?step=confirmation';
+                }, 1500);
+            }
         } else {
             console.error('=== PAYMENT FAILED ===');
             console.error('Error Message:', data.data?.message);

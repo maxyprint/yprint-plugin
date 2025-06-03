@@ -1378,15 +1378,42 @@ if (WC()->cart->is_empty()) {
     error_log('Payment Method ID: ' . ($payment_method['id'] ?? 'Not found'));
     error_log('Payment Method Type: ' . ($payment_method['type'] ?? 'Not found'));
     
-    // TODO: Implement actual payment processing here
-    
-    error_log('=== YPRINT PAYMENT METHOD PROCESSING END ===');
-    
-    wp_send_json_success(array(
-        'message' => 'Payment method received and processed (DEBUG MODE)',
-        'payment_method_id' => $payment_method['id'] ?? null,
-        'debug' => true
-    ));
+    // Simulate payment processing (since we're in test mode)
+    try {
+        // Create a mock order for testing
+        $order_data = array(
+            'payment_method_id' => $payment_method['id'],
+            'amount' => WC()->cart->get_total('edit'),
+            'currency' => get_woocommerce_currency(),
+            'customer_details' => array(
+                'name' => $payment_method['billing_details']['name'] ?? '',
+                'email' => $payment_method['billing_details']['email'] ?? '',
+                'phone' => $payment_method['billing_details']['phone'] ?? '',
+            ),
+            'billing_address' => $payment_method['billing_details']['address'] ?? array(),
+            'shipping_address' => $shipping_address ?? array(),
+        );
+        
+        // Store order data in session for confirmation page
+        WC()->session->set('yprint_pending_order', $order_data);
+        
+        error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
+        
+        // Return success with redirect URL
+        wp_send_json_success(array(
+            'message' => 'Payment processed successfully (Test Mode)',
+            'payment_method_id' => $payment_method['id'],
+            'order_data' => $order_data,
+            'redirect_url' => add_query_arg('step', 'confirmation', get_permalink()),
+            'test_mode' => true
+        ));
+        
+    } catch (Exception $e) {
+        error_log('Payment processing error: ' . $e->getMessage());
+        wp_send_json_error(array(
+            'message' => 'Payment processing failed: ' . $e->getMessage()
+        ));
+    }
 }
 
     /**
