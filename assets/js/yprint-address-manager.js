@@ -468,16 +468,16 @@ saveAddressFromForm: function() {
                         self.renderAddresses(addresses);
                         
                         if (addressCount === 0) {
-                            // Keine gespeicherten Adressen
+                            // Keine gespeicherten Adressen - zeige nur das Formular
                             console.log('No addresses found - hiding container, showing form');
                             self.showSavedAddressesContainer(false);
                             self.showAddressForm(true);
                         } else {
-                            // Gespeicherte Adressen vorhanden
-                            console.log('Addresses found - showing grid, hiding form');
+                            // Gespeicherte Adressen vorhanden - zeige diese ZUERST
+                            console.log('Addresses found - showing addresses first, hiding form');
                             self.showSavedAddressesContainer(true);
                             self.showAddressForm(false);
-                            self.showChangeAddressLink();
+                            // NICHT den "Andere Adresse wählen" Link anzeigen, da die Adressen bereits sichtbar sind
                         }
                     } else {
                         // Fehler beim Laden
