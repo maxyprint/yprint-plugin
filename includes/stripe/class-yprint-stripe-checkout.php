@@ -1052,7 +1052,35 @@ public function ajax_get_cart_data() {
  * AJAX handler for processing payment methods (DEBUG VERSION)
  */
 
-    public function ajax_process_payment_method() {
+ public function ajax_process_payment_method() {
+    // Initialize WooCommerce frontend context for AJAX
+    if (!class_exists('WC')) {
+        wp_send_json_error(array('message' => 'WooCommerce not available'));
+        return;
+    }
+    
+    // Load WooCommerce frontend
+    WC()->frontend_includes();
+    
+    // Initialize session
+    if (is_null(WC()->session)) {
+        $session_class = apply_filters('woocommerce_session_handler', 'WC_Session_Handler');
+        WC()->session = new $session_class();
+        WC()->session->init();
+    }
+    
+    // Initialize cart
+    if (is_null(WC()->cart)) {
+        WC()->cart = new WC_Cart();
+        WC()->cart->get_cart();
+    }
+    
+    // Initialize customer
+    if (is_null(WC()->customer)) {
+        WC()->customer = new WC_Customer(get_current_user_id(), true);
+    }
+    
+    error_log('=== RAW REQUEST DEBUGGING ===');
         error_log('=== RAW REQUEST DEBUGGING ===');
         error_log('Raw POST data: ' . file_get_contents('php://input'));
         error_log('Content Length: ' . ($_SERVER['CONTENT_LENGTH'] ?? 'Not set'));
@@ -1219,20 +1247,70 @@ if (!empty($shipping_address_json)) {
         }
     }
     
-    // User and Cart Verification
-    error_log('Current User ID: ' . get_current_user_id());
-    error_log('Is User Logged In: ' . (is_user_logged_in() ? 'Yes' : 'No'));
+    // Initialize WooCommerce Session and Cart
+if (!defined('WOOCOMMERCE_CART')) {
+    define('WOOCOMMERCE_CART', true);
+}
+
+// Ensure WooCommerce is loaded
+if (!class_exists('WC')) {
+    error_log('ERROR: WooCommerce class not found');
+    wp_send_json_error(array('message' => 'WooCommerce not available'));
+    return;
+}
+
+// Initialize WC session if needed
+if (!WC()->session) {
+    WC()->session = new WC_Session_Handler();
+    WC()->session->init();
+}
+
+// Initialize cart if needed
+if (!WC()->cart) {
+    WC()->cart = new WC_Cart();
+}
+
+// User and Cart Verification
+error_log('Current User ID: ' . get_current_user_id());
+error_log('Is User Logged In: ' . (is_user_logged_in() ? 'Yes' : 'No'));
+error_log('WC Session Available: ' . (WC()->session ? 'Yes' : 'No'));
+error_log('WC Cart Available: ' . (WC()->cart ? 'Yes' : 'No'));
+
+if (WC()->cart) {
+    error_log('Cart Items Count: ' . WC()->cart->get_cart_contents_count());
+    error_log('Cart Total: ' . WC()->cart->get_total('edit'));
+    error_log('Cart Is Empty: ' . (WC()->cart->is_empty() ? 'Yes' : 'No'));
+} else {
+    error_log('ERROR: Cart could not be initialized');
+    wp_send_json_error(array('message' => 'Cart initialization failed'));
+    return;
+}
     
-    if (class_exists('WC') && WC()->cart) {
-        error_log('Cart Items Count: ' . WC()->cart->get_cart_contents_count());
-        error_log('Cart Total: ' . WC()->cart->get_total('edit'));
-        error_log('Cart Is Empty: ' . (WC()->cart->is_empty() ? 'Yes' : 'No'));
+
+// Cart Fallback - create minimal order from session data
+if (WC()->cart->is_empty()) {
+    error_log('Cart is empty - checking for session cart data');
+    
+    // Try to restore cart from session
+    $session_cart = WC()->session->get('cart', null);
+    if ($session_cart) {
+        error_log('Found session cart data: ' . print_r($session_cart, true));
+        WC()->cart->set_session(WC()->session);
+        WC()->cart->get_cart_from_session();
     } else {
-        error_log('ERROR: WooCommerce or Cart not available');
-        wp_send_json_error(array('message' => 'Cart not available'));
-        return;
+        error_log('No session cart data found');
+        
+        // For Apple Pay, we can proceed without cart validation
+        // as the payment details contain all necessary information
+        if (isset($_POST['source']) && $_POST['source'] === 'express_checkout') {
+            error_log('Express checkout detected - proceeding without cart validation');
+        } else {
+            wp_send_json_error(array('message' => 'Cart is empty and cannot be restored'));
+            return;
+        }
     }
-    
+}
+
     // Stripe API Check
     if (!class_exists('YPrint_Stripe_API')) {
         error_log('ERROR: YPrint_Stripe_API class not found');
