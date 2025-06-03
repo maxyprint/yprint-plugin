@@ -1085,8 +1085,56 @@ public function ajax_get_cart_data() {
         return;
     }
     
-    // Payment Method Data - Detailed debugging
-$payment_method_json = isset($_POST['payment_method']) ? $_POST['payment_method'] : '';
+    // Payment Method Data - Fix URL encoding issues
+$payment_method_json = isset($_POST['payment_method']) ? wp_unslash($_POST['payment_method']) : '';
+error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
+error_log('Raw payment_method from POST: ' . var_export($_POST['payment_method'] ?? 'NOT_SET', true));
+error_log('After wp_unslash: ' . var_export($payment_method_json, true));
+error_log('Payment Method JSON length: ' . strlen($payment_method_json));
+error_log('Payment Method JSON first 200 chars: ' . substr($payment_method_json, 0, 200));
+
+// Try different decoding approaches
+if (empty($payment_method_json)) {
+    error_log('ERROR: Payment method data is empty');
+    error_log('Available POST keys: ' . print_r(array_keys($_POST), true));
+    wp_send_json_error(array('message' => 'Payment method data missing'));
+    return;
+}
+
+// Method 1: Direct decode
+$payment_method = json_decode($payment_method_json, true);
+if (json_last_error() !== JSON_ERROR_NONE) {
+    error_log('Method 1 failed - JSON error: ' . json_last_error_msg());
+    
+    // Method 2: URL decode first
+    $decoded_json = urldecode($payment_method_json);
+    error_log('URL decoded JSON: ' . substr($decoded_json, 0, 200));
+    $payment_method = json_decode($decoded_json, true);
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log('Method 2 failed - JSON error after URL decode: ' . json_last_error_msg());
+        
+        // Method 3: Strip slashes then decode
+        $stripped_json = stripslashes($payment_method_json);
+        error_log('Stripped slashes JSON: ' . substr($stripped_json, 0, 200));
+        $payment_method = json_decode($stripped_json, true);
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('Method 3 failed - JSON error after stripslashes: ' . json_last_error_msg());
+            error_log('Original data sample: ' . substr($payment_method_json, 0, 500));
+            wp_send_json_error(array('message' => 'Invalid payment method data - JSON decode failed: ' . json_last_error_msg()));
+            return;
+        } else {
+            error_log('Method 3 SUCCESS - stripslashes worked');
+        }
+    } else {
+        error_log('Method 2 SUCCESS - URL decode worked');
+    }
+} else {
+    error_log('Method 1 SUCCESS - direct decode worked');
+}
+
+error_log('Final decoded Payment Method: ' . print_r($payment_method, true));
 error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
 error_log('Payment Method JSON received: ' . var_export($payment_method_json, true));
 error_log('Payment Method JSON length: ' . strlen($payment_method_json));
@@ -1143,8 +1191,22 @@ error_log('Payment method validation PASSED');
 error_log('Payment Method ID: ' . $payment_method['id']);
 error_log('Payment Method Type: ' . ($payment_method['type'] ?? 'TYPE_MISSING'));
     
-    // Shipping Address Data
-    $shipping_address_json = isset($_POST['shipping_address']) ? $_POST['shipping_address'] : '';
+    // Shipping Address Data - Apply same fix
+$shipping_address_json = isset($_POST['shipping_address']) ? wp_unslash($_POST['shipping_address']) : '';
+error_log('Shipping Address JSON: ' . $shipping_address_json);
+
+$shipping_address = null;
+if (!empty($shipping_address_json)) {
+    $shipping_address = json_decode($shipping_address_json, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        // Try alternative decoding methods
+        $shipping_address = json_decode(stripslashes($shipping_address_json), true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('WARNING: Shipping address JSON decode error: ' . json_last_error_msg());
+        }
+    }
+    error_log('Decoded Shipping Address: ' . print_r($shipping_address, true));
+}
     error_log('Shipping Address JSON: ' . $shipping_address_json);
     
     $shipping_address = null;
