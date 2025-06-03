@@ -153,19 +153,64 @@ add_filter( 'body_class', function( $classes ) {
     .fa-check::before { content: "\f00c"; }
 
     /* Mobile Responsive */
-    @media (max-width: 768px) {
-        .yprint-checkout-container {
-            padding: 15px;
-        }
-        
-        .yprint-checkout-card {
-            padding: 20px;
-        }
-        
-        .checkout-step .yprint-checkout-header {
-            margin: -20px -20px 20px -20px;
-        }
+@media (max-width: 768px) {
+    .yprint-checkout-container {
+        padding: 10px;
+        max-width: 100%;
+        overflow-x: hidden;
     }
+    
+    .yprint-checkout-card {
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+    }
+    
+    .checkout-step .yprint-checkout-header {
+        margin: -15px -15px 15px -15px;
+        border-radius: 8px 8px 0 0;
+    }
+    
+    /* Adress Cards Container für Mobile */
+    .yprint-saved-addresses {
+        overflow-x: hidden;
+    }
+    
+    .address-cards-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+    }
+    
+    .address-card {
+        max-width: 100%;
+        overflow: hidden;
+        word-wrap: break-word;
+    }
+    
+    .address-card-content {
+        padding: 12px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .yprint-checkout-container {
+        padding: 5px;
+    }
+    
+    .yprint-checkout-card {
+        padding: 10px;
+        border-radius: 6px;
+    }
+    
+    .checkout-step .yprint-checkout-header {
+        margin: -10px -10px 10px -10px;
+        border-radius: 6px 6px 0 0;
+    }
+}
 
     .order-summary-bold-final {
         border: 1px solid #ccc; /* Dünnere Border für Mobilgeräte */

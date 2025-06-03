@@ -128,40 +128,61 @@ function yprint_render_checkout_header($atts = []) {
     }
     
     .yprint-progress-steps {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex-wrap: wrap;
-        padding-top: 15px;
-        border-top: 1px solid #e5e5e5;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    padding-top: 15px;
+    border-top: 1px solid #e5e5e5;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.yprint-progress-steps::-webkit-scrollbar {
+    display: none;
+}
+
+.yprint-progress-step {
+    color: #6e6e73;
+    font-size: 14px;
+    font-weight: 400;
+    position: relative;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.yprint-progress-step.active {
+    color: #1d1d1f;
+    font-weight: 600;
+}
+
+.yprint-progress-step.completed {
+    color: #28a745;
+}
+
+.yprint-progress-step.completed::before {
+    content: "✓ ";
+    font-weight: bold;
+    margin-right: 3px;
+}
+
+.yprint-progress-separator {
+    color: #e5e5e5;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+/* Mobile: Warenkorb-Schritt ausblenden */
+@media (max-width: 640px) {
+    .yprint-progress-step[data-step="cart"] {
+        display: none;
     }
     
-    .yprint-progress-step {
-        color: #6e6e73;
-        font-size: 14px;
-        font-weight: 400;
-        position: relative;
+    .yprint-progress-step[data-step="cart"] + .yprint-progress-separator {
+        display: none;
     }
-    
-    .yprint-progress-step.active {
-        color: #1d1d1f;
-        font-weight: 600;
-    }
-    
-    .yprint-progress-step.completed {
-        color: #28a745;
-    }
-    
-    .yprint-progress-step.completed::before {
-        content: "✓ ";
-        font-weight: bold;
-        margin-right: 3px;
-    }
-    
-    .yprint-progress-separator {
-        color: #e5e5e5;
-        font-size: 12px;
-    }
+}
     
     .yprint-summary-popup {
         background: #ffffff;
@@ -364,41 +385,51 @@ function yprint_render_checkout_header($atts = []) {
         </div>
         
         <?php if ($atts['show_progress'] === 'yes') : ?>
-        <div class="yprint-progress-steps">
-            <?php
-            $steps = [
-                'cart' => __('Warenkorb', 'yprint-checkout'),
-                'address' => __('Adresse', 'yprint-checkout'),
-                'payment' => __('Zahlung', 'yprint-checkout'),
-                'confirmation' => __('Bestätigung', 'yprint-checkout')
-            ];
-            
-            $step_keys = array_keys($steps);
-            $current_index = array_search($atts['step'], $step_keys);
-            
-            foreach ($steps as $step_key => $step_label) {
-                $step_index = array_search($step_key, $step_keys);
-                $is_current = ($step_key === $atts['step']);
-                $is_completed = ($step_index < $current_index);
-                
-                $class = 'yprint-progress-step';
-                if ($is_current) $class .= ' active';
-                if ($is_completed) $class .= ' completed';
-                
-                echo '<span class="' . esc_attr($class) . '">';
-                if ($is_completed) {
-                    echo '<i class="fas fa-check" style="margin-right: 4px;"></i>';
-                }
-                echo esc_html($step_label);
-                echo '</span>';
-                
-                // Separator hinzufügen (außer beim letzten Element)
-                if ($step_index < count($steps) - 1) {
-                    echo '<span class="yprint-progress-separator">›</span>';
-                }
-            }
-            ?>
-        </div>
+            <div class="yprint-progress-steps">
+    <?php
+    $steps = [
+        'cart' => __('Warenkorb', 'yprint-checkout'),
+        'address' => __('Adresse', 'yprint-checkout'),
+        'payment' => __('Zahlung', 'yprint-checkout'),
+        'confirmation' => __('Bestätigung', 'yprint-checkout')
+    ];
+    
+    $step_keys = array_keys($steps);
+    $current_index = array_search($atts['step'], $step_keys);
+    
+    // Wenn wir uns nicht im Warenkorb befinden, zeige Warenkorb nicht als "completed" an
+    if ($atts['step'] !== 'cart') {
+        $current_index = max(1, $current_index); // Mindestens Index 1 (address)
+    }
+    
+    foreach ($steps as $step_key => $step_label) {
+        $step_index = array_search($step_key, $step_keys);
+        $is_current = ($step_key === $atts['step']);
+        $is_completed = ($step_index < $current_index);
+        
+        // Warenkorb soll niemals als "completed" markiert werden
+        if ($step_key === 'cart' && $atts['step'] !== 'cart') {
+            $is_completed = false;
+        }
+        
+        $class = 'yprint-progress-step';
+        if ($is_current) $class .= ' active';
+        if ($is_completed) $class .= ' completed';
+        
+        echo '<span class="' . esc_attr($class) . '" data-step="' . esc_attr($step_key) . '">';
+        if ($is_completed && $step_key !== 'cart') {
+            echo '<i class="fas fa-check" style="margin-right: 4px;"></i>';
+        }
+        echo esc_html($step_label);
+        echo '</span>';
+        
+        // Separator hinzufügen (außer beim letzten Element)
+        if ($step_index < count($steps) - 1) {
+            echo '<span class="yprint-progress-separator">›</span>';
+        }
+    }
+    ?>
+</div>
         <?php endif; ?>
         
         <div class="yprint-summary-popup hidden" id="yprint-summary-popup">
