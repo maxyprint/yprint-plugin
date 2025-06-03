@@ -76,9 +76,11 @@ class YPrint_Stripe_Checkout {
         // Add Express Checkout AJAX handlers
 $instance->add_express_checkout_ajax_handlers();
 
-// Add Payment Method Processing AJAX handlers (DEBUG)
-add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
-add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+// Add Payment Method Processing AJAX handlers (DEBUG) - Wait for WooCommerce
+add_action('woocommerce_init', function() use ($instance) {
+    add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+    add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+});
 
         // Add custom checkout endpoint
         add_action('init', array(__CLASS__, 'add_checkout_endpoints'));
@@ -1053,11 +1055,52 @@ public function ajax_get_cart_data() {
  */
 
  public function ajax_process_payment_method() {
-    // Initialize WooCommerce frontend context for AJAX
-    if (!class_exists('WC')) {
-        wp_send_json_error(array('message' => 'WooCommerce not available'));
+    // Ensure WooCommerce is fully loaded
+    if (!class_exists('WooCommerce') && !class_exists('WC')) {
+        // Try to load WooCommerce if not loaded
+        if (file_exists(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php')) {
+            include_once(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php');
+        }
+    }
+    
+    // Check again after potential loading
+    if (!class_exists('WooCommerce') && !function_exists('WC')) {
+        error_log('ERROR: WooCommerce plugin not found or not activated');
+        wp_send_json_error(array('message' => 'WooCommerce plugin not available'));
         return;
     }
+    
+    // Initialize WooCommerce if needed
+    if (!did_action('woocommerce_init')) {
+        // Force WooCommerce initialization
+        do_action('woocommerce_init');
+    }
+    
+    // Ensure WC() function is available
+    if (!function_exists('WC')) {
+        error_log('ERROR: WC() function not available');
+        wp_send_json_error(array('message' => 'WooCommerce core functions not available'));
+        return;
+    }
+
+    // Debug WooCommerce availability
+error_log('=== WOOCOMMERCE AVAILABILITY CHECK ===');
+error_log('WooCommerce class exists: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
+error_log('WC function exists: ' . (function_exists('WC') ? 'YES' : 'NO'));
+error_log('WooCommerce version: ' . (defined('WC_VERSION') ? WC_VERSION : 'Not defined'));
+error_log('WooCommerce active: ' . (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins'))) ? 'YES' : 'NO'));
+error_log('WooCommerce init action fired: ' . (did_action('woocommerce_init') ? 'YES' : 'NO'));
+
+// Try to access WC()
+try {
+    $wc_instance = WC();
+    error_log('WC() instance available: YES');
+    error_log('WC() instance type: ' . get_class($wc_instance));
+} catch (Exception $e) {
+    error_log('WC() instance error: ' . $e->getMessage());
+    wp_send_json_error(array('message' => 'WooCommerce instance not accessible: ' . $e->getMessage()));
+    return;
+}
     
     // Load WooCommerce frontend
     WC()->frontend_includes();

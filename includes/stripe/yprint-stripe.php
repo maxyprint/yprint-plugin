@@ -368,6 +368,17 @@ add_action('init', function() {
         YPrint_Stripe_API::update_stripe_settings($default_settings);
         error_log('YPrint: Default Stripe settings created');
     }
+
+    // Debug Plugin Load Order
+add_action('plugins_loaded', function() {
+    error_log('YPrint Plugin: plugins_loaded hook fired');
+    error_log('WooCommerce available at plugins_loaded: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
+}, 5);
+
+add_action('init', function() {
+    error_log('YPrint Plugin: init hook fired');
+    error_log('WooCommerce available at init: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
+}, 5);
 });
 
 
