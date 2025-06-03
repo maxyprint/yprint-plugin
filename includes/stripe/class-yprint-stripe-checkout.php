@@ -1051,7 +1051,16 @@ public function ajax_get_cart_data() {
     /**
  * AJAX handler for processing payment methods (DEBUG VERSION)
  */
-public function ajax_process_payment_method() {
+
+    public function ajax_process_payment_method() {
+        error_log('=== RAW REQUEST DEBUGGING ===');
+        error_log('Raw POST data: ' . file_get_contents('php://input'));
+        error_log('Content Length: ' . ($_SERVER['CONTENT_LENGTH'] ?? 'Not set'));
+        error_log('Max Post Size: ' . ini_get('post_max_size'));
+        error_log('Max Input Vars: ' . ini_get('max_input_vars'));
+        error_log('POST array size: ' . count($_POST));
+        
+        error_log('=== YPRINT PAYMENT METHOD PROCESSING START ===');
     error_log('=== YPRINT PAYMENT METHOD PROCESSING START ===');
     error_log('POST Data: ' . print_r($_POST, true));
     error_log('Request Method: ' . $_SERVER['REQUEST_METHOD']);
@@ -1076,24 +1085,63 @@ public function ajax_process_payment_method() {
         return;
     }
     
-    // Payment Method Data
-    $payment_method_json = isset($_POST['payment_method']) ? $_POST['payment_method'] : '';
-    error_log('Payment Method JSON: ' . $payment_method_json);
-    
-    if (empty($payment_method_json)) {
-        error_log('ERROR: Payment method data is empty');
-        wp_send_json_error(array('message' => 'Payment method data missing'));
-        return;
-    }
-    
+    // Payment Method Data - Detailed debugging
+$payment_method_json = isset($_POST['payment_method']) ? $_POST['payment_method'] : '';
+error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
+error_log('Payment Method JSON received: ' . var_export($payment_method_json, true));
+error_log('Payment Method JSON length: ' . strlen($payment_method_json));
+error_log('Payment Method JSON is string: ' . (is_string($payment_method_json) ? 'YES' : 'NO'));
+error_log('Payment Method JSON first 200 chars: ' . substr($payment_method_json, 0, 200));
+
+if (empty($payment_method_json)) {
+    error_log('ERROR: Payment method data is empty');
+    error_log('Available POST keys: ' . print_r(array_keys($_POST), true));
+    wp_send_json_error(array('message' => 'Payment method data missing'));
+    return;
+}
+
+// Check if it's already an array (sometimes WordPress auto-decodes)
+if (is_array($payment_method_json)) {
+    error_log('Payment method data is already an array (WordPress auto-decoded)');
+    $payment_method = $payment_method_json;
+} else {
+    // Try to decode JSON
     $payment_method = json_decode($payment_method_json, true);
-    error_log('Decoded Payment Method: ' . print_r($payment_method, true));
-    
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log('ERROR: JSON decode error: ' . json_last_error_msg());
-        wp_send_json_error(array('message' => 'Invalid payment method data'));
-        return;
-    }
+    error_log('JSON decode attempted');
+    error_log('JSON last error: ' . json_last_error_msg());
+    error_log('JSON decode result type: ' . gettype($payment_method));
+}
+
+error_log('Decoded Payment Method: ' . print_r($payment_method, true));
+
+// Enhanced validation
+if (json_last_error() !== JSON_ERROR_NONE && !is_array($payment_method)) {
+    error_log('ERROR: JSON decode error: ' . json_last_error_msg());
+    error_log('Original data type: ' . gettype($payment_method_json));
+    error_log('Original data sample: ' . substr($payment_method_json, 0, 500));
+    wp_send_json_error(array('message' => 'Invalid payment method data - JSON decode failed: ' . json_last_error_msg()));
+    return;
+}
+
+// Validate payment method structure
+if (!is_array($payment_method)) {
+    error_log('ERROR: Payment method is not an array after processing');
+    error_log('Payment method type: ' . gettype($payment_method));
+    error_log('Payment method value: ' . var_export($payment_method, true));
+    wp_send_json_error(array('message' => 'Invalid payment method data - not an array'));
+    return;
+}
+
+if (!isset($payment_method['id'])) {
+    error_log('ERROR: Payment method ID missing');
+    error_log('Available payment method keys: ' . print_r(array_keys($payment_method), true));
+    wp_send_json_error(array('message' => 'Invalid payment method data - ID missing'));
+    return;
+}
+
+error_log('Payment method validation PASSED');
+error_log('Payment Method ID: ' . $payment_method['id']);
+error_log('Payment Method Type: ' . ($payment_method['type'] ?? 'TYPE_MISSING'));
     
     // Shipping Address Data
     $shipping_address_json = isset($_POST['shipping_address']) ? $_POST['shipping_address'] : '';

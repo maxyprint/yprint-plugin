@@ -164,8 +164,14 @@ async handlePaymentMethod(event, options = {}) {
         };
         
         console.log('=== AJAX REQUEST DATA ===');
-        console.log('Full Request Data:', requestData);
-        console.log('Request Data Serialized:', new URLSearchParams(requestData).toString());
+console.log('Full Request Data:', requestData);
+console.log('Payment Method Object:', event.paymentMethod);
+console.log('Payment Method JSON String:', JSON.stringify(event.paymentMethod));
+console.log('Payment Method JSON Length:', JSON.stringify(event.paymentMethod).length);
+console.log('Shipping Address Object:', event.shippingAddress);
+console.log('Shipping Address JSON String:', event.shippingAddress ? JSON.stringify(event.shippingAddress) : 'null');
+console.log('Request Data Serialized:', new URLSearchParams(requestData).toString());
+console.log('URLSearchParams size:', new URLSearchParams(requestData).toString().length);
 
         console.log('=== MAKING AJAX REQUEST ===');
         const response = await fetch(yprint_stripe_ajax.ajax_url, {
@@ -220,6 +226,20 @@ async handlePaymentMethod(event, options = {}) {
             console.error('=== PAYMENT FAILED ===');
             console.error('Error Message:', data.data?.message);
             console.error('Error Details:', data.data);
+            console.error('Full Response Data:', data);
+            console.error('Response Success Flag:', data.success);
+            console.error('Response Data Type:', typeof data.data);
+            
+            // Specific debugging for "Invalid payment method data" error
+            if (data.data?.message === 'Invalid payment method data') {
+                console.error('=== PAYMENT METHOD DATA ERROR DEBUGGING ===');
+                console.error('Original Payment Method Object:', event.paymentMethod);
+                console.error('Payment Method ID:', event.paymentMethod?.id);
+                console.error('Payment Method Type:', event.paymentMethod?.type);
+                console.error('JSON Stringified Payment Method:', JSON.stringify(event.paymentMethod));
+                console.error('JSON String Length:', JSON.stringify(event.paymentMethod).length);
+            }
+            
             throw new Error(data.data?.message || 'Payment processing failed');
         }
 
