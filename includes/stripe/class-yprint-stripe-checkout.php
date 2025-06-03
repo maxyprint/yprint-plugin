@@ -74,7 +74,11 @@ class YPrint_Stripe_Checkout {
         add_action('wp_ajax_nopriv_yprint_process_final_checkout', array($instance, 'ajax_process_final_checkout'));
 
         // Add Express Checkout AJAX handlers
-        $instance->add_express_checkout_ajax_handlers();
+$instance->add_express_checkout_ajax_handlers();
+
+// Add Payment Method Processing AJAX handlers (DEBUG)
+add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
 
         // Add custom checkout endpoint
         add_action('init', array(__CLASS__, 'add_checkout_endpoints'));
@@ -1043,6 +1047,109 @@ public function ajax_get_cart_data() {
         // Return the order ID
         return $order->get_id();
     }
+
+    /**
+ * AJAX handler for processing payment methods (DEBUG VERSION)
+ */
+public function ajax_process_payment_method() {
+    error_log('=== YPRINT PAYMENT METHOD PROCESSING START ===');
+    error_log('POST Data: ' . print_r($_POST, true));
+    error_log('Request Method: ' . $_SERVER['REQUEST_METHOD']);
+    error_log('Content Type: ' . ($_SERVER['CONTENT_TYPE'] ?? 'Not set'));
+    error_log('User Agent: ' . ($_SERVER['HTTP_USER_AGENT'] ?? 'Not set'));
+    
+    // Nonce Verification
+    if (!isset($_POST['nonce'])) {
+        error_log('ERROR: Nonce not provided in request');
+        wp_send_json_error(array('message' => 'Nonce missing'));
+        return;
+    }
+    
+    $nonce_valid = wp_verify_nonce($_POST['nonce'], 'yprint_stripe_service_nonce');
+    error_log('Nonce Verification: ' . ($nonce_valid ? 'VALID' : 'INVALID'));
+    error_log('Provided Nonce: ' . $_POST['nonce']);
+    error_log('Expected Nonce Action: yprint_stripe_service_nonce');
+    
+    if (!$nonce_valid) {
+        error_log('ERROR: Nonce verification failed');
+        wp_send_json_error(array('message' => 'Invalid nonce'));
+        return;
+    }
+    
+    // Payment Method Data
+    $payment_method_json = isset($_POST['payment_method']) ? $_POST['payment_method'] : '';
+    error_log('Payment Method JSON: ' . $payment_method_json);
+    
+    if (empty($payment_method_json)) {
+        error_log('ERROR: Payment method data is empty');
+        wp_send_json_error(array('message' => 'Payment method data missing'));
+        return;
+    }
+    
+    $payment_method = json_decode($payment_method_json, true);
+    error_log('Decoded Payment Method: ' . print_r($payment_method, true));
+    
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        error_log('ERROR: JSON decode error: ' . json_last_error_msg());
+        wp_send_json_error(array('message' => 'Invalid payment method data'));
+        return;
+    }
+    
+    // Shipping Address Data
+    $shipping_address_json = isset($_POST['shipping_address']) ? $_POST['shipping_address'] : '';
+    error_log('Shipping Address JSON: ' . $shipping_address_json);
+    
+    $shipping_address = null;
+    if (!empty($shipping_address_json)) {
+        $shipping_address = json_decode($shipping_address_json, true);
+        error_log('Decoded Shipping Address: ' . print_r($shipping_address, true));
+        
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('WARNING: Shipping address JSON decode error: ' . json_last_error_msg());
+        }
+    }
+    
+    // User and Cart Verification
+    error_log('Current User ID: ' . get_current_user_id());
+    error_log('Is User Logged In: ' . (is_user_logged_in() ? 'Yes' : 'No'));
+    
+    if (class_exists('WC') && WC()->cart) {
+        error_log('Cart Items Count: ' . WC()->cart->get_cart_contents_count());
+        error_log('Cart Total: ' . WC()->cart->get_total('edit'));
+        error_log('Cart Is Empty: ' . (WC()->cart->is_empty() ? 'Yes' : 'No'));
+    } else {
+        error_log('ERROR: WooCommerce or Cart not available');
+        wp_send_json_error(array('message' => 'Cart not available'));
+        return;
+    }
+    
+    // Stripe API Check
+    if (!class_exists('YPrint_Stripe_API')) {
+        error_log('ERROR: YPrint_Stripe_API class not found');
+        wp_send_json_error(array('message' => 'Stripe API not available'));
+        return;
+    }
+    
+    $stripe_settings = YPrint_Stripe_API::get_stripe_settings();
+    error_log('Stripe Settings Available: ' . (empty($stripe_settings) ? 'No' : 'Yes'));
+    error_log('Test Mode: ' . (isset($stripe_settings['testmode']) && 'yes' === $stripe_settings['testmode'] ? 'Yes' : 'No'));
+    
+    // Here you would continue with actual payment processing
+    // For now, let's just return success to test the flow
+    error_log('=== SIMULATED PAYMENT PROCESSING ===');
+    error_log('Payment Method ID: ' . ($payment_method['id'] ?? 'Not found'));
+    error_log('Payment Method Type: ' . ($payment_method['type'] ?? 'Not found'));
+    
+    // TODO: Implement actual payment processing here
+    
+    error_log('=== YPRINT PAYMENT METHOD PROCESSING END ===');
+    
+    wp_send_json_success(array(
+        'message' => 'Payment method received and processed (DEBUG MODE)',
+        'payment_method_id' => $payment_method['id'] ?? null,
+        'debug' => true
+    ));
+}
 
     /**
      * Capture additional order details during checkout
