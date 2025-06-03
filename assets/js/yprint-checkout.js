@@ -900,6 +900,148 @@ if (voucherButton) {
                 productListEl.appendChild(itemEl);
             });
         }
+
+        /**
+     * Füllt die Bestätigungsseite mit Zahlungsdaten aus dem Payment Processing
+     */
+    function populateConfirmationWithPaymentData(paymentData) {
+        console.log('Populating confirmation with payment data:', paymentData);
+        
+        // Zeige Erfolgsmeldung
+        showMessage('Zahlung erfolgreich! Ihre Bestellung wird verarbeitet.', 'success');
+        
+        // Zahlungsart basierend auf Payment Data setzen
+        const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
+        if (confirmPaymentMethodEl && paymentData.payment_method_id) {
+            let paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Apple Pay (Stripe)';
+            
+            // Detect payment method type from payment data
+            if (paymentData.order_data && paymentData.order_data.customer_details) {
+                const customerDetails = paymentData.order_data.customer_details;
+                
+                // Set customer info if available
+                const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
+                if (confirmShippingAddressEl && customerDetails.name) {
+                    const billingAddress = paymentData.order_data.billing_address;
+                    const shippingAddress = paymentData.order_data.shipping_address;
+                    
+                    let addressInfo = customerDetails.name + '<br>';
+                    
+                    if (shippingAddress && shippingAddress.addressLine) {
+                        addressInfo += shippingAddress.addressLine[0] + '<br>';
+                        addressInfo += shippingAddress.postalCode + ' ' + shippingAddress.city + '<br>';
+                        addressInfo += shippingAddress.country;
+                    } else if (billingAddress) {
+                        addressInfo += (billingAddress.line1 || '') + '<br>';
+                        addressInfo += (billingAddress.postal_code || '') + ' ' + (billingAddress.city || '') + '<br>';
+                        addressInfo += (billingAddress.country || '');
+                    }
+                    
+                    if (customerDetails.phone) {
+                        addressInfo += '<br>Tel: ' + customerDetails.phone;
+                    }
+                    
+                    confirmShippingAddressEl.innerHTML = addressInfo;
+                }
+            }
+            
+            confirmPaymentMethodEl.innerHTML = paymentMethodText;
+        }
+        
+        // Verstecke Rechnungsadresse da sie gleich der Lieferadresse ist (Apple Pay Standard)
+        const confirmBillingContainer = document.getElementById('confirm-billing-address-container');
+        if (confirmBillingContainer) {
+            confirmBillingContainer.classList.add('hidden');
+        }
+        
+        // Zeige Test-Mode Hinweis
+        if (paymentData.test_mode) {
+            const testModeNotice = document.createElement('div');
+            testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
+            testModeNotice.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <span><strong>Test-Modus:</strong> Diese Zahlung wurde im Test-Modus verarbeitet. Kein echtes Geld wurde belastet.</span>
+                </div>
+            `;
+            
+            const confirmationStep = document.getElementById('step-3');
+            if (confirmationStep) {
+                confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
+            }
+        }
+        
+        // Lade und zeige Warenkorbdaten
+        loadRealCartData().then(() => {
+            updateConfirmationProductList();
+            updateConfirmationTotals();
+        });
+    }
+    
+    // Hilfsfunktionen für Bestätigungsseite
+    function updateConfirmationProductList() {
+        const productListEl = document.getElementById('confirm-product-list');
+        if (productListEl && cartItems.length > 0) {
+            productListEl.innerHTML = '';
+            
+            cartItems.forEach(item => {
+                const itemEl = document.createElement('div');
+                itemEl.className = 'flex justify-between items-center py-3 border-b border-gray-100';
+                
+                // Design-Details für Design-Produkte
+                let designDetailsHtml = '';
+                if (item.is_design_product && item.design_details && item.design_details.length > 0) {
+                    designDetailsHtml = `
+                        <div class="design-details mt-1">
+                            ${item.design_details.map(detail => 
+                                `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1">${detail}</span>`
+                            ).join('')}
+                        </div>
+                    `;
+                }
+                
+                itemEl.innerHTML = `
+                    <div class="flex items-center flex-1">
+                        <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded border mr-3">
+                        <div class="flex-1">
+                            <p class="font-medium text-sm">${item.name}</p>
+                            <p class="text-xs text-gray-600">Menge: ${item.quantity}</p>
+                            ${designDetailsHtml}
+                        </div>
+                    </div>
+                    <p class="font-medium text-sm">€${(item.price * item.quantity).toFixed(2)}</p>
+                `;
+                productListEl.appendChild(itemEl);
+            });
+        }
+    }
+    
+    function updateConfirmationTotals() {
+        const prices = calculatePrices();
+        
+        const confirmSubtotalEl = document.getElementById('confirm-subtotal');
+        const confirmShippingEl = document.getElementById('confirm-shipping');
+        const confirmDiscountRowEl = document.getElementById('confirm-discount-row');
+        const confirmDiscountEl = document.getElementById('confirm-discount');
+        const confirmVatEl = document.getElementById('confirm-vat');
+        const confirmTotalEl = document.getElementById('confirm-total');
+    
+        if (confirmSubtotalEl) confirmSubtotalEl.textContent = `€${prices.subtotal.toFixed(2)}`;
+        if (confirmShippingEl) confirmShippingEl.textContent = `€${prices.shipping.toFixed(2)}`;
+        if (confirmDiscountRowEl && confirmDiscountEl) {
+            if (prices.discount > 0) {
+                confirmDiscountEl.textContent = `-€${prices.discount.toFixed(2)}`;
+                confirmDiscountRowEl.classList.remove('hidden');
+            } else {
+                confirmDiscountRowEl.classList.add('hidden');
+            }
+        }
+        if (confirmVatEl) confirmVatEl.textContent = `€${prices.vat.toFixed(2)}`;
+        if (confirmTotalEl) confirmTotalEl.textContent = `€${prices.total.toFixed(2)}`;
+    }
+    
+    // Global verfügbar machen für Stripe Service
+    window.populateConfirmationWithPaymentData = populateConfirmationWithPaymentData;
     
         // Preise - verwende reale Daten
         const prices = calculatePrices();
@@ -1122,25 +1264,40 @@ if (voucherButton) {
         btnBuyNow.addEventListener('click', async (e) => {
             e.preventDefault();
             
+            // Prüfe ob bereits eine Zahlung verarbeitet wurde (Apple Pay / Express Checkout)
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasPendingOrder = WC?.session || document.querySelector('.test-mode-notice');
+            
+            if (hasPendingOrder || currentStep === 3) {
+                // Bereits bezahlt - zeige Erfolgsmeldung und simuliere Bestellabschluss
+                showMessage('Bestellung erfolgreich abgeschlossen! (Test-Modus)', 'success');
+                
+                // Ändere Button zu "Bestätigung" oder verstecke ihn
+                btnBuyNow.textContent = 'Bestellung abgeschlossen ✓';
+                btnBuyNow.disabled = true;
+                btnBuyNow.classList.add('bg-green-600', 'cursor-not-allowed');
+                
+                // Fortschrittsanzeige komplett abschließen
+                progressSteps.forEach(pStep => pStep.classList.add('completed'));
+                return;
+            }
+            
             toggleLoadingOverlay(true);
             
             try {
-                // Echte Bestellverarbeitung
+                // Normale Bestellverarbeitung für andere Zahlungsmethoden
                 const orderResult = await processRealOrder();
                 
                 if (orderResult.success) {
-                    populateThankYouPage(orderResult.data);
-                    showStep(4);
-                    
-                    // Fortschrittsanzeige für Danke-Seite anpassen
-                    progressSteps.forEach(pStep => pStep.classList.add('completed'));
-                    const lastProgressStep = document.getElementById('progress-step-3');
-                    if (lastProgressStep) {
-                        lastProgressStep.classList.remove('active');
-                        lastProgressStep.classList.add('completed');
-                    }
-                    
                     showMessage('Bestellung erfolgreich aufgegeben!', 'success');
+                    
+                    // Button Status ändern
+                    btnBuyNow.textContent = 'Bestellung abgeschlossen ✓';
+                    btnBuyNow.disabled = true;
+                    btnBuyNow.classList.add('bg-green-600', 'cursor-not-allowed');
+                    
+                    // Fortschrittsanzeige abschließen
+                    progressSteps.forEach(pStep => pStep.classList.add('completed'));
                 } else {
                     throw new Error(orderResult.message || 'Bestellung konnte nicht verarbeitet werden');
                 }

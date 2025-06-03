@@ -223,16 +223,21 @@ console.log('URLSearchParams size:', new URLSearchParams(requestData).toString()
             event.complete('success');
             this.emit('payment_success', data.data);
             
-            // Redirect to confirmation page after successful payment
-            if (data.data && data.data.redirect_url) {
+            // Stay in checkout and go to confirmation step
+            if (data.data && data.data.next_step === 'confirmation') {
                 setTimeout(() => {
-                    window.location.href = data.data.redirect_url;
-                }, 1500); // Small delay to show success state
-            } else {
-                // Fallback redirect to checkout confirmation
-                setTimeout(() => {
-                    window.location.href = window.location.pathname + '?step=confirmation';
-                }, 1500);
+                    // Use the global showStep function to go to confirmation
+                    if (typeof window.showStep === 'function') {
+                        window.showStep(3); // Step 3 is confirmation
+                        
+                        // Populate confirmation with payment data
+                        if (typeof window.populateConfirmationWithPaymentData === 'function') {
+                            window.populateConfirmationWithPaymentData(data.data);
+                        }
+                    } else {
+                        console.error('showStep function not available');
+                    }
+                }, 1000); // Small delay to show success state
             }
         } else {
             console.error('=== PAYMENT FAILED ===');

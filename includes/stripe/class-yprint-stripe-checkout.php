@@ -1419,12 +1419,12 @@ if (WC()->cart->is_empty()) {
         
         error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
         
-        // Return success with redirect URL
+        // Return success with step change instead of redirect
         wp_send_json_success(array(
             'message' => 'Payment processed successfully (Test Mode)',
             'payment_method_id' => $payment_method['id'],
             'order_data' => $order_data,
-            'redirect_url' => add_query_arg('step', 'confirmation', get_permalink()),
+            'next_step' => 'confirmation',
             'test_mode' => true
         ));
         
