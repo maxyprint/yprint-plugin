@@ -76,11 +76,9 @@ class YPrint_Stripe_Checkout {
         // Add Express Checkout AJAX handlers
 $instance->add_express_checkout_ajax_handlers();
 
-// Add Payment Method Processing AJAX handlers (DEBUG) - Wait for WooCommerce
-add_action('woocommerce_init', function() use ($instance) {
-    add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
-    add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
-});
+// Add Payment Method Processing AJAX handlers - Direct registration
+add_action('wp_ajax_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
+add_action('wp_ajax_nopriv_yprint_process_payment_method', array($instance, 'ajax_process_payment_method'));
 
         // Add custom checkout endpoint
         add_action('init', array(__CLASS__, 'add_checkout_endpoints'));
@@ -1055,32 +1053,29 @@ public function ajax_get_cart_data() {
  */
 
  public function ajax_process_payment_method() {
-    // Ensure WooCommerce is fully loaded
-    if (!class_exists('WooCommerce') && !class_exists('WC')) {
-        // Try to load WooCommerce if not loaded
-        if (file_exists(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php')) {
+    // Force WooCommerce initialization if not already done
+    if (!did_action('woocommerce_loaded')) {
+        // Include WooCommerce if not loaded
+        if (!class_exists('WooCommerce') && file_exists(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php')) {
             include_once(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php');
+            
+            // Initialize WooCommerce manually
+            if (class_exists('WooCommerce')) {
+                WooCommerce::instance();
+            }
         }
     }
     
-    // Check again after potential loading
-    if (!class_exists('WooCommerce') && !function_exists('WC')) {
-        error_log('ERROR: WooCommerce plugin not found or not activated');
-        wp_send_json_error(array('message' => 'WooCommerce plugin not available'));
-        return;
-    }
-    
-    // Initialize WooCommerce if needed
-    if (!did_action('woocommerce_init')) {
-        // Force WooCommerce initialization
-        do_action('woocommerce_init');
-    }
-    
-    // Ensure WC() function is available
+    // Ensure WC() function is available after initialization
     if (!function_exists('WC')) {
-        error_log('ERROR: WC() function not available');
-        wp_send_json_error(array('message' => 'WooCommerce core functions not available'));
+        error_log('ERROR: WC() function not available after initialization attempt');
+        wp_send_json_error(array('message' => 'WooCommerce not available'));
         return;
+    }
+    
+    // Initialize WooCommerce core components if needed
+    if (!WC()->session) {
+        WC()->init();
     }
 
     // Debug WooCommerce availability
@@ -1290,27 +1285,39 @@ if (!empty($shipping_address_json)) {
         }
     }
     
-    // Initialize WooCommerce Session and Cart
+    // Define WooCommerce cart constant
 if (!defined('WOOCOMMERCE_CART')) {
     define('WOOCOMMERCE_CART', true);
 }
 
-// Ensure WooCommerce is loaded
-if (!class_exists('WC')) {
-    error_log('ERROR: WooCommerce class not found');
-    wp_send_json_error(array('message' => 'WooCommerce not available'));
+// Ensure all WooCommerce components are initialized
+try {
+    // Initialize session if needed
+    if (is_null(WC()->session)) {
+        $session_class = apply_filters('woocommerce_session_handler', 'WC_Session_Handler');
+        if (class_exists($session_class)) {
+            WC()->session = new $session_class();
+            WC()->session->init();
+        }
+    }
+    
+    // Initialize customer if needed
+    if (is_null(WC()->customer)) {
+        WC()->customer = new WC_Customer(get_current_user_id(), true);
+    }
+    
+    // Initialize cart if needed
+    if (is_null(WC()->cart)) {
+        WC()->cart = new WC_Cart();
+        // Load cart from session
+        WC()->cart->get_cart();
+    }
+    
+    error_log('WooCommerce components initialized successfully');
+} catch (Exception $e) {
+    error_log('ERROR initializing WooCommerce components: ' . $e->getMessage());
+    wp_send_json_error(array('message' => 'Failed to initialize WooCommerce: ' . $e->getMessage()));
     return;
-}
-
-// Initialize WC session if needed
-if (!WC()->session) {
-    WC()->session = new WC_Session_Handler();
-    WC()->session->init();
-}
-
-// Initialize cart if needed
-if (!WC()->cart) {
-    WC()->cart = new WC_Cart();
 }
 
 // User and Cart Verification
