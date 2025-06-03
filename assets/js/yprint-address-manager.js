@@ -509,32 +509,40 @@ saveAddressFromForm: function() {
             
             const grid = container.find('.address-cards-grid');
             
-            // Bestehende Adresskarten entfernen
-            grid.find('.address-card:not(.add-new-address-card)').remove();
+            // Grid komplett leeren
+            grid.empty();
             
-            // "Neue Adresse" Kachel zuerst hinzufügen
-            const addNewCard = `
-                <div class="address-card add-new-address-card cursor-pointer">
-                    <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
-                        <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
-                        <h4 class="font-semibold text-gray-600">Neue Adresse hinzufügen</h4>
-                    </div>
-                </div>
-            `;
-            
-            // Grid leeren und neue Kachel hinzufügen
-            grid.html(addNewCard);
-            
-            // Wenn keine Adressen vorhanden sind, Funktion beenden
+            // Wenn keine Adressen vorhanden sind, nur "Neue Adresse" Kachel anzeigen
             if (Object.keys(addresses).length === 0) {
+                const addNewCard = `
+                    <div class="address-card add-new-address-card cursor-pointer">
+                        <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                            <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                            <h4 class="font-semibold text-gray-600">Neue Adresse hinzufügen</h4>
+                        </div>
+                    </div>
+                `;
+                grid.html(addNewCard);
                 console.log('No addresses found - showing add new card only');
                 container.show();
                 grid.show();
                 return;
             }
             
-            // Durch alle Adressen iterieren und Karten hinzufügen
-            Object.entries(addresses).forEach(([addressId, address]) => {
+            // Sortiere Adressen: Standard-Adresse zuerst, dann alphabetisch nach Name
+            const sortedAddresses = Object.entries(addresses).sort(([idA, addrA], [idB, addrB]) => {
+                // Standard-Adresse hat Priorität
+                if (addrA.is_default && !addrB.is_default) return -1;
+                if (!addrA.is_default && addrB.is_default) return 1;
+                
+                // Alphabetisch nach Name sortieren
+                const nameA = (addrA.name || 'Gespeicherte Adresse').toLowerCase();
+                const nameB = (addrB.name || 'Gespeicherte Adresse').toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+            
+            // Zuerst alle gespeicherten Adressen hinzufügen
+            sortedAddresses.forEach(([addressId, address]) => {
                 const isDefault = address.is_default || false;
                 
                 // Aktualisierter Standard-Badge mit Icon
@@ -580,6 +588,18 @@ saveAddressFromForm: function() {
                 
                 grid.append(card);
             });
+            
+            // Zum Schluss "Neue Adresse" Kachel hinzufügen
+            const addNewCard = `
+                <div class="address-card add-new-address-card cursor-pointer">
+                    <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                        <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                        <h4 class="font-semibold text-gray-600">Neue Adresse hinzufügen</h4>
+                    </div>
+                </div>
+            `;
+            
+            grid.append(addNewCard);
             
             // Container und Grid anzeigen
             container.show();
