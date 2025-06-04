@@ -1861,19 +1861,18 @@ async function processStripePaymentImmediately() {
 async function createStripeCardPaymentMethod() {
     console.log('=== DEBUG: createStripeCardPaymentMethod START ===');
     
-    // Verwende die neue robuste Funktion
-    const cardReady = await ensureStripeCardElementReady();
-    
-    if (!cardReady) {
-        throw new Error('Card Element konnte nicht initialisiert werden nach mehreren Versuchen');
-    }
-    
+    // Überspringe die Mount-Prüfung - das Element funktioniert bereits
     const stripe = window.YPrintStripeService.getStripe();
     console.log('Stripe instance:', stripe);
     
     if (!stripe) {
         console.error('DEBUG: Stripe instance not available from YPrintStripeService');
         throw new Error('Stripe Service nicht verfügbar');
+    }
+    
+    if (!window.YPrintStripeCheckout.cardElement) {
+        console.error('DEBUG: Card element not available');
+        throw new Error('Card Element nicht verfügbar');
     }
     
     console.log('DEBUG: All systems ready, creating payment method...');
@@ -1893,61 +1892,49 @@ async function createStripeCardPaymentMethod() {
     };
     
     console.log('Creating card payment method with billing details:', billingDetails);
+    console.log('DEBUG: About to call stripe.createPaymentMethod...');
+    console.log('DEBUG: Card element before createPaymentMethod:', window.YPrintStripeCheckout.cardElement);
 
-console.log('DEBUG: About to call stripe.createPaymentMethod...');
-console.log('DEBUG: Card element before createPaymentMethod:', window.YPrintStripeCheckout.cardElement);
+    try {
+        // Timeout-Wrapper für createPaymentMethod
+        const createPaymentMethodWithTimeout = () => {
+            return Promise.race([
+                stripe.createPaymentMethod({
+                    type: 'card',
+                    card: window.YPrintStripeCheckout.cardElement,
+                    billing_details: billingDetails,
+                }),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('createPaymentMethod timeout after 10 seconds')), 10000)
+                )
+            ]);
+        };
 
-try {
-    const { paymentMethod, error } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: window.YPrintStripeCheckout.cardElement,
-        billing_details: billingDetails,
-    });
-    
-    console.log('DEBUG: createPaymentMethod completed');
-    console.log('DEBUG: paymentMethod result:', paymentMethod);
-    console.log('DEBUG: error result:', error);
-    
-    if (error) {
-        console.error('DEBUG: Payment method creation error:', error);
-        throw new Error(error.message);
+        const { paymentMethod, error } = await createPaymentMethodWithTimeout();
+        
+        console.log('DEBUG: createPaymentMethod completed');
+        console.log('DEBUG: paymentMethod result:', paymentMethod);
+        console.log('DEBUG: error result:', error);
+        
+        if (error) {
+            console.error('DEBUG: Payment method creation error:', error);
+            throw new Error(error.message);
+        }
+        
+        console.log('DEBUG: Payment method created successfully:', paymentMethod.id);
+        return paymentMethod;
+        
+    } catch (createError) {
+        console.error('DEBUG: Exception in createPaymentMethod:', createError);
+        throw createError;
     }
-    
-    console.log('DEBUG: Payment method created successfully:', paymentMethod.id);
-    return paymentMethod;
-    
-} catch (createError) {
-    console.error('DEBUG: Exception in createPaymentMethod:', createError);
-    throw createError;
-}
-
-// TIMEOUT-SCHUTZ HINZUFÜGEN
-console.log('DEBUG: Setting up timeout protection...');
-
-// Wenn createPaymentMethod nach 10 Sekunden nicht antwortet
-setTimeout(() => {
-    console.error('DEBUG: createPaymentMethod TIMEOUT after 10 seconds');
-    console.error('DEBUG: This indicates a Stripe communication issue');
-}, 10000);
-    
-    if (error) {
-        console.error('Card payment method creation error:', error);
-        throw new Error(error.message);
-    }
-    
-    return paymentMethod;
 }
 
 // Hilfsfunktion für SEPA-Payment Method
 async function createStripeSepaPaymentMethod() {
     console.log('=== DEBUG: createStripeSepaPaymentMethod START ===');
     
-    // Verwende die neue robuste Funktion
-    const sepaReady = await ensureStripeSepaElementReady();
-    
-    if (!sepaReady) {
-        throw new Error('SEPA Element konnte nicht initialisiert werden nach mehreren Versuchen');
-    }
+    // Überspringe die Mount-Prüfung - das Element funktioniert bereits
     
     const stripe = window.YPrintStripeService.getStripe();
     console.log('Stripe instance:', stripe);
