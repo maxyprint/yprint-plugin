@@ -1979,12 +1979,24 @@ const createPaymentMethodWithTimeout = () => {
             billing_details: billingDetails,
         }),
         new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('createPaymentMethod timeout after 15 seconds')), 15000)
+            setTimeout(() => reject(new Error('createPaymentMethod timeout after 5 seconds')), 5000)
         )
     ]);
 };
 
-const { paymentMethod, error } = await createPaymentMethodWithTimeout();
+console.log('DEBUG: Starting createPaymentMethod with timeout...');
+
+let createPaymentResult;
+try {
+    createPaymentResult = await createPaymentMethodWithTimeout();
+    console.log('DEBUG: createPaymentMethod completed normally');
+} catch (timeoutError) {
+    console.error('DEBUG: createPaymentMethod timed out or failed:', timeoutError);
+    throw new Error('Stripe Kommunikation fehlgeschlagen. Bitte versuchen Sie es erneut.');
+}
+
+const { paymentMethod, error } = createPaymentResult;
+console.log('DEBUG: Extracted paymentMethod and error from result');
     
     if (error) {
         console.error('SEPA payment method creation error:', error);
