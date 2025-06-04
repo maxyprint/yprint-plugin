@@ -1401,11 +1401,13 @@ async function processStripePaymentImmediately() {
 // Hilfsfunktion für Karten-Payment Method
 async function createStripeCardPaymentMethod() {
     console.log('=== DEBUG: createStripeCardPaymentMethod START ===');
-    console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
-    console.log('window.YPrintStripeService.isInitialized():', window.YPrintStripeService ? window.YPrintStripeService.isInitialized() : 'N/A');
-    console.log('window.YPrintStripeCheckout exists:', !!window.YPrintStripeCheckout);
-    console.log('window.YPrintStripeCheckout.initialized:', window.YPrintStripeCheckout ? window.YPrintStripeCheckout.initialized : 'N/A');
-    console.log('window.YPrintStripeCheckout.cardElement exists:', !!(window.YPrintStripeCheckout && window.YPrintStripeCheckout.cardElement));
+    
+    // Verwende die neue robuste Funktion
+    const cardReady = await ensureStripeCardElementReady();
+    
+    if (!cardReady) {
+        throw new Error('Card Element konnte nicht initialisiert werden nach mehreren Versuchen');
+    }
     
     const stripe = window.YPrintStripeService.getStripe();
     console.log('Stripe instance:', stripe);
@@ -1415,43 +1417,7 @@ async function createStripeCardPaymentMethod() {
         throw new Error('Stripe Service nicht verfügbar');
     }
     
-    if (!window.YPrintStripeCheckout) {
-        console.error('DEBUG: YPrintStripeCheckout not available');
-        throw new Error('YPrintStripeCheckout nicht verfügbar');
-    }
-    
-    if (!window.YPrintStripeCheckout.initialized) {
-        console.error('DEBUG: YPrintStripeCheckout not initialized');
-        throw new Error('YPrintStripeCheckout nicht initialisiert');
-    }
-    
-    if (!window.YPrintStripeCheckout.cardElement) {
-        console.error('DEBUG: Card Element not available');
-        console.log('DEBUG: Attempting to initialize Card Element...');
-        
-        // Versuche Card Element zu initialisieren
-        try {
-            if (window.YPrintStripeCheckout.initCardElement) {
-                await window.YPrintStripeCheckout.initCardElement();
-                
-                // Warte kurz und prüfe erneut
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                if (!window.YPrintStripeCheckout.cardElement) {
-                    throw new Error('Card Element konnte nicht initialisiert werden');
-                }
-                
-                console.log('DEBUG: Card Element successfully initialized');
-            } else {
-                throw new Error('initCardElement Methode nicht verfügbar');
-            }
-        } catch (initError) {
-            console.error('DEBUG: Card Element initialization failed:', initError);
-            throw new Error('Card Element Initialisierung fehlgeschlagen: ' + initError.message);
-        }
-    }
-    
-    console.log('DEBUG: All checks passed, creating payment method...');
+    console.log('DEBUG: All systems ready, creating payment method...');
     
     // Sammle Billing-Details aus dem Formular
     const billingDetails = {
@@ -1486,11 +1452,13 @@ async function createStripeCardPaymentMethod() {
 // Hilfsfunktion für SEPA-Payment Method
 async function createStripeSepaPaymentMethod() {
     console.log('=== DEBUG: createStripeSepaPaymentMethod START ===');
-    console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
-    console.log('window.YPrintStripeService.isInitialized():', window.YPrintStripeService ? window.YPrintStripeService.isInitialized() : 'N/A');
-    console.log('window.YPrintStripeCheckout exists:', !!window.YPrintStripeCheckout);
-    console.log('window.YPrintStripeCheckout.initialized:', window.YPrintStripeCheckout ? window.YPrintStripeCheckout.initialized : 'N/A');
-    console.log('window.YPrintStripeCheckout.sepaElement exists:', !!(window.YPrintStripeCheckout && window.YPrintStripeCheckout.sepaElement));
+    
+    // Verwende die neue robuste Funktion
+    const sepaReady = await ensureStripeSepaElementReady();
+    
+    if (!sepaReady) {
+        throw new Error('SEPA Element konnte nicht initialisiert werden nach mehreren Versuchen');
+    }
     
     const stripe = window.YPrintStripeService.getStripe();
     console.log('Stripe instance:', stripe);
@@ -1500,43 +1468,7 @@ async function createStripeSepaPaymentMethod() {
         throw new Error('Stripe Service nicht verfügbar');
     }
     
-    if (!window.YPrintStripeCheckout) {
-        console.error('DEBUG: YPrintStripeCheckout not available');
-        throw new Error('YPrintStripeCheckout nicht verfügbar');
-    }
-    
-    if (!window.YPrintStripeCheckout.initialized) {
-        console.error('DEBUG: YPrintStripeCheckout not initialized');
-        throw new Error('YPrintStripeCheckout nicht initialisiert');
-    }
-    
-    if (!window.YPrintStripeCheckout.sepaElement) {
-        console.error('DEBUG: SEPA Element not available');
-        console.log('DEBUG: Attempting to initialize SEPA Element...');
-        
-        // Versuche SEPA Element zu initialisieren
-        try {
-            if (window.YPrintStripeCheckout.initSepaElement) {
-                await window.YPrintStripeCheckout.initSepaElement();
-                
-                // Warte kurz und prüfe erneut
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                if (!window.YPrintStripeCheckout.sepaElement) {
-                    throw new Error('SEPA Element konnte nicht initialisiert werden');
-                }
-                
-                console.log('DEBUG: SEPA Element successfully initialized');
-            } else {
-                throw new Error('initSepaElement Methode nicht verfügbar');
-            }
-        } catch (initError) {
-            console.error('DEBUG: SEPA Element initialization failed:', initError);
-            throw new Error('SEPA Element Initialisierung fehlgeschlagen: ' + initError.message);
-        }
-    }
-    
-    console.log('DEBUG: All checks passed, creating payment method...');
+    console.log('DEBUG: All systems ready, creating payment method...');
     
     // Sammle Billing-Details aus dem Formular
     const billingDetails = {
@@ -2192,31 +2124,27 @@ function initPaymentSlider() {
         console.log('DEBUG: Payment method value set to:', methodValue);
         
         // Switch Payment Fields mit Verzögerung für Animation
-        jQuery('.payment-input-fields').removeClass('active');
-        
-        setTimeout(() => {
-            if (selectedMethod === 'card') {
-                jQuery('#card-payment-fields').addClass('active');
-                console.log('DEBUG: Showing card fields');
-                // Stripe Card Element initialisieren
-                setTimeout(() => {
-                    if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initCardElement) {
-                        console.log('DEBUG: Initializing Stripe Card Element');
-                        window.YPrintStripeCheckout.initCardElement();
-                    }
-                }, 100);
-            } else if (selectedMethod === 'sepa') {
-                jQuery('#sepa-payment-fields').addClass('active');
-                console.log('DEBUG: Showing SEPA fields');
-                // Stripe SEPA Element initialisieren
-                setTimeout(() => {
-                    if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
-                        console.log('DEBUG: Initializing Stripe SEPA Element');
-                        window.YPrintStripeCheckout.initSepaElement();
-                    }
-                }, 100);
-            }
-        }, 50);
+jQuery('.payment-input-fields').removeClass('active');
+
+setTimeout(() => {
+    if (selectedMethod === 'card') {
+        jQuery('#card-payment-fields').addClass('active');
+        console.log('DEBUG: Showing card fields');
+        // Robuste Stripe Card Element Initialisierung
+        setTimeout(async () => {
+            console.log('DEBUG: Ensuring Stripe Card Element is ready');
+            await ensureStripeCardElementReady();
+        }, 100);
+    } else if (selectedMethod === 'sepa') {
+        jQuery('#sepa-payment-fields').addClass('active');
+        console.log('DEBUG: Showing SEPA fields');
+        // Robuste Stripe SEPA Element Initialisierung
+        setTimeout(async () => {
+            console.log('DEBUG: Ensuring Stripe SEPA Element is ready');
+            await ensureStripeSepaElementReady();
+        }, 100);
+    }
+}, 50);
         
         console.log('DEBUG: Slider switch completed');
     });
@@ -2260,6 +2188,120 @@ function detectPaymentMethod() {
     // Hier könnte später Logic für automatische Erkennung basierend auf ausgefüllten Feldern
     // implementiert werden
     return jQuery('#selected-payment-method').val();
+}
+
+// Neue robuste Initialisierungsfunktion für Card Elements
+async function ensureStripeCardElementReady() {
+    console.log('=== ENSURING STRIPE CARD ELEMENT READY ===');
+    
+    // Maximale Anzahl von Versuchen
+    const maxAttempts = 5;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+        attempts++;
+        console.log(`Attempt ${attempts}/${maxAttempts} to ensure Card Element ready`);
+        
+        // Prüfe YPrintStripeCheckout Verfügbarkeit
+        if (!window.YPrintStripeCheckout) {
+            console.log('YPrintStripeCheckout not available, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        
+        // Prüfe Initialisierung
+        if (!window.YPrintStripeCheckout.initialized) {
+            console.log('YPrintStripeCheckout not initialized, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        
+        // Prüfe Card Element
+        if (!window.YPrintStripeCheckout.cardElement) {
+            console.log('Card Element not available, trying to initialize...');
+            
+            try {
+                // Versuche Card Element zu initialisieren
+                if (window.YPrintStripeCheckout.initCardElement) {
+                    window.YPrintStripeCheckout.initCardElement();
+                    
+                    // Warte kurz nach Initialisierung
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    // Prüfe erneut
+                    if (window.YPrintStripeCheckout.cardElement) {
+                        console.log('Card Element successfully initialized!');
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error initializing Card Element:', error);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        
+        // Alles ist bereit
+        console.log('Card Element is ready!');
+        return true;
+    }
+    
+    console.error('Failed to ensure Card Element ready after', maxAttempts, 'attempts');
+    return false;
+}
+
+// Entsprechende Funktion für SEPA Element
+async function ensureStripeSepaElementReady() {
+    console.log('=== ENSURING STRIPE SEPA ELEMENT READY ===');
+    
+    const maxAttempts = 5;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+        attempts++;
+        console.log(`Attempt ${attempts}/${maxAttempts} to ensure SEPA Element ready`);
+        
+        if (!window.YPrintStripeCheckout) {
+            console.log('YPrintStripeCheckout not available, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        
+        if (!window.YPrintStripeCheckout.initialized) {
+            console.log('YPrintStripeCheckout not initialized, waiting...');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        
+        if (!window.YPrintStripeCheckout.sepaElement) {
+            console.log('SEPA Element not available, trying to initialize...');
+            
+            try {
+                if (window.YPrintStripeCheckout.initSepaElement) {
+                    window.YPrintStripeCheckout.initSepaElement();
+                    
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                    if (window.YPrintStripeCheckout.sepaElement) {
+                        console.log('SEPA Element successfully initialized!');
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error('Error initializing SEPA Element:', error);
+            }
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+        }
+        
+        console.log('SEPA Element is ready!');
+        return true;
+    }
+    
+    console.error('Failed to ensure SEPA Element ready after', maxAttempts, 'attempts');
+    return false;
 }
 
 // Sichere Initialisierung mit Stripe-Check
@@ -2361,6 +2403,35 @@ jQuery(document).ready(function($) {
     console.log('Payment slider elements found:', document.querySelectorAll('.slider-option').length);
     console.log('Payment fields found:', document.querySelectorAll('.payment-input-fields').length);
     console.log('Slider indicator found:', document.querySelector('.slider-indicator') ? 'Yes' : 'No');
+
+    // Proaktive Initialisierung nach Page Load
+setTimeout(async () => {
+    console.log('=== PROACTIVE STRIPE INITIALIZATION ===');
+    
+    // Warte bis alle Komponenten verfügbar sind
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+        attempts++;
+        
+        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initialized) {
+            console.log('YPrintStripeCheckout ready, initializing elements proactively');
+            
+            // Initialisiere Card Element proaktiv (da es standardmäßig aktiv ist)
+            await ensureStripeCardElementReady();
+            
+            break;
+        }
+        
+        console.log(`Waiting for YPrintStripeCheckout... attempt ${attempts}/${maxAttempts}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    if (attempts >= maxAttempts) {
+        console.warn('YPrintStripeCheckout not ready after', maxAttempts, 'seconds');
+    }
+}, 2000); // Start nach 2 Sekunden
 });
 
 // Debug-Button entfernt
