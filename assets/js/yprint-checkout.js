@@ -319,57 +319,53 @@ class YPrintStripeCheckout {
 
     async init() {
         console.log('=== DEBUG: YPrintStripeCheckout.init START ===');
-        console.log('typeof yprint_stripe_vars:', typeof yprint_stripe_vars);
-        console.log('yprint_stripe_vars.publishable_key exists:', !!(typeof yprint_stripe_vars !== 'undefined' && yprint_stripe_vars.publishable_key));
         
         // Warte auf Stripe Service Initialisierung
         if (typeof yprint_stripe_vars === 'undefined' || !yprint_stripe_vars.publishable_key) {
             console.error('DEBUG: Stripe-Konfiguration fehlt');
             this.showStripeError('Stripe-Konfiguration fehlt.');
-            return;
+            return false;
         }
     
-        console.log('DEBUG: Initializing Stripe Service with key:', yprint_stripe_vars.publishable_key.substring(0, 20) + '...');
+        console.log('DEBUG: Initializing Stripe Service...');
         
         // Initialisiere über zentralen Service
         const success = await window.YPrintStripeService.initialize(yprint_stripe_vars.publishable_key);
         
-        console.log('DEBUG: Stripe Service initialization result:', success);
-        
         if (!success) {
             console.error('DEBUG: Stripe-Initialisierung fehlgeschlagen');
             this.showStripeError('Stripe-Initialisierung fehlgeschlagen.');
-            return;
+            return false;
         }
     
-        // Setze initialized flag SOFORT
+        // Setze initialized flag
         this.initialized = true;
-        console.log('DEBUG: YPrintStripeCheckout.initialized set to:', this.initialized);
     
-        // DIREKTE Ausführung von prepareCardElement
-        console.log('DEBUG: Calling prepareCardElement directly...');
-        this.prepareCardElement();
+        // Erstelle Stripe Elements mit Retry-Logic
+        let elementsReady = false;
+        let attempts = 0;
+        const maxAttempts = 3;
         
-        // Zusätzlich: Höre auf Service-Events (Backup)
-        window.YPrintStripeService.on('initialized', (data) => {
-            console.log('DEBUG: Stripe Service initialized event received (backup)');
-            if (!this.cardElement || !this.sepaElement) {
-                console.log('DEBUG: Elements missing, calling prepareCardElement again');
-                this.prepareCardElement();
+        while (!elementsReady && attempts < maxAttempts) {
+            attempts++;
+            console.log(`DEBUG: Preparing elements, attempt ${attempts}/${maxAttempts}`);
+            
+            elementsReady = this.prepareCardElement();
+            
+            if (!elementsReady) {
+                console.log('DEBUG: Elements not ready, waiting...');
+                await new Promise(resolve => setTimeout(resolve, 500));
             }
-        });
-    
-        // Falls bereits initialisiert (Backup)
-        if (window.YPrintStripeService.isInitialized()) {
-            console.log('DEBUG: Stripe Service already initialized (backup check)');
-            if (!this.cardElement || !this.sepaElement) {
-                console.log('DEBUG: Elements missing, calling prepareCardElement again');
-                this.prepareCardElement();
-            }
+        }
+        
+        if (!elementsReady) {
+            console.error('DEBUG: Failed to create Stripe elements after', maxAttempts, 'attempts');
+            return false;
         }
         
         console.log('=== DEBUG: YPrintStripeCheckout.init END ===');
-        console.log('DEBUG: Final state - cardElement:', !!this.cardElement, 'sepaElement:', !!this.sepaElement);
+        console.log('DEBUG: Initialization successful - cardElement:', !!this.cardElement, 'sepaElement:', !!this.sepaElement);
+        return true;
     }
 
     prepareCardElement() {
@@ -379,12 +375,12 @@ class YPrintStripeCheckout {
         
         if (!window.YPrintStripeService) {
             console.error('DEBUG: YPrintStripeService not available');
-            return;
+            return false;
         }
         
         if (!window.YPrintStripeService.isInitialized()) {
             console.error('DEBUG: YPrintStripeService not initialized');
-            return;
+            return false;
         }
         
         const elements = window.YPrintStripeService.getElements();
@@ -392,7 +388,7 @@ class YPrintStripeCheckout {
         
         if (!elements) {
             console.error('DEBUG: Elements not available from Stripe Service');
-            return;
+            return false;
         }
     
         const elementsStyle = {
@@ -411,44 +407,47 @@ class YPrintStripeCheckout {
             }
         };
     
-        console.log('DEBUG: Creating card element...');
-        try {
-            this.cardElement = elements.create('card', { 
-                style: elementsStyle,
-                hidePostalCode: true
-            });
-            console.log('DEBUG: Card element created successfully:', !!this.cardElement);
-            console.log('DEBUG: Card element object:', this.cardElement);
-            
-            // Sofort mounten falls Container verfügbar
-            const cardContainer = document.getElementById('stripe-card-element');
-            if (cardContainer && !cardContainer.querySelector('.StripeElement')) {
-                console.log('DEBUG: Auto-mounting card element');
-                this.initCardElement();
+        // Prüfe ob Elements bereits existieren
+        if (this.cardElement) {
+            console.log('DEBUG: Card element already exists, skipping creation');
+        } else {
+            console.log('DEBUG: Creating card element...');
+            try {
+                this.cardElement = elements.create('card', { 
+                    style: elementsStyle,
+                    hidePostalCode: true
+                });
+                console.log('DEBUG: Card element created successfully:', !!this.cardElement);
+                
+                // Event Listener sofort hinzufügen
+                if (this.cardElement) {
+                    this.setupCardElementEvents();
+                }
+            } catch (cardError) {
+                console.error('DEBUG: Error creating card element:', cardError);
+                this.cardElement = null;
             }
-        } catch (cardError) {
-            console.error('DEBUG: Error creating card element:', cardError);
-            this.cardElement = null;
         }
     
-        console.log('DEBUG: Creating SEPA element...');
-        try {
-            this.sepaElement = elements.create('iban', {
-                style: elementsStyle,
-                supportedCountries: ['SEPA'],
-                placeholderCountry: 'DE'
-            });
-            console.log('DEBUG: SEPA element created successfully:', !!this.sepaElement);
-            console.log('DEBUG: SEPA element object:', this.sepaElement);
-        } catch (sepaError) {
-            console.error('DEBUG: Error creating SEPA element:', sepaError);
-            this.sepaElement = null;
+        if (this.sepaElement) {
+            console.log('DEBUG: SEPA element already exists, skipping creation');
+        } else {
+            console.log('DEBUG: Creating SEPA element...');
+            try {
+                this.sepaElement = elements.create('iban', {
+                    style: elementsStyle,
+                    supportedCountries: ['SEPA'],
+                    placeholderCountry: 'DE'
+                });
+                console.log('DEBUG: SEPA element created successfully:', !!this.sepaElement);
+            } catch (sepaError) {
+                console.error('DEBUG: Error creating SEPA element:', sepaError);
+                this.sepaElement = null;
+            }
         }
         
         console.log('=== DEBUG: prepareCardElement END ===');
         console.log('Final state - cardElement:', !!this.cardElement, 'sepaElement:', !!this.sepaElement);
-        console.log('this.cardElement actual value:', this.cardElement);
-        console.log('this.sepaElement actual value:', this.sepaElement);
         
         // Globale Referenz setzen für Debugging
         window.debugStripeElements = {
@@ -456,6 +455,37 @@ class YPrintStripeCheckout {
             sepaElement: this.sepaElement,
             checkoutInstance: this
         };
+        
+        return !!(this.cardElement && this.sepaElement);
+    }
+    
+    // Neue Hilfsmethode für Card Element Events
+    setupCardElementEvents() {
+        if (!this.cardElement) return;
+        
+        this.cardElement.on('change', (event) => {
+            console.log('Card state changed:', {
+                complete: event.complete,
+                error: event.error?.message
+            });
+            
+            // Store state globally for validation
+            window.stripeCardState = {
+                complete: event.complete,
+                error: event.error
+            };
+            
+            const displayError = document.getElementById('stripe-card-errors');
+            if (displayError) {
+                if (event.error) {
+                    displayError.textContent = event.error.message;
+                    displayError.style.display = 'block';
+                } else {
+                    displayError.textContent = '';
+                    displayError.style.display = 'none';
+                }
+            }
+        });
     }
 
 
@@ -609,43 +639,6 @@ class YPrintStripeCheckout {
         }
     }
     
-    // Track card element state
-    trackCardElementState() {
-        if (!this.cardElement) return;
-        
-        let cardComplete = false;
-        let cardError = null;
-        
-        this.cardElement.on('change', (event) => {
-            cardComplete = event.complete;
-            cardError = event.error;
-            
-            // Store state globally for validation
-            window.stripeCardState = {
-                complete: cardComplete,
-                error: cardError
-            };
-            
-            console.log('Card state changed:', {
-                complete: cardComplete,
-                error: cardError?.message
-            });
-            
-            const displayError = document.getElementById('stripe-card-errors');
-            if (displayError) {
-                if (event.error) {
-                    displayError.textContent = event.error.message;
-                    displayError.style.display = 'block';
-                } else {
-                    displayError.textContent = '';
-                    displayError.style.display = 'none';
-                }
-            }
-        });
-    }
-
-    
-
     // Track card element state
     trackCardElementState() {
         if (!this.cardElement) return;
