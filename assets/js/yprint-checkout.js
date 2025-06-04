@@ -1774,7 +1774,11 @@ console.log('DEBUG: Card element exists, skipping mount check, going directly to
             }
             
             const sepaContainer = document.getElementById('stripe-sepa-element');
-            const isSepaMounted = sepaContainer && sepaContainer.querySelector('.StripeElement');
+            const isSepaMounted = sepaContainer && (
+    sepaContainer.querySelector('.StripeElement') ||
+    sepaContainer.querySelector('.__PrivateStripeElement') ||
+    sepaContainer.querySelector('iframe[name*="privateStripeFrame"]')
+);
             console.log('DEBUG: SEPA element mounted:', isSepaMounted);
             
             if (!isSepaMounted) {
@@ -2706,27 +2710,64 @@ async function ensureStripeCardElementReady() {
         console.log('DEBUG MOUNT: Container innerHTML length:', cardContainer ? cardContainer.innerHTML.length : 'N/A');
         
         // Prüfe Card Element UND versuche es zu initialisieren
-        if (!window.YPrintStripeCheckout.cardElement) {
-            console.log('DEBUG MOUNT: Card Element not available, trying to initialize...');
-            
-            try {
-                // Versuche Card Element zu initialisieren/mounten
-                const success = await window.YPrintStripeCheckout.initCardElement();
-                
-                console.log('DEBUG MOUNT: initCardElement returned:', success);
-                console.log('DEBUG MOUNT: cardElement after init:', !!window.YPrintStripeCheckout.cardElement);
-                
-                if (success && window.YPrintStripeCheckout.cardElement) {
-                    console.log('DEBUG MOUNT: Card Element successfully initialized and mounted!');
-                    return true;
-                }
-            } catch (error) {
-                console.error('DEBUG MOUNT: Error initializing Card Element:', error);
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 500));
-            continue;
+if (!window.YPrintStripeCheckout.cardElement) {
+    console.log('DEBUG MOUNT: Card Element not available, trying to initialize...');
+    
+    try {
+        // Versuche Card Element zu initialisieren/mounten
+        const success = await window.YPrintStripeCheckout.initCardElement();
+        
+        console.log('DEBUG MOUNT: initCardElement returned:', success);
+        console.log('DEBUG MOUNT: cardElement after init:', !!window.YPrintStripeCheckout.cardElement);
+        
+        if (success && window.YPrintStripeCheckout.cardElement) {
+            console.log('DEBUG MOUNT: Card Element successfully initialized and mounted!');
+            return true;
         }
+    } catch (error) {
+        console.error('DEBUG MOUNT: Error initializing Card Element:', error);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 500));
+    continue;
+}
+
+// Element existiert - prüfe ob es gemountet ist (korrigierte Selektoren)
+const isAlreadyMounted = cardContainer && (
+    cardContainer.querySelector('.StripeElement') || 
+    cardContainer.querySelector('.__PrivateStripeElement') ||
+    cardContainer.querySelector('iframe[name*="privateStripeFrame"]')
+);
+
+if (cardContainer && !isAlreadyMounted) {
+    console.log('DEBUG MOUNT: Card Element exists but not mounted, mounting now...');
+    console.log('DEBUG MOUNT: Before mount - container content:', cardContainer.innerHTML);
+    
+    try {
+        const success = await window.YPrintStripeCheckout.initCardElement();
+        console.log('DEBUG MOUNT: Mount attempt returned:', success);
+        
+        // Nach Mount prüfen mit korrigierten Selektoren
+        const afterMountHasElement = !!(
+            cardContainer.querySelector('.StripeElement') ||
+            cardContainer.querySelector('.__PrivateStripeElement') ||
+            cardContainer.querySelector('iframe[name*="privateStripeFrame"]')
+        );
+        console.log('DEBUG MOUNT: After mount - has Stripe element:', afterMountHasElement);
+        console.log('DEBUG MOUNT: After mount - container content length:', cardContainer.innerHTML.length);
+        
+        if (success && afterMountHasElement) {
+            console.log('DEBUG MOUNT: Card Element successfully mounted!');
+            return true;
+        } else {
+            console.log('DEBUG MOUNT: Mount failed or incomplete');
+        }
+    } catch (error) {
+        console.error('DEBUG MOUNT: Error mounting Card Element:', error);
+    }
+    await new Promise(resolve => setTimeout(resolve, 500));
+    continue;
+}
         
         // Element existiert - prüfe ob es gemountet ist
         if (cardContainer && !cardContainer.querySelector('.StripeElement')) {
