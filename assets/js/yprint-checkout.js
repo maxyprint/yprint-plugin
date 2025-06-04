@@ -770,7 +770,7 @@ class YPrintStripeCheckout {
             // Prüfen ob bereits gemounted
             if (cardElementContainer.querySelector('.StripeElement')) {
                 console.log('YPrint Stripe Checkout: Card element already mounted');
-                this.trackCardElementState();
+                // ENTFERNE this.trackCardElementState() - die Methode existiert nicht
                 return true;
             }
     
@@ -781,8 +781,30 @@ class YPrintStripeCheckout {
             this.cardElement.mount('#stripe-card-element');
             console.log('YPrint Stripe Checkout: Card element mounted successfully');
     
-            // State Tracking aktivieren
-            this.trackCardElementState();
+            // Setup Event-Handler direkt hier (anstatt trackCardElementState)
+            this.cardElement.on('change', (event) => {
+                console.log('Card state changed:', {
+                    complete: event.complete,
+                    error: event.error?.message
+                });
+                
+                // Store state globally for validation
+                window.stripeCardState = {
+                    complete: event.complete,
+                    error: event.error
+                };
+                
+                const displayError = document.getElementById('stripe-card-errors');
+                if (displayError) {
+                    if (event.error) {
+                        displayError.textContent = event.error.message;
+                        displayError.style.display = 'block';
+                    } else {
+                        displayError.textContent = '';
+                        displayError.style.display = 'none';
+                    }
+                }
+            });
             
             return true;
     
