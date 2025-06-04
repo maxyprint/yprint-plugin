@@ -1593,17 +1593,35 @@ if (voucherButton) {
         btnToConfirmation.addEventListener('click', async (e) => {
             e.preventDefault();
             
+            console.log('=== BUTTON TO CONFIRMATION CLICKED ===');
+            console.log('DEBUG: Event triggered');
+            
+            // Verhindere mehrfache Klicks
+            if (btnToConfirmation.disabled) {
+                console.log('DEBUG: Button already disabled, ignoring click');
+                return;
+            }
+            
+            btnToConfirmation.disabled = true;
+            console.log('DEBUG: Button disabled to prevent multiple clicks');
+            
             // Lade-Overlay anzeigen
             toggleLoadingOverlay(true);
             
             try {
+                console.log('DEBUG: About to validate payment method');
                 // Validiere Zahlungsmethode
                 const paymentValid = await validatePaymentMethod();
+                console.log('DEBUG: Payment validation result:', paymentValid);
                 
                 if (!paymentValid) {
+                    console.log('DEBUG: Payment validation failed');
                     showMessage('Bitte wählen Sie eine gültige Zahlungsmethode aus oder vervollständigen Sie die Zahlungsdaten.', 'error');
+                    btnToConfirmation.disabled = false;
                     return;
                 }
+                
+                console.log('DEBUG: Payment validation passed, continuing...');
                 
                 // Sammle Zahlungsdaten
                 collectPaymentData();
@@ -1633,7 +1651,10 @@ if (voucherButton) {
                 console.error('Fehler beim Verarbeiten der Zahlung:', error);
                 showMessage(error.message || 'Ein Fehler ist bei der Zahlungsverarbeitung aufgetreten.', 'error');
             } finally {
+                console.log('DEBUG: Re-enabling button in finally block');
+                btnToConfirmation.disabled = false;
                 toggleLoadingOverlay(false);
+            
             }
         });
     }
