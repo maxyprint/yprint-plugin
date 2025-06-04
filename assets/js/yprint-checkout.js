@@ -441,6 +441,7 @@ this.sepaElement.mount('#stripe-sepa-element');
             // Prüfen ob bereits gemounted - bessere Prüfung
             if (cardElementContainer.querySelector('.StripeElement')) {
                 console.log('YPrint Stripe Checkout: Card element already mounted');
+                this.trackCardElementState(); // Stelle sicher, dass State Tracking aktiv ist
                 return;
             }
     
@@ -448,25 +449,50 @@ this.sepaElement.mount('#stripe-sepa-element');
             cardElementContainer.innerHTML = '';
             
             this.cardElement.mount('#stripe-card-element');
-            // Card Element erfolgreich gemountet
-
-            // Error handling
-            this.cardElement.on('change', (event) => {
-                const displayError = document.getElementById('stripe-card-errors');
-                if (displayError) {
-                    if (event.error) {
-                        displayError.textContent = event.error.message;
-                        displayError.style.display = 'block';
-                    } else {
-                        displayError.textContent = '';
-                        displayError.style.display = 'none';
-                    }
-                }
-            });
-
+            console.log('YPrint Stripe Checkout: Card element mounted successfully');
+    
+            // State Tracking aktivieren
+            this.trackCardElementState();
+    
         } catch (error) {
+            console.error('YPrint Stripe Checkout: Card element mount error:', error);
             this.showStripeError('Kartenelement konnte nicht geladen werden.');
         }
+    }
+    
+    // Track card element state
+    trackCardElementState() {
+        if (!this.cardElement) return;
+        
+        let cardComplete = false;
+        let cardError = null;
+        
+        this.cardElement.on('change', (event) => {
+            cardComplete = event.complete;
+            cardError = event.error;
+            
+            // Store state globally for validation
+            window.stripeCardState = {
+                complete: cardComplete,
+                error: cardError
+            };
+            
+            console.log('Card state changed:', {
+                complete: cardComplete,
+                error: cardError?.message
+            });
+            
+            const displayError = document.getElementById('stripe-card-errors');
+            if (displayError) {
+                if (event.error) {
+                    displayError.textContent = event.error.message;
+                    displayError.style.display = 'block';
+                } else {
+                    displayError.textContent = '';
+                    displayError.style.display = 'none';
+                }
+            }
+        });
     }
 
     // Track card element state
@@ -1183,17 +1209,48 @@ if (voucherButton) {
         btnToConfirmation.addEventListener('click', async (e) => {
             e.preventDefault();
             
-            // Validiere Zahlungsmethode
-            const paymentValid = await validatePaymentMethod();
+            // Lade-Overlay anzeigen
+            toggleLoadingOverlay(true);
             
-            if (!paymentValid) {
-                showMessage('Bitte wählen Sie eine gültige Zahlungsmethode aus oder vervollständigen Sie die Zahlungsdaten.', 'error');
-                return;
+            try {
+                // Validiere Zahlungsmethode
+                const paymentValid = await validatePaymentMethod();
+                
+                if (!paymentValid) {
+                    showMessage('Bitte wählen Sie eine gültige Zahlungsmethode aus oder vervollständigen Sie die Zahlungsdaten.', 'error');
+                    return;
+                }
+                
+                // Sammle Zahlungsdaten
+                collectPaymentData();
+                
+                // Prüfe ob es sich um eine Stripe-Zahlung handelt, die sofort verarbeitet werden muss
+                const selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value || 
+                                      document.getElementById('selected-payment-method')?.value;
+                
+                if (selectedMethod && selectedMethod.includes('stripe')) {
+                    // Sofortige Zahlungsverarbeitung für Stripe
+                    const paymentResult = await processStripePaymentImmediately();
+                    
+                    if (paymentResult.success) {
+                        // Zahlung erfolgreich - zeige Bestätigung mit Zahlungsdaten
+                        await populateConfirmation();
+                        window.populateConfirmationWithPaymentData(paymentResult.data);
+                        showStep(3);
+                    } else {
+                        throw new Error(paymentResult.message || 'Zahlung fehlgeschlagen');
+                    }
+                } else {
+                    // Für andere Zahlungsmethoden: normaler Workflow
+                    await populateConfirmation();
+                    showStep(3);
+                }
+            } catch (error) {
+                console.error('Fehler beim Verarbeiten der Zahlung:', error);
+                showMessage(error.message || 'Ein Fehler ist bei der Zahlungsverarbeitung aufgetreten.', 'error');
+            } finally {
+                toggleLoadingOverlay(false);
             }
-            
-            collectPaymentData();
-            await populateConfirmation(); // Jetzt async
-            showStep(3);
         });
     }
     
@@ -1261,61 +1318,313 @@ if (voucherButton) {
         console.log('Non-Stripe payment method is valid');
         return true; // Andere Zahlungsmethoden sind ok wenn ausgewählt
     }
+
+    // Neue Funktion für sofortige Stripe-Zahlungsverarbeitung
+async function processStripePaymentImmediately() {
+    console.log('=== PROCESSING STRIPE PAYMENT IMMEDIATELY ===');
     
-    async function validateStripeCardElement() {
-        if (!window.YPrintStripeCheckout || !window.YPrintStripeCheckout.cardElement) {
-            console.log('Card element not available');
+    try {
+        // Prüfe welche Zahlungsart aktiv ist
+        const activeSliderOption = document.querySelector('.slider-option.active');
+        const paymentMethod = activeSliderOption?.dataset.method;
+        
+        console.log('Active payment method:', paymentMethod);
+        
+        if (!paymentMethod) {
+            throw new Error('Keine Zahlungsmethode ausgewählt');
+        }
+        
+        // Erstelle Payment Method basierend auf ausgewählter Option
+        let paymentMethodObject;
+        
+        if (paymentMethod === 'card') {
+            paymentMethodObject = await createStripeCardPaymentMethod();
+        } else if (paymentMethod === 'sepa') {
+            paymentMethodObject = await createStripeSepaPaymentMethod();
+        } else {
+            throw new Error('Unbekannte Stripe-Zahlungsmethode');
+        }
+        
+        console.log('Created payment method:', paymentMethodObject);
+        
+        // Verarbeite Zahlung über Stripe Service
+        const result = await processPaymentViaStripeService(paymentMethodObject);
+        
+        return result;
+        
+    } catch (error) {
+        console.error('Stripe payment processing error:', error);
+        return {
+            success: false,
+            message: error.message || 'Stripe-Zahlung fehlgeschlagen'
+        };
+    }
+}
+
+// Hilfsfunktion für Karten-Payment Method
+async function createStripeCardPaymentMethod() {
+    const stripe = window.YPrintStripeService.getStripe();
+    if (!stripe || !window.YPrintStripeCheckout.cardElement) {
+        throw new Error('Stripe oder Card Element nicht verfügbar');
+    }
+    
+    // Sammle Billing-Details aus dem Formular
+    const billingDetails = {
+        name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim(),
+        email: document.getElementById('email')?.value || '',
+        phone: formData.shipping.phone || '',
+        address: {
+            line1: formData.shipping.street || '',
+            line2: formData.shipping.housenumber || '',
+            city: formData.shipping.city || '',
+            postal_code: formData.shipping.zip || '',
+            country: formData.shipping.country || 'DE',
+        }
+    };
+    
+    console.log('Creating card payment method with billing details:', billingDetails);
+    
+    const { paymentMethod, error } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: window.YPrintStripeCheckout.cardElement,
+        billing_details: billingDetails,
+    });
+    
+    if (error) {
+        console.error('Card payment method creation error:', error);
+        throw new Error(error.message);
+    }
+    
+    return paymentMethod;
+}
+
+// Hilfsfunktion für SEPA-Payment Method
+async function createStripeSepaPaymentMethod() {
+    const stripe = window.YPrintStripeService.getStripe();
+    if (!stripe || !window.YPrintStripeCheckout.sepaElement) {
+        throw new Error('Stripe oder SEPA Element nicht verfügbar');
+    }
+    
+    // Sammle Billing-Details aus dem Formular
+    const billingDetails = {
+        name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim(),
+        email: document.getElementById('email')?.value || '',
+        address: {
+            line1: formData.shipping.street || '',
+            line2: formData.shipping.housenumber || '',
+            city: formData.shipping.city || '',
+            postal_code: formData.shipping.zip || '',
+            country: formData.shipping.country || 'DE',
+        }
+    };
+    
+    console.log('Creating SEPA payment method with billing details:', billingDetails);
+    
+    const { paymentMethod, error } = await stripe.createPaymentMethod({
+        type: 'sepa_debit',
+        sepa_debit: window.YPrintStripeCheckout.sepaElement,
+        billing_details: billingDetails,
+    });
+    
+    if (error) {
+        console.error('SEPA payment method creation error:', error);
+        throw new Error(error.message);
+    }
+    
+    return paymentMethod;
+}
+
+// Verarbeitung über Stripe Service
+async function processPaymentViaStripeService(paymentMethod) {
+    console.log('Processing payment via Stripe Service:', paymentMethod.id);
+    
+    // Simuliere Event-Objekt für Stripe Service
+    const mockEvent = {
+        paymentMethod: paymentMethod,
+        shippingAddress: formData.isBillingSameAsShipping ? null : {
+            name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim(),
+            addressLine: [formData.shipping.street + ' ' + formData.shipping.housenumber],
+            city: formData.shipping.city,
+            country: formData.shipping.country,
+            postalCode: formData.shipping.zip,
+        },
+        complete: function(status) {
+            console.log('Payment completed with status:', status);
+        }
+    };
+    
+    // Verwende den Stripe Service für einheitliche Verarbeitung
+    return new Promise((resolve, reject) => {
+        // Hook in die Stripe Service Events
+        window.YPrintStripeService.on('payment_success', (data) => {
+            console.log('Payment success received:', data);
+            resolve({
+                success: true,
+                data: data,
+                message: 'Zahlung erfolgreich verarbeitet'
+            });
+        });
+        
+        window.YPrintStripeService.on('payment_error', (error) => {
+            console.log('Payment error received:', error);
+            reject(new Error(error.error || 'Zahlung fehlgeschlagen'));
+        });
+        
+        // Trigger Payment Processing
+        window.YPrintStripeService.handlePaymentMethod(mockEvent, {
+            source: 'checkout_form',
+            type: paymentMethod.type
+        });
+    });
+}
+    
+async function validateStripeCardElement() {
+    if (!window.YPrintStripeCheckout || !window.YPrintStripeCheckout.cardElement) {
+        console.log('Card element not available');
+        return false;
+    }
+    
+    try {
+        const stripe = window.YPrintStripeService.getStripe();
+        if (!stripe) {
+            console.log('Stripe not available');
             return false;
         }
         
-        try {
-            const stripe = window.YPrintStripeService.getStripe();
-            if (!stripe) {
-                console.log('Stripe not available');
-                return false;
-            }
-            
-            // Prüfe erst den Status des Card Elements
-            const cardElementContainer = document.getElementById('stripe-card-element');
-            if (!cardElementContainer || !cardElementContainer.querySelector('.StripeElement')) {
-                console.log('Card element not mounted or visible');
-                return false;
-            }
-            
-            // Teste ob Card Element gültig ist durch einen PaymentMethod-Test
-            const {paymentMethod, error} = await stripe.createPaymentMethod({
-                type: 'card',
-                card: window.YPrintStripeCheckout.cardElement,
-                billing_details: {
-                    name: 'Test Name', // Dummy data für Validierung
-                }
-            });
-            
-            if (error) {
-                console.log('Card validation error:', error.message);
-                // Zeige spezifische Fehlermeldung
-                const errorElement = document.getElementById('stripe-card-errors');
-                if (errorElement) {
-                    errorElement.textContent = error.message;
-                    errorElement.style.display = 'block';
-                }
-                return false;
-            }
-            
-            console.log('Card validation successful:', paymentMethod.id);
-            
-            // Verstecke Fehlermeldungen bei Erfolg
-            const errorElement = document.getElementById('stripe-card-errors');
-            if (errorElement) {
-                errorElement.style.display = 'none';
-            }
-            
-            return true;
-        } catch (e) {
-            console.log('Card validation exception:', e);
+        // Prüfe erst den Status des Card Elements
+        const cardElementContainer = document.getElementById('stripe-card-element');
+        if (!cardElementContainer || !cardElementContainer.querySelector('.StripeElement')) {
+            console.log('Card element not mounted or visible');
             return false;
         }
+        
+        // Prüfe ob Card Element vollständig ausgefüllt ist
+        const cardState = window.stripeCardState;
+        if (cardState && !cardState.complete) {
+            console.log('Card element not complete');
+            if (cardState.error) {
+                const errorElement = document.getElementById('stripe-card-errors');
+                if (errorElement) {
+                    errorElement.textContent = cardState.error.message;
+                    errorElement.style.display = 'block';
+                }
+            }
+            return false;
+        }
+        
+        // Teste Payment Method Creation mit echten Billing Details
+        const billingDetails = {
+            name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim() || 'Test Name',
+            email: document.getElementById('email')?.value || '',
+            address: {
+                line1: formData.shipping.street || '',
+                line2: formData.shipping.housenumber || '',
+                city: formData.shipping.city || '',
+                postal_code: formData.shipping.zip || '',
+                country: formData.shipping.country || 'DE',
+            }
+        };
+        
+        const {paymentMethod, error} = await stripe.createPaymentMethod({
+            type: 'card',
+            card: window.YPrintStripeCheckout.cardElement,
+            billing_details: billingDetails
+        });
+        
+        if (error) {
+            console.log('Card validation error:', error.message);
+            const errorElement = document.getElementById('stripe-card-errors');
+            if (errorElement) {
+                errorElement.textContent = error.message;
+                errorElement.style.display = 'block';
+            }
+            return false;
+        }
+        
+        console.log('Card validation successful:', paymentMethod.id);
+        
+        // Verstecke Fehlermeldungen bei Erfolg
+        const errorElement = document.getElementById('stripe-card-errors');
+        if (errorElement) {
+            errorElement.style.display = 'none';
+        }
+        
+        // Speichere gültige Payment Method für späteren Gebrauch
+        window.validatedPaymentMethod = paymentMethod;
+        
+        return true;
+    } catch (e) {
+        console.log('Card validation exception:', e);
+        return false;
     }
+}
+
+async function validateStripeSepaElement() {
+    if (!window.YPrintStripeCheckout.sepaElement) {
+        console.log('SEPA element not available');
+        return false;
+    }
+    
+    try {
+        const stripe = window.YPrintStripeService.getStripe();
+        if (!stripe) {
+            console.log('Stripe not available');
+            return false;
+        }
+        
+        // Prüfe ob SEPA Element gemountet ist
+        const sepaElementContainer = document.getElementById('stripe-sepa-element');
+        if (!sepaElementContainer || !sepaElementContainer.querySelector('.StripeElement')) {
+            console.log('SEPA element not mounted or visible');
+            return false;
+        }
+        
+        // Teste Payment Method Creation mit echten Billing Details
+        const billingDetails = {
+            name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim() || 'Test Name',
+            email: document.getElementById('email')?.value || '',
+            address: {
+                line1: formData.shipping.street || '',
+                line2: formData.shipping.housenumber || '',
+                city: formData.shipping.city || '',
+                postal_code: formData.shipping.zip || '',
+                country: formData.shipping.country || 'DE',
+            }
+        };
+        
+        const {paymentMethod, error} = await stripe.createPaymentMethod({
+            type: 'sepa_debit',
+            sepa_debit: window.YPrintStripeCheckout.sepaElement,
+            billing_details: billingDetails
+        });
+        
+        if (error) {
+            console.log('SEPA validation error:', error.message);
+            const errorElement = document.getElementById('stripe-sepa-errors');
+            if (errorElement) {
+                errorElement.textContent = error.message;
+                errorElement.style.display = 'block';
+            }
+            return false;
+        }
+        
+        console.log('SEPA validation successful:', paymentMethod.id);
+        
+        // Verstecke Fehlermeldungen bei Erfolg
+        const errorElement = document.getElementById('stripe-sepa-errors');
+        if (errorElement) {
+            errorElement.style.display = 'none';
+        }
+        
+        // Speichere gültige Payment Method für späteren Gebrauch
+        window.validatedPaymentMethod = paymentMethod;
+        
+        return true;
+    } catch (e) {
+        console.log('SEPA validation exception:', e);
+        return false;
+    }
+}
     
     async function validateStripeSepaElement() {
         if (!window.YPrintStripeCheckout.sepaElement) return false;
