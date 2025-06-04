@@ -80,13 +80,6 @@ if ( ! defined( 'ABSPATH' ) ) {
                 esc_url( home_url('/datenschutz') ) // Beispiel-URL, anpassen!
             ); ?>
         </div>
-        <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-            <button type="button" id="btn-back-to-payment-from-confirm" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">
-               <i class="fas fa-arrow-left mr-2"></i> <?php esc_html_e('Zurück zur Zahlung', 'yprint-checkout'); ?>
-            </button>
-            <button type="button" id="btn-buy-now" class="btn btn-success text-lg px-6 py-3 w-full md:w-auto order-1 md:order-2">
-                <i class="fas fa-shopping-cart mr-2"></i> <?php esc_html_e('Jetzt kaufen', 'yprint-checkout'); ?>
-            </button>
-        </div>
+        <!-- Buttons entfernt - Zahlung bereits abgeschlossen -->
     </div>
 </div>

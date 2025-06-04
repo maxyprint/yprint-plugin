@@ -113,8 +113,7 @@ function isElementVisible(element) {
     const btnToPayment = document.getElementById('btn-to-payment');
     const btnToConfirmation = document.getElementById('btn-to-confirmation');
     const btnBackToAddress = document.getElementById('btn-back-to-address');
-    const btnBackToPaymentFromConfirm = document.getElementById('btn-back-to-payment-from-confirm');
-    const btnBuyNow = document.getElementById('btn-buy-now');
+    
     const btnContinueShopping = document.getElementById('btn-continue-shopping');
     const loadingOverlay = document.getElementById('loading-overlay');
     const billingSameAsShippingCheckbox = document.getElementById('billing-same-as-shipping');
@@ -2205,63 +2204,9 @@ async function validateStripeSepaElement() {
         }
     }
 
-    if (btnBackToPaymentFromConfirm) {
-        btnBackToPaymentFromConfirm.addEventListener('click', (e) => {
-            e.preventDefault();
-            updatePaymentStepSummary();
-            showStep(2);
-        });
-    }
+    
 
-    if (btnBuyNow) {
-        btnBuyNow.addEventListener('click', async (e) => {
-            e.preventDefault();
-            
-            // Prüfe ob bereits eine Zahlung verarbeitet wurde (Apple Pay / Express Checkout)
-            const urlParams = new URLSearchParams(window.location.search);
-            const hasPendingOrder = WC?.session || document.querySelector('.test-mode-notice');
-            
-            if (hasPendingOrder || currentStep === 3) {
-                // Bereits bezahlt - zeige Erfolgsmeldung und simuliere Bestellabschluss
-                showMessage('Bestellung erfolgreich abgeschlossen! (Test-Modus)', 'success');
-                
-                // Ändere Button zu "Bestätigung" oder verstecke ihn
-                btnBuyNow.textContent = 'Bestellung abgeschlossen ✓';
-                btnBuyNow.disabled = true;
-                btnBuyNow.classList.add('bg-green-600', 'cursor-not-allowed');
-                
-                // Fortschrittsanzeige komplett abschließen
-                progressSteps.forEach(pStep => pStep.classList.add('completed'));
-                return;
-            }
-            
-            toggleLoadingOverlay(true);
-            
-            try {
-                // Normale Bestellverarbeitung für andere Zahlungsmethoden
-                const orderResult = await processRealOrder();
-                
-                if (orderResult.success) {
-                    showMessage('Bestellung erfolgreich aufgegeben!', 'success');
-                    
-                    // Button Status ändern
-                    btnBuyNow.textContent = 'Bestellung abgeschlossen ✓';
-                    btnBuyNow.disabled = true;
-                    btnBuyNow.classList.add('bg-green-600', 'cursor-not-allowed');
-                    
-                    // Fortschrittsanzeige abschließen
-                    progressSteps.forEach(pStep => pStep.classList.add('completed'));
-                } else {
-                    throw new Error(orderResult.message || 'Bestellung konnte nicht verarbeitet werden');
-                }
-            } catch (error) {
-                console.error('Bestellfehler:', error);
-                showMessage(error.message || 'Ein Fehler ist aufgetreten', 'error');
-            } finally {
-                toggleLoadingOverlay(false);
-            }
-        });
-    }
+    
     
     // Neue Funktion für echte Bestellverarbeitung
     async function processRealOrder() {
