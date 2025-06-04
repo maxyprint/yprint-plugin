@@ -342,23 +342,34 @@ class YPrintStripeCheckout {
             return;
         }
     
-        // Höre auf Service-Events
+        // Setze initialized flag SOFORT
+        this.initialized = true;
+        console.log('DEBUG: YPrintStripeCheckout.initialized set to:', this.initialized);
+    
+        // DIREKTE Ausführung von prepareCardElement
+        console.log('DEBUG: Calling prepareCardElement directly...');
+        this.prepareCardElement();
+        
+        // Zusätzlich: Höre auf Service-Events (Backup)
         window.YPrintStripeService.on('initialized', (data) => {
-            console.log('DEBUG: Stripe Service initialized event received');
-            this.prepareCardElement();
-            this.initialized = true;
-            console.log('DEBUG: YPrintStripeCheckout.initialized set to:', this.initialized);
+            console.log('DEBUG: Stripe Service initialized event received (backup)');
+            if (!this.cardElement || !this.sepaElement) {
+                console.log('DEBUG: Elements missing, calling prepareCardElement again');
+                this.prepareCardElement();
+            }
         });
     
-        // Falls bereits initialisiert
+        // Falls bereits initialisiert (Backup)
         if (window.YPrintStripeService.isInitialized()) {
-            console.log('DEBUG: Stripe Service already initialized');
-            this.prepareCardElement();
-            this.initialized = true;
-            console.log('DEBUG: YPrintStripeCheckout.initialized set to:', this.initialized);
+            console.log('DEBUG: Stripe Service already initialized (backup check)');
+            if (!this.cardElement || !this.sepaElement) {
+                console.log('DEBUG: Elements missing, calling prepareCardElement again');
+                this.prepareCardElement();
+            }
         }
         
         console.log('=== DEBUG: YPrintStripeCheckout.init END ===');
+        console.log('DEBUG: Final state - cardElement:', !!this.cardElement, 'sepaElement:', !!this.sepaElement);
     }
 
     prepareCardElement() {
@@ -366,12 +377,21 @@ class YPrintStripeCheckout {
         console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
         console.log('this context:', this);
         
+        if (!window.YPrintStripeService) {
+            console.error('DEBUG: YPrintStripeService not available');
+            return;
+        }
+        
+        if (!window.YPrintStripeService.isInitialized()) {
+            console.error('DEBUG: YPrintStripeService not initialized');
+            return;
+        }
+        
         const elements = window.YPrintStripeService.getElements();
         console.log('DEBUG: Elements from service:', elements);
         
         if (!elements) {
             console.error('DEBUG: Elements not available from Stripe Service');
-            console.error('YPrint Stripe Checkout: Elements not available');
             return;
         }
     
@@ -437,6 +457,7 @@ class YPrintStripeCheckout {
             checkoutInstance: this
         };
     }
+
 
     initSepaElement() {
         console.log('=== DEBUG: initSepaElement START ===');
@@ -623,6 +644,8 @@ class YPrintStripeCheckout {
         });
     }
 
+    
+
     // Track card element state
     trackCardElementState() {
         if (!this.cardElement) return;
@@ -684,6 +707,47 @@ class YPrintStripeCheckout {
         return paymentMethod;
     }
 }
+
+// Global verfügbar machen
+window.YPrintStripeCheckout = new YPrintStripeCheckout();
+
+// SOFORTIGE manuelle Initialisierung falls nötig
+setTimeout(async () => {
+    console.log('=== MANUAL STRIPE CHECKOUT INITIALIZATION CHECK ===');
+    
+    if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initialized) {
+        console.log('YPrintStripeCheckout initialized:', window.YPrintStripeCheckout.initialized);
+        console.log('cardElement exists:', !!window.YPrintStripeCheckout.cardElement);
+        console.log('sepaElement exists:', !!window.YPrintStripeCheckout.sepaElement);
+        
+        if (!window.YPrintStripeCheckout.cardElement || !window.YPrintStripeCheckout.sepaElement) {
+            console.log('DEBUG: Elements missing, forcing prepareCardElement...');
+            
+            // Warte bis YPrintStripeService verfügbar ist
+            let attempts = 0;
+            while (attempts < 10 && (!window.YPrintStripeService || !window.YPrintStripeService.isInitialized())) {
+                console.log('Waiting for YPrintStripeService... attempt', attempts + 1);
+                await new Promise(resolve => setTimeout(resolve, 500));
+                attempts++;
+            }
+            
+            if (window.YPrintStripeService && window.YPrintStripeService.isInitialized()) {
+                console.log('DEBUG: Force calling prepareCardElement');
+                window.YPrintStripeCheckout.prepareCardElement();
+                
+                // Warte kurz und prüfe erneut
+                setTimeout(() => {
+                    console.log('After force prepare - cardElement:', !!window.YPrintStripeCheckout.cardElement);
+                    console.log('After force prepare - sepaElement:', !!window.YPrintStripeCheckout.sepaElement);
+                }, 500);
+            }
+        }
+    }
+}, 1000);
+
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('YPrint Stripe Checkout JS loaded');
+});
 
 // Global verfügbar machen
 window.YPrintStripeCheckout = new YPrintStripeCheckout();

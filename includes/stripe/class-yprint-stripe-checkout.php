@@ -1436,6 +1436,8 @@ if (WC()->cart->is_empty()) {
     }
 }
 
+
+
     /**
      * Capture additional order details during checkout
      *
@@ -1459,6 +1461,8 @@ if (WC()->cart->is_empty()) {
         }
     }
 }
+
+
 
 
 
