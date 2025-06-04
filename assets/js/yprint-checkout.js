@@ -638,41 +638,6 @@ class YPrintStripeCheckout {
             return false;
         }
     }
-    
-    // Track card element state
-    trackCardElementState() {
-        if (!this.cardElement) return;
-        
-        let cardComplete = false;
-        let cardError = null;
-        
-        this.cardElement.on('change', (event) => {
-            cardComplete = event.complete;
-            cardError = event.error;
-            
-            // Store state globally for validation
-            window.stripeCardState = {
-                complete: cardComplete,
-                error: cardError
-            };
-            
-            console.log('Card state changed:', {
-                complete: cardComplete,
-                error: cardError?.message
-            });
-            
-            const displayError = document.getElementById('stripe-card-errors');
-            if (displayError) {
-                if (event.error) {
-                    displayError.textContent = event.error.message;
-                    displayError.style.display = 'block';
-                } else {
-                    displayError.textContent = '';
-                    displayError.style.display = 'none';
-                }
-            }
-        });
-    }
 
     showStripeError(message) {
         const stripeContainers = document.querySelectorAll('#stripe-card-element, .stripe-payment-element-container');
