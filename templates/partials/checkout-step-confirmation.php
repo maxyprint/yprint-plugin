@@ -13,8 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 ?>
 <div id="step-3" class="checkout-step"> <?php // 'active' Klasse wird serverseitig oder per JS initial gesetzt ?>
-    <h2 class="flex items-center"><i class="fas fa-check-circle mr-2 text-yprint-blue"></i><?php esc_html_e('Bestellung überprüfen und abschließen', 'yprint-checkout'); ?></h2>
-    <div class="space-y-6 mt-6">
+   <div class="space-y-6 mt-6">
         <div>
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e('Lieferadresse', 'yprint-checkout'); ?></h3>
             <div id="confirm-shipping-address" class="text-yprint-text-secondary text-sm leading-relaxed">
