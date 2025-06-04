@@ -1895,6 +1895,15 @@ try {
     console.error('DEBUG: Exception in createPaymentMethod:', createError);
     throw createError;
 }
+
+// TIMEOUT-SCHUTZ HINZUFÜGEN
+console.log('DEBUG: Setting up timeout protection...');
+
+// Wenn createPaymentMethod nach 10 Sekunden nicht antwortet
+setTimeout(() => {
+    console.error('DEBUG: createPaymentMethod TIMEOUT after 10 seconds');
+    console.error('DEBUG: This indicates a Stripe communication issue');
+}, 10000);
     
     if (error) {
         console.error('Card payment method creation error:', error);
@@ -1940,11 +1949,21 @@ async function createStripeSepaPaymentMethod() {
     
     console.log('Creating SEPA payment method with billing details:', billingDetails);
     
-    const { paymentMethod, error } = await stripe.createPaymentMethod({
-        type: 'sepa_debit',
-        sepa_debit: window.YPrintStripeCheckout.sepaElement,
-        billing_details: billingDetails,
-    });
+    // Timeout-Wrapper für Stripe createPaymentMethod
+const createPaymentMethodWithTimeout = () => {
+    return Promise.race([
+        stripe.createPaymentMethod({
+            type: 'card',
+            card: window.YPrintStripeCheckout.cardElement,
+            billing_details: billingDetails,
+        }),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('createPaymentMethod timeout after 15 seconds')), 15000)
+        )
+    ]);
+};
+
+const { paymentMethod, error } = await createPaymentMethodWithTimeout();
     
     if (error) {
         console.error('SEPA payment method creation error:', error);
