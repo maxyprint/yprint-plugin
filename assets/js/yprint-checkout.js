@@ -1694,32 +1694,14 @@ async function validatePaymentMethod() {
         if (paymentMethod === 'card') {
             console.log('DEBUG: Validating card payment...');
             
-            // Prüfe ob Card Element existiert und gemountet ist
+            // Prüfe nur ob Card Element existiert (Mount-Prüfung komplett entfernt)
 if (!window.YPrintStripeCheckout.cardElement) {
     console.error('DEBUG: Card element does not exist');
     showMessage('Kartenelement ist nicht verfügbar. Bitte laden Sie die Seite neu.', 'error');
     return false;
 }
 
-const cardContainer = document.getElementById('stripe-card-element');
-console.log('DEBUG: Card container:', cardContainer);
-console.log('DEBUG: Card container innerHTML:', cardContainer ? cardContainer.innerHTML : 'No container');
-console.log('DEBUG: Card container children:', cardContainer ? cardContainer.children.length : 'No container');
-
-// Verbesserte Mount-Prüfung - suche nach verschiedenen möglichen Stripe-Klassen
-const isCardMounted = cardContainer && (
-    cardContainer.querySelector('.StripeElement') ||
-    cardContainer.querySelector('[class*="stripe"]') ||
-    cardContainer.querySelector('iframe') ||
-    cardContainer.children.length > 0
-);
-
-console.log('DEBUG: Card element mounted check:', isCardMounted);
-
-if (!isCardMounted) {
-    console.warn('DEBUG: Card element appears not mounted, but continuing validation...');
-    // NICHT mehr abbrechen - stattdessen versuche Validierung
-}
+console.log('DEBUG: Card element exists, skipping mount check, going directly to status validation');
             
             // Prüfe Card-Status
             console.log('DEBUG: Checking card state...');
