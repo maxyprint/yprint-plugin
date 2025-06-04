@@ -318,40 +318,62 @@ class YPrintStripeCheckout {
     }
 
     async init() {
+        console.log('=== DEBUG: YPrintStripeCheckout.init START ===');
+        console.log('typeof yprint_stripe_vars:', typeof yprint_stripe_vars);
+        console.log('yprint_stripe_vars.publishable_key exists:', !!(typeof yprint_stripe_vars !== 'undefined' && yprint_stripe_vars.publishable_key));
+        
         // Warte auf Stripe Service Initialisierung
         if (typeof yprint_stripe_vars === 'undefined' || !yprint_stripe_vars.publishable_key) {
+            console.error('DEBUG: Stripe-Konfiguration fehlt');
             this.showStripeError('Stripe-Konfiguration fehlt.');
             return;
         }
-
+    
+        console.log('DEBUG: Initializing Stripe Service with key:', yprint_stripe_vars.publishable_key.substring(0, 20) + '...');
+        
         // Initialisiere über zentralen Service
         const success = await window.YPrintStripeService.initialize(yprint_stripe_vars.publishable_key);
         
+        console.log('DEBUG: Stripe Service initialization result:', success);
+        
         if (!success) {
+            console.error('DEBUG: Stripe-Initialisierung fehlgeschlagen');
             this.showStripeError('Stripe-Initialisierung fehlgeschlagen.');
             return;
         }
-
+    
         // Höre auf Service-Events
         window.YPrintStripeService.on('initialized', (data) => {
+            console.log('DEBUG: Stripe Service initialized event received');
             this.prepareCardElement();
             this.initialized = true;
+            console.log('DEBUG: YPrintStripeCheckout.initialized set to:', this.initialized);
         });
-
+    
         // Falls bereits initialisiert
         if (window.YPrintStripeService.isInitialized()) {
+            console.log('DEBUG: Stripe Service already initialized');
             this.prepareCardElement();
             this.initialized = true;
+            console.log('DEBUG: YPrintStripeCheckout.initialized set to:', this.initialized);
         }
+        
+        console.log('=== DEBUG: YPrintStripeCheckout.init END ===');
     }
 
     prepareCardElement() {
+        console.log('=== DEBUG: prepareCardElement START ===');
+        console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
+        
         const elements = window.YPrintStripeService.getElements();
+        console.log('DEBUG: Elements from service:', elements);
+        
         if (!elements) {
+            console.error('DEBUG: Elements not available from Stripe Service');
             console.error('YPrint Stripe Checkout: Elements not available');
             return;
         }
-
+    
         const elementsStyle = {
             base: {
                 color: '#1d1d1f',
@@ -367,17 +389,32 @@ class YPrintStripeCheckout {
                 iconColor: '#dc3545'
             }
         };
-
-        this.cardElement = elements.create('card', { 
-            style: elementsStyle,
-            hidePostalCode: true
-        });
-
-        this.sepaElement = elements.create('iban', {
-            style: elementsStyle,
-            supportedCountries: ['SEPA'],
-            placeholderCountry: 'DE'
-        });
+    
+        console.log('DEBUG: Creating card element...');
+        try {
+            this.cardElement = elements.create('card', { 
+                style: elementsStyle,
+                hidePostalCode: true
+            });
+            console.log('DEBUG: Card element created:', !!this.cardElement);
+        } catch (cardError) {
+            console.error('DEBUG: Error creating card element:', cardError);
+        }
+    
+        console.log('DEBUG: Creating SEPA element...');
+        try {
+            this.sepaElement = elements.create('iban', {
+                style: elementsStyle,
+                supportedCountries: ['SEPA'],
+                placeholderCountry: 'DE'
+            });
+            console.log('DEBUG: SEPA element created:', !!this.sepaElement);
+        } catch (sepaError) {
+            console.error('DEBUG: Error creating SEPA element:', sepaError);
+        }
+        
+        console.log('=== DEBUG: prepareCardElement END ===');
+        console.log('Final state - cardElement:', !!this.cardElement, 'sepaElement:', !!this.sepaElement);
     }
 
     initSepaElement() {
@@ -1363,10 +1400,58 @@ async function processStripePaymentImmediately() {
 
 // Hilfsfunktion für Karten-Payment Method
 async function createStripeCardPaymentMethod() {
+    console.log('=== DEBUG: createStripeCardPaymentMethod START ===');
+    console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
+    console.log('window.YPrintStripeService.isInitialized():', window.YPrintStripeService ? window.YPrintStripeService.isInitialized() : 'N/A');
+    console.log('window.YPrintStripeCheckout exists:', !!window.YPrintStripeCheckout);
+    console.log('window.YPrintStripeCheckout.initialized:', window.YPrintStripeCheckout ? window.YPrintStripeCheckout.initialized : 'N/A');
+    console.log('window.YPrintStripeCheckout.cardElement exists:', !!(window.YPrintStripeCheckout && window.YPrintStripeCheckout.cardElement));
+    
     const stripe = window.YPrintStripeService.getStripe();
-    if (!stripe || !window.YPrintStripeCheckout.cardElement) {
-        throw new Error('Stripe oder Card Element nicht verfügbar');
+    console.log('Stripe instance:', stripe);
+    
+    if (!stripe) {
+        console.error('DEBUG: Stripe instance not available from YPrintStripeService');
+        throw new Error('Stripe Service nicht verfügbar');
     }
+    
+    if (!window.YPrintStripeCheckout) {
+        console.error('DEBUG: YPrintStripeCheckout not available');
+        throw new Error('YPrintStripeCheckout nicht verfügbar');
+    }
+    
+    if (!window.YPrintStripeCheckout.initialized) {
+        console.error('DEBUG: YPrintStripeCheckout not initialized');
+        throw new Error('YPrintStripeCheckout nicht initialisiert');
+    }
+    
+    if (!window.YPrintStripeCheckout.cardElement) {
+        console.error('DEBUG: Card Element not available');
+        console.log('DEBUG: Attempting to initialize Card Element...');
+        
+        // Versuche Card Element zu initialisieren
+        try {
+            if (window.YPrintStripeCheckout.initCardElement) {
+                await window.YPrintStripeCheckout.initCardElement();
+                
+                // Warte kurz und prüfe erneut
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                if (!window.YPrintStripeCheckout.cardElement) {
+                    throw new Error('Card Element konnte nicht initialisiert werden');
+                }
+                
+                console.log('DEBUG: Card Element successfully initialized');
+            } else {
+                throw new Error('initCardElement Methode nicht verfügbar');
+            }
+        } catch (initError) {
+            console.error('DEBUG: Card Element initialization failed:', initError);
+            throw new Error('Card Element Initialisierung fehlgeschlagen: ' + initError.message);
+        }
+    }
+    
+    console.log('DEBUG: All checks passed, creating payment method...');
     
     // Sammle Billing-Details aus dem Formular
     const billingDetails = {
@@ -1400,10 +1485,58 @@ async function createStripeCardPaymentMethod() {
 
 // Hilfsfunktion für SEPA-Payment Method
 async function createStripeSepaPaymentMethod() {
+    console.log('=== DEBUG: createStripeSepaPaymentMethod START ===');
+    console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
+    console.log('window.YPrintStripeService.isInitialized():', window.YPrintStripeService ? window.YPrintStripeService.isInitialized() : 'N/A');
+    console.log('window.YPrintStripeCheckout exists:', !!window.YPrintStripeCheckout);
+    console.log('window.YPrintStripeCheckout.initialized:', window.YPrintStripeCheckout ? window.YPrintStripeCheckout.initialized : 'N/A');
+    console.log('window.YPrintStripeCheckout.sepaElement exists:', !!(window.YPrintStripeCheckout && window.YPrintStripeCheckout.sepaElement));
+    
     const stripe = window.YPrintStripeService.getStripe();
-    if (!stripe || !window.YPrintStripeCheckout.sepaElement) {
-        throw new Error('Stripe oder SEPA Element nicht verfügbar');
+    console.log('Stripe instance:', stripe);
+    
+    if (!stripe) {
+        console.error('DEBUG: Stripe instance not available from YPrintStripeService');
+        throw new Error('Stripe Service nicht verfügbar');
     }
+    
+    if (!window.YPrintStripeCheckout) {
+        console.error('DEBUG: YPrintStripeCheckout not available');
+        throw new Error('YPrintStripeCheckout nicht verfügbar');
+    }
+    
+    if (!window.YPrintStripeCheckout.initialized) {
+        console.error('DEBUG: YPrintStripeCheckout not initialized');
+        throw new Error('YPrintStripeCheckout nicht initialisiert');
+    }
+    
+    if (!window.YPrintStripeCheckout.sepaElement) {
+        console.error('DEBUG: SEPA Element not available');
+        console.log('DEBUG: Attempting to initialize SEPA Element...');
+        
+        // Versuche SEPA Element zu initialisieren
+        try {
+            if (window.YPrintStripeCheckout.initSepaElement) {
+                await window.YPrintStripeCheckout.initSepaElement();
+                
+                // Warte kurz und prüfe erneut
+                await new Promise(resolve => setTimeout(resolve, 500));
+                
+                if (!window.YPrintStripeCheckout.sepaElement) {
+                    throw new Error('SEPA Element konnte nicht initialisiert werden');
+                }
+                
+                console.log('DEBUG: SEPA Element successfully initialized');
+            } else {
+                throw new Error('initSepaElement Methode nicht verfügbar');
+            }
+        } catch (initError) {
+            console.error('DEBUG: SEPA Element initialization failed:', initError);
+            throw new Error('SEPA Element Initialisierung fehlgeschlagen: ' + initError.message);
+        }
+    }
+    
+    console.log('DEBUG: All checks passed, creating payment method...');
     
     // Sammle Billing-Details aus dem Formular
     const billingDetails = {
@@ -2090,6 +2223,34 @@ function initPaymentSlider() {
     
     console.log('Payment slider initialized successfully');
 }
+
+// Debug-Funktion für Stripe-Status
+function debugStripeStatus() {
+    console.log('=== STRIPE STATUS DEBUG ===');
+    console.log('typeof Stripe:', typeof Stripe);
+    console.log('Stripe available:', typeof Stripe !== 'undefined');
+    console.log('window.YPrintStripeService exists:', !!window.YPrintStripeService);
+    console.log('YPrintStripeService.isInitialized():', window.YPrintStripeService ? window.YPrintStripeService.isInitialized() : 'N/A');
+    console.log('window.YPrintStripeCheckout exists:', !!window.YPrintStripeCheckout);
+    console.log('YPrintStripeCheckout.initialized:', window.YPrintStripeCheckout ? window.YPrintStripeCheckout.initialized : 'N/A');
+    console.log('YPrintStripeCheckout.cardElement exists:', !!(window.YPrintStripeCheckout && window.YPrintStripeCheckout.cardElement));
+    console.log('YPrintStripeCheckout.sepaElement exists:', !!(window.YPrintStripeCheckout && window.YPrintStripeCheckout.sepaElement));
+    
+    // Prüfe DOM-Elemente
+    console.log('Card element container exists:', !!document.getElementById('stripe-card-element'));
+    console.log('SEPA element container exists:', !!document.getElementById('stripe-sepa-element'));
+    
+    // Prüfe ob Elemente gemountet sind
+    const cardContainer = document.getElementById('stripe-card-element');
+    const sepaContainer = document.getElementById('stripe-sepa-element');
+    console.log('Card element mounted:', !!(cardContainer && cardContainer.querySelector('.StripeElement')));
+    console.log('SEPA element mounted:', !!(sepaContainer && sepaContainer.querySelector('.StripeElement')));
+    
+    console.log('=========================');
+}
+
+// Rufe Debug-Funktion regelmäßig auf
+setInterval(debugStripeStatus, 5000); // Alle 5 Sekunden
 
 // Intelligente Zahlungsmethodenerkennung (für späteren Ausbau)
 function detectPaymentMethod() {
