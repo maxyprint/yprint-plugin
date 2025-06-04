@@ -1868,12 +1868,33 @@ async function createStripeCardPaymentMethod() {
     };
     
     console.log('Creating card payment method with billing details:', billingDetails);
-    
+
+console.log('DEBUG: About to call stripe.createPaymentMethod...');
+console.log('DEBUG: Card element before createPaymentMethod:', window.YPrintStripeCheckout.cardElement);
+
+try {
     const { paymentMethod, error } = await stripe.createPaymentMethod({
         type: 'card',
         card: window.YPrintStripeCheckout.cardElement,
         billing_details: billingDetails,
     });
+    
+    console.log('DEBUG: createPaymentMethod completed');
+    console.log('DEBUG: paymentMethod result:', paymentMethod);
+    console.log('DEBUG: error result:', error);
+    
+    if (error) {
+        console.error('DEBUG: Payment method creation error:', error);
+        throw new Error(error.message);
+    }
+    
+    console.log('DEBUG: Payment method created successfully:', paymentMethod.id);
+    return paymentMethod;
+    
+} catch (createError) {
+    console.error('DEBUG: Exception in createPaymentMethod:', createError);
+    throw createError;
+}
     
     if (error) {
         console.error('Card payment method creation error:', error);
