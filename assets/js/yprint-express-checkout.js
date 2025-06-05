@@ -73,24 +73,40 @@
             console.log('Currency:', params.checkout.currency);
             
             // Erstelle Payment Request Objekt mit Debug
-            const paymentRequestConfig = {
-                country: params.checkout.country || 'DE',
-                currency: params.checkout.currency || 'eur',
-                total: {
-                    label: params.checkout.total_label || 'YPrint Order',
-                    amount: params.cart.total || 0,
-                },
-                displayItems: params.cart.display_items || [],
-                requestPayerName: true,
-                requestPayerEmail: true,
-                requestPayerPhone: true,
-                requestShipping: params.cart.needs_shipping || false,
-            };
-            
-            console.log('Payment Request Config:', paymentRequestConfig);
-            console.log('=== EXPRESS PAYMENT REQUEST DEBUG END ===');
-            
-            this.paymentRequest = stripe.paymentRequest(paymentRequestConfig);
+const paymentRequestConfig = {
+    country: params.checkout.country || 'DE',
+    currency: params.checkout.currency || 'eur',
+    total: {
+        label: params.checkout.total_label || 'YPrint Order',
+        amount: params.cart.total || 0,
+    },
+    displayItems: params.cart.display_items || [],
+    requestPayerName: true,
+    requestPayerEmail: true,
+    requestPayerPhone: true,
+    requestShipping: params.cart.needs_shipping || false,
+};
+
+// Füge Adress-Prefill hinzu wenn verfügbar
+if (params.address && params.address.prefill && params.address.current) {
+    const currentAddress = params.address.current;
+    console.log('EXPRESS DEBUG: Adding address prefill:', currentAddress);
+    
+    // Setze Shipping Address Options für Apple Pay Prefill
+    if (params.cart.needs_shipping && currentAddress) {
+        paymentRequestConfig.shippingOptions = [{
+            id: 'prefilled',
+            label: 'Aktuelle Adresse',
+            detail: `${currentAddress.city || ''} ${currentAddress.postal_code || ''}`.trim(),
+            amount: 0
+        }];
+    }
+}
+
+console.log('Payment Request Config:', paymentRequestConfig);
+console.log('=== EXPRESS PAYMENT REQUEST DEBUG END ===');
+
+this.paymentRequest = stripe.paymentRequest(paymentRequestConfig);
         
             console.log('YPrint Express Checkout: Payment Request created with total:', params.cart.total);
     
@@ -341,17 +357,48 @@
         }
 
         // Öffentliche Methode zum Aktualisieren des Betrags (für Phase 2)
-        updateAmount(newAmount) {
-            if (this.paymentRequest) {
-                this.paymentRequest.update({
-                    total: {
-                        label: yprint_express_payment_params.checkout.total_label,
-                        amount: newAmount,
-                    },
-                });
-                console.log('YPrint Express Checkout: Amount updated to:', newAmount);
-            }
+updateAmount(newAmount) {
+    if (this.paymentRequest) {
+        this.paymentRequest.update({
+            total: {
+                label: yprint_express_payment_params.checkout.total_label,
+                amount: newAmount,
+            },
+        });
+        console.log('YPrint Express Checkout: Amount updated to:', newAmount);
+    }
+}
+
+// Neue Methode zum Aktualisieren der Adresse
+updateAddress(addressData) {
+    console.log('YPrint Express Checkout: Updating address for Apple Pay:', addressData);
+    
+    // Speichere die neue Adresse für zukünftige Express Payment Requests
+    if (window.yprint_express_payment_params && window.yprint_express_payment_params.address) {
+        window.yprint_express_payment_params.address.current = {
+            country: addressData.country || 'DE',
+            state: addressData.state || '',
+            city: addressData.city || '',
+            postal_code: addressData.postcode || '',
+            line1: addressData.address_1 || '',
+            line2: addressData.address_2 || ''
+        };
+        window.yprint_express_payment_params.address.prefill = true;
+        
+        console.log('YPrint Express Checkout: Address parameters updated');
+    }
+    
+    // Falls Payment Request bereits existiert, versuche ein Update (nicht alle Browser unterstützen das)
+    if (this.paymentRequest) {
+        try {
+            // Note: Shipping address update in existing PaymentRequest ist limitiert
+            // Die neue Adresse wird beim nächsten Apple Pay Dialog verwendet
+            console.log('YPrint Express Checkout: Address will be used in next Apple Pay session');
+        } catch (error) {
+            console.log('YPrint Express Checkout: Address update not supported by browser');
         }
+    }
+}
     }
 
     // Global verfügbar machen für Integration

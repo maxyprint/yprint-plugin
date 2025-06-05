@@ -846,6 +846,12 @@ addWooCommerceDefaultAddress: function(grid) {
                 success: function(response) {
                     if (response.success) {
                         self.fillAddressForm(response.data.address_data);
+                        
+                        // Aktualisiere Express Payment mit neuer Adresse
+                        if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
+                            window.YPrintExpressCheckout.updateAddress(response.data.address_data);
+                        }
+                        
                         self.showMessage('Adresse ausgewählt und für Checkout gesetzt.', 'success');
                         self.closeAddressSelectionView();
                         

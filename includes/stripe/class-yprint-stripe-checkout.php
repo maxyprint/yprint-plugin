@@ -476,6 +476,40 @@ $cart_data_manager = YPrint_Cart_Data::get_instance();
 $checkout_context = $cart_data_manager->get_checkout_context('full');
 $express_payment_data = $checkout_context['express_payment'];
 
+// Hole aktuelle Adresse aus Address Manager / WooCommerce Customer
+$current_address = null;
+if (WC()->customer) {
+    // Prüfe zuerst ob eine Adresse aus dem Address Manager Session gesetzt wurde
+    $selected_address = WC()->session->get('yprint_selected_address');
+    
+    if ($selected_address) {
+        error_log('EXPRESS DEBUG: Using selected address from session: ' . print_r($selected_address, true));
+        $current_address = array(
+            'country' => $selected_address['country'] ?? 'DE',
+            'state' => $selected_address['state'] ?? '',
+            'city' => $selected_address['city'] ?? '',
+            'postal_code' => $selected_address['postcode'] ?? '',
+            'line1' => $selected_address['address_1'] ?? '',
+            'line2' => $selected_address['address_2'] ?? ''
+        );
+    } else {
+        // Fallback: Nutze WooCommerce Customer Daten
+        $current_address = array(
+            'country' => WC()->customer->get_shipping_country() ?: WC()->customer->get_billing_country(),
+            'state' => WC()->customer->get_shipping_state() ?: WC()->customer->get_billing_state(),
+            'city' => WC()->customer->get_shipping_city() ?: WC()->customer->get_billing_city(),
+            'postal_code' => WC()->customer->get_shipping_postcode() ?: WC()->customer->get_billing_postcode(),
+            'line1' => WC()->customer->get_shipping_address_1() ?: WC()->customer->get_billing_address_1(),
+            'line2' => WC()->customer->get_shipping_address_2() ?: WC()->customer->get_billing_address_2()
+        );
+    }
+    
+    // Entferne leere Werte
+    $current_address = array_filter($current_address);
+    
+    error_log('EXPRESS DEBUG: Current address for Apple Pay: ' . print_r($current_address, true));
+}
+
 // Debug für Versandkosten-Problem
 error_log('=== EXPRESS PAYMENT DEBUG ===');
 error_log('WC Cart Shipping Total: ' . (WC()->cart ? WC()->cart->get_shipping_total() : 'Cart not available'));
@@ -546,6 +580,10 @@ wp_localize_script(
             'total' => $express_payment_data['total']['amount'],
             'needs_shipping' => $express_payment_data['requestShipping'],
             'display_items' => $express_payment_data['displayItems']
+        ),
+        'address' => array(
+            'current' => $current_address,
+            'prefill' => !empty($current_address)
         ),
         'settings' => array(
             'button_type' => isset($stripe_settings['payment_request_button_type']) ? $stripe_settings['payment_request_button_type'] : 'default',
