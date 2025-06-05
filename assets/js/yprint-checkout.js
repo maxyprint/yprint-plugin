@@ -2249,6 +2249,40 @@ async function validateStripeSepaElement() {
         });
     }
 
+    // Zusätzliche Event-Listener für "Bestellung anzeigen" Button
+    $(document).on('click', '#btn-view-order, .btn-view-order', function(e) {
+        e.preventDefault();
+        
+        // Hole Order-ID aus data-Attribut oder URL-Parameter
+        const orderId = $(this).data('order-id') || urlParams.get('order_id');
+        
+        if (orderId) {
+            // Weiterleitung zur WooCommerce Order-View Seite
+            const orderUrl = yprint_checkout_params.checkout_url.replace('checkout', 'view-order/' + orderId);
+            window.location.href = orderUrl;
+        } else {
+            // Fallback zur Account-Seite mit Bestellungen
+            const accountUrl = yprint_checkout_params.checkout_url.replace('checkout', 'my-account/orders');
+            window.location.href = accountUrl;
+        }
+    });
+
+    // Robuste Button-Erkennung für verschiedene Button-Varianten
+    $(document).on('click', 'button[id*="view"], button[class*="view"], a[href*="view-order"]', function(e) {
+        const buttonText = $(this).text().toLowerCase();
+        if (buttonText.includes('bestellung') || buttonText.includes('order') || buttonText.includes('anzeigen')) {
+            e.preventDefault();
+            
+            const orderId = $(this).data('order-id') || $(this).attr('href')?.match(/view-order\/(\d+)/)?.[1];
+            
+            if (orderId) {
+                window.location.href = `/my-account/view-order/${orderId}/`;
+            } else {
+                window.location.href = '/my-account/orders/';
+            }
+        }
+    });
+
     // Klarna Logo SVG Path Korrektur (falls im HTML gekürzt)
     // Stellt sicher, dass das Klarna-Logo korrekt angezeigt wird.
     document.querySelectorAll('svg path[d^="M248.291"]').forEach(path => {

@@ -295,17 +295,6 @@ body.yprint-checkout-page { /* Spezifische Klasse für Checkout-Seiten-Body */
     border-color: var(--yprint-blue) !important;
 }
 
-.yprint-checkbox:checked::after {
-    content: '✓' !important;
-    position: absolute !important;
-    top: 50% !important;
-    left: 50% !important;
-    transform: translate(-50%, -50%) !important;
-    color: var(--yprint-white) !important;
-    font-size: 12px !important;
-    font-weight: bold !important;
-}
-
 .yprint-radio:checked::after {
     content: '' !important;
     position: absolute !important;
@@ -2063,5 +2052,101 @@ input[name="payment_method"]:checked + .payment-method-label {
     .yprint-saved-addresses .btn-address-action:hover {
         background-color: currentColor !important;
         color: var(--yprint-white, #ffffff) !important;
+    }
+}
+
+/* Gutscheincode-Feld Styling */
+.voucher-section,
+.cart-voucher-section {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #e5e5e5;
+}
+
+.voucher-input-group,
+.cart-voucher-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+#voucher,
+#cart-voucher,
+.voucher-input {
+    flex: 1;
+    padding: 12px 15px;
+    border: 1px solid #d1d1d6;
+    border-radius: 10px;
+    font-size: 16px;
+    font-family: "Roboto", sans-serif;
+    background: #ffffff;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#voucher:focus,
+#cart-voucher:focus,
+.voucher-input:focus {
+    outline: none;
+    border-color: #0079FF;
+    box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+}
+
+.voucher-button,
+.voucher-button-final,
+#apply-voucher-button {
+    padding: 12px 20px;
+    background: #0079FF;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+}
+
+.voucher-button:hover,
+.voucher-button-final:hover,
+#apply-voucher-button:hover {
+    background: #0056b3;
+}
+
+.voucher-button:disabled,
+.voucher-button-final:disabled,
+#apply-voucher-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.voucher-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #1d1d1f;
+    font-size: 14px;
+}
+
+#cart-voucher-feedback,
+.voucher-feedback {
+    margin-top: 0.5rem;
+    font-size: 12px;
+    padding: 0.25rem 0;
+}
+
+/* Responsive Design für Gutscheinfeld */
+@media (max-width: 768px) {
+    .voucher-input-group,
+    .cart-voucher-input-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .voucher-button,
+    .voucher-button-final,
+    #apply-voucher-button {
+        width: 100%;
     }
 }

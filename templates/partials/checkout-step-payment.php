@@ -612,7 +612,7 @@ if (class_exists('YPrint_Stripe_Checkout')) {
 
             <!-- Apple Pay Hinweis -->
 <div class="apple-pay-notice" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #666;">
-    <strong>Hinweis:</strong> Bei Zahlungen über Wallet-Dienste wie Apple Pay oder Google Pay werden unter Umständen automatisch hinterlegte Adressdaten übermittelt. Für den Versand verwenden wir jedoch ausschließlich die Lieferadresse, die im letzten Schritt des Bestellprozesses von Ihnen bestätigt wurde.
+    <strong>Hinweis:</strong> Bei Zahlungen über Wallet-Dienste werden unter Umständen automatisch hinterlegte Adressdaten übermittelt. Für den Versand verwenden wir jedoch ausschließlich die Lieferadresse, die im letzten Schritt des Bestellprozesses von Ihnen bestätigt wurde.
 </div>
 
             <div id="yprint-express-payment-container" style="display: none;">
