@@ -883,10 +883,14 @@ public function ajax_set_checkout_address() {
         $this->update_woocommerce_customer_data($address_to_set, 'billing');
         
         // WICHTIG: Speichere Adresse auch in Session für Express Payment
-        if (WC()->session) {
-            WC()->session->set('yprint_selected_address', $address_to_set);
-            error_log('Address Manager: Saved address to session for Express Payment: ' . print_r($address_to_set, true));
-        }
+if (WC()->session) {
+    WC()->session->set('yprint_selected_address', $address_to_set);
+    error_log('=== ADDRESS MANAGER SESSION DEBUG ===');
+    error_log('Address Manager: Saved address to session for Express Payment: ' . print_r($address_to_set, true));
+    error_log('Session ID: ' . WC()->session->get_customer_id());
+    error_log('All session data: ' . print_r(WC()->session->get_session_data(), true));
+    error_log('=== ADDRESS MANAGER SESSION DEBUG END ===');
+}
 
         wp_send_json_success(array(
             'message' => 'Adresse erfolgreich für den Checkout gesetzt.',
