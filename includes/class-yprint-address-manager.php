@@ -881,6 +881,12 @@ public function ajax_set_checkout_address() {
     if ($address_to_set) {
         $this->update_woocommerce_customer_data($address_to_set, 'shipping');
         $this->update_woocommerce_customer_data($address_to_set, 'billing');
+        
+        // WICHTIG: Speichere Adresse auch in Session für Express Payment
+        if (WC()->session) {
+            WC()->session->set('yprint_selected_address', $address_to_set);
+            error_log('Address Manager: Saved address to session for Express Payment: ' . print_r($address_to_set, true));
+        }
 
         wp_send_json_success(array(
             'message' => 'Adresse erfolgreich für den Checkout gesetzt.',

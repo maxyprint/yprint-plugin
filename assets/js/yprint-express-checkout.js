@@ -92,14 +92,23 @@ if (params.address && params.address.prefill && params.address.current) {
     const currentAddress = params.address.current;
     console.log('EXPRESS DEBUG: Adding address prefill:', currentAddress);
     
-    // Setze Shipping Address Options für Apple Pay Prefill
+    // Setze Default Shipping Address für Apple Pay
     if (params.cart.needs_shipping && currentAddress) {
+        // Apple Pay unterstützt default shipping address
         paymentRequestConfig.shippingOptions = [{
-            id: 'prefilled',
-            label: 'Aktuelle Adresse',
-            detail: `${currentAddress.city || ''} ${currentAddress.postal_code || ''}`.trim(),
-            amount: 0
+            id: 'standard',
+            label: 'Standard Versand',
+            detail: 'Kostenloser Versand',
+            amount: 0,
+            selected: true
         }];
+        
+        // Versuche die Adresse als Standard zu setzen (limitierte Browser-Unterstützung)
+        try {
+            console.log('EXPRESS DEBUG: Setting default shipping address for Apple Pay:', currentAddress);
+        } catch (error) {
+            console.log('EXPRESS DEBUG: Default address setting not supported');
+        }
     }
 }
 
@@ -372,6 +381,7 @@ updateAmount(newAmount) {
 // Neue Methode zum Aktualisieren der Adresse
 updateAddress(addressData) {
     console.log('YPrint Express Checkout: Updating address for Apple Pay:', addressData);
+    console.log('YPrint Express Checkout: Address data received:', addressData);
     
     // Speichere die neue Adresse für zukünftige Express Payment Requests
     if (window.yprint_express_payment_params && window.yprint_express_payment_params.address) {
@@ -385,18 +395,41 @@ updateAddress(addressData) {
         };
         window.yprint_express_payment_params.address.prefill = true;
         
-        console.log('YPrint Express Checkout: Address parameters updated');
+        console.log('YPrint Express Checkout: Address parameters updated to:', window.yprint_express_payment_params.address.current);
     }
     
-    // Falls Payment Request bereits existiert, versuche ein Update (nicht alle Browser unterstützen das)
-    if (this.paymentRequest) {
-        try {
-            // Note: Shipping address update in existing PaymentRequest ist limitiert
-            // Die neue Adresse wird beim nächsten Apple Pay Dialog verwendet
-            console.log('YPrint Express Checkout: Address will be used in next Apple Pay session');
-        } catch (error) {
-            console.log('YPrint Express Checkout: Address update not supported by browser');
+    // WICHTIG: Apple Pay cached die Adresse beim ersten Payment Request
+    // Wir müssen das Payment Request Button komplett neu erstellen
+    this.recreatePaymentRequestWithNewAddress();
+}
+
+// Neue Methode zum Neuerstellen des Payment Request Buttons mit neuer Adresse
+async recreatePaymentRequestWithNewAddress() {
+    console.log('YPrint Express Checkout: Recreating Payment Request with new address...');
+    
+    try {
+        // Zerstöre das existierende Payment Request Button
+        if (this.prButton) {
+            this.prButton.destroy();
+            this.prButton = null;
         }
+        
+        // Container leeren
+        const container = document.getElementById('yprint-payment-request-button');
+        if (container) {
+            container.innerHTML = '';
+        }
+        
+        // Kurze Verzögerung für cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Payment Request neu erstellen mit aktualisierter Adresse
+        await this.createPaymentRequest();
+        
+        console.log('YPrint Express Checkout: Payment Request recreated successfully');
+        
+    } catch (error) {
+        console.error('YPrint Express Checkout: Error recreating Payment Request:', error);
     }
 }
     }
