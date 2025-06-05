@@ -2249,71 +2249,189 @@ async function validateStripeSepaElement() {
         });
     }
 
-    // Verbesserter "Bestellung anzeigen" Button Handler
-    $(document).on('click', '#btn-view-order, .btn-view-order, button[id*="view-order"], a[id*="view-order"]', function(e) {
-        e.preventDefault();
-        console.log('Bestellung anzeigen Button geklickt');
+    // Enhanced Debug für "Bestellung anzeigen" Button Handler
+$(document).on('click', '#btn-view-order, .btn-view-order, button[id*="view-order"], a[id*="view-order"]', function(e) {
+    e.preventDefault();
+    
+    console.log('=== BESTELLUNG ANZEIGEN BUTTON DEBUG START ===');
+    console.log('🔘 Button Click Event ausgelöst');
+    console.log('🔘 Button Element:', this);
+    console.log('🔘 Button jQuery Object:', $(this));
+    console.log('🔘 Button Klassen:', $(this).attr('class'));
+    console.log('🔘 Button ID:', $(this).attr('id'));
+    console.log('🔘 Button Text:', $(this).text().trim());
+    console.log('🔘 Button HTML:', $(this).html());
+    
+    // Debug DOM-Struktur um den Button
+    console.log('🔘 Parent Element:', $(this).parent());
+    console.log('🔘 Closest Container:', $(this).closest('.checkout-step, .confirmation-section, .order-section'));
+    
+    // Hole Order-ID aus verschiedenen Quellen mit erweiterten Debug
+    console.log('=== ORDER-ID ERMITTLUNG DEBUG ===');
+    
+    let orderId = null;
+    
+    // Methode 1: data-order-id Attribut
+    const dataOrderId = $(this).data('order-id');
+    console.log('🔍 Methode 1 - data("order-id"):', dataOrderId);
+    
+    const attrOrderId = $(this).attr('data-order-id');
+    console.log('🔍 Methode 2 - attr("data-order-id"):', attrOrderId);
+    
+    const closestOrderId = $(this).closest('[data-order-id]').attr('data-order-id');
+    console.log('🔍 Methode 3 - closest element data-order-id:', closestOrderId);
+    
+    orderId = dataOrderId || attrOrderId || closestOrderId;
+    console.log('🔍 Ermittelte Order-ID aus Attributen:', orderId);
+    
+    // Methode 4: URL-Parameter prüfen
+    if (!orderId) {
+        console.log('🔍 Methode 4 - URL Parameter prüfen');
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderIdFromUrl = urlParams.get('order_id') || urlParams.get('order');
+        console.log('🔍 URL Parameter order_id:', urlParams.get('order_id'));
+        console.log('🔍 URL Parameter order:', urlParams.get('order'));
+        console.log('🔍 Ermittelte Order-ID aus URL:', orderIdFromUrl);
+        orderId = orderIdFromUrl;
+    }
+    
+    // Methode 5: Session-Storage prüfen
+    if (!orderId && window.sessionStorage) {
+        console.log('🔍 Methode 5 - Session Storage prüfen');
+        const pendingOrderId = sessionStorage.getItem('yprint_last_order_id');
+        console.log('🔍 Session Storage yprint_last_order_id:', pendingOrderId);
+        orderId = pendingOrderId;
+    }
+    
+    // Methode 6: WooCommerce Session prüfen (falls verfügbar)
+    if (!orderId && window.yprint_checkout_params) {
+        console.log('🔍 Methode 6 - Checkout Params prüfen');
+        console.log('🔍 Checkout Params verfügbar:', window.yprint_checkout_params);
+        // Hier könnten weitere Session-Daten geprüft werden
+    }
+    
+    // Methode 7: DOM nach versteckten Order-IDs durchsuchen
+    if (!orderId) {
+        console.log('🔍 Methode 7 - DOM nach versteckten Order-IDs durchsuchen');
+        const hiddenOrderInput = $('input[name*="order"], input[id*="order"]').val();
+        console.log('🔍 Versteckte Order Inputs:', hiddenOrderInput);
         
-        // Hole Order-ID aus verschiedenen Quellen
-        let orderId = $(this).data('order-id') || 
-                     $(this).attr('data-order-id') ||
-                     $(this).closest('[data-order-id]').attr('data-order-id');
+        const orderInText = $(this).closest('.confirmation-section, .order-section').find(':contains("YP-")').text();
+        console.log('🔍 Text mit YP- Pattern:', orderInText);
         
-        // Prüfe URL-Parameter als Fallback
-        if (!orderId) {
-            const urlParams = new URLSearchParams(window.location.search);
-            orderId = urlParams.get('order_id') || urlParams.get('order');
+        // Suche nach YP-XXXXXXXXX Pattern im Text
+        const orderPattern = /YP-\d{4,}/g;
+        const matchedOrders = orderInText.match(orderPattern);
+        console.log('🔍 Gefundene Order Pattern:', matchedOrders);
+        
+        if (matchedOrders && matchedOrders.length > 0) {
+            orderId = matchedOrders[0];
+            console.log('🔍 Order-ID aus Text Pattern ermittelt:', orderId);
         }
+    }
+    
+    console.log('=== FINALE ORDER-ID ERMITTLUNG ===');
+    console.log('🎯 Finale Order-ID:', orderId);
+    console.log('🎯 Order-ID Type:', typeof orderId);
+    console.log('🎯 Order-ID Length:', orderId ? orderId.length : 'N/A');
+    
+    if (orderId) {
+        console.log('=== URL GENERIERUNG DEBUG ===');
         
-        // Prüfe Session-Storage für pending order
-        if (!orderId && window.sessionStorage) {
-            const pendingOrder = sessionStorage.getItem('yprint_last_order_id');
-            if (pendingOrder) {
-                orderId = pendingOrder;
-            }
-        }
+        // Verschiedene URL-Formate generieren mit Debug
+        const possibleUrls = [
+            `/my-account/view-order/${orderId}/`,
+            `/checkout/order-received/${orderId}/`,
+            `${window.location.origin}/my-account/view-order/${orderId}/`,
+            `${window.location.origin}/checkout/order-received/${orderId}/`,
+            `/my-account/orders/`,
+            `/?page_id=123&order_id=${orderId}` // Falls custom page verwendet wird
+        ];
         
-        console.log('Ermittelte Order-ID:', orderId);
+        console.log('🔗 Mögliche URLs:', possibleUrls);
+        console.log('🔗 Gewählte URL (erste):', possibleUrls[0]);
+        console.log('🔗 Current Origin:', window.location.origin);
+        console.log('🔗 Current Pathname:', window.location.pathname);
         
-        if (orderId) {
-            // Verschiedene URL-Formate versuchen
-            const possibleUrls = [
-                `/my-account/view-order/${orderId}/`,
-                `/checkout/order-received/${orderId}/`,
-                `${window.location.origin}/my-account/view-order/${orderId}/`,
-                `${window.location.origin}/checkout/order-received/${orderId}/`
-            ];
-            
-            // Versuche die erste verfügbare URL
-            console.log('Weiterleitung zu Bestellübersicht mit ID:', orderId);
+        // Teste erst ob die Seite existiert (optional)
+        console.log('🚀 Weiterleitung zu Bestellübersicht mit ID:', orderId);
+        console.log('🚀 Weiterleitung URL:', possibleUrls[0]);
+        
+        // Delay für Debug-Ausgabe
+        setTimeout(() => {
             window.location.href = possibleUrls[0];
-        } else {
-            // Fallback zur Bestellübersicht
-            console.log('Keine Order-ID gefunden, Weiterleitung zur Bestellübersicht');
-            window.location.href = '/my-account/orders/';
-        }
-    });
-
-    // Zusätzlicher Handler für Text-basierte Button-Erkennung
-    $(document).on('click', 'button, a', function(e) {
-        const buttonText = $(this).text().toLowerCase().trim();
-        const buttonClass = $(this).attr('class') || '';
-        const buttonId = $(this).attr('id') || '';
+        }, 500);
         
-        // Prüfe ob es ein "Bestellung anzeigen" Button ist
-        if ((buttonText.includes('bestellung') && buttonText.includes('anzeigen')) ||
-            (buttonText.includes('order') && buttonText.includes('view')) ||
-            buttonText.includes('zur bestellung') ||
-            buttonClass.includes('view-order') ||
-            buttonId.includes('view-order')) {
-            
-            console.log('Text-basierter Bestellung anzeigen Button erkannt:', buttonText);
-            
-            // Delegiere an den Haupt-Handler
-            $(this).trigger('click.view-order');
-            return false;
+    } else {
+        console.log('=== FALLBACK WEITERLEITUNG ===');
+        console.log('❌ Keine Order-ID gefunden, verwende Fallback');
+        console.log('🔗 Fallback URL: /my-account/orders/');
+        
+        // Delay für Debug-Ausgabe
+        setTimeout(() => {
+            window.location.href = '/my-account/orders/';
+        }, 500);
+    }
+    
+    console.log('=== BESTELLUNG ANZEIGEN BUTTON DEBUG END ===');
+});
+
+    // Enhanced Debug für Text-basierten Button Handler
+$(document).on('click', 'button, a', function(e) {
+    const buttonText = $(this).text().toLowerCase().trim();
+    const buttonClass = $(this).attr('class') || '';
+    const buttonId = $(this).attr('id') || '';
+    
+    // Debug für ALLE Button-Klicks (nur wenn relevanter Text)
+    const relevantKeywords = ['bestellung', 'order', 'view', 'anzeigen', 'zur'];
+    const hasRelevantText = relevantKeywords.some(keyword => buttonText.includes(keyword));
+    
+    if (hasRelevantText) {
+        console.log('=== TEXT-BASIERTER BUTTON DEBUG ===');
+        console.log('🔘 Button Text:', buttonText);
+        console.log('🔘 Button Class:', buttonClass);
+        console.log('🔘 Button ID:', buttonId);
+        console.log('🔘 Button Element:', this);
+    }
+    
+    // Prüfe ob es ein "Bestellung anzeigen" Button ist
+    const isOrderViewButton = 
+        (buttonText.includes('bestellung') && buttonText.includes('anzeigen')) ||
+        (buttonText.includes('order') && buttonText.includes('view')) ||
+        buttonText.includes('zur bestellung') ||
+        buttonClass.includes('view-order') ||
+        buttonId.includes('view-order');
+    
+    if (isOrderViewButton) {
+        console.log('✅ Text-basierter Bestellung anzeigen Button erkannt!');
+        console.log('🔘 Erkennungsgrund:');
+        if (buttonText.includes('bestellung') && buttonText.includes('anzeigen')) {
+            console.log('   - Text enthält "bestellung" und "anzeigen"');
         }
-    });
+        if (buttonText.includes('order') && buttonText.includes('view')) {
+            console.log('   - Text enthält "order" und "view"');
+        }
+        if (buttonText.includes('zur bestellung')) {
+            console.log('   - Text enthält "zur bestellung"');
+        }
+        if (buttonClass.includes('view-order')) {
+            console.log('   - Klasse enthält "view-order"');
+        }
+        if (buttonId.includes('view-order')) {
+            console.log('   - ID enthält "view-order"');
+        }
+        
+        console.log('🔄 Delegiere an Haupt-Handler...');
+        
+        // Verhindere Standard-Verhalten
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Delegiere an den Haupt-Handler
+        $(this).trigger('click.view-order');
+        return false;
+    }
+});
 
     // Klarna Logo SVG Path Korrektur (falls im HTML gekürzt)
     // Stellt sicher, dass das Klarna-Logo korrekt angezeigt wird.
@@ -2927,6 +3045,61 @@ function initExpressPaymentIntegration() {
         console.log('Express Checkout not available');
     }
 }
+
+// Debug für Button-Verfügbarkeit beim Laden
+setTimeout(() => {
+    console.log('=== BUTTON VERFÜGBARKEIT DEBUG ===');
+    console.log('🔍 Suche nach "Bestellung anzeigen" Buttons...');
+    
+    // Alle möglichen Button-Selektoren prüfen
+    const buttonSelectors = [
+        '#btn-view-order',
+        '.btn-view-order',
+        'button[id*="view-order"]',
+        'a[id*="view-order"]',
+        'button:contains("Bestellung anzeigen")',
+        'a:contains("Bestellung anzeigen")',
+        'button:contains("zur Bestellung")',
+        'a:contains("zur Bestellung")'
+    ];
+    
+    buttonSelectors.forEach(selector => {
+        const elements = $(selector);
+        console.log(`🔍 Selector "${selector}":`, elements.length, 'gefunden');
+        if (elements.length > 0) {
+            elements.each(function(index) {
+                console.log(`   - Element ${index + 1}:`, this);
+                console.log(`   - Text: "${$(this).text().trim()}"`);
+                console.log(`   - Sichtbar:`, $(this).is(':visible'));
+                console.log(`   - Data Attributes:`, $(this).data());
+            });
+        }
+    });
+    
+    // Prüfe DOM-Struktur auf Bestätigungsseite
+    console.log('🔍 Bestätigungsseite Struktur:');
+    console.log('   - .confirmation-section:', $('.confirmation-section').length);
+    console.log('   - .order-section:', $('.order-section').length);
+    console.log('   - #step-3:', $('#step-3').length);
+    console.log('   - Buttons in step-3:', $('#step-3 button, #step-3 a').length);
+    
+    // Alle Buttons auf der Seite auflisten
+    const allButtons = $('button, a').filter(function() {
+        const text = $(this).text().toLowerCase();
+        return text.includes('bestellung') || text.includes('order') || text.includes('anzeigen') || text.includes('view');
+    });
+    
+    console.log('🔍 Alle relevanten Buttons auf der Seite:');
+    allButtons.each(function(index) {
+        console.log(`   Button ${index + 1}:`);
+        console.log(`   - Text: "${$(this).text().trim()}"`);
+        console.log(`   - ID: "${$(this).attr('id') || 'keine'}"`);
+        console.log(`   - Klassen: "${$(this).attr('class') || 'keine'}"`);
+        console.log(`   - Element:`, this);
+    });
+    
+    console.log('=== BUTTON VERFÜGBARKEIT DEBUG END ===');
+}, 2000); // 2 Sekunden nach DOM Ready
 
 // jQuery ready function - korrekte WordPress-kompatible Syntax
 jQuery(document).ready(function($) {
