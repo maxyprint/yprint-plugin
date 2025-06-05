@@ -90,21 +90,46 @@ function yprint_get_email_template($title, $username, $content) {
  * @return bool Erfolg der E-Mail-Versendung
  */
 function yprint_send_order_confirmation_email($order) {
+    error_log('=== YPRINT EMAIL DEBUG: Bestellbestätigungs-E-Mail Prozess gestartet ===');
+    
     if (!$order || !is_a($order, 'WC_Order')) {
-        error_log('YPrint: Ungültiges Bestellobjekt für E-Mail-Versendung');
+        error_log('YPrint EMAIL DEBUG: FEHLER - Ungültiges Bestellobjekt für E-Mail-Versendung');
+        error_log('YPrint EMAIL DEBUG: Order Type: ' . gettype($order));
+        error_log('YPrint EMAIL DEBUG: Order Class: ' . (is_object($order) ? get_class($order) : 'Not an object'));
         return false;
     }
+
+    error_log('YPrint EMAIL DEBUG: Gültiges WC_Order Objekt erhalten');
+    error_log('YPrint EMAIL DEBUG: Bestellnummer: ' . $order->get_order_number());
+    error_log('YPrint EMAIL DEBUG: Bestell-ID: ' . $order->get_id());
+    error_log('YPrint EMAIL DEBUG: Bestellstatus: ' . $order->get_status());
+    error_log('YPrint EMAIL DEBUG: Ist bezahlt: ' . ($order->is_paid() ? 'JA' : 'NEIN'));
 
     $customer_email = $order->get_billing_email();
     $customer_name = $order->get_billing_first_name();
     
+    error_log('YPrint EMAIL DEBUG: Kunden-E-Mail: ' . ($customer_email ?: 'LEER'));
+    error_log('YPrint EMAIL DEBUG: Kundenname: ' . ($customer_name ?: 'LEER'));
+    
     if (empty($customer_email)) {
-        error_log('YPrint: Keine E-Mail-Adresse für Bestellbestätigung gefunden');
+        error_log('YPrint EMAIL DEBUG: FEHLER - Keine E-Mail-Adresse für Bestellbestätigung gefunden');
         return false;
     }
 
+    // Prüfe ob E-Mail bereits gesendet wurde
+    $email_already_sent = $order->get_meta('_yprint_confirmation_email_sent');
+    error_log('YPrint EMAIL DEBUG: E-Mail bereits gesendet? ' . ($email_already_sent === 'yes' ? 'JA' : 'NEIN'));
+    
+    if ($email_already_sent === 'yes') {
+        error_log('YPrint EMAIL DEBUG: ÜBERSPRUNGEN - E-Mail bereits gesendet für Bestellung ' . $order->get_order_number());
+        return true; // Return true da E-Mail bereits erfolgreich gesendet wurde
+    }
+
+    error_log('YPrint EMAIL DEBUG: Erstelle E-Mail-Inhalt...');
+    
     // E-Mail-Inhalt erstellen
     $email_content = yprint_build_order_confirmation_content($order);
+    error_log('YPrint EMAIL DEBUG: E-Mail-Inhalt erstellt, Länge: ' . strlen($email_content) . ' Zeichen');
     
     // E-Mail-Template verwenden
     $email_html = yprint_get_email_template(
@@ -112,6 +137,7 @@ function yprint_send_order_confirmation_email($order) {
         $customer_name ?: 'Kunde',
         $email_content
     );
+    error_log('YPrint EMAIL DEBUG: E-Mail-Template angewendet, finale Länge: ' . strlen($email_html) . ' Zeichen');
 
     // E-Mail-Header für HTML
     $headers = array(
@@ -120,7 +146,11 @@ function yprint_send_order_confirmation_email($order) {
     );
 
     $subject = sprintf('Bestellbestätigung #%s - YPrint', $order->get_order_number());
+    error_log('YPrint EMAIL DEBUG: E-Mail-Betreff: ' . $subject);
+    error_log('YPrint EMAIL DEBUG: E-Mail-Header: ' . print_r($headers, true));
 
+    error_log('YPrint EMAIL DEBUG: Sende E-Mail über wp_mail()...');
+    
     // E-Mail senden
     $sent = wp_mail(
         $customer_email,
@@ -129,8 +159,10 @@ function yprint_send_order_confirmation_email($order) {
         $headers
     );
 
+    error_log('YPrint EMAIL DEBUG: wp_mail() Ergebnis: ' . ($sent ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
+
     if ($sent) {
-        error_log(sprintf('YPrint: Bestellbestätigung an %s gesendet (Bestellung: %s)', 
+        error_log(sprintf('YPrint EMAIL DEBUG: ERFOLG - Bestellbestätigung an %s gesendet (Bestellung: %s)', 
             $customer_email, 
             $order->get_order_number()
         ));
@@ -138,12 +170,20 @@ function yprint_send_order_confirmation_email($order) {
         // Meta-Flag setzen um doppelte E-Mails zu vermeiden
         $order->update_meta_data('_yprint_confirmation_email_sent', 'yes');
         $order->save();
+        error_log('YPrint EMAIL DEBUG: Meta-Flag _yprint_confirmation_email_sent auf "yes" gesetzt');
     } else {
-        error_log(sprintf('YPrint: Fehler beim Senden der Bestellbestätigung an %s', 
+        error_log(sprintf('YPrint EMAIL DEBUG: FEHLER - Fehler beim Senden der Bestellbestätigung an %s', 
             $customer_email
         ));
+        
+        // Zusätzliche Debug-Informationen bei Fehlern
+        global $phpmailer;
+        if (isset($phpmailer) && is_object($phpmailer)) {
+            error_log('YPrint EMAIL DEBUG: PHPMailer Fehler: ' . $phpmailer->ErrorInfo);
+        }
     }
 
+    error_log('=== YPRINT EMAIL DEBUG: Bestellbestätigungs-E-Mail Prozess beendet ===');
     return $sent;
 }
 

@@ -1074,29 +1074,57 @@ public function ajax_get_cart_data() {
      * @param WC_Order $order Das Bestellobjekt
      */
     private function send_confirmation_email_if_needed($order) {
+        error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger gestartet ===');
+        
         if (!$order || !is_a($order, 'WC_Order')) {
+            error_log('YPrint CHECKOUT DEBUG: FEHLER - Ungültiges Order-Objekt empfangen');
+            error_log('YPrint CHECKOUT DEBUG: Order Type: ' . gettype($order));
+            error_log('YPrint CHECKOUT DEBUG: Is WC_Order: ' . (is_a($order, 'WC_Order') ? 'JA' : 'NEIN'));
             return;
         }
 
+        error_log('YPrint CHECKOUT DEBUG: Gültiges Order-Objekt empfangen');
+        error_log('YPrint CHECKOUT DEBUG: Bestellnummer: ' . $order->get_order_number());
+        error_log('YPrint CHECKOUT DEBUG: Bestell-ID: ' . $order->get_id());
+
         // Prüfe ob E-Mail bereits gesendet wurde
         $email_sent = $order->get_meta('_yprint_confirmation_email_sent');
+        error_log('YPrint CHECKOUT DEBUG: E-Mail bereits gesendet Meta: "' . $email_sent . '"');
+        
         if ($email_sent === 'yes') {
-            error_log('YPrint: Bestätigungsmail bereits gesendet für Bestellung ' . $order->get_order_number());
+            error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestätigungsmail bereits gesendet für Bestellung ' . $order->get_order_number());
             return;
         }
 
         // Prüfe ob Bestellung bezahlt ist
-        if (!$order->is_paid()) {
-            error_log('YPrint: Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt - keine E-Mail');
+        $is_paid = $order->is_paid();
+        error_log('YPrint CHECKOUT DEBUG: Ist Bestellung bezahlt: ' . ($is_paid ? 'JA' : 'NEIN'));
+        error_log('YPrint CHECKOUT DEBUG: Bestellstatus: ' . $order->get_status());
+        error_log('YPrint CHECKOUT DEBUG: Zahlungsmethode: ' . $order->get_payment_method());
+        error_log('YPrint CHECKOUT DEBUG: Transaktions-ID: ' . ($order->get_transaction_id() ?: 'KEINE'));
+        
+        if (!$is_paid) {
+            error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt - keine E-Mail');
             return;
         }
 
-        // E-Mail-Funktion ist in email.php definiert
-        if (function_exists('yprint_send_order_confirmation_email')) {
-            yprint_send_order_confirmation_email($order);
-        } else {
-            error_log('YPrint: E-Mail-Funktion nicht verfügbar');
+        // Prüfe E-Mail-Funktion Verfügbarkeit
+        $function_exists = function_exists('yprint_send_order_confirmation_email');
+        error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion verfügbar: ' . ($function_exists ? 'JA' : 'NEIN'));
+        
+        if (!$function_exists) {
+            error_log('YPrint CHECKOUT DEBUG: FEHLER - E-Mail-Funktion nicht verfügbar');
+            error_log('YPrint CHECKOUT DEBUG: Definierte Funktionen: ' . print_r(get_defined_functions()['user'], true));
+            return;
         }
+
+        error_log('YPrint CHECKOUT DEBUG: Rufe yprint_send_order_confirmation_email() auf...');
+        
+        // E-Mail-Funktion aufrufen
+        $email_result = yprint_send_order_confirmation_email($order);
+        
+        error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion Ergebnis: ' . ($email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
+        error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger beendet ===');
     }
 
     /**
@@ -1451,13 +1479,41 @@ if (WC()->cart->is_empty()) {
         error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
         
         // Prüfe ob eine echte Bestellung erstellt wurde und sende E-Mail
+        error_log('=== YPRINT PAYMENT DEBUG: Prüfe pending order für E-Mail-Versendung ===');
+        
         $pending_order = WC()->session->get('yprint_pending_order');
-        if ($pending_order && isset($pending_order['order_id'])) {
-            $order = wc_get_order($pending_order['order_id']);
-            if ($order && $order->is_paid()) {
-                $this->send_confirmation_email_if_needed($order);
+        error_log('YPrint PAYMENT DEBUG: Pending Order gefunden: ' . ($pending_order ? 'JA' : 'NEIN'));
+        
+        if ($pending_order) {
+            error_log('YPrint PAYMENT DEBUG: Pending Order Daten: ' . print_r($pending_order, true));
+            
+            if (isset($pending_order['order_id'])) {
+                error_log('YPrint PAYMENT DEBUG: Order ID in pending order: ' . $pending_order['order_id']);
+                
+                $order = wc_get_order($pending_order['order_id']);
+                error_log('YPrint PAYMENT DEBUG: WC_Order geladen: ' . ($order ? 'JA' : 'NEIN'));
+                
+                if ($order) {
+                    error_log('YPrint PAYMENT DEBUG: Order ist bezahlt: ' . ($order->is_paid() ? 'JA' : 'NEIN'));
+                    error_log('YPrint PAYMENT DEBUG: Order Status: ' . $order->get_status());
+                    
+                    if ($order->is_paid()) {
+                        error_log('YPrint PAYMENT DEBUG: Trigger E-Mail für bezahlte Bestellung...');
+                        $this->send_confirmation_email_if_needed($order);
+                    } else {
+                        error_log('YPrint PAYMENT DEBUG: Order nicht bezahlt - keine E-Mail');
+                    }
+                } else {
+                    error_log('YPrint PAYMENT DEBUG: FEHLER - Konnte Order nicht laden für ID: ' . $pending_order['order_id']);
+                }
+            } else {
+                error_log('YPrint PAYMENT DEBUG: FEHLER - Keine order_id in pending_order gefunden');
             }
+        } else {
+            error_log('YPrint PAYMENT DEBUG: Kein pending_order in Session gefunden');
         }
+        
+        error_log('=== YPRINT PAYMENT DEBUG: Pending order Prüfung beendet ===');
 
         // Return success with step change instead of redirect
         wp_send_json_success(array(
@@ -1487,10 +1543,27 @@ if (WC()->cart->is_empty()) {
      * @param WC_Order $order
      */
     public function handle_order_status_change($order_id, $old_status, $new_status, $order) {
+        error_log('=== YPRINT STATUS CHANGE DEBUG: Bestellstatus-Änderung erkannt ===');
+        error_log('YPrint STATUS DEBUG: Bestell-ID: ' . $order_id);
+        error_log('YPrint STATUS DEBUG: Alter Status: ' . $old_status);
+        error_log('YPrint STATUS DEBUG: Neuer Status: ' . $new_status);
+        error_log('YPrint STATUS DEBUG: Ist bezahlt: ' . ($order->is_paid() ? 'JA' : 'NEIN'));
+        
         // Sende Bestätigungsmail bei Statuswechsel zu "processing" oder "completed"
-        if (in_array($new_status, array('processing', 'completed')) && $order->is_paid()) {
+        $trigger_statuses = array('processing', 'completed');
+        $should_trigger = in_array($new_status, $trigger_statuses) && $order->is_paid();
+        
+        error_log('YPrint STATUS DEBUG: Status löst E-Mail aus: ' . ($should_trigger ? 'JA' : 'NEIN'));
+        error_log('YPrint STATUS DEBUG: Trigger-Status-Liste: ' . implode(', ', $trigger_statuses));
+        
+        if ($should_trigger) {
+            error_log('YPrint STATUS DEBUG: Trigger E-Mail-Versendung für Status-Änderung...');
             $this->send_confirmation_email_if_needed($order);
+        } else {
+            error_log('YPrint STATUS DEBUG: E-Mail-Versendung NICHT ausgelöst für Status-Änderung');
         }
+        
+        error_log('=== YPRINT STATUS CHANGE DEBUG: Handler beendet ===');
     }
 
     /**
