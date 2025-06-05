@@ -1229,11 +1229,19 @@ if (voucherButton) {
 
 
     async function populateConfirmation() {
+    console.log('=== POPULATE CONFIRMATION DEBUG START ===');
+    console.log('🎯 populateConfirmation() aufgerufen');
+    
+    // Markiere dass populateConfirmation aufgerufen wurde
+    window.confirmationPopulated = true;
+    window.confirmationTimestamp = new Date().toISOString();
+    
+    console.log('🎯 Confirmation populated timestamp:', window.confirmationTimestamp);
         // Lade aktuelle Warenkorbdaten
         await loadRealCartData();
         
         // Check for pending order data from payment processing
-        const urlParams = new URLSearchParams(window.location.search);
+        
         if (urlParams.get('step') === 'confirmation') {
             // Try to get pending order data
             try {
@@ -1484,6 +1492,48 @@ if (voucherButton) {
         if (confirmTotalEl) confirmTotalEl.textContent = `€${prices.total.toFixed(2)}`;
     }
     
+
+    // Debug: Prüfe ob Bestellung anzeigen Button erstellt werden sollte
+    console.log('🔍 CONFIRMATION BUTTON CHECK:');
+    
+    // Suche nach Bereichen wo der Button stehen könnte
+    const possibleContainers = [
+        '#step-3',
+        '.confirmation-section', 
+        '.order-section',
+        '.checkout-step.active',
+        '.order-confirmation',
+        '.order-complete'
+    ];
+    
+    possibleContainers.forEach(selector => {
+        const container = $(selector);
+        if (container.length > 0) {
+            console.log(`   Container "${selector}" gefunden:`);
+            console.log(`     - Visible: ${container.is(':visible')}`);
+            console.log(`     - Buttons: ${container.find('button, a').length}`);
+            
+            container.find('button, a').each(function(i) {
+                const text = $(this).text().trim();
+                console.log(`       Button ${i+1}: "${text}" (ID: ${$(this).attr('id') || 'no-id'})`);
+            });
+        } else {
+            console.log(`   Container "${selector}" NICHT gefunden`);
+        }
+    });
+    
+    // Prüfe ob Order-ID verfügbar ist
+    const urlParams = new URLSearchParams(window.location.search);
+    const orderIdFromUrl = urlParams.get('order_id') || urlParams.get('order');
+    const orderIdFromSession = sessionStorage.getItem('yprint_last_order_id');
+    
+    console.log('🔍 ORDER-ID VERFÜGBARKEIT:');
+    console.log(`   - URL Parameter: ${orderIdFromUrl}`);
+    console.log(`   - Session Storage: ${orderIdFromSession}`);
+    console.log(`   - Should create button: ${!!(orderIdFromUrl || orderIdFromSession)}`);
+    
+    console.log('=== POPULATE CONFIRMATION DEBUG END ===');
+
     // Global verfügbar machen für Stripe Service
     window.populateConfirmationWithPaymentData = populateConfirmationWithPaymentData;
     
@@ -1508,7 +1558,11 @@ if (voucherButton) {
         }
         if (confirmVatEl) confirmVatEl.textContent = `€${prices.vat.toFixed(2)}`;
         if (confirmTotalEl) confirmTotalEl.textContent = `€${prices.total.toFixed(2)}`;
+
+        
     }
+
+    
 
     /**
      * Füllt die Danke-Seite mit Bestelldetails.
@@ -3158,6 +3212,137 @@ setTimeout(async () => {
     }
 }, 2000); // Start nach 2 Sekunden
 });
+
+// Umfassendes Debug für "Bestellung anzeigen" Button Problem
+function debugOrderViewButton() {
+    console.log('=== COMPREHENSIVE ORDER VIEW BUTTON DEBUG ===');
+    
+    // 1. Suche nach allen möglichen Button-Varianten
+    console.log('🔍 1. BUTTON-SUCHE NACH SELEKTOREN:');
+    
+    const selectors = [
+        '#btn-view-order',
+        '.btn-view-order', 
+        'button[id*="view-order"]',
+        'a[id*="view-order"]',
+        'button[class*="view-order"]',
+        'a[class*="view-order"]'
+    ];
+    
+    selectors.forEach(selector => {
+        const elements = $(selector);
+        console.log(`   Selector "${selector}": ${elements.length} gefunden`);
+        elements.each(function(i) {
+            console.log(`     - Element ${i+1}:`, this);
+            console.log(`     - Text: "${$(this).text().trim()}"`);
+            console.log(`     - Visible: ${$(this).is(':visible')}`);
+        });
+    });
+    
+    // 2. Suche nach Text-basierten Buttons
+    console.log('🔍 2. TEXT-BASIERTE BUTTON-SUCHE:');
+    
+    const textSearches = [
+        'Bestellung anzeigen',
+        'bestellung anzeigen', 
+        'Zur Bestellung',
+        'zur bestellung',
+        'Order View',
+        'order view',
+        'View Order',
+        'view order',
+        'Bestelldetails',
+        'bestelldetails'
+    ];
+    
+    textSearches.forEach(searchText => {
+        const buttons = $('button, a').filter(function() {
+            return $(this).text().toLowerCase().includes(searchText.toLowerCase());
+        });
+        console.log(`   Text "${searchText}": ${buttons.length} gefunden`);
+        buttons.each(function(i) {
+            console.log(`     - Button ${i+1}:`, this);
+            console.log(`     - Exact Text: "${$(this).text().trim()}"`);
+            console.log(`     - Visible: ${$(this).is(':visible')}`);
+            console.log(`     - Parent: `, $(this).parent());
+        });
+    });
+    
+    // 3. Analysiere aktuelle Seiten-Struktur
+    console.log('🔍 3. SEITEN-STRUKTUR ANALYSE:');
+    console.log(`   - Aktueller Step: ${window.currentStep || 'undefined'}`);
+    console.log(`   - URL: ${window.location.href}`);
+    console.log(`   - URL Search: ${window.location.search}`);
+    
+    // 4. Checkout-Steps analysieren
+    console.log('🔍 4. CHECKOUT-STEPS ANALYSE:');
+    $('.checkout-step').each(function(i) {
+        const stepId = $(this).attr('id');
+        const isActive = $(this).hasClass('active');
+        const isVisible = $(this).is(':visible');
+        const buttonCount = $(this).find('button, a').length;
+        
+        console.log(`   Step ${i+1} (${stepId}):`);
+        console.log(`     - Active: ${isActive}`);
+        console.log(`     - Visible: ${isVisible}`);
+        console.log(`     - Buttons: ${buttonCount}`);
+        
+        if (buttonCount > 0) {
+            $(this).find('button, a').each(function(j) {
+                const buttonText = $(this).text().trim().toLowerCase();
+                if (buttonText.includes('bestellung') || buttonText.includes('order') || buttonText.includes('anzeigen') || buttonText.includes('view')) {
+                    console.log(`       Button ${j+1}: "${buttonText}" (${$(this).attr('id') || 'no-id'})`);
+                }
+            });
+        }
+    });
+    
+    // 5. Session/Storage Daten prüfen
+    console.log('🔍 5. SESSION/STORAGE DATEN:');
+    if (window.sessionStorage) {
+        console.log(`   - yprint_last_order_id: ${sessionStorage.getItem('yprint_last_order_id')}`);
+        console.log(`   - yprint_pending_order: ${sessionStorage.getItem('yprint_pending_order')}`);
+    }
+    
+    if (window.localStorage) {
+        const relevantKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.includes('order') || key.includes('yprint')) {
+                relevantKeys.push(`${key}: ${localStorage.getItem(key)}`);
+            }
+        }
+        console.log(`   - LocalStorage relevante Keys: `, relevantKeys);
+    }
+    
+    // 6. WooCommerce Session prüfen (falls verfügbar)
+    console.log('🔍 6. WOOCOMMERCE SESSION:');
+    if (window.yprint_checkout_params) {
+        console.log(`   - Ajax URL: ${yprint_checkout_params.ajax_url}`);
+        console.log(`   - Nonce: ${yprint_checkout_params.nonce}`);
+        console.log(`   - Is logged in: ${yprint_checkout_params.is_logged_in}`);
+    }
+    
+    // 7. Prüfe ob populateConfirmation aufgerufen wurde
+    console.log('🔍 7. CONFIRMATION POPULATION CHECK:');
+    console.log(`   - window.confirmationPopulated: ${window.confirmationPopulated || 'nicht gesetzt'}`);
+    
+    console.log('=== END COMPREHENSIVE DEBUG ===');
+}
+
+// Debug-Funktion alle 3 Sekunden ausführen
+let debugInterval = setInterval(() => {
+    debugOrderViewButton();
+}, 3000);
+
+// Debug stoppen nach 30 Sekunden
+setTimeout(() => {
+    clearInterval(debugInterval);
+    console.log('🛑 DEBUG INTERVAL STOPPED nach 30 Sekunden');
+}, 30000);
+
+// Sofortiges Debug
+debugOrderViewButton();
 
 // Debug-Button entfernt
 
