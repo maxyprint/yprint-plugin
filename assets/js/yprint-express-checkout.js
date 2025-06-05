@@ -61,25 +61,37 @@
                 this.hideExpressPaymentContainer();
                 return;
             }
-    
+        
             const params = yprint_express_payment_params;
             
             console.log('YPrint Express Checkout: Creating payment request with params:', params);
+            console.log('=== EXPRESS PAYMENT REQUEST DEBUG ===');
+            console.log('Cart total from params:', params.cart.total);
+            console.log('Display items from params:', params.cart.display_items);
+            console.log('Needs shipping from params:', params.cart.needs_shipping);
+            console.log('Country:', params.checkout.country);
+            console.log('Currency:', params.checkout.currency);
             
-            // Erstelle Payment Request Objekt
-            this.paymentRequest = stripe.paymentRequest({
+            // Erstelle Payment Request Objekt mit Debug
+            const paymentRequestConfig = {
                 country: params.checkout.country || 'DE',
                 currency: params.checkout.currency || 'eur',
                 total: {
                     label: params.checkout.total_label || 'YPrint Order',
                     amount: params.cart.total || 0,
                 },
+                displayItems: params.cart.display_items || [],
                 requestPayerName: true,
                 requestPayerEmail: true,
                 requestPayerPhone: true,
                 requestShipping: params.cart.needs_shipping || false,
-            });
-    
+            };
+            
+            console.log('Payment Request Config:', paymentRequestConfig);
+            console.log('=== EXPRESS PAYMENT REQUEST DEBUG END ===');
+            
+            this.paymentRequest = stripe.paymentRequest(paymentRequestConfig);
+        
             console.log('YPrint Express Checkout: Payment Request created with total:', params.cart.total);
     
             // Prüfe Verfügbarkeit

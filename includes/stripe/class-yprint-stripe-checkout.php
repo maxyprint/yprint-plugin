@@ -471,10 +471,60 @@ public function ajax_refresh_checkout_context() {
 
                 
 
-                // Express Checkout spezifische Daten mit zentraler Datenverwaltung
+                // Express Checkout spezifische Daten mit zentraler Datenverwaltung + Debug
 $cart_data_manager = YPrint_Cart_Data::get_instance();
 $checkout_context = $cart_data_manager->get_checkout_context('full');
 $express_payment_data = $checkout_context['express_payment'];
+
+// Debug für Versandkosten-Problem
+error_log('=== EXPRESS PAYMENT DEBUG ===');
+error_log('WC Cart Shipping Total: ' . (WC()->cart ? WC()->cart->get_shipping_total() : 'Cart not available'));
+error_log('WC Cart Total: ' . (WC()->cart ? WC()->cart->get_total('edit') : 'Cart not available'));
+error_log('WC Cart Needs Shipping: ' . (WC()->cart ? (WC()->cart->needs_shipping() ? 'Yes' : 'No') : 'Cart not available'));
+error_log('Express Payment Data Total: ' . print_r($express_payment_data['total'], true));
+error_log('Express Payment Display Items: ' . print_r($express_payment_data['displayItems'], true));
+error_log('Express Payment Request Shipping: ' . ($express_payment_data['requestShipping'] ? 'Yes' : 'No'));
+
+// Direkte WooCommerce Werte für Vergleich
+if (WC()->cart) {
+    WC()->cart->calculate_totals();
+    $wc_subtotal = WC()->cart->get_subtotal();
+    $wc_shipping = WC()->cart->get_shipping_total();
+    $wc_total = WC()->cart->get_total('edit');
+    
+    error_log('WC Direct Values:');
+    error_log('- Subtotal: ' . $wc_subtotal);
+    error_log('- Shipping: ' . $wc_shipping);
+    error_log('- Total: ' . $wc_total);
+    
+    // Überschreibe Express Payment Daten mit aktuellen WC-Werten
+    $corrected_display_items = array();
+    
+    // Zwischensumme
+    $corrected_display_items[] = array(
+        'label' => 'Zwischensumme',
+        'amount' => round($wc_subtotal * 100) // in Cent
+    );
+    
+    // Versandkosten nur hinzufügen wenn > 0
+    if ($wc_shipping > 0) {
+        $corrected_display_items[] = array(
+            'label' => 'Versand',
+            'amount' => round($wc_shipping * 100) // in Cent
+        );
+    }
+    
+    $corrected_total_amount = round($wc_total * 100);
+    
+    error_log('Corrected Display Items: ' . print_r($corrected_display_items, true));
+    error_log('Corrected Total Amount: ' . $corrected_total_amount);
+    
+    // Überschreibe die fehlerhaften Daten
+    $express_payment_data['displayItems'] = $corrected_display_items;
+    $express_payment_data['total']['amount'] = $corrected_total_amount;
+}
+
+error_log('=== EXPRESS PAYMENT DEBUG END ===');
 
 wp_localize_script(
     'yprint-express-checkout-js',
