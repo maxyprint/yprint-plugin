@@ -1105,9 +1105,17 @@ public function ajax_get_cart_data() {
         error_log('YPrint CHECKOUT DEBUG: Zahlungsmethode: ' . $order->get_payment_method());
         error_log('YPrint CHECKOUT DEBUG: Transaktions-ID: ' . ($order->get_transaction_id() ?: 'KEINE'));
         
-        if (!$is_paid) {
-            error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt - keine E-Mail');
-            return;
+        // Für Test-Bestellungen: Sende E-Mail auch wenn nicht als "bezahlt" markiert
+        $is_test_order = strpos($order->get_payment_method_title(), '(Test)') !== false;
+        error_log('YPrint CHECKOUT DEBUG: Ist Test-Bestellung: ' . ($is_test_order ? 'JA' : 'NEIN'));
+        
+        if (!$is_paid && !$is_test_order) {
+            error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt und keine Test-Bestellung - keine E-Mail');
+            return false;
+        }
+        
+        if ($is_test_order) {
+            error_log('YPrint CHECKOUT DEBUG: Test-Bestellung erkannt - E-Mail wird trotzdem gesendet');
         }
 
         // Prüfe E-Mail-Funktion Verfügbarkeit
@@ -1471,14 +1479,31 @@ if (WC()->cart->is_empty()) {
     
     // Simulate payment processing (since we're in test mode)
     try {
+        // Get customer email from different sources
+        $customer_email = '';
+        if (isset($payment_method['billing_details']['email']) && !empty($payment_method['billing_details']['email'])) {
+            $customer_email = $payment_method['billing_details']['email'];
+        } elseif (is_user_logged_in()) {
+            $current_user = wp_get_current_user();
+            $customer_email = $current_user->user_email;
+        } else {
+            // Fallback: Check for email in form data or session
+            $checkout_data = WC()->session->get('yprint_checkout_address');
+            if ($checkout_data && isset($checkout_data['billing_email'])) {
+                $customer_email = $checkout_data['billing_email'];
+            }
+        }
+        
+        error_log('YPrint PAYMENT DEBUG: Kunden-E-Mail ermittelt: ' . $customer_email);
+        
         // Create a mock order for testing
         $order_data = array(
             'payment_method_id' => $payment_method['id'],
             'amount' => WC()->cart->get_total('edit'),
             'currency' => get_woocommerce_currency(),
             'customer_details' => array(
-                'name' => $payment_method['billing_details']['name'] ?? '',
-                'email' => $payment_method['billing_details']['email'] ?? '',
+                'name' => $payment_method['billing_details']['name'] ?? 'Test Kunde',
+                'email' => $customer_email,
                 'phone' => $payment_method['billing_details']['phone'] ?? '',
             ),
             'billing_address' => $payment_method['billing_details']['address'] ?? array(),
@@ -1547,6 +1572,8 @@ if (WC()->cart->is_empty()) {
                     if ($test_order) {
                         // Markiere als bezahlt für E-Mail-Test
                         $test_order->set_status('processing');
+                        $test_order->payment_complete($order_data['payment_method_id']);
+                        $test_order->add_order_note('Test-Zahlung über YPrint Stripe abgeschlossen');
                         $test_order->save();
                         
                         $test_email_result = $this->send_confirmation_email_if_needed($test_order);
@@ -1675,13 +1702,34 @@ function yprint_create_test_order_for_email($order_data) {
         error_log('Test-Bestellung Objekt erstellt, ID: ' . $order->get_id());
         
         // Setze Kunden-E-Mail wenn vorhanden
-        if (isset($order_data['customer_details']['email'])) {
+        if (isset($order_data['customer_details']['email']) && !empty($order_data['customer_details']['email'])) {
             $order->set_billing_email($order_data['customer_details']['email']);
-            error_log('E-Mail gesetzt: ' . $order_data['customer_details']['email']);
+            error_log('Kunden-E-Mail gesetzt: ' . $order_data['customer_details']['email']);
         } else {
-            // Fallback E-Mail für Test
-            $order->set_billing_email('test@yprint.de');
-            error_log('Fallback E-Mail gesetzt: test@yprint.de');
+            // Versuche E-Mail von verschiedenen Quellen zu ermitteln
+            $customer_email = '';
+            
+            if (is_user_logged_in()) {
+                $current_user = wp_get_current_user();
+                $customer_email = $current_user->user_email;
+                error_log('E-Mail von eingeloggtem Benutzer: ' . $customer_email);
+            } else {
+                // Fallback: Prüfe Session-Daten
+                $checkout_data = WC()->session->get('yprint_checkout_address');
+                if ($checkout_data && isset($checkout_data['billing_email'])) {
+                    $customer_email = $checkout_data['billing_email'];
+                    error_log('E-Mail aus Session-Daten: ' . $customer_email);
+                }
+            }
+            
+            if (!empty($customer_email)) {
+                $order->set_billing_email($customer_email);
+                error_log('Ermittelte Kunden-E-Mail gesetzt: ' . $customer_email);
+            } else {
+                // Nur als absoluter Fallback - sollte nicht verwendet werden
+                $order->set_billing_email('test@yprint.de');
+                error_log('WARNUNG: Fallback E-Mail gesetzt da keine Kunden-E-Mail gefunden: test@yprint.de');
+            }
         }
         
         // Setze Kundenname wenn vorhanden
