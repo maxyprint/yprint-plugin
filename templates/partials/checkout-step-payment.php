@@ -609,7 +609,13 @@ if (class_exists('YPrint_Stripe_Checkout')) {
                     <i class="fas fa-bolt mr-2"></i><?php esc_html_e('Express-Zahlung', 'yprint-checkout'); ?>
                 </span>
             </div>
-            
+
+            <!-- Apple Pay Hinweis -->
+<div class="apple-pay-notice" style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 14px; color: #666;">
+    <i class="fab fa-apple-pay mr-2"></i>
+    <strong>Apple Pay Hinweis:</strong> Apple Pay verwendet die in Ihrer Apple Wallet gespeicherten Adressen. Sie können im Apple Pay Dialog eine andere Adresse aus Ihrer Wallet auswählen.
+</div>
+
             <div id="yprint-express-payment-container" style="display: none;">
                 <div id="yprint-payment-request-button" style="margin-bottom: 15px;">
                     <!-- Stripe Elements wird hier eingefügt -->

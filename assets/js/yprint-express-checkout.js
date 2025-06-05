@@ -192,12 +192,19 @@
             // Payment Method Event
             this.paymentRequest.on('paymentmethod', (event) => {
                 console.log('YPrint Express Checkout: Payment method received:', event.paymentMethod);
+                console.log('YPrint Express Checkout: Shipping address from Apple Pay:', event.shippingAddress);
+                
+                // Speichere die Apple Pay Adresse für den Checkout
+                if (event.shippingAddress) {
+                    this.saveApplePayAddressForCheckout(event.shippingAddress);
+                }
+                
                 window.YPrintStripeService.handlePaymentMethod(event, { 
                     source: 'express_checkout',
                     type: 'payment_request'
                 });
             });
-
+        
             // Shipping Address Change Event
             if (yprint_express_payment_params.cart.needs_shipping) {
                 this.paymentRequest.on('shippingaddresschange', (event) => {
@@ -205,6 +212,46 @@
                     this.handleShippingAddressChange(event);
                 });
             }
+        }
+        
+        // Neue Methode zum Speichern der Apple Pay Adresse
+        saveApplePayAddressForCheckout(shippingAddress) {
+            console.log('YPrint Express Checkout: Saving Apple Pay address for checkout:', shippingAddress);
+            
+            // Konvertiere Apple Pay Adresse zu unserem Format
+            const addressData = {
+                country: shippingAddress.country || 'DE',
+                state: shippingAddress.region || '',
+                city: shippingAddress.city || '',
+                postcode: shippingAddress.postalCode || '',
+                address_1: (shippingAddress.addressLine && shippingAddress.addressLine[0]) || '',
+                address_2: (shippingAddress.addressLine && shippingAddress.addressLine[1]) || '',
+                first_name: '', // Wird aus paymentMethod.billing_details geholt
+                last_name: '',
+                company: shippingAddress.organization || ''
+            };
+            
+            // Sende an Backend um in WooCommerce Session zu speichern
+            fetch(yprint_express_payment_params.ajax_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'yprint_save_apple_pay_address',
+                    nonce: yprint_express_payment_params.nonce,
+                    address_data: JSON.stringify(addressData)
+                })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      console.log('YPrint Express Checkout: Apple Pay address saved successfully');
+                  } else {
+                      console.error('YPrint Express Checkout: Failed to save Apple Pay address');
+                  }
+              }).catch(error => {
+                  console.error('YPrint Express Checkout: Error saving Apple Pay address:', error);
+              });
         }
 
         async handlePaymentMethod(event) {

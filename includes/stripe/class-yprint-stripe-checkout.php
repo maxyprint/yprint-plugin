@@ -728,19 +728,19 @@ private function get_cart_display_items() {
     return $express_payment_data['displayItems'] ?? array();
 }
 
-    /**
-     * Add AJAX handlers for Express Checkout
-     */
-    private function add_express_checkout_ajax_handlers() {
-        add_action('wp_ajax_yprint_stripe_express_checkout_data', array($this, 'ajax_express_checkout_data'));
-        add_action('wp_ajax_nopriv_yprint_stripe_express_checkout_data', array($this, 'ajax_express_checkout_data'));
-        
-        add_action('wp_ajax_yprint_stripe_process_express_payment', array($this, 'ajax_process_express_payment'));
-        add_action('wp_ajax_nopriv_yprint_stripe_process_express_payment', array($this, 'ajax_process_express_payment'));
-        
-        add_action('wp_ajax_yprint_stripe_update_express_shipping', array($this, 'ajax_update_express_shipping'));
-        add_action('wp_ajax_nopriv_yprint_stripe_update_express_shipping', array($this, 'ajax_update_express_shipping'));
-    }
+private function add_express_checkout_ajax_handlers() {
+    add_action('wp_ajax_yprint_stripe_express_checkout_data', array($this, 'ajax_express_checkout_data'));
+    add_action('wp_ajax_nopriv_yprint_stripe_express_checkout_data', array($this, 'ajax_express_checkout_data'));
+    
+    add_action('wp_ajax_yprint_stripe_process_express_payment', array($this, 'ajax_process_express_payment'));
+    add_action('wp_ajax_nopriv_yprint_stripe_process_express_payment', array($this, 'ajax_process_express_payment'));
+    
+    add_action('wp_ajax_yprint_stripe_update_express_shipping', array($this, 'ajax_update_express_shipping'));
+    add_action('wp_ajax_nopriv_yprint_stripe_update_express_shipping', array($this, 'ajax_update_express_shipping'));
+    
+    add_action('wp_ajax_yprint_save_apple_pay_address', array($this, 'ajax_save_apple_pay_address'));
+    add_action('wp_ajax_nopriv_yprint_save_apple_pay_address', array($this, 'ajax_save_apple_pay_address'));
+}
 
     /**
  * AJAX handler for Express Checkout data using central data manager
@@ -903,6 +903,36 @@ public function ajax_update_express_shipping() {
     }
     
     error_log('=== EXPRESS SHIPPING UPDATE DEBUG END ===');
+}
+
+/**
+ * AJAX handler to save Apple Pay address for checkout
+ */
+public function ajax_save_apple_pay_address() {
+    check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
+    
+    $address_data_json = isset($_POST['address_data']) ? wp_unslash($_POST['address_data']) : '';
+    $address_data = json_decode($address_data_json, true);
+    
+    if ($address_data && WC()->session) {
+        // Speichere Apple Pay Adresse in Session
+        WC()->session->set('yprint_apple_pay_address', $address_data);
+        
+        // Aktualisiere auch WooCommerce Customer
+        if (WC()->customer) {
+            WC()->customer->set_shipping_country($address_data['country'] ?? 'DE');
+            WC()->customer->set_shipping_state($address_data['state'] ?? '');
+            WC()->customer->set_shipping_postcode($address_data['postcode'] ?? '');
+            WC()->customer->set_shipping_city($address_data['city'] ?? '');
+            WC()->customer->set_shipping_address_1($address_data['address_1'] ?? '');
+            WC()->customer->set_shipping_address_2($address_data['address_2'] ?? '');
+            WC()->customer->save();
+        }
+        
+        wp_send_json_success(array('message' => 'Apple Pay address saved'));
+    } else {
+        wp_send_json_error(array('message' => 'Invalid address data'));
+    }
 }
 
     /**
