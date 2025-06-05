@@ -1068,9 +1068,40 @@ public function ajax_get_cart_data() {
         return $order->get_id();
     }
 
+/**
+     * Sendet Bestätigungsmail nach erfolgreichem Checkout
+     *
+     * @param WC_Order $order Das Bestellobjekt
+     */
+    private function send_confirmation_email_if_needed($order) {
+        if (!$order || !is_a($order, 'WC_Order')) {
+            return;
+        }
+
+        // Prüfe ob E-Mail bereits gesendet wurde
+        $email_sent = $order->get_meta('_yprint_confirmation_email_sent');
+        if ($email_sent === 'yes') {
+            error_log('YPrint: Bestätigungsmail bereits gesendet für Bestellung ' . $order->get_order_number());
+            return;
+        }
+
+        // Prüfe ob Bestellung bezahlt ist
+        if (!$order->is_paid()) {
+            error_log('YPrint: Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt - keine E-Mail');
+            return;
+        }
+
+        // E-Mail-Funktion ist in email.php definiert
+        if (function_exists('yprint_send_order_confirmation_email')) {
+            yprint_send_order_confirmation_email($order);
+        } else {
+            error_log('YPrint: E-Mail-Funktion nicht verfügbar');
+        }
+    }
+
     /**
- * AJAX handler for processing payment methods (DEBUG VERSION)
- */
+     * AJAX handler for processing payment methods (DEBUG VERSION)
+     */
 
  public function ajax_process_payment_method() {
     // Force WooCommerce initialization if not already done
@@ -1419,6 +1450,15 @@ if (WC()->cart->is_empty()) {
         
         error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
         
+        // Prüfe ob eine echte Bestellung erstellt wurde und sende E-Mail
+        $pending_order = WC()->session->get('yprint_pending_order');
+        if ($pending_order && isset($pending_order['order_id'])) {
+            $order = wc_get_order($pending_order['order_id']);
+            if ($order && $order->is_paid()) {
+                $this->send_confirmation_email_if_needed($order);
+            }
+        }
+
         // Return success with step change instead of redirect
         wp_send_json_success(array(
             'message' => 'Payment processed successfully (Test Mode)',
@@ -1437,6 +1477,21 @@ if (WC()->cart->is_empty()) {
 }
 
 
+
+    /**
+     * Handler für Bestellstatus-Änderungen
+     *
+     * @param int $order_id
+     * @param string $old_status
+     * @param string $new_status
+     * @param WC_Order $order
+     */
+    public function handle_order_status_change($order_id, $old_status, $new_status, $order) {
+        // Sende Bestätigungsmail bei Statuswechsel zu "processing" oder "completed"
+        if (in_array($new_status, array('processing', 'completed')) && $order->is_paid()) {
+            $this->send_confirmation_email_if_needed($order);
+        }
+    }
 
     /**
      * Capture additional order details during checkout
