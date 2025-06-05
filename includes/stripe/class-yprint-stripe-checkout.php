@@ -737,24 +737,135 @@ public function ajax_express_checkout_data() {
     }
 
     /**
-     * AJAX handler for Express Shipping updates
-     */
-    public function ajax_update_express_shipping() {
-        check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
+ * AJAX handler for Express Shipping updates
+ */
+public function ajax_update_express_shipping() {
+    check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
+    
+    error_log('=== EXPRESS SHIPPING UPDATE DEBUG ===');
+    
+    // Shipping Address aus Request
+    $shipping_address_json = isset($_POST['shipping_address']) ? wp_unslash($_POST['shipping_address']) : '';
+    $shipping_address = null;
+    
+    if (!empty($shipping_address_json)) {
+        $shipping_address = json_decode($shipping_address_json, true);
+        error_log('Received shipping address: ' . print_r($shipping_address, true));
+    }
+    
+    try {
+        // Setze Kundenadresse für Versandkostenberechnung
+        if ($shipping_address && WC()->customer) {
+            WC()->customer->set_shipping_country($shipping_address['country'] ?? 'DE');
+            WC()->customer->set_shipping_state($shipping_address['region'] ?? '');
+            WC()->customer->set_shipping_postcode($shipping_address['postalCode'] ?? '');
+            WC()->customer->set_shipping_city($shipping_address['city'] ?? '');
+            WC()->customer->set_shipping_address($shipping_address['addressLine'][0] ?? '');
+            
+            // Billing gleich Shipping setzen
+            WC()->customer->set_billing_country($shipping_address['country'] ?? 'DE');
+            WC()->customer->set_billing_state($shipping_address['region'] ?? '');
+            WC()->customer->set_billing_postcode($shipping_address['postalCode'] ?? '');
+            WC()->customer->set_billing_city($shipping_address['city'] ?? '');
+            WC()->customer->set_billing_address($shipping_address['addressLine'][0] ?? '');
+            
+            error_log('Customer shipping address updated');
+        }
         
-        // Placeholder für Versandkostenberechnung bei Adressänderung
+        // Neuberechnung der Versandkosten
+        if (WC()->cart) {
+            WC()->cart->calculate_shipping();
+            WC()->cart->calculate_totals();
+            
+            $shipping_total = WC()->cart->get_shipping_total();
+            $cart_total = WC()->cart->get_total('edit');
+            
+            error_log('Calculated shipping total: ' . $shipping_total);
+            error_log('Calculated cart total: ' . $cart_total);
+        }
         
+        // Hole verfügbare Versandmethoden
+        $packages = WC()->shipping->get_packages();
+        $shipping_options = array();
+        
+        if (!empty($packages)) {
+            foreach ($packages as $package_key => $package) {
+                if (!empty($package['rates'])) {
+                    foreach ($package['rates'] as $rate_id => $rate) {
+                        $shipping_options[] = array(
+                            'id' => $rate_id,
+                            'label' => $rate->get_label(),
+                            'detail' => $rate->get_method_title(),
+                            'amount' => round($rate->get_cost() * 100), // in Cent
+                        );
+                        
+                        error_log('Available shipping rate: ' . $rate->get_label() . ' - Cost: ' . $rate->get_cost());
+                    }
+                }
+            }
+        }
+        
+        // Fallback: Kostenloser Versand wenn keine Methoden gefunden
+        if (empty($shipping_options)) {
+            $shipping_options[] = array(
+                'id' => 'free',
+                'label' => __('Kostenloser Versand', 'yprint-plugin'),
+                'detail' => __('3-5 Werktage', 'yprint-plugin'),
+                'amount' => 0,
+            );
+            error_log('No shipping methods found, using free shipping fallback');
+        }
+        
+        // Erstelle neue Display Items mit korrekten Versandkosten
+        $display_items = array();
+        $subtotal = WC()->cart ? WC()->cart->get_subtotal() : 0;
+        $shipping_cost = WC()->cart ? WC()->cart->get_shipping_total() : 0;
+        $total = WC()->cart ? WC()->cart->get_total('edit') : 0;
+        
+        // Zwischensumme
+        $display_items[] = array(
+            'label' => 'Zwischensumme',
+            'amount' => round($subtotal * 100)
+        );
+        
+        // Versandkosten nur wenn > 0
+        if ($shipping_cost > 0) {
+            $display_items[] = array(
+                'label' => 'Versand',
+                'amount' => round($shipping_cost * 100)
+            );
+        }
+        
+        error_log('Final display items: ' . print_r($display_items, true));
+        error_log('Final total amount: ' . round($total * 100));
+        
+        wp_send_json_success(array(
+            'shippingOptions' => $shipping_options,
+            'displayItems' => $display_items,
+            'total' => array(
+                'label' => get_bloginfo('name') . ' (via YPrint)',
+                'amount' => round($total * 100),
+            )
+        ));
+        
+    } catch (Exception $e) {
+        error_log('Express shipping update error: ' . $e->getMessage());
+        
+        // Fallback zu kostenlosem Versand
         wp_send_json_success(array(
             'shippingOptions' => array(
                 array(
-                    'id' => 'standard',
-                    'label' => __('Standard Versand', 'yprint-plugin'),
+                    'id' => 'free',
+                    'label' => __('Kostenloser Versand', 'yprint-plugin'),
                     'detail' => __('3-5 Werktage', 'yprint-plugin'),
-                    'amount' => 499, // 4,99 EUR in Cent
+                    'amount' => 0,
                 )
             )
         ));
     }
+    
+    error_log('=== EXPRESS SHIPPING UPDATE DEBUG END ===');
+}
 
     /**
      * Render express payment buttons (Apple Pay, Google Pay)

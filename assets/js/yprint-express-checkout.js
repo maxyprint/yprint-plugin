@@ -235,26 +235,78 @@
 
         async handleShippingAddressChange(event) {
             console.log('YPrint Express Checkout: Processing shipping address change...');
+            console.log('Shipping address:', event.shippingAddress);
             
             try {
-                // Hier würde in Phase 2 die Versandkostenberechnung stattfinden
-                // Für Phase 1 simulieren wir nur eine einfache Antwort
-                
-                event.updateWith({
-                    status: 'success',
-                    shippingOptions: [{
-                        id: 'standard',
-                        label: 'Standard Versand',
-                        detail: '3-5 Werktage',
-                        amount: 499, // 4,99 EUR in Cent
-                    }],
+                // AJAX-Aufruf an WordPress Backend um echte Versandkosten zu berechnen
+                const response = await fetch(yprint_express_payment_params.ajax_url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        action: 'yprint_stripe_update_express_shipping',
+                        nonce: yprint_express_payment_params.nonce,
+                        shipping_address: JSON.stringify(event.shippingAddress)
+                    })
                 });
+        
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('YPrint Express Checkout: Received shipping data:', data.data);
+                    
+                    // Aktualisiere mit echten Versandoptionen und neuen Totals
+                    const updateData = {
+                        status: 'success',
+                        shippingOptions: data.data.shippingOptions || [{
+                            id: 'free',
+                            label: 'Kostenloser Versand',
+                            detail: '3-5 Werktage',
+                            amount: 0, // Kostenlos
+                        }],
+                    };
+                    
+                    // Füge neue Totals hinzu wenn verfügbar
+                    if (data.data.total) {
+                        updateData.total = data.data.total;
+                    }
+                    
+                    if (data.data.displayItems) {
+                        updateData.displayItems = data.data.displayItems;
+                    }
+                    
+                    console.log('YPrint Express Checkout: Updating with data:', updateData);
+                    event.updateWith(updateData);
+                    
+                } else {
+                    console.error('YPrint Express Checkout: Backend shipping calculation failed:', data.data);
+                    // Fallback zu kostenlosem Versand
+                    event.updateWith({
+                        status: 'success',
+                        shippingOptions: [{
+                            id: 'free',
+                            label: 'Kostenloser Versand',
+                            detail: '3-5 Werktage',
+                            amount: 0,
+                        }],
+                    });
+                }
                 
                 console.log('YPrint Express Checkout: Shipping options updated');
                 
             } catch (error) {
                 console.error('YPrint Express Checkout: Shipping update failed:', error);
-                event.updateWith({ status: 'fail' });
+                // Fallback zu kostenlosem Versand
+                event.updateWith({
+                    status: 'success',
+                    shippingOptions: [{
+                        id: 'free',
+                        label: 'Kostenloser Versand',
+                        detail: '3-5 Werktage',
+                        amount: 0,
+                    }],
+                });
             }
         }
 
