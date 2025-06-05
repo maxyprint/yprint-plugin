@@ -96,6 +96,8 @@ class YPrint_Stripe_Checkout {
         // Add handler for pending order data
         add_action('wp_ajax_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
         add_action('wp_ajax_nopriv_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
+
+        
     }
 
     /**
@@ -1080,7 +1082,7 @@ public function ajax_get_cart_data() {
             error_log('YPrint CHECKOUT DEBUG: FEHLER - Ungültiges Order-Objekt empfangen');
             error_log('YPrint CHECKOUT DEBUG: Order Type: ' . gettype($order));
             error_log('YPrint CHECKOUT DEBUG: Is WC_Order: ' . (is_a($order, 'WC_Order') ? 'JA' : 'NEIN'));
-            return;
+            return false;
         }
 
         error_log('YPrint CHECKOUT DEBUG: Gültiges Order-Objekt empfangen');
@@ -1125,6 +1127,8 @@ public function ajax_get_cart_data() {
         
         error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion Ergebnis: ' . ($email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
         error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger beendet ===');
+        
+        return $email_result;
     }
 
     /**
@@ -1164,6 +1168,8 @@ error_log('WC function exists: ' . (function_exists('WC') ? 'YES' : 'NO'));
 error_log('WooCommerce version: ' . (defined('WC_VERSION') ? WC_VERSION : 'Not defined'));
 error_log('WooCommerce active: ' . (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins'))) ? 'YES' : 'NO'));
 error_log('WooCommerce init action fired: ' . (did_action('woocommerce_init') ? 'YES' : 'NO'));
+
+
 
 // Try to access WC()
 try {
@@ -1279,6 +1285,8 @@ if (json_last_error() !== JSON_ERROR_NONE) {
     error_log('Method 1 SUCCESS - direct decode worked');
 }
 
+
+
 error_log('Final decoded Payment Method: ' . print_r($payment_method, true));
 error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
 error_log('Payment Method JSON received: ' . var_export($payment_method_json, true));
@@ -1369,6 +1377,8 @@ if (!defined('WOOCOMMERCE_CART')) {
     define('WOOCOMMERCE_CART', true);
 }
 
+
+
 // Ensure all WooCommerce components are initialized
 try {
     // Initialize session if needed
@@ -1415,6 +1425,8 @@ if (WC()->cart) {
     return;
 }
     
+
+
 
 // Cart Fallback - create minimal order from session data
 if (WC()->cart->is_empty()) {
@@ -1478,39 +1490,91 @@ if (WC()->cart->is_empty()) {
         
         error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
         
-        // Prüfe ob eine echte Bestellung erstellt wurde und sende E-Mail
+        // Erweiterte Debug-Ausgabe für E-Mail-Versendung
         error_log('=== YPRINT PAYMENT DEBUG: Prüfe pending order für E-Mail-Versendung ===');
+        error_log('YPrint PAYMENT DEBUG: Aktuelle Session ID: ' . (WC()->session ? WC()->session->get_customer_id() : 'KEINE SESSION'));
+        error_log('YPrint PAYMENT DEBUG: Session Handler Typ: ' . (WC()->session ? get_class(WC()->session) : 'KEIN HANDLER'));
         
         $pending_order = WC()->session->get('yprint_pending_order');
         error_log('YPrint PAYMENT DEBUG: Pending Order gefunden: ' . ($pending_order ? 'JA' : 'NEIN'));
+        error_log('YPrint PAYMENT DEBUG: Session Keys: ' . print_r(WC()->session->get_session_data(), true));
         
         if ($pending_order) {
             error_log('YPrint PAYMENT DEBUG: Pending Order Daten: ' . print_r($pending_order, true));
+            error_log('YPrint PAYMENT DEBUG: Pending Order Keys: ' . print_r(array_keys($pending_order), true));
             
             if (isset($pending_order['order_id'])) {
                 error_log('YPrint PAYMENT DEBUG: Order ID in pending order: ' . $pending_order['order_id']);
                 
                 $order = wc_get_order($pending_order['order_id']);
                 error_log('YPrint PAYMENT DEBUG: WC_Order geladen: ' . ($order ? 'JA' : 'NEIN'));
+                error_log('YPrint PAYMENT DEBUG: Order Typ: ' . ($order ? get_class($order) : 'KEIN ORDER'));
                 
                 if ($order) {
                     error_log('YPrint PAYMENT DEBUG: Order ist bezahlt: ' . ($order->is_paid() ? 'JA' : 'NEIN'));
                     error_log('YPrint PAYMENT DEBUG: Order Status: ' . $order->get_status());
+                    error_log('YPrint PAYMENT DEBUG: Payment Complete: ' . ($order->get_date_paid() ? 'JA' : 'NEIN'));
+                    error_log('YPrint PAYMENT DEBUG: Transaction ID: ' . ($order->get_transaction_id() ?: 'KEINE'));
                     
                     if ($order->is_paid()) {
                         error_log('YPrint PAYMENT DEBUG: Trigger E-Mail für bezahlte Bestellung...');
-                        $this->send_confirmation_email_if_needed($order);
+                        $email_result = $this->send_confirmation_email_if_needed($order);
+                        error_log('YPrint PAYMENT DEBUG: E-Mail-Trigger Ergebnis: ' . ($email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
                     } else {
                         error_log('YPrint PAYMENT DEBUG: Order nicht bezahlt - keine E-Mail');
+                        error_log('YPrint PAYMENT DEBUG: Versuche manuelle E-Mail-Versendung für Test-Zwecke...');
+                        $test_email_result = $this->send_confirmation_email_if_needed($order);
+                        error_log('YPrint PAYMENT DEBUG: Test E-Mail-Versendung Ergebnis: ' . ($test_email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
                     }
                 } else {
                     error_log('YPrint PAYMENT DEBUG: FEHLER - Konnte Order nicht laden für ID: ' . $pending_order['order_id']);
+                    error_log('YPrint PAYMENT DEBUG: WC_Order::get() direkt versuchen...');
+                    
+                    // Direkter Versuch WC_Order zu laden
+                    global $wpdb;
+                    $post_exists = $wpdb->get_var($wpdb->prepare("SELECT ID FROM {$wpdb->posts} WHERE ID = %d AND post_type = 'shop_order'", $pending_order['order_id']));
+                    error_log('YPrint PAYMENT DEBUG: Post existiert in DB: ' . ($post_exists ? 'JA (ID: ' . $post_exists . ')' : 'NEIN'));
                 }
             } else {
-                error_log('YPrint PAYMENT DEBUG: FEHLER - Keine order_id in pending_order gefunden');
+                error_log('YPrint PAYMENT DEBUG: KRITISCH - Keine order_id in pending_order gefunden');
+                error_log('YPrint PAYMENT DEBUG: Erstelle Test-Bestellung für E-Mail-Versendung...');
+                
+                // Für Testzwecke: Erstelle echte Bestellung
+                $test_order_id = yprint_create_test_order_for_email($order_data);
+                if ($test_order_id) {
+                    error_log('YPrint PAYMENT DEBUG: Test-Bestellung erstellt mit ID: ' . $test_order_id);
+                    $test_order = wc_get_order($test_order_id);
+                    if ($test_order) {
+                        // Markiere als bezahlt für E-Mail-Test
+                        $test_order->set_status('processing');
+                        $test_order->save();
+                        
+                        $test_email_result = $this->send_confirmation_email_if_needed($test_order);
+                        error_log('YPrint PAYMENT DEBUG: Test-Bestellung E-Mail Ergebnis: ' . ($test_email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
+                    }
+                } else {
+                    error_log('YPrint PAYMENT DEBUG: FEHLER - Konnte keine Test-Bestellung erstellen');
+                }
             }
         } else {
-            error_log('YPrint PAYMENT DEBUG: Kein pending_order in Session gefunden');
+            error_log('YPrint PAYMENT DEBUG: KRITISCH - Kein pending_order in Session gefunden');
+            error_log('YPrint PAYMENT DEBUG: Alle Session-Daten: ' . print_r(WC()->session->get_session_data(), true));
+            error_log('YPrint PAYMENT DEBUG: WC Session aktiv: ' . (WC()->session->get_customer_id() ? 'JA' : 'NEIN'));
+            
+            // Für Testzwecke: Erstelle direkt eine Test-Bestellung
+            error_log('YPrint PAYMENT DEBUG: Erstelle direkte Test-Bestellung für E-Mail-Debugging...');
+            $direct_test_order_id = yprint_create_test_order_for_email($order_data);
+            if ($direct_test_order_id) {
+                error_log('YPrint PAYMENT DEBUG: Direkte Test-Bestellung erstellt mit ID: ' . $direct_test_order_id);
+                $direct_test_order = wc_get_order($direct_test_order_id);
+                if ($direct_test_order) {
+                    $direct_test_order->set_status('processing');
+                    $direct_test_order->save();
+                    
+                    $direct_email_result = $this->send_confirmation_email_if_needed($direct_test_order);
+                    error_log('YPrint PAYMENT DEBUG: Direkte Test-Bestellung E-Mail Ergebnis: ' . ($direct_email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
+                }
+            }
         }
         
         error_log('=== YPRINT PAYMENT DEBUG: Pending order Prüfung beendet ===');
@@ -1590,7 +1654,107 @@ if (WC()->cart->is_empty()) {
     }
 }
 
-
+/**
+ * Erstellt eine Test-Bestellung für E-Mail-Debugging
+ *
+ * @param array $order_data Die Bestelldaten
+ * @return int|false Die Order ID oder false bei Fehler
+ */
+function yprint_create_test_order_for_email($order_data) {
+    error_log('=== CREATE TEST ORDER FOR EMAIL DEBUG ===');
+    
+    try {
+        // Erstelle neue WooCommerce Bestellung
+        $order = wc_create_order();
+        
+        if (is_wp_error($order)) {
+            error_log('FEHLER beim Erstellen der Test-Bestellung: ' . $order->get_error_message());
+            return false;
+        }
+        
+        error_log('Test-Bestellung Objekt erstellt, ID: ' . $order->get_id());
+        
+        // Setze Kunden-E-Mail wenn vorhanden
+        if (isset($order_data['customer_details']['email'])) {
+            $order->set_billing_email($order_data['customer_details']['email']);
+            error_log('E-Mail gesetzt: ' . $order_data['customer_details']['email']);
+        } else {
+            // Fallback E-Mail für Test
+            $order->set_billing_email('test@yprint.de');
+            error_log('Fallback E-Mail gesetzt: test@yprint.de');
+        }
+        
+        // Setze Kundenname wenn vorhanden
+        if (isset($order_data['customer_details']['name'])) {
+            $name_parts = explode(' ', $order_data['customer_details']['name']);
+            $order->set_billing_first_name($name_parts[0]);
+            if (count($name_parts) > 1) {
+                $order->set_billing_last_name(end($name_parts));
+            }
+            error_log('Kundenname gesetzt: ' . $order_data['customer_details']['name']);
+        } else {
+            $order->set_billing_first_name('Test');
+            $order->set_billing_last_name('Kunde');
+            error_log('Fallback Kundenname gesetzt: Test Kunde');
+        }
+        
+        // Setze Adressdaten wenn vorhanden
+        if (isset($order_data['billing_address'])) {
+            $billing_address = $order_data['billing_address'];
+            $order->set_billing_address_1($billing_address['line1'] ?? 'Teststraße 1');
+            $order->set_billing_city($billing_address['city'] ?? 'Berlin');
+            $order->set_billing_postcode($billing_address['postal_code'] ?? '10115');
+            $order->set_billing_country($billing_address['country'] ?? 'DE');
+            error_log('Rechnungsadresse gesetzt');
+        }
+        
+        // Füge Warenkorb-Artikel hinzu (falls vorhanden)
+        if (!WC()->cart->is_empty()) {
+            foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+                $order->add_product($cart_item['data'], $cart_item['quantity']);
+                error_log('Produkt hinzugefügt: ' . $cart_item['data']->get_name());
+            }
+        } else {
+            // Füge ein Dummy-Produkt hinzu für Test
+            error_log('Warenkorb leer, füge Dummy-Produkt hinzu');
+            $dummy_product = new WC_Product_Simple();
+            $dummy_product->set_name('Test Produkt');
+            $dummy_product->set_regular_price(10.00);
+            $dummy_product->set_status('publish');
+            $dummy_product->save();
+            
+            $order->add_product($dummy_product, 1);
+            error_log('Dummy-Produkt erstellt und hinzugefügt');
+        }
+        
+        // Setze Zahlungsmethode
+        $order->set_payment_method('yprint_stripe');
+        $order->set_payment_method_title('Stripe (Test)');
+        
+        // Setze Transaktions-ID wenn vorhanden
+        if (isset($order_data['payment_method_id'])) {
+            $order->set_transaction_id($order_data['payment_method_id']);
+            error_log('Transaktions-ID gesetzt: ' . $order_data['payment_method_id']);
+        }
+        
+        // Berechne Gesamtsumme
+        $order->calculate_totals();
+        
+        // Speichere die Bestellung
+        $order->save();
+        
+        error_log('Test-Bestellung erfolgreich erstellt mit ID: ' . $order->get_id());
+        error_log('Test-Bestellung Gesamtsumme: ' . $order->get_total());
+        error_log('Test-Bestellung Status: ' . $order->get_status());
+        
+        return $order->get_id();
+        
+    } catch (Exception $e) {
+        error_log('EXCEPTION beim Erstellen der Test-Bestellung: ' . $e->getMessage());
+        error_log('Exception Stack Trace: ' . $e->getTraceAsString());
+        return false;
+    }
+}
 
 
 
