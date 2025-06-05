@@ -2249,37 +2249,69 @@ async function validateStripeSepaElement() {
         });
     }
 
-    // Zusätzliche Event-Listener für "Bestellung anzeigen" Button
-    $(document).on('click', '#btn-view-order, .btn-view-order', function(e) {
+    // Verbesserter "Bestellung anzeigen" Button Handler
+    $(document).on('click', '#btn-view-order, .btn-view-order, button[id*="view-order"], a[id*="view-order"]', function(e) {
         e.preventDefault();
+        console.log('Bestellung anzeigen Button geklickt');
         
-        // Hole Order-ID aus data-Attribut oder URL-Parameter
-        const orderId = $(this).data('order-id') || urlParams.get('order_id');
+        // Hole Order-ID aus verschiedenen Quellen
+        let orderId = $(this).data('order-id') || 
+                     $(this).attr('data-order-id') ||
+                     $(this).closest('[data-order-id]').attr('data-order-id');
+        
+        // Prüfe URL-Parameter als Fallback
+        if (!orderId) {
+            const urlParams = new URLSearchParams(window.location.search);
+            orderId = urlParams.get('order_id') || urlParams.get('order');
+        }
+        
+        // Prüfe Session-Storage für pending order
+        if (!orderId && window.sessionStorage) {
+            const pendingOrder = sessionStorage.getItem('yprint_last_order_id');
+            if (pendingOrder) {
+                orderId = pendingOrder;
+            }
+        }
+        
+        console.log('Ermittelte Order-ID:', orderId);
         
         if (orderId) {
-            // Weiterleitung zur WooCommerce Order-View Seite
-            const orderUrl = yprint_checkout_params.checkout_url.replace('checkout', 'view-order/' + orderId);
-            window.location.href = orderUrl;
+            // Verschiedene URL-Formate versuchen
+            const possibleUrls = [
+                `/my-account/view-order/${orderId}/`,
+                `/checkout/order-received/${orderId}/`,
+                `${window.location.origin}/my-account/view-order/${orderId}/`,
+                `${window.location.origin}/checkout/order-received/${orderId}/`
+            ];
+            
+            // Versuche die erste verfügbare URL
+            console.log('Weiterleitung zu Bestellübersicht mit ID:', orderId);
+            window.location.href = possibleUrls[0];
         } else {
-            // Fallback zur Account-Seite mit Bestellungen
-            const accountUrl = yprint_checkout_params.checkout_url.replace('checkout', 'my-account/orders');
-            window.location.href = accountUrl;
+            // Fallback zur Bestellübersicht
+            console.log('Keine Order-ID gefunden, Weiterleitung zur Bestellübersicht');
+            window.location.href = '/my-account/orders/';
         }
     });
 
-    // Robuste Button-Erkennung für verschiedene Button-Varianten
-    $(document).on('click', 'button[id*="view"], button[class*="view"], a[href*="view-order"]', function(e) {
-        const buttonText = $(this).text().toLowerCase();
-        if (buttonText.includes('bestellung') || buttonText.includes('order') || buttonText.includes('anzeigen')) {
-            e.preventDefault();
+    // Zusätzlicher Handler für Text-basierte Button-Erkennung
+    $(document).on('click', 'button, a', function(e) {
+        const buttonText = $(this).text().toLowerCase().trim();
+        const buttonClass = $(this).attr('class') || '';
+        const buttonId = $(this).attr('id') || '';
+        
+        // Prüfe ob es ein "Bestellung anzeigen" Button ist
+        if ((buttonText.includes('bestellung') && buttonText.includes('anzeigen')) ||
+            (buttonText.includes('order') && buttonText.includes('view')) ||
+            buttonText.includes('zur bestellung') ||
+            buttonClass.includes('view-order') ||
+            buttonId.includes('view-order')) {
             
-            const orderId = $(this).data('order-id') || $(this).attr('href')?.match(/view-order\/(\d+)/)?.[1];
+            console.log('Text-basierter Bestellung anzeigen Button erkannt:', buttonText);
             
-            if (orderId) {
-                window.location.href = `/my-account/view-order/${orderId}/`;
-            } else {
-                window.location.href = '/my-account/orders/';
-            }
+            // Delegiere an den Haupt-Handler
+            $(this).trigger('click.view-order');
+            return false;
         }
     });
 

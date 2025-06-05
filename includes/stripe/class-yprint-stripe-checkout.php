@@ -1742,6 +1742,11 @@ if (WC()->cart->is_empty()) {
         // Store order data in session for confirmation page
         WC()->session->set('yprint_pending_order', $order_data);
         
+        // Speichere auch eine einfache Order-ID für "Bestellung anzeigen" Button
+        $simple_order_id = 'YP-' . time() . '-' . wp_rand(1000, 9999);
+        WC()->session->set('yprint_last_order_id', $simple_order_id);
+        $order_data['simple_order_id'] = $simple_order_id;
+        
         error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
         
         // Erweiterte Debug-Ausgabe für E-Mail-Versendung
