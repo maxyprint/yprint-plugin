@@ -1,5 +1,28 @@
 // YPrint Checkout JavaScript - Allgemeine Funktionen
 // WordPress-kompatibles jQuery Wrapping
+
+// DEBUG: Check for missing script dependencies
+console.log('=== YPRINT CHECKOUT SCRIPT DEBUG ===');
+console.log('Loaded scripts check:');
+document.querySelectorAll('script[src]').forEach(script => {
+    if (script.src.includes('yprint-checkout-header') || script.src.includes('yprint') && script.src.includes('header')) {
+        console.log('FOUND problematic script:', script.src);
+        console.log('Script element:', script);
+        console.log('Script loaded successfully:', !script.onerror);
+    }
+});
+
+// Check for any 404 script errors
+const originalError = window.onerror;
+window.onerror = function(msg, url, line, col, error) {
+    if (url && url.includes('yprint-checkout-header.js')) {
+        console.error('CRITICAL: yprint-checkout-header.js failed to load from:', url);
+        console.error('This script was requested from line:', line);
+        console.error('Error details:', error);
+    }
+    if (originalError) originalError.apply(this, arguments);
+};
+
 jQuery(document).ready(function($) {
     'use strict';
     

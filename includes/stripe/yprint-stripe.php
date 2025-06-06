@@ -346,6 +346,26 @@ require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-ga
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-webhook-handler.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-payment-request.php';
 
+// DEBUG: Hook to catch all script registrations and find yprint-checkout-header.js
+add_action('wp_enqueue_scripts', function() {
+    global $wp_scripts;
+    if (isset($wp_scripts->registered)) {
+        foreach ($wp_scripts->registered as $handle => $script) {
+            if (strpos($handle, 'yprint') !== false || strpos($script->src, 'yprint') !== false) {
+                error_log("YPRINT SCRIPT REGISTERED: Handle: $handle, Source: " . $script->src);
+                if (strpos($script->src, 'checkout-header') !== false) {
+                    error_log("CRITICAL: Found yprint-checkout-header.js registration!");
+                    error_log("Handle: $handle");
+                    error_log("Source: " . $script->src);
+                    error_log("Full path: " . YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-header.js');
+                    error_log("File exists: " . (file_exists(YPRINT_PLUGIN_DIR . 'assets/js/yprint-checkout-header.js') ? 'YES' : 'NO'));
+                    error_log("Registered from: " . wp_debug_backtrace_summary());
+                }
+            }
+        }
+    }
+}, 999);
+
 // Initialize classes
 YPrint_Stripe_Apple_Pay::get_instance();
 YPrint_Stripe_Webhook_Handler::get_instance();

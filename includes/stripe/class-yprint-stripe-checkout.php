@@ -316,6 +316,22 @@ public function ajax_refresh_checkout_context() {
      * Enqueue scripts and styles for checkout
      */
     public function enqueue_checkout_assets() {
+        // DEBUG: Log all enqueued scripts to find yprint-checkout-header.js source
+        error_log('=== YPRINT CHECKOUT ASSETS DEBUG ===');
+        error_log('Current page URL: ' . $_SERVER['REQUEST_URI']);
+        error_log('Function called from: ' . wp_debug_backtrace_summary());
+        
+        // Check if this mysterious file is being enqueued here
+        global $wp_scripts;
+        if (isset($wp_scripts->registered)) {
+            foreach ($wp_scripts->registered as $handle => $script) {
+                if (strpos($script->src, 'yprint-checkout-header') !== false) {
+                    error_log('FOUND: yprint-checkout-header.js registered with handle: ' . $handle);
+                    error_log('Source: ' . $script->src);
+                    error_log('Dependencies: ' . print_r($script->deps, true));
+                }
+            }
+        }
         // Only load on pages with our shortcode OR when called directly
         global $post;
         $should_load_assets = false;
