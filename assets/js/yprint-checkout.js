@@ -30,41 +30,95 @@ let cartDataCacheTime = 0;
 const CACHE_DURATION = 30000; // 30 Sekunden Cache
 
 async function loadRealCartData(forceRefresh = false) {
+    console.log('=== LOAD REAL CART DATA DEBUG START ===');
+    console.log('forceRefresh:', forceRefresh);
+    console.log('cartDataCache exists:', !!cartDataCache);
+    console.log('cartDataCacheTime:', cartDataCacheTime);
+    console.log('CACHE_DURATION:', CACHE_DURATION);
+    console.log('yprint_checkout_params exists:', typeof yprint_checkout_params !== 'undefined');
+    
+    if (typeof yprint_checkout_params === 'undefined') {
+        console.error('CRITICAL: yprint_checkout_params is undefined!');
+        return;
+    }
+    
+    console.log('yprint_checkout_params.ajax_url:', yprint_checkout_params.ajax_url);
+    console.log('yprint_checkout_params.nonce:', yprint_checkout_params.nonce);
+    
     // Cache prüfen für bessere Performance
     if (!forceRefresh && cartDataCache && (Date.now() - cartDataCacheTime) < CACHE_DURATION) {
         console.log('Verwende Cache für Warenkorbdaten');
-        applyCartData(cartDataCache);
-        return;
+        try {
+            applyCartData(cartDataCache);
+            console.log('Cache successfully applied');
+            return;
+        } catch (cacheError) {
+            console.error('Error applying cache data:', cacheError);
+            console.error('Cache data:', cartDataCache);
+        }
     }
 
+    console.log('Making AJAX request for cart data...');
+    
     try {
+        console.log('About to call isMinimalLoadNeeded()...');
+        const minimal = isMinimalLoadNeeded();
+        console.log('isMinimalLoadNeeded result:', minimal);
+        
+        const requestBody = {
+            action: 'yprint_get_cart_data',
+            nonce: yprint_checkout_params.nonce,
+            minimal: minimal ? '1' : '0'
+        };
+        console.log('Request body:', requestBody);
+        
+        console.log('Starting fetch request...');
         const response = await fetch(yprint_checkout_params.ajax_url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: new URLSearchParams({
-                action: 'yprint_get_cart_data',
-                nonce: yprint_checkout_params.nonce,
-                minimal: isMinimalLoadNeeded() ? '1' : '0' // Neue Option für reduzierte Daten
-            })
+            body: new URLSearchParams(requestBody)
         });
-
+        
+        console.log('Fetch response received, status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        console.log('Parsing JSON...');
         const data = await response.json();
+        console.log('JSON parsed successfully:', data);
         
         if (data.success) {
+            console.log('AJAX success, updating cache...');
             // Cache aktualisieren
             cartDataCache = data.data;
             cartDataCacheTime = Date.now();
+            console.log('Cache updated, calling applyCartData...');
             
             applyCartData(data.data);
             console.log('Zentrale Warenkorbdaten geladen:', cartItems);
         } else {
-            console.error('Fehler beim Laden der Warenkorbdaten:', data.data);
+            console.error('AJAX returned success=false:', data);
+            console.error('Error data:', data.data);
         }
     } catch (error) {
-        console.error('AJAX-Fehler beim Laden der Warenkorbdaten:', error);
+        console.error('EXCEPTION in loadRealCartData:', error);
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        
+        // Prüfe spezifische Fehlertypen
+        if (error instanceof ReferenceError) {
+            console.error('ReferenceError detected - checking variable availability:');
+            console.error('- cartDataCache:', typeof cartDataCache);
+            console.error('- cartDataCacheTime:', typeof cartDataCacheTime);
+            console.error('- CACHE_DURATION:', typeof CACHE_DURATION);
+            console.error('- isMinimalLoadNeeded:', typeof isMinimalLoadNeeded);
+            console.error('- applyCartData:', typeof applyCartData);
+        }
     }
+    
+    console.log('=== LOAD REAL CART DATA DEBUG END ===');
 }
 
 function applyCartData(data) {
