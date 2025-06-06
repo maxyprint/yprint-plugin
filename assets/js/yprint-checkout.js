@@ -92,10 +92,25 @@ function applyCartData(data) {
         updatePaymentStepSummary();
     }
     
+     // Debug: Express Payment Problem analysieren
+    console.log('=== EXPRESS PAYMENT DEBUG ===');
+    console.log('window.YPrintExpressCheckout exists:', !!window.YPrintExpressCheckout);
+    console.log('window.YPrintExpressCheckout type:', typeof window.YPrintExpressCheckout);
+    console.log('window.YPrintExpressCheckout methods:', window.YPrintExpressCheckout ? Object.getOwnPropertyNames(Object.getPrototypeOf(window.YPrintExpressCheckout)) : 'N/A');
+    console.log('window.YPrintExpressCheckout updateAmount exists:', !!(window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAmount));
+    console.log('window.checkoutContext exists:', !!window.checkoutContext);
+    console.log('window.checkoutContext.express_payment exists:', !!(window.checkoutContext && window.checkoutContext.express_payment));
+    
     // Express Payment nur wenn verfügbar und benötigt
     if (window.YPrintExpressCheckout && window.checkoutContext?.express_payment) {
-        window.YPrintExpressCheckout.updateAmount(window.checkoutContext.express_payment.total.amount);
+        if (typeof window.YPrintExpressCheckout.updateAmount === 'function') {
+            console.log('Calling updateAmount with:', window.checkoutContext.express_payment.total.amount);
+            window.YPrintExpressCheckout.updateAmount(window.checkoutContext.express_payment.total.amount);
+        } else {
+            console.error('updateAmount method not found. Available methods:', Object.getOwnPropertyNames(window.YPrintExpressCheckout));
+        }
     }
+    console.log('=== EXPRESS PAYMENT DEBUG END ===');
 }
 
 function isMinimalLoadNeeded() {
@@ -1237,8 +1252,26 @@ if (voucherButton) {
     window.confirmationTimestamp = new Date().toISOString();
     
     console.log('🎯 Confirmation populated timestamp:', window.confirmationTimestamp);
+    
+    // Debug: Prüfe Variable-Verfügbarkeit vor loadRealCartData
+    console.log('=== VARIABLE AVAILABILITY CHECK ===');
+    console.log('cartItems defined:', typeof cartItems !== 'undefined');
+    console.log('cartTotals defined:', typeof cartTotals !== 'undefined');
+    console.log('cartDataCache defined:', typeof cartDataCache !== 'undefined');
+    console.log('formData defined:', typeof formData !== 'undefined');
+    console.log('loadRealCartData defined:', typeof loadRealCartData !== 'undefined');
+    console.log('applyCartData defined:', typeof applyCartData !== 'undefined');
+    console.log('=== END VARIABLE CHECK ===');
+    
+    try {
         // Lade aktuelle Warenkorbdaten
+        console.log('About to call loadRealCartData...');
         await loadRealCartData();
+        console.log('loadRealCartData completed successfully');
+    } catch (error) {
+        console.error('Error in loadRealCartData:', error);
+        console.error('Error stack:', error.stack);
+    }
         
         // Check for pending order data from payment processing
         
