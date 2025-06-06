@@ -1329,7 +1329,7 @@ if (voucherButton) {
         
         // Check for pending order data from payment processing
         
-        if (urlParams.get('step') === 'confirmation') {
+        if (new URLSearchParams(window.location.search).get('step') === 'confirmation') {
             // Try to get pending order data
             try {
                 const response = await fetch(yprint_checkout_params.ajax_url, {

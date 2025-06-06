@@ -520,11 +520,11 @@ async recreatePaymentRequestWithNewAddress() {
 }
     }
 
-    // Global verfügbar machen für Integration
-window.YPrintExpressCheckout = YPrintExpressCheckout;
-
-// Automatisch initialisieren
+    // Automatisch initialisieren
 const expressCheckoutInstance = new YPrintExpressCheckout();
+
+// Global verfügbar machen für Integration - INSTANZ statt Klasse
+window.YPrintExpressCheckout = expressCheckoutInstance;
 
 // Integration mit Hauptcheckout
 if (typeof window.showStep === 'function') {
