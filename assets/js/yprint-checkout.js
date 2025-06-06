@@ -1516,6 +1516,207 @@ if (voucherButton) {
             updateConfirmationTotals();
         });
     }
+
+    // Globale Warenkorb-Anzeige Funktionalität
+class YPrintOrderDisplay {
+    constructor() {
+        this.isVisible = false;
+        this.init();
+    }
+
+    init() {
+        // Event-Listener für alle "Bestellung anzeigen" Buttons
+        $(document).on('click', '.yprint-summary-toggle', (e) => {
+            e.preventDefault();
+            this.toggleOrderDisplay(e.target);
+        });
+    }
+
+    async toggleOrderDisplay(buttonElement) {
+        const container = this.getOrCreateContainer(buttonElement);
+        
+        if (this.isVisible) {
+            this.hideOrderDisplay(container);
+        } else {
+            await this.showOrderDisplay(container);
+        }
+    }
+
+    getOrCreateContainer(buttonElement) {
+        const buttonContainer = $(buttonElement).closest('.order-display-wrapper, .checkout-step, .button-container');
+        let container = buttonContainer.find('.inline-order-display');
+        
+        if (container.length === 0) {
+            container = $('<div class="inline-order-display" style="display: none; margin-top: 1rem;"></div>');
+            buttonContainer.append(container);
+        }
+        
+        return container;
+    }
+
+    async showOrderDisplay(container) {
+        console.log('Showing order display...');
+        
+        // Lade aktuelle Warenkorbdaten
+        await loadRealCartData();
+        
+        // Erstelle HTML für Warenkorb-Anzeige
+        const orderHTML = this.generateOrderHTML();
+        
+        // Zeige mit Animation
+        container.html(orderHTML);
+        container.slideDown(300, () => {
+            // Scroll sanft zum Container
+            $('html, body').animate({
+                scrollTop: container.offset().top - 100
+            }, 300);
+        });
+        
+        this.isVisible = true;
+        this.updateButtonText(true);
+    }
+
+    hideOrderDisplay(container) {
+        console.log('Hiding order display...');
+        
+        container.slideUp(300, () => {
+            container.empty();
+        });
+        
+        this.isVisible = false;
+        this.updateButtonText(false);
+    }
+
+    updateButtonText(isVisible) {
+        const buttons = $('.yprint-summary-toggle');
+        buttons.each(function() {
+            const $btn = $(this);
+            const originalText = $btn.data('original-text') || $btn.text();
+            
+            if (!$btn.data('original-text')) {
+                $btn.data('original-text', originalText);
+            }
+            
+            if (isVisible) {
+                $btn.html('<i class="fas fa-eye-slash mr-2"></i>Bestellung ausblenden');
+            } else {
+                $btn.html('<i class="fas fa-eye mr-2"></i>' + originalText.replace(/^.*?(Bestellung|Order)/, 'Bestellung anzeigen'));
+            }
+        });
+    }
+
+    generateOrderHTML() {
+        if (!cartItems || cartItems.length === 0) {
+            return `
+                <div class="inline-cart-display border border-gray-200 rounded-lg p-4 bg-gray-50">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-semibold text-lg text-gray-800">
+                            <i class="fas fa-shopping-cart mr-2 text-blue-600"></i>
+                            Ihre Bestellung
+                        </h3>
+                        <span class="text-sm text-gray-500">Warenkorb ist leer</span>
+                    </div>
+                    <p class="text-gray-600 text-center py-4">Ihr Warenkorb ist leer.</p>
+                </div>
+            `;
+        }
+
+        const prices = calculatePrices();
+        
+        // Produktliste generieren
+        const itemsHTML = cartItems.map(item => {
+            // Design-Details für Design-Produkte
+            let designDetailsHtml = '';
+            if (item.is_design_product && item.design_details && item.design_details.length > 0) {
+                designDetailsHtml = `
+                    <div class="design-details mt-1">
+                        ${item.design_details.map(detail => 
+                            `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded mr-1">${detail}</span>`
+                        ).join('')}
+                    </div>
+                `;
+            }
+
+            // Design-Badge für Design-Produkte
+            const designBadge = item.is_design_product ? 
+                `<div class="design-badge" style="position: absolute; top: -5px; right: -5px; background: #0079FF; color: white; border-radius: 50%; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; font-size: 8px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Design-Produkt">
+                    <i class="fas fa-palette"></i>
+                </div>` : '';
+
+            // Stückpreis anzeigen wenn Menge > 1
+            const unitPrice = item.quantity > 1 ? 
+                `<div class="text-xs text-gray-500 mt-1">€${item.price.toFixed(2)} / Stück</div>` : '';
+
+            return `
+                <div class="cart-item flex items-start justify-between py-3 border-b border-gray-100 last:border-b-0">
+                    <div class="flex items-start flex-1">
+                        <div class="item-image-container relative mr-3 flex-shrink-0">
+                            <img src="${item.image}" alt="${item.name}" 
+                                 class="w-16 h-16 object-cover rounded border border-gray-200 bg-white">
+                            ${designBadge}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-medium text-sm text-gray-800 leading-tight">${item.name}</h4>
+                            <p class="text-xs text-gray-600 mt-1">Menge: ${item.quantity}</p>
+                            ${designDetailsHtml}
+                            ${unitPrice}
+                        </div>
+                    </div>
+                    <div class="text-right flex-shrink-0 ml-3">
+                        <div class="font-medium text-sm text-gray-800">€${(item.price * item.quantity).toFixed(2)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Gesamtübersicht generieren
+        const totalsHTML = `
+            <div class="cart-totals mt-4 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Zwischensumme:</span>
+                    <span class="font-medium">€${prices.subtotal.toFixed(2)}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">Versand:</span>
+                    <span class="font-medium">€${prices.shipping.toFixed(2)}</span>
+                </div>
+                ${prices.vat > 0 ? `
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-600">MwSt.:</span>
+                    <span class="font-medium">€${prices.vat.toFixed(2)}</span>
+                </div>` : ''}
+                ${prices.discount > 0 ? `
+                <div class="flex justify-between text-sm text-green-600">
+                    <span>Rabatt:</span>
+                    <span class="font-medium">-€${prices.discount.toFixed(2)}</span>
+                </div>` : ''}
+                <div class="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
+                    <span class="text-gray-800">Gesamtsumme:</span>
+                    <span class="text-blue-600">€${prices.total.toFixed(2)}</span>
+                </div>
+            </div>
+        `;
+
+        return `
+            <div class="inline-cart-display border border-gray-200 rounded-lg p-4 bg-white shadow-sm">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-lg text-gray-800">
+                        <i class="fas fa-shopping-cart mr-2 text-blue-600"></i>
+                        Ihre Bestellung
+                    </h3>
+                    <span class="text-sm text-gray-500">${cartItems.length} Artikel</span>
+                </div>
+                <div class="cart-items max-h-80 overflow-y-auto">
+                    ${itemsHTML}
+                </div>
+                ${totalsHTML}
+            </div>
+        `;
+    }
+}
+
+// Initialisiere Order Display System
+window.YPrintOrderDisplay = new YPrintOrderDisplay();
     
     // Hilfsfunktionen für Bestätigungsseite
     function updateConfirmationProductList() {
