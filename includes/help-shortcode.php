@@ -851,23 +851,19 @@ function yprint_help_shortcode() {
                     <ul class="help-faq-list">
                         <li class="help-faq-item">
                             <div class="help-faq-question">Wie kann ich meine Bestellung verfolgen?</div>
-                            <div class="help-faq-answer">Du erhältst eine E-Mail mit der Sendungsverfolgungsnummer, sobald deine Bestellung versendet wurde. Du kannst den Status auch in deinem Konto unter "Meine Bestellungen" einsehen.</div>
+                            <div class="help-faq-answer">Nach Abschluss der Bearbeitung deiner Bestellung, in der Regel innerhalb eines Werktags, erhältst du eine E-Mail mit der entsprechenden Sendungsverfolgungsnummer. In deinem Konto unter „Aufträge“ siehst du auch immer den aktuellen Bearbeitungsstand deiner Bestellung.</div>
                         </li>
                         <li class="help-faq-item">
                             <div class="help-faq-question">Welche Zahlungsmethoden akzeptiert ihr?</div>
-                            <div class="help-faq-answer">Wir akzeptieren alle gängigen Kreditkarten, PayPal, Apple Pay, Google Pay und SEPA-Lastschrift.</div>
+                            <div class="help-faq-answer">Wir akzeptieren alle gängigen Wallet-Zahlungsmethoden sowie Kreditkarten und SEPA-Lastschrift.</div>
                         </li>
                         <li class="help-faq-item">
                             <div class="help-faq-question">Wie lange dauert die Produktion?</div>
-                            <div class="help-faq-answer">Die Produktion dauert in der Regel 2-5 Werktage. Print-on-Demand Artikel werden erst nach der Bestellung für dich produziert.</div>
+                            <div class="help-faq-answer">Die Produktion dauert in der Regel einen Werktag. Print-on-Demand Artikel werden erst nach der Bestellung für dich produziert.</div>
                         </li>
                         <li class="help-faq-item">
                             <div class="help-faq-question">Kann ich meine Bestellung stornieren?</div>
-                            <div class="help-faq-answer">Du kannst deine Bestellung innerhalb von 2 Stunden nach der Bestellung stornieren. Danach ist eine Stornierung leider nicht mehr möglich, da die Produktion bereits begonnen hat.</div>
-                        </li>
-                        <li class="help-faq-item">
-                            <div class="help-faq-question">Welche Größen sind verfügbar?</div>
-                            <div class="help-faq-answer">Wir bieten Größen von XS bis 3XL an. Die genauen Maße findest du in unserer Größentabelle bei jedem Produkt.</div>
+                            <div class="help-faq-answer">Du kannst deine Bestellung innerhalb von 2 Stunden nach der Bestellung im Reiter „Aufträge“ stornieren. Danach ist eine Stornierung leider nicht mehr möglich, da die Produktion bereits begonnen hat.</div>
                         </li>
                     </ul>
                 </div>
@@ -887,7 +883,7 @@ function yprint_help_shortcode() {
                     <ul class="help-items-list">
                         <li class="help-item" onclick="showDetailContent('common-issues')">
                             <div class="help-item-title">Häufige Probleme</div>
-                            <div class="help-item-description">Design wird nicht angezeigt, Upload-Probleme, Zahlungsfehler</div>
+                            <div class="help-item-description">Design wird nicht angezeigt & Upload-Probleme</div>
                         </li>
                         <li class="help-item" onclick="showDetailContent('design-upload')">
                             <div class="help-item-title">Design-Upload Probleme</div>
@@ -999,10 +995,9 @@ function yprint_help_shortcode() {
                         <p>Hier sind die häufigsten technischen Probleme und ihre Lösungen:</p>
                         <ul class="help-detail-list">
                             <li class="help-detail-list-item"><strong>Design wird nicht korrekt angezeigt:</strong> Stelle sicher, dass dein Design im PNG oder JPEG Format vorliegt und die Auflösung mindestens 300 DPI beträgt.</li>
-                            <li class="help-detail-list-item"><strong>Upload dauert zu lange:</strong> Überprüfe deine Internetverbindung und stelle sicher, dass die Dateigröße unter 50MB liegt.</li>
-                            <li class="help-detail-list-item"><strong>Zahlungsfehler beim Checkout:</strong> Überprüfe deine Kartendaten und stelle sicher, dass genügend Guthaben vorhanden ist.</li>
-                            <li class="help-detail-list-item"><strong>E-Mail-Bestätigung nicht erhalten:</strong> Überprüfe deinen Spam-Ordner oder kontaktiere unseren Support.</li>
-                            <li class="help-detail-list-item"><strong>Probleme mit der Größenauswahl:</strong> Verwende unsere Größentabelle als Referenz und beachte, dass Größen je nach Produkttyp variieren können.</li>
+                            <li class="help-detail-list-item"><strong>Upload dauert zu lange:</strong> Überprüfe deine Internetverbindung und stelle sicher, dass die Dateigröße unter 5MB liegt.</li>
+                            <li class="help-detail-list-item"><strong>E-Mail-Bestätigung nicht erhalten:</strong> Überprüfe deinen Spam-Ordner oder kontaktiere unseren Support. In Einzelfällen verschwindet die E-Mail, unser Support hilft dir damit sofort!</li>
+                            <li class="help-detail-list-item"><strong>Hinweis:</strong> Bei den meisten Webseitenproblemen hilft ein Reload der Webseite.</li>
                         </ul>
                     </div>
                 `
@@ -1013,10 +1008,10 @@ function yprint_help_shortcode() {
                     <div class="help-detail-content">
                         <p>Probleme beim Hochladen deiner Designs? Hier findest du Hilfe:</p>
                         <ul class="help-detail-list">
-                            <li class="help-detail-list-item"><strong>Unterstützte Dateiformate:</strong> PNG, JPEG, PDF (Vektordateien bevorzugt)</li>
-                            <li class="help-detail-list-item"><strong>Maximale Dateigröße:</strong> 50MB pro Datei</li>
+                            <li class="help-detail-list-item"><strong>Unterstützte Dateiformate:</strong> PNG und JPEG. Sollte deine Bilddatei in einem anderen Format vorliegen, kannst du gängige Online-Tools zur einfachen Konvertierung nutzen.</li>
+                            <li class="help-detail-list-item"><strong>Maximale Dateigröße:</strong> 5MB pro Datei</li>
                             <li class="help-detail-list-item"><strong>Empfohlene Auflösung:</strong> Mindestens 300 DPI für beste Druckqualität</li>
-                            <li class="help-detail-list-item"><strong>Farbmodus:</strong> CMYK für Druck, RGB für Bildschirmdarstellung</li>
+                            <li class="help-detail-list-item"><strong>Farbmodus:</strong> CMYK für Druck</li>
                             <li class="help-detail-list-item"><strong>Transparenz:</strong> PNG-Dateien mit transparentem Hintergrund werden unterstützt</li>
                         </ul>
                         <p>Falls weiterhin Probleme auftreten, kontaktiere unseren Support mit der Fehlermeldung.</p>
@@ -1032,7 +1027,6 @@ function yprint_help_shortcode() {
                             <li class="help-detail-list-item"><strong>Seite lädt nicht:</strong> Leere deinen Browser-Cache und lade die Seite neu (Strg+F5)</li>
                             <li class="help-detail-list-item"><strong>Login-Probleme:</strong> Überprüfe deine Anmeldedaten oder setze dein Passwort zurück</li>
                             <li class="help-detail-list-item"><strong>Browser-Kompatibilität:</strong> Verwende die neueste Version von Chrome, Firefox, Safari oder Edge</li>
-                            <li class="help-detail-list-item"><strong>JavaScript-Fehler:</strong> Stelle sicher, dass JavaScript in deinem Browser aktiviert ist</li>
                             <li class="help-detail-list-item"><strong>Mobile Ansicht:</strong> Bei Problemen auf dem Smartphone versuche die Desktop-Version</li>
                         </ul>
                     </div>
@@ -1044,12 +1038,11 @@ function yprint_help_shortcode() {
                     <div class="help-detail-content">
                         <p>Alles was du über unseren Versand wissen musst:</p>
                         <ul class="help-detail-list">
-                            <li class="help-detail-list-item"><strong>Versandkosten Deutschland:</strong> 4,90€ (kostenlos ab 50€)</li>
-                            <li class="help-detail-list-item"><strong>Versandkosten EU:</strong> 9,90€ (kostenlos ab 75€)</li>
-                            <li class="help-detail-list-item"><strong>Lieferzeit Deutschland:</strong> 3-7 Werktage</li>
+                            <li class="help-detail-list-item"><strong>Versandkosten Deutschland:</strong> 4,90€ (kostenlos ab 25€)</li>
+                            <li class="help-detail-list-item"><strong>Versandkosten EU:</strong> 9,90€ (kostenlos ab 50€)</li>
+                            <li class="help-detail-list-item"><strong>Lieferzeit Deutschland:</strong> 3-5 Werktage</li>
                             <li class="help-detail-list-item"><strong>Lieferzeit EU:</strong> 5-10 Werktage</li>
                             <li class="help-detail-list-item"><strong>Sendungsverfolgung:</strong> Du erhältst eine Tracking-Nummer per E-Mail</li>
-                            <li class="help-detail-list-item"><strong>Express-Versand:</strong> Verfügbar für 9,90€ Aufpreis (1-3 Werktage)</li>
                         </ul>
                     </div>
                 `
@@ -1075,9 +1068,9 @@ function yprint_help_shortcode() {
                     <div class="help-detail-content">
                         <p>Alle verfügbaren Zahlungsmethoden im Überblick:</p>
                         <ul class="help-detail-list">
-                            <li class="help-detail-list-item"><strong>Kreditkarten:</strong> Visa, Mastercard, American Express</li>
-                            <li class="help-detail-list-item"><strong>Debitkarten:</strong> Maestro, V-Pay</li>
-                            <li class="help-detail-list-item"><strong>Digital Wallets:</strong> Apple Pay, Google Pay, PayPal</li>
+                            <li class="help-detail-list-item"><strong>Kreditkarten:</strong> Wir akzeptieren alle gängigen Kreditkarten.</li>
+                            <li class="help-detail-list-item"><strong>Debitkarten:</strong> Alle gängigen Debitkarten.</li>
+                            <li class="help-detail-list-item"><strong>Digital Wallets:</strong> Apple Pay, Google Pay, Microsoft Pay</li>
                             <li class="help-detail-list-item"><strong>Bankeinzug:</strong> SEPA-Lastschrift</li>
                             <li class="help-detail-list-item"><strong>Sicherheit:</strong> Alle Zahlungen werden SSL-verschlüsselt übertragen</li>
                             <li class="help-detail-list-item"><strong>Währung:</strong> Alle Preise in Euro (EUR)</li>
@@ -1091,50 +1084,17 @@ function yprint_help_shortcode() {
                     <div class="help-detail-content">
                         <p>Verwalte dein YPrint-Konto:</p>
                         <ul class="help-detail-list">
-                            <li class="help-detail-list-item"><strong>Registrierung:</strong> Kostenlos mit E-Mail-Adresse</li>
-                            <li class="help-detail-list-item"><strong>Bestellübersicht:</strong> Alle deine Bestellungen auf einen Blick</li>
-                            <li class="help-detail-list-item"><strong>Adressbuch:</strong> Speichere mehrere Lieferadressen</li>
+                            <li class="help-detail-list-item"><strong>Registrierung:</strong> https://yprint.de/register/</li>
+                            <li class="help-detail-list-item"><strong>Bestellübersicht:</strong> Findest du im Reiter Aufträge über dein Dashboard</li>
+                            <li class="help-detail-list-item"><strong>Adressbuch:</strong> In den Benutzereinstellungen kannst mehrere Adressen für den Checkout speichern</li>
                             <li class="help-detail-list-item"><strong>Passwort ändern:</strong> Jederzeit in den Kontoeinstellungen möglich</li>
-                            <li class="help-detail-list-item"><strong>Newsletter:</strong> Abonniere unseren Newsletter für Angebote</li>
-                            <li class="help-detail-list-item"><strong>Konto löschen:</strong> Kontaktiere unseren Support für die Löschung</li>
+                            <li class="help-detail-list-item"><strong>Newsletter:</strong> Folge uns auf Instagram, dort kriegst du Informationen zu allen Neuerungen @yprint.de</li>
+                            <li class="help-detail-list-item"><strong>Konto löschen:</strong> Funktioniert jederzeit über https://yprint.de/settings/ im Reiter „Datenschutz“</li>
                         </ul>
                     </div>
                 `
             },
-            'size-chart': {
-                title: 'Größentabelle',
-                content: `
-                    <div class="help-detail-content">
-                        <p>Finde die richtige Größe für deine Bestellung:</p>
-                        <ul class="help-detail-list">
-                            <li class="help-detail-list-item"><strong>XS:</strong> Brustumfang 80-84 cm</li>
-                            <li class="help-detail-list-item"><strong>S:</strong> Brustumfang 84-88 cm</li>
-                            <li class="help-detail-list-item"><strong>M:</strong> Brustumfang 88-92 cm</li>
-                            <li class="help-detail-list-item"><strong>L:</strong> Brustumfang 92-96 cm</li>
-                            <li class="help-detail-list-item"><strong>XL:</strong> Brustumfang 96-100 cm</li>
-                            <li class="help-detail-list-item"><strong>XXL:</strong> Brustumfang 100-104 cm</li>
-                            <li class="help-detail-list-item"><strong>3XL:</strong> Brustumfang 104-108 cm</li>
-                        </ul>
-                        <p><strong>Tipp:</strong> Miss deinen Brustumfang an der breitesten Stelle und wähle die entsprechende Größe.</p>
-                    </div>
-                `
-            },
-            'materials': {
-                title: 'Materialien',
-                content: `
-                    <div class="help-detail-content">
-                        <p>Informationen über unsere verwendeten Materialien:</p>
-                        <ul class="help-detail-list">
-                            <li class="help-detail-list-item"><strong>T-Shirts:</strong> 100% Baumwolle, 180g/m²</li>
-                            <li class="help-detail-list-item"><strong>Hoodies:</strong> 80% Baumwolle, 20% Polyester, 350g/m²</li>
-                            <li class="help-detail-list-item"><strong>Sweatshirts:</strong> 85% Baumwolle, 15% Polyester, 280g/m²</li>
-                            <li class="help-detail-list-item"><strong>Druckverfahren:</strong> Direct-to-Garment (DTG) für beste Qualität</li>
-                            <li class="help-detail-list-item"><strong>Nachhaltigkeit:</strong> Wir verwenden OEKO-TEX zertifizierte Materialien</li>
-                            <li class="help-detail-list-item"><strong>Pflege:</strong> Waschbar bei 30°C, nicht bleichen, mäßig heiß bügeln</li>
-                        </ul>
-                    </div>
-                `
-            }
+            
         };
 
         // Toggle card functionality
