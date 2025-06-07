@@ -941,84 +941,133 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
      * Handle reorder design AJAX request
      */
     public static function handle_reorder_design() {
-        error_log('YPRINT DEBUG: handle_reorder_design called');
-        
         check_ajax_referer('yprint_design_actions_nonce', 'nonce');
 
         $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
-        error_log('YPRINT DEBUG: design_id = ' . $design_id);
         
         if (!$design_id) {
-            error_log('YPRINT DEBUG: Invalid design_id');
             wp_send_json_error('Ungültige Design-ID');
             return;
         }
 
         $current_user_id = get_current_user_id();
-        error_log('YPRINT DEBUG: current_user_id = ' . $current_user_id);
-        
         if (!$current_user_id) {
-            error_log('YPRINT DEBUG: User not logged in');
             wp_send_json_error('Du musst angemeldet sein');
             return;
         }
 
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'yprint_designs';
-        error_log('YPRINT DEBUG: table_name = ' . $table_name);
-        
-        // Check if table exists
-        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
-        error_log('YPRINT DEBUG: table_exists = ' . ($table_exists ? 'YES' : 'NO'));
-        
-        // List all tables with 'design' in name
-        $all_design_tables = $wpdb->get_results("SHOW TABLES LIKE '%design%'", ARRAY_N);
-        error_log('YPRINT DEBUG: All design tables = ' . print_r($all_design_tables, true));
-        
-        // List all tables with 'octo' in name  
-        $all_octo_tables = $wpdb->get_results("SHOW TABLES LIKE '%octo%'", ARRAY_N);
-        error_log('YPRINT DEBUG: All octo tables = ' . print_r($all_octo_tables, true));
-        
-        // List all custom tables (not wp_posts, wp_users, etc.)
-        $all_custom_tables = $wpdb->get_results("SHOW TABLES LIKE '{$wpdb->prefix}%' AND TABLE_NAME NOT LIKE '%posts%' AND TABLE_NAME NOT LIKE '%users%' AND TABLE_NAME NOT LIKE '%options%' AND TABLE_NAME NOT LIKE '%meta%'", ARRAY_N);
-        error_log('YPRINT DEBUG: All custom tables = ' . print_r($all_custom_tables, true));
-        
-        if (!$table_exists) {
-            error_log('YPRINT DEBUG: Table does not exist!');
-            wp_send_json_error('Design-Tabelle nicht gefunden - verfügbare Tabellen im Log');
-            return;
-        }
-        
-        // Debug query
-        $query = $wpdb->prepare(
-            "SELECT * FROM {$table_name} WHERE id = %d AND user_id = %d",
-            $design_id,
-            $current_user_id
-        );
-        error_log('YPRINT DEBUG: SQL Query = ' . $query);
-        
-        // Get design from database
-        $design = $wpdb->get_row($query);
-        error_log('YPRINT DEBUG: design result = ' . print_r($design, true));
-        error_log('YPRINT DEBUG: wpdb last_error = ' . $wpdb->last_error);
-        
-        if (!$design) {
-            // Try without user_id restriction to see if design exists at all
-            $design_any_user = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$table_name} WHERE id = %d",
-                $design_id
-            ));
-            error_log('YPRINT DEBUG: design_any_user = ' . print_r($design_any_user, true));
-            
-            wp_send_json_error('Design nicht gefunden - ID: ' . $design_id . ', User: ' . $current_user_id);
+        if (!class_exists('WooCommerce')) {
+            wp_send_json_error('WooCommerce ist nicht aktiv');
             return;
         }
 
-        // TODO: Add to WooCommerce cart
-        wp_send_json_success(array(
-            'message' => 'Design wurde zum Warenkorb hinzugefügt',
-            'redirect_url' => wc_get_cart_url()
-        ));
+        try {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'octo_user_designs';
+            
+            // Get design from database
+            $design = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d AND user_id = %d",
+                $design_id,
+                $current_user_id
+            ));
+            
+            if (!$design) {
+                wp_send_json_error('Design nicht gefunden');
+                return;
+            }
+
+            // Get base product ID from Octo Print Designer settings
+            $base_product_id = null;
+            if (class_exists('Octo_Print_Designer_Settings')) {
+                $base_product_id = Octo_Print_Designer_Settings::get_base_product_id();
+            }
+            
+            if (!$base_product_id) {
+                wp_send_json_error('Base Product nicht konfiguriert');
+                return;
+            }
+
+            // Check if product exists and is purchasable
+            $product = wc_get_product($base_product_id);
+            if (!$product || !$product->is_purchasable()) {
+                wp_send_json_error('Produkt ist nicht verfügbar');
+                return;
+            }
+
+            // Parse design variations for defaults
+            $variations = json_decode($design->variations ?? '{}', true);
+            if (!is_array($variations)) {
+                $variations = array();
+            }
+
+            $default_variation = '';
+            $default_size = '';
+            
+            if (!empty($variations)) {
+                $variation_keys = array_keys($variations);
+                $default_variation = $variation_keys[0];
+                
+                if (!empty($variations[$default_variation]['sizes'])) {
+                    $size_keys = array_keys($variations[$default_variation]['sizes']);
+                    $default_size = $size_keys[0];
+                }
+            }
+
+            // Get preview URL
+            $preview_url = '';
+            $design_data = json_decode($design->design_data ?? '{}', true);
+            if (is_array($design_data) && isset($design_data['preview_url'])) {
+                $preview_url = $design_data['preview_url'];
+            }
+
+            if (empty($preview_url)) {
+                $product_images = json_decode($design->product_images ?? '[]', true);
+                if (is_array($product_images) && !empty($product_images)) {
+                    $preview_url = $product_images[0]['url'] ?? '';
+                }
+            }
+
+            // Add to cart with design metadata
+            $cart_item_data = array(
+                '_design_id' => $design_id,
+                'print_design' => array(
+                    'design_id' => $design_id,
+                    'name' => $design->name ?? 'Custom Design',
+                    'template_id' => $design->template_id ?? '',
+                    'variation_id' => $default_variation,
+                    'size_id' => $default_size,
+                    'preview_url' => $preview_url
+                ),
+                '_design_template_id' => $design->template_id ?? '',
+                '_design_variation_id' => $default_variation,
+                '_design_size_id' => $default_size,
+                '_is_design_product' => true,
+                'unique_design_key' => md5($design_id . time())
+            );
+
+            $cart_item_key = WC()->cart->add_to_cart(
+                $base_product_id,
+                1,
+                0,
+                array(),
+                $cart_item_data
+            );
+
+            if (!$cart_item_key) {
+                wp_send_json_error('Design konnte nicht zum Warenkorb hinzugefügt werden');
+                return;
+            }
+
+            wp_send_json_success(array(
+                'message' => 'Design wurde zum Warenkorb hinzugefügt',
+                'cart_item_key' => $cart_item_key,
+                'open_cart' => true
+            ));
+
+        } catch (Exception $e) {
+            wp_send_json_error('Fehler: ' . $e->getMessage());
+        }
     }
 
     /**
