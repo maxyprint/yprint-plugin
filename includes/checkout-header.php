@@ -575,28 +575,172 @@ function yprint_ajax_get_checkout_header_cart() {
         // Lade Warenkorbdaten (nur lesend, keine Änderungen)
         ob_start();
         ?>
-        <div class="yprint-header-cart-content" style="padding: 15px;">
-            <h4 style="margin: 0 0 15px 0; color: #333;"><?php _e('Ihre Bestellung', 'yprint-checkout'); ?></h4>
+        <div class="yprint-header-cart-content" style="padding: 20px; font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;">
+            <h4 style="margin: 0 0 20px 0; color: #1d1d1f; font-size: 18px; font-weight: 600;">
+                <i class="fas fa-shopping-bag" style="margin-right: 8px; color: #0079FF;"></i>
+                <?php _e('Ihre Bestellung', 'yprint-checkout'); ?>
+            </h4>
+            
             <?php foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item): ?>
                 <?php 
                 $product = $cart_item['data']; 
                 if (!$product) continue;
+                
+                // Produktbild laden
+                $product_image = $product->get_image('thumbnail', array(), false);
+                if (empty($product_image)) {
+                    $product_image = wc_placeholder_img('thumbnail');
+                }
+                
+                // Design-Details für Design-Produkte
+                $design_details = '';
+                if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+                    $design_details = '<div style="margin-top: 4px;">';
+                    $design_details .= '<span style="background: #e3f2fd; color: #0079FF; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;">Custom Design</span>';
+                    $design_details .= '</div>';
+                }
+                
+                // Produktvarianten/Attribute
+                $item_data = '';
+                if ($cart_item['variation_id'] > 0) {
+                    $variation = wc_get_product($cart_item['variation_id']);
+                    if ($variation) {
+                        $attributes = $variation->get_variation_attributes();
+                        if (!empty($attributes)) {
+                            $item_data .= '<div style="margin-top: 4px; font-size: 12px; color: #666;">';
+                            foreach ($attributes as $attr_name => $attr_value) {
+                                $attr_label = wc_attribute_label(str_replace('attribute_', '', $attr_name));
+                                $item_data .= '<span style="margin-right: 8px;">' . esc_html($attr_label) . ': ' . esc_html($attr_value) . '</span>';
+                            }
+                            $item_data .= '</div>';
+                        }
+                    }
+                }
                 ?>
-                <div class="cart-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee;">
-                    <div class="item-info" style="flex: 1;">
-                        <div class="item-name" style="font-weight: 500; color: #333;"><?php echo esc_html($product->get_name()); ?></div>
-                        <div class="item-quantity" style="font-size: 14px; color: #666;">Anzahl: <?php echo esc_html($cart_item['quantity']); ?></div>
+                <div class="cart-item" style="display: flex; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #f0f0f0;">
+                    <!-- Produktbild -->
+                    <div class="item-image" style="width: 60px; height: 60px; margin-right: 12px; flex-shrink: 0; border-radius: 8px; overflow: hidden; border: 1px solid #e5e5e5;">
+                        <?php echo $product_image; ?>
                     </div>
-                    <div class="item-price" style="font-weight: 600; color: #0079FF;">
+                    
+                    <!-- Produktinfo -->
+                    <div class="item-info" style="flex: 1; min-width: 0;">
+                        <div class="item-name" style="font-weight: 600; color: #1d1d1f; font-size: 14px; line-height: 1.3; margin-bottom: 4px;">
+                            <?php echo esc_html($product->get_name()); ?>
+                        </div>
+                        
+                        <?php echo $item_data; ?>
+                        <?php echo $design_details; ?>
+                        
+                        <div class="item-quantity" style="font-size: 13px; color: #666; margin-top: 6px;">
+                            <i class="fas fa-cubes" style="margin-right: 4px; color: #999;"></i>
+                            Anzahl: <strong><?php echo esc_html($cart_item['quantity']); ?></strong>
+                            <?php if ($cart_item['quantity'] > 1): ?>
+                                <span style="color: #999; margin-left: 8px;">
+                                    (<?php echo wc_price($cart_item['line_total'] / $cart_item['quantity']); ?> je Stück)
+                                </span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                    <!-- Preis -->
+                    <div class="item-price" style="font-weight: 700; color: #0079FF; font-size: 15px; margin-left: 8px;">
                         <?php echo wc_price($cart_item['line_total']); ?>
                     </div>
                 </div>
             <?php endforeach; ?>
-            <div class="cart-total" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #0079FF; text-align: right;">
-                <strong style="font-size: 18px; color: #333;">
-                    <?php _e('Gesamt:', 'yprint-checkout'); ?> 
-                    <span style="color: #0079FF;"><?php echo WC()->cart->get_total(); ?></span>
-                </strong>
+            
+            <!-- Kostenaufstellung -->
+            <div class="cart-breakdown" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #e5e5e5;">
+                <!-- Zwischensumme -->
+                <div class="cost-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span style="color: #666;">
+                        <i class="fas fa-calculator" style="margin-right: 6px; color: #999;"></i>
+                        <?php _e('Zwischensumme:', 'yprint-checkout'); ?>
+                    </span>
+                    <span style="color: #333; font-weight: 500;">
+                        <?php echo wc_price(WC()->cart->get_subtotal()); ?>
+                    </span>
+                </div>
+                
+                <!-- Versandkosten -->
+                <div class="cost-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span style="color: #666;">
+                        <i class="fas fa-truck" style="margin-right: 6px; color: #999;"></i>
+                        <?php 
+                        if (WC()->cart->needs_shipping()) {
+                            $shipping_total = WC()->cart->get_shipping_total();
+                            if ($shipping_total > 0) {
+                                _e('Versandkosten:', 'yprint-checkout');
+                            } else {
+                                _e('Versandkosten:', 'yprint-checkout');
+                            }
+                        } else {
+                            _e('Versand:', 'yprint-checkout');
+                        }
+                        ?>
+                    </span>
+                    <span style="color: #333; font-weight: 500;">
+                        <?php 
+                        if (WC()->cart->needs_shipping()) {
+                            $shipping_total = WC()->cart->get_shipping_total();
+                            if ($shipping_total > 0) {
+                                echo wc_price($shipping_total);
+                            } else {
+                                echo '<span style="color: #28a745; font-weight: 600;">Kostenlos</span>';
+                            }
+                        } else {
+                            echo '<span style="color: #666;">Nicht erforderlich</span>';
+                        }
+                        ?>
+                    </span>
+                </div>
+                
+                <!-- Steuern -->
+                <?php if (wc_tax_enabled() && WC()->cart->get_taxes_total() > 0): ?>
+                <div class="cost-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span style="color: #666;">
+                        <i class="fas fa-receipt" style="margin-right: 6px; color: #999;"></i>
+                        <?php _e('inkl. MwSt.:', 'yprint-checkout'); ?>
+                    </span>
+                    <span style="color: #333; font-weight: 500;">
+                        <?php echo wc_price(WC()->cart->get_taxes_total()); ?>
+                    </span>
+                </div>
+                <?php endif; ?>
+                
+                <!-- Rabatte -->
+                <?php if (WC()->cart->has_discount()): ?>
+                <div class="cost-row" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span style="color: #28a745;">
+                        <i class="fas fa-tags" style="margin-right: 6px;"></i>
+                        <?php _e('Rabatt:', 'yprint-checkout'); ?>
+                    </span>
+                    <span style="color: #28a745; font-weight: 600;">
+                        -<?php echo wc_price(WC()->cart->get_discount_total()); ?>
+                    </span>
+                </div>
+                <?php endif; ?>
+                
+                <!-- Gesamtbetrag -->
+                <div class="cart-total" style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #0079FF;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 16px; font-weight: 600; color: #1d1d1f;">
+                            <i class="fas fa-credit-card" style="margin-right: 8px; color: #0079FF;"></i>
+                            <?php _e('Gesamtbetrag:', 'yprint-checkout'); ?>
+                        </span>
+                        <span style="font-size: 20px; font-weight: 700; color: #0079FF;">
+                            <?php echo WC()->cart->get_total(); ?>
+                        </span>
+                    </div>
+                    
+                    <?php if (WC()->cart->needs_shipping()): ?>
+                    <div style="margin-top: 8px; font-size: 12px; color: #666; text-align: right;">
+                        <i class="fas fa-info-circle" style="margin-right: 4px;"></i>
+                        <?php _e('Alle Preise inkl. gesetzlicher MwSt.', 'yprint-checkout'); ?>
+                    </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
         <?php
