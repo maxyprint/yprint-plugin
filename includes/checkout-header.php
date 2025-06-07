@@ -542,6 +542,65 @@ wp_localize_script(
 }
 
 /**
+ * AJAX Handler für Checkout Header Cart
+ */
+function yprint_ajax_get_checkout_header_cart() {
+    // Nonce-Prüfung
+    if (!wp_verify_nonce($_POST['nonce'], 'yprint_checkout_header_nonce')) {
+        wp_send_json_error(array('message' => 'Security check failed'));
+        return;
+    }
+    
+    try {
+        // Prüfe ob WooCommerce verfügbar ist
+        if (!class_exists('WooCommerce') || !WC()) {
+            wp_send_json_error(array('message' => 'WooCommerce nicht verfügbar'));
+            return;
+        }
+        
+        // Prüfe ob Warenkorb existiert
+        if (WC()->cart->is_empty()) {
+            wp_send_json_success(array('html' => '<p>Ihr Warenkorb ist leer.</p>'));
+            return;
+        }
+        
+        // Lade Warenkorbdaten
+        $cart_data_manager = YPrint_Cart_Data::get_instance();
+        $checkout_context = $cart_data_manager->get_checkout_context('full');
+        
+        // Generiere HTML für Warenkorb
+        ob_start();
+        ?>
+        <div class="yprint-header-cart-content">
+            <h4><?php _e('Ihre Bestellung', 'yprint-checkout'); ?></h4>
+            <?php foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item): ?>
+                <?php $product = $cart_item['data']; ?>
+                <div class="cart-item">
+                    <div class="item-name"><?php echo esc_html($product->get_name()); ?></div>
+                    <div class="item-quantity">Anzahl: <?php echo esc_html($cart_item['quantity']); ?></div>
+                    <div class="item-price"><?php echo wc_price($cart_item['line_total']); ?></div>
+                </div>
+            <?php endforeach; ?>
+            <div class="cart-total">
+                <strong><?php _e('Gesamt:', 'yprint-checkout'); ?> <?php echo WC()->cart->get_total(); ?></strong>
+            </div>
+        </div>
+        <?php
+        $html = ob_get_clean();
+        
+        wp_send_json_success(array('html' => $html));
+        
+    } catch (Exception $e) {
+        error_log('YPrint Checkout Header AJAX Error: ' . $e->getMessage());
+        wp_send_json_error(array('message' => 'Fehler beim Laden der Daten: ' . $e->getMessage()));
+    }
+}
+
+// AJAX-Handler registrieren
+add_action('wp_ajax_yprint_get_checkout_header_cart', 'yprint_ajax_get_checkout_header_cart');
+add_action('wp_ajax_nopriv_yprint_get_checkout_header_cart', 'yprint_ajax_get_checkout_header_cart');
+
+/**
  * AJAX Handler für Warenkorb-Inhalt
  */
 function yprint_checkout_header_cart_ajax() {

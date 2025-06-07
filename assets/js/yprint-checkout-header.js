@@ -102,18 +102,29 @@ jQuery(document).ready(function($) {
                     nonce: yprintCheckoutHeader.nonce
                 },
                 success: (response) => {
-                    console.log('[YPRINT HEADER] AJAX erfolg für:', this.buttonId, response);
-                    if (response.success) {
+                    console.log('[YPRINT HEADER] AJAX Antwort für:', this.buttonId, response);
+                    
+                    // Sichere Fehlerbehandlung
+                    if (response && response.success) {
                         this.content.html(response.data.html);
                         this.contentLoaded = true;
                     } else {
-                        this.content.html('<p style="text-align: center; color: #dc3545;">' + 
-                                        (response.data.message || 'Fehler beim Laden der Warenkorbdaten') + '</p>');
+                        // Sichere Zugriff auf Fehlermeldung
+                        const errorMessage = response && response.data && response.data.message 
+                            ? response.data.message 
+                            : 'Unbekannter Fehler beim Laden der Warenkorbdaten';
+                        
+                        console.error('[YPRINT HEADER] AJAX Fehler:', errorMessage, response);
+                        this.content.html('<p style="text-align: center; color: #dc3545;">' + errorMessage + '</p>');
                     }
                 },
-                error: () => {
-                    console.error('[YPRINT HEADER] AJAX Fehler für:', this.buttonId);
-                    this.content.html('<p style="text-align: center; color: #dc3545;">Verbindungsfehler</p>');
+                error: (xhr, status, error) => {
+                    console.error('[YPRINT HEADER] AJAX Verbindungsfehler für:', this.buttonId, {
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText
+                    });
+                    this.content.html('<p style="text-align: center; color: #dc3545;">Verbindungsfehler: ' + error + '</p>');
                 }
             });
         }
@@ -181,19 +192,30 @@ jQuery(document).ready(function($) {
                 action: 'yprint_get_checkout_header_cart',
                 nonce: yprintCheckoutHeader.nonce
             },
-            success: function(response) {
-                console.log('[YPRINT HEADER] AJAX erfolg:', response);
-                if (response.success) {
-                    $content.html(response.data.html);
-                    contentLoaded = true;
+            success: (response) => {
+                console.log('[YPRINT HEADER] AJAX Antwort für:', this.buttonId, response);
+                
+                // Sichere Fehlerbehandlung
+                if (response && response.success) {
+                    this.content.html(response.data.html);
+                    this.contentLoaded = true;
                 } else {
-                    $content.html('<p style="text-align: center; color: #dc3545;">' + 
-                                (response.data.message || 'Fehler beim Laden der Warenkorbdaten') + '</p>');
+                    // Sichere Zugriff auf Fehlermeldung
+                    const errorMessage = response && response.data && response.data.message 
+                        ? response.data.message 
+                        : 'Unbekannter Fehler beim Laden der Warenkorbdaten';
+                    
+                    console.error('[YPRINT HEADER] AJAX Fehler:', errorMessage, response);
+                    this.content.html('<p style="text-align: center; color: #dc3545;">' + errorMessage + '</p>');
                 }
             },
-            error: function() {
-                console.error('[YPRINT HEADER] AJAX Fehler');
-                $content.html('<p style="text-align: center; color: #dc3545;">Verbindungsfehler</p>');
+            error: (xhr, status, error) => {
+                console.error('[YPRINT HEADER] AJAX Verbindungsfehler für:', this.buttonId, {
+                    status: status,
+                    error: error,
+                    responseText: xhr.responseText
+                });
+                this.content.html('<p style="text-align: center; color: #dc3545;">Verbindungsfehler: ' + error + '</p>');
             }
         });
     }
