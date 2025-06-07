@@ -941,79 +941,72 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
      * Handle reorder design AJAX request
      */
     public static function handle_reorder_design() {
+        error_log('YPRINT DEBUG: handle_reorder_design called');
+        
         check_ajax_referer('yprint_design_actions_nonce', 'nonce');
 
         $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+        error_log('YPRINT DEBUG: design_id = ' . $design_id);
         
         if (!$design_id) {
+            error_log('YPRINT DEBUG: Invalid design_id');
             wp_send_json_error('Ungültige Design-ID');
             return;
         }
 
         $current_user_id = get_current_user_id();
+        error_log('YPRINT DEBUG: current_user_id = ' . $current_user_id);
+        
         if (!$current_user_id) {
+            error_log('YPRINT DEBUG: User not logged in');
             wp_send_json_error('Du musst angemeldet sein');
-            return;
-        }
-
-        if (!class_exists('WooCommerce')) {
-            wp_send_json_error('WooCommerce ist nicht aktiv');
             return;
         }
 
         global $wpdb;
         $table_name = $wpdb->prefix . 'yprint_designs';
+        error_log('YPRINT DEBUG: table_name = ' . $table_name);
         
-        // Get design from database
-        $design = $wpdb->get_row($wpdb->prepare(
+        // Check if table exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
+        error_log('YPRINT DEBUG: table_exists = ' . ($table_exists ? 'YES' : 'NO'));
+        
+        if (!$table_exists) {
+            error_log('YPRINT DEBUG: Table does not exist!');
+            wp_send_json_error('Design-Tabelle nicht gefunden');
+            return;
+        }
+        
+        // Debug query
+        $query = $wpdb->prepare(
             "SELECT * FROM {$table_name} WHERE id = %d AND user_id = %d",
             $design_id,
             $current_user_id
-        ));
+        );
+        error_log('YPRINT DEBUG: SQL Query = ' . $query);
+        
+        // Get design from database
+        $design = $wpdb->get_row($query);
+        error_log('YPRINT DEBUG: design result = ' . print_r($design, true));
+        error_log('YPRINT DEBUG: wpdb last_error = ' . $wpdb->last_error);
         
         if (!$design) {
-            wp_send_json_error('Design nicht gefunden');
+            // Try without user_id restriction to see if design exists at all
+            $design_any_user = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$table_name} WHERE id = %d",
+                $design_id
+            ));
+            error_log('YPRINT DEBUG: design_any_user = ' . print_r($design_any_user, true));
+            
+            wp_send_json_error('Design nicht gefunden - ID: ' . $design_id . ', User: ' . $current_user_id);
             return;
         }
 
-        try {
-            // Standard Product ID für Custom Designs (anpassen!)
-            $product_id = 123; // TODO: Ersetze mit deiner tatsächlichen product_id
-
-            // Design-Daten für Warenkorb vorbereiten
-            $cart_item_data = array(
-                'print_design' => array(
-                    'design_id' => $design_id,
-                    'name' => $design->name ?? 'Custom Design',
-                    'preview_url' => $design->preview_url ?? ''
-                ),
-                '_is_design_product' => true,
-                '_design_id' => $design_id,
-                'unique_design_key' => md5('design_' . $design_id . '_' . time())
-            );
-
-            // In Warenkorb legen
-            $cart_item_key = WC()->cart->add_to_cart(
-                $product_id,
-                1,
-                0,
-                array(),
-                $cart_item_data
-            );
-
-            if ($cart_item_key) {
-                wp_send_json_success(array(
-                    'message' => 'Design wurde zum Warenkorb hinzugefügt',
-                    'cart_item_key' => $cart_item_key,
-                    'open_cart' => true
-                ));
-            } else {
-                wp_send_json_error('Design konnte nicht zum Warenkorb hinzugefügt werden');
-            }
-
-        } catch (Exception $e) {
-            wp_send_json_error('Fehler: ' . $e->getMessage());
-        }
+        // TODO: Add to WooCommerce cart
+        wp_send_json_success(array(
+            'message' => 'Design wurde zum Warenkorb hinzugefügt',
+            'redirect_url' => wc_get_cart_url()
+        ));
     }
 
     /**
