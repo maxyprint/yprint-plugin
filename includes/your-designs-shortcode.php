@@ -977,127 +977,28 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         }
 
         try {
-            // Method 1: Try to get product_id from a previous order with this design
-            $product_id = null;
-            $design_meta_data = array();
-            
-            // Search for existing orders with this design to get the product_id
-            $order_item_query = $wpdb->prepare(
-                "SELECT oi.order_item_id, oi.order_id 
-                 FROM {$wpdb->prefix}woocommerce_order_items oi
-                 INNER JOIN {$wpdb->prefix}woocommerce_order_itemmeta oim ON oi.order_item_id = oim.order_item_id
-                 INNER JOIN {$wpdb->prefix}posts p ON oi.order_id = p.ID
-                 WHERE oim.meta_key = '_design_id' 
-                 AND oim.meta_value = %s
-                 AND p.post_status IN ('wc-completed', 'wc-processing', 'wc-on-hold')
-                 ORDER BY oi.order_id DESC
-                 LIMIT 1",
-                $design_id
+            // Standard Product ID für Custom Designs (anpassen!)
+            $product_id = 123; // TODO: Ersetze mit deiner tatsächlichen product_id
+
+            // Design-Daten für Warenkorb vorbereiten
+            $cart_item_data = array(
+                'print_design' => array(
+                    'design_id' => $design_id,
+                    'name' => $design->name ?? 'Custom Design',
+                    'preview_url' => $design->preview_url ?? ''
+                ),
+                '_is_design_product' => true,
+                '_design_id' => $design_id,
+                'unique_design_key' => md5('design_' . $design_id . '_' . time())
             );
-            
-            $order_item_result = $wpdb->get_row($order_item_query);
-            
-            if ($order_item_result) {
-                // Found previous order with this design - get product_id and meta data
-                $order = wc_get_order($order_item_result->order_id);
-                if ($order) {
-                    foreach ($order->get_items() as $item) {
-                        if ($item->get_meta('_design_id') == $design_id) {
-                            $product_id = $item->get_product_id();
-                            
-                            // Collect all design-related meta data for reorder
-                            $design_meta_data = array(
-                                'print_design' => array(
-                                    'design_id' => $design_id,
-                                    'name' => $design->name ?? 'Custom Design',
-                                    'preview_url' => $design->preview_url ?? '',
-                                    'template_id' => $item->get_meta('_design_template_id'),
-                                    'variation_id' => $item->get_meta('_design_variation_id'),
-                                    'size_id' => $item->get_meta('_design_size_id')
-                                ),
-                                '_is_design_product' => true,
-                                '_design_id' => $design_id,
-                                'unique_design_key' => md5('design_' . $design_id . '_' . time())
-                            );
-                            
-                            // Copy all design-related meta from original order
-                            foreach ($item->get_meta_data() as $meta) {
-                                $key = $meta->get_data()['key'];
-                                if (strpos($key, '_design') === 0) {
-                                    $design_meta_data[$key] = $meta->get_data()['value'];
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-            }
-            
-            // Method 2: Fallback - get base product_id from settings or first available design product
-            if (!$product_id) {
-                // Try to get base product ID from Octo Print Designer settings
-                if (class_exists('Octo_Print_Designer_Settings')) {
-                    $product_id = Octo_Print_Designer_Settings::get_base_product_id();
-                }
-                
-                // Fallback: Find any WooCommerce product that supports custom designs
-                if (!$product_id) {
-                    $design_products = get_posts(array(
-                        'post_type' => 'product',
-                        'meta_query' => array(
-                            array(
-                                'key' => '_supports_custom_design',
-                                'value' => 'yes',
-                                'compare' => '='
-                            )
-                        ),
-                        'posts_per_page' => 1
-                    ));
-                    
-                    if (!empty($design_products)) {
-                        $product_id = $design_products[0]->ID;
-                    }
-                }
-                
-                // Ultimate fallback: Use a hardcoded product ID (you should set this)
-                if (!$product_id) {
-                    $product_id = get_option('yprint_default_design_product_id', 123); // Set this in your admin
-                }
-                
-                // Prepare basic design meta data
-                if (empty($design_meta_data)) {
-                    $design_meta_data = array(
-                        'print_design' => array(
-                            'design_id' => $design_id,
-                            'name' => $design->name ?? 'Custom Design',
-                            'preview_url' => $design->preview_url ?? ''
-                        ),
-                        '_is_design_product' => true,
-                        '_design_id' => $design_id,
-                        'unique_design_key' => md5('design_' . $design_id . '_' . time())
-                    );
-                }
-            }
 
-            if (!$product_id) {
-                wp_send_json_error('Kein geeignetes Produkt für Custom Designs gefunden');
-                return;
-            }
-
-            // Verify product exists and is available
-            $product = wc_get_product($product_id);
-            if (!$product || !$product->is_purchasable()) {
-                wp_send_json_error('Produkt ist nicht verfügbar');
-                return;
-            }
-
-            // Add design to WooCommerce cart
+            // In Warenkorb legen
             $cart_item_key = WC()->cart->add_to_cart(
                 $product_id,
-                1, // quantity
-                0, // variation_id (adjust if you use variations)
-                array(), // variation attributes
-                $design_meta_data
+                1,
+                0,
+                array(),
+                $cart_item_data
             );
 
             if ($cart_item_key) {
@@ -1111,35 +1012,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             }
 
         } catch (Exception $e) {
-            wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb: ' . $e->getMessage());
-        }
-    
-
-        // Check if we have the OctoPrint Design Tool class available
-        if (class_exists('OctoPrint_Design_Tool_Public')) {
-            try {
-                $octo_tool = new OctoPrint_Design_Tool_Public('', '');
-                
-                // Use the existing add_to_cart method from the Design Tool
-                $result = $octo_tool->handle_add_to_cart();
-                
-                if ($result && !is_wp_error($result)) {
-                    wp_send_json_success(array(
-                        'message' => 'Design wurde zum Warenkorb hinzugefügt',
-                        'design_id' => $design_id
-                    ));
-                } else {
-                    wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb');
-                }
-            } catch (Exception $e) {
-                wp_send_json_error('Fehler beim Hinzufügen zum Warenkorb: ' . $e->getMessage());
-            }
-        } else {
-            // Fallback: Basic implementation without full integration
-            wp_send_json_success(array(
-                'message' => 'Design wurde zum Warenkorb hinzugefügt',
-                'design_id' => $design_id
-            ));
+            wp_send_json_error('Fehler: ' . $e->getMessage());
         }
     }
 
