@@ -572,6 +572,8 @@ if (shareDropdown) {
             const reorderBtn = container.querySelector('.yprint-reorder-btn');
             if (reorderBtn) {
                 reorderBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const { orderId, itemId, designId } = e.currentTarget.dataset;
                     handleReorder(orderId, itemId, designId, e.currentTarget);
                 });
