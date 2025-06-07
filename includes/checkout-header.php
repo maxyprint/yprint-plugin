@@ -687,7 +687,7 @@ function yprint_ajax_get_checkout_header_cart() {
                             if ($shipping_total > 0) {
                                 echo wc_price($shipping_total);
                             } else {
-                                echo '<span style="color: #28a745; font-weight: 600;">Kostenlos</span>';
+                                echo '<span style="color: #000000; font-weight: 600;">Kostenlos</span>';
                             }
                         } else {
                             echo '<span style="color: #666;">Nicht erforderlich</span>';
