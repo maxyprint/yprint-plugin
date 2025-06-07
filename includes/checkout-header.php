@@ -45,6 +45,29 @@ function yprint_render_checkout_header($atts = []) {
     // CSS und JavaScript einbinden
     wp_enqueue_script('yprint-checkout-header', plugins_url('assets/js/yprint-checkout-header.js', __FILE__), ['jquery'], '1.0.0', true);
     
+// Enqueue Checkout Header Script
+wp_enqueue_script(
+    'yprint-checkout-header-js',
+    YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-header.js',
+    array('jquery'),
+    YPRINT_PLUGIN_VERSION,
+    true
+);
+
+// Localize script mit notwendigen Daten
+wp_localize_script(
+    'yprint-checkout-header-js',
+    'yprintCheckoutHeader',
+    array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint-checkout-header'),
+        'texts' => array(
+            'show_summary' => __('Bestellung anzeigen', 'yprint-plugin'),
+            'hide_summary' => __('Bestellung ausblenden', 'yprint-plugin')
+        )
+    )
+);
+
     // Lokalisierung für JavaScript
     wp_localize_script('yprint-checkout-header', 'yprintCheckoutHeader', [
         'ajax_url' => admin_url('admin-ajax.php'),
