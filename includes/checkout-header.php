@@ -504,9 +504,9 @@ wp_localize_script(
                 url: yprintCheckoutHeader.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'yprint_get_checkout_header_cart',
-                    nonce: yprintCheckoutHeader.nonce
-                },
+    action: 'yprint_get_checkout_header_cart'
+    // Nonce entfernt, da für Warenkorb-Anzeige nicht erforderlich
+},
                 success: function(response) {
                     if (response.success) {
                         $content.html(response.data.html);
@@ -542,12 +542,20 @@ wp_localize_script(
 }
 
 /**
- * AJAX Handler für Checkout Header Cart
+ * AJAX Handler für Checkout Header Cart (Sicher ohne Nonce)
  */
 function yprint_ajax_get_checkout_header_cart() {
-    // Nonce-Prüfung
-    if (!wp_verify_nonce($_POST['nonce'], 'yprint_checkout_header_nonce')) {
-        wp_send_json_error(array('message' => 'Security check failed'));
+    // Debug-Info
+    error_log('YPRINT HEADER AJAX: Request received');
+    error_log('YPRINT HEADER AJAX: User logged in: ' . (is_user_logged_in() ? 'YES' : 'NO'));
+    
+    // Basis-Sicherheitscheck: Nur erlauben wenn Request von derselben Domain kommt
+    $referer = wp_get_referer();
+    $site_url = get_site_url();
+    
+    if (!$referer || strpos($referer, $site_url) !== 0) {
+        error_log('YPRINT HEADER AJAX: Invalid referer: ' . $referer);
+        wp_send_json_error(array('message' => 'Invalid request source'));
         return;
     }
     
@@ -560,39 +568,46 @@ function yprint_ajax_get_checkout_header_cart() {
         
         // Prüfe ob Warenkorb existiert
         if (WC()->cart->is_empty()) {
-            wp_send_json_success(array('html' => '<p>Ihr Warenkorb ist leer.</p>'));
+            wp_send_json_success(array('html' => '<p style="text-align: center; padding: 20px;">Ihr Warenkorb ist leer.</p>'));
             return;
         }
         
-        // Lade Warenkorbdaten
-        $cart_data_manager = YPrint_Cart_Data::get_instance();
-        $checkout_context = $cart_data_manager->get_checkout_context('full');
-        
-        // Generiere HTML für Warenkorb
+        // Lade Warenkorbdaten (nur lesend, keine Änderungen)
         ob_start();
         ?>
-        <div class="yprint-header-cart-content">
-            <h4><?php _e('Ihre Bestellung', 'yprint-checkout'); ?></h4>
+        <div class="yprint-header-cart-content" style="padding: 15px;">
+            <h4 style="margin: 0 0 15px 0; color: #333;"><?php _e('Ihre Bestellung', 'yprint-checkout'); ?></h4>
             <?php foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item): ?>
-                <?php $product = $cart_item['data']; ?>
-                <div class="cart-item">
-                    <div class="item-name"><?php echo esc_html($product->get_name()); ?></div>
-                    <div class="item-quantity">Anzahl: <?php echo esc_html($cart_item['quantity']); ?></div>
-                    <div class="item-price"><?php echo wc_price($cart_item['line_total']); ?></div>
+                <?php 
+                $product = $cart_item['data']; 
+                if (!$product) continue;
+                ?>
+                <div class="cart-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee;">
+                    <div class="item-info" style="flex: 1;">
+                        <div class="item-name" style="font-weight: 500; color: #333;"><?php echo esc_html($product->get_name()); ?></div>
+                        <div class="item-quantity" style="font-size: 14px; color: #666;">Anzahl: <?php echo esc_html($cart_item['quantity']); ?></div>
+                    </div>
+                    <div class="item-price" style="font-weight: 600; color: #0079FF;">
+                        <?php echo wc_price($cart_item['line_total']); ?>
+                    </div>
                 </div>
             <?php endforeach; ?>
-            <div class="cart-total">
-                <strong><?php _e('Gesamt:', 'yprint-checkout'); ?> <?php echo WC()->cart->get_total(); ?></strong>
+            <div class="cart-total" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #0079FF; text-align: right;">
+                <strong style="font-size: 18px; color: #333;">
+                    <?php _e('Gesamt:', 'yprint-checkout'); ?> 
+                    <span style="color: #0079FF;"><?php echo WC()->cart->get_total(); ?></span>
+                </strong>
             </div>
         </div>
         <?php
         $html = ob_get_clean();
         
+        error_log('YPRINT HEADER AJAX: Success - HTML length: ' . strlen($html));
         wp_send_json_success(array('html' => $html));
         
     } catch (Exception $e) {
         error_log('YPrint Checkout Header AJAX Error: ' . $e->getMessage());
-        wp_send_json_error(array('message' => 'Fehler beim Laden der Daten: ' . $e->getMessage()));
+        wp_send_json_error(array('message' => 'Fehler beim Laden der Daten'));
     }
 }
 
