@@ -598,12 +598,46 @@ if (shareDropdown) {
                 })
                 .done(response => {
                     if (response.success) {
-                        button.querySelector('span').textContent = '<?php echo esc_js($added_to_cart_text); ?>';
+                        button.querySelector('span').textContent = 'Hinzugefügt!';
+                        
+                        // Trigger cart update events
+                        jQuery(document.body).trigger('added_to_cart', [[], '', button]);
+                        jQuery(document.body).trigger('wc_fragments_refreshed');
+                        
+                        // Open mobile cart popup with multiple fallback methods
                         setTimeout(() => {
-                            window.location.href = '<?php echo esc_url(wc_get_checkout_url()); ?>';
-                        }, 1000);
+                            // Method 1: Try YPrint global function
+                            if (typeof window.openYPrintCart === 'function') {
+                                window.openYPrintCart();
+                                return;
+                            }
+                            
+                            // Method 2: Try jQuery trigger
+                            if (jQuery('#mobile-cart-popup').length) {
+                                jQuery(document).trigger('yprint:open-cart-popup');
+                                return;
+                            }
+                            
+                            // Method 3: Direct popup manipulation
+                            const mobileCartPopup = document.getElementById('mobile-cart-popup');
+                            if (mobileCartPopup) {
+                                mobileCartPopup.classList.add('open');
+                                document.body.classList.add('cart-popup-open');
+                                mobileCartPopup.setAttribute('aria-hidden', 'false');
+                                return;
+                            }
+                            
+                            // Method 4: Hash navigation fallback
+                            window.location.hash = '#mobile-cart';
+                        }, 300);
+                        
+                        setTimeout(() => {
+                            button.querySelector('span').textContent = originalText;
+                            button.classList.remove('loading');
+                            button.disabled = false;
+                        }, 2000);
                     } else {
-                        alert(response.data || '<?php echo esc_js($error_adding_text); ?>');
+                        alert(response.data || 'Fehler beim Hinzufügen');
                         button.querySelector('span').textContent = originalText;
                         button.classList.remove('loading');
                         button.disabled = false;

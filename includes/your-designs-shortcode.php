@@ -686,6 +686,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             const reorderButtons = container.querySelectorAll('.reorder');
             reorderButtons.forEach(button => {
                 button.addEventListener('click', function(e) {
+                    e.preventDefault();
                     e.stopPropagation();
                     const designId = this.dataset.designId;
                     handleReorder(designId, this);
@@ -708,7 +709,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
 
             function handleReorder(designId, button) {
                 const originalContent = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><div class="yprint-design-action-label"><?php echo esc_js(__('Lädt...', 'yprint-plugin')); ?></div>';
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><div class="yprint-design-action-label">Lädt...</div>';
                 button.style.pointerEvents = 'none';
 
                 jQuery.ajax({
@@ -722,20 +723,54 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 })
                 .done(function(response) {
                     if (response.success) {
-                        button.innerHTML = '<i class="fas fa-check"></i><div class="yprint-design-action-label"><?php echo esc_js(__('Hinzugefügt', 'yprint-plugin')); ?></div>';
+                        button.innerHTML = '<i class="fas fa-check"></i><div class="yprint-design-action-label">Hinzugefügt!</div>';
+                        
+                        // Trigger cart update events
+                        jQuery(document.body).trigger('added_to_cart', [[], '', button]);
+                        jQuery(document.body).trigger('wc_fragments_refreshed');
+                        
+                        // Open mobile cart popup with multiple fallback methods
                         setTimeout(() => {
-                            window.location.href = '<?php echo esc_url(wc_get_checkout_url()); ?>';
-                        }, 1000);
+                            // Method 1: Try YPrint global function
+                            if (typeof window.openYPrintCart === 'function') {
+                                window.openYPrintCart();
+                                return;
+                            }
+                            
+                            // Method 2: Try jQuery trigger
+                            if (jQuery('#mobile-cart-popup').length) {
+                                jQuery(document).trigger('yprint:open-cart-popup');
+                                return;
+                            }
+                            
+                            // Method 3: Direct popup manipulation
+                            const mobileCartPopup = document.getElementById('mobile-cart-popup');
+                            if (mobileCartPopup) {
+                                mobileCartPopup.classList.add('open');
+                                document.body.classList.add('cart-popup-open');
+                                mobileCartPopup.setAttribute('aria-hidden', 'false');
+                                return;
+                            }
+                            
+                            // Method 4: Hash navigation fallback
+                            window.location.hash = '#mobile-cart';
+                        }, 300);
+                        
+                        // Reset button after delay
+                        setTimeout(() => {
+                            button.innerHTML = originalContent;
+                            button.style.pointerEvents = '';
+                        }, 2000);
                     } else {
-                        alert(response.data || '<?php echo esc_js(__('Fehler beim Hinzufügen zum Warenkorb', 'yprint-plugin')); ?>');
+                        alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
                         button.innerHTML = originalContent;
-                        button.style.pointerEvents = 'auto';
+                        button.style.pointerEvents = '';
                     }
                 })
                 .fail(function() {
-                    alert('<?php echo esc_js(__('Ein Fehler ist aufgetreten', 'yprint-plugin')); ?>');
+                    alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
                     button.innerHTML = originalContent;
-                    button.style.pointerEvents = 'auto';
+                    button.style.pointerEvents = '';
                 });
             }
 
