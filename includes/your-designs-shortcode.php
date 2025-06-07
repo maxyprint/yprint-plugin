@@ -971,9 +971,21 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table_name}'");
         error_log('YPRINT DEBUG: table_exists = ' . ($table_exists ? 'YES' : 'NO'));
         
+        // List all tables with 'design' in name
+        $all_design_tables = $wpdb->get_results("SHOW TABLES LIKE '%design%'", ARRAY_N);
+        error_log('YPRINT DEBUG: All design tables = ' . print_r($all_design_tables, true));
+        
+        // List all tables with 'octo' in name  
+        $all_octo_tables = $wpdb->get_results("SHOW TABLES LIKE '%octo%'", ARRAY_N);
+        error_log('YPRINT DEBUG: All octo tables = ' . print_r($all_octo_tables, true));
+        
+        // List all custom tables (not wp_posts, wp_users, etc.)
+        $all_custom_tables = $wpdb->get_results("SHOW TABLES LIKE '{$wpdb->prefix}%' AND TABLE_NAME NOT LIKE '%posts%' AND TABLE_NAME NOT LIKE '%users%' AND TABLE_NAME NOT LIKE '%options%' AND TABLE_NAME NOT LIKE '%meta%'", ARRAY_N);
+        error_log('YPRINT DEBUG: All custom tables = ' . print_r($all_custom_tables, true));
+        
         if (!$table_exists) {
             error_log('YPRINT DEBUG: Table does not exist!');
-            wp_send_json_error('Design-Tabelle nicht gefunden');
+            wp_send_json_error('Design-Tabelle nicht gefunden - verfügbare Tabellen im Log');
             return;
         }
         
