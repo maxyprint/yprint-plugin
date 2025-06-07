@@ -43,7 +43,7 @@ function yprint_render_checkout_header($atts = []) {
     $cart_totals = $checkout_context['cart_totals'];
     
     // CSS und JavaScript einbinden
-    wp_enqueue_script('yprint-checkout-header', plugins_url('assets/js/yprint-checkout-header.js', __FILE__), ['jquery'], '1.0.0', true);
+    wp_enqueue_script('yprint-checkout-header', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-header.js', ['jquery'], YPRINT_PLUGIN_VERSION, true);
     
 // Enqueue Checkout Header Script
 wp_enqueue_script(
