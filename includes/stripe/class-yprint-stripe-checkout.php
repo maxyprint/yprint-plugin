@@ -404,14 +404,38 @@ public function ajax_refresh_checkout_context() {
                 true
             );
 
-            // Checkout Validation JS
-            wp_enqueue_script(
-                'yprint-checkout-validation-js',
-                YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-validation.js',
-                array('jquery', 'yprint-checkout-js'),
-                YPRINT_PLUGIN_VERSION,
-                true
-            );
+           // Checkout Validation JS
+wp_enqueue_script(
+    'yprint-checkout-validation-js',
+    YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-validation.js',
+    array('jquery', 'yprint-checkout-js'),
+    YPRINT_PLUGIN_VERSION,
+    true
+);
+
+// Checkout Header JS
+wp_enqueue_script(
+    'yprint-checkout-header-js',
+    YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-header.js',
+    array('jquery'),
+    YPRINT_PLUGIN_VERSION,
+    true
+);
+
+// Localize Checkout Header Script
+wp_localize_script(
+    'yprint-checkout-header-js',
+    'yprintCheckoutHeader',
+    array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint_checkout_header_nonce'),
+        'texts' => array(
+            'show_summary' => __('Bestellung anzeigen', 'yprint-checkout'),
+            'hide_summary' => __('Bestellung ausblenden', 'yprint-checkout'),
+            'loading' => __('Lädt...', 'yprint-checkout')
+        )
+    )
+);
 
             // Stripe JS (if needed) - Prüfe ob bereits geladen
             if ($this->is_stripe_enabled()) {

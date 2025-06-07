@@ -42,17 +42,10 @@ function yprint_render_checkout_header($atts = []) {
     $checkout_context = $cart_data_manager->get_checkout_context('summary');
     $cart_totals = $checkout_context['cart_totals'];
     
-    // CSS und JavaScript einbinden
-    wp_enqueue_script('yprint-checkout-header', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-header.js', ['jquery'], YPRINT_PLUGIN_VERSION, true);
-    
-// Enqueue Checkout Header Script
-wp_enqueue_script(
-    'yprint-checkout-header-js',
-    YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout-header.js',
-    array('jquery'),
-    YPRINT_PLUGIN_VERSION,
-    true
-);
+    // Script wird in enqueue_checkout_assets() geladen - hier nur Flag setzen
+if (!defined('YPRINT_HEADER_LOADED')) {
+    define('YPRINT_HEADER_LOADED', true);
+}
 
 // Localize script mit notwendigen Daten
 wp_localize_script(
