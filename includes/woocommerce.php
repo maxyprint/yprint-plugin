@@ -847,7 +847,24 @@ function yprint_minimalist_cart_shortcode() {
 
                         $product_quantity = $cart_item['quantity'];
                         ?>
-                        <div class="yprint-mini-cart-item" data-item-key="<?php echo esc_attr($cart_item_key); ?>">
+                        <div class="yprint-mini-cart-item" data-item-key="<?php echo esc_attr($cart_item_key); ?>"<?php
+    // Design-Attribute hinzufügen falls es ein Design-Produkt ist
+    if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+        $design_data = $cart_item['print_design'];
+        echo ' data-design-id="' . esc_attr($design_data['design_id'] ?? '') . '"';
+        echo ' data-design-name="' . esc_attr($design_data['name'] ?? '') . '"';
+        if (!empty($design_data['template_id'])) {
+            echo ' data-design-template-id="' . esc_attr($design_data['template_id']) . '"';
+        }
+        if (!empty($design_data['variation_id'])) {
+            echo ' data-variation-id="' . esc_attr($design_data['variation_id']) . '"';
+        }
+        if (!empty($design_data['size_id'])) {
+            echo ' data-size-id="' . esc_attr($design_data['size_id']) . '"';
+        }
+        echo ' data-print-design="' . esc_attr(wp_json_encode($design_data)) . '"';
+    }
+?>>
                             <div class="yprint-mini-cart-item-image">
                                 <?php echo $thumbnail; ?>
                             </div>
@@ -1396,7 +1413,24 @@ function yprint_refresh_cart_content_callback() {
 
                 $product_quantity = $cart_item['quantity'];
                 ?>
-                <div class="yprint-mini-cart-item" data-item-key="<?php echo esc_attr($cart_item_key); ?>">
+                <div class="yprint-mini-cart-item" data-item-key="<?php echo esc_attr($cart_item_key); ?>"<?php
+    // Design-Attribute hinzufügen falls es ein Design-Produkt ist
+    if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+        $design_data = $cart_item['print_design'];
+        echo ' data-design-id="' . esc_attr($design_data['design_id'] ?? '') . '"';
+        echo ' data-design-name="' . esc_attr($design_data['name'] ?? '') . '"';
+        if (!empty($design_data['template_id'])) {
+            echo ' data-design-template-id="' . esc_attr($design_data['template_id']) . '"';
+        }
+        if (!empty($design_data['variation_id'])) {
+            echo ' data-variation-id="' . esc_attr($design_data['variation_id']) . '"';
+        }
+        if (!empty($design_data['size_id'])) {
+            echo ' data-size-id="' . esc_attr($design_data['size_id']) . '"';
+        }
+        echo ' data-print-design="' . esc_attr(wp_json_encode($design_data)) . '"';
+    }
+?>>
                     <div class="yprint-mini-cart-item-image">
                         <?php echo $thumbnail; ?>
                     </div>
