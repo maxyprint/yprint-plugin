@@ -2013,3 +2013,76 @@ function yprint_debug_order_processed($order_id, $posted_data, $order) {
         }
     }
 }
+
+/**
+ * DEBUG: Order-Details nach Erstellung abrufen
+ */
+add_action('wp_ajax_yprint_debug_order_details', 'yprint_debug_order_details_callback');
+add_action('wp_ajax_nopriv_yprint_debug_order_details', 'yprint_debug_order_details_callback');
+
+function yprint_debug_order_details_callback() {
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    
+    if (!$order_id) {
+        wp_send_json_error('Keine Order ID angegeben');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Bestellung nicht gefunden');
+        return;
+    }
+    
+    error_log('=== YPRINT DEBUG ORDER DETAILS ===');
+    error_log('Order ID: ' . $order_id);
+    error_log('Order Status: ' . $order->get_status());
+    
+    $items_data = array();
+    
+    foreach ($order->get_items() as $item_id => $item) {
+        $meta_data = array();
+        foreach ($item->get_meta_data() as $meta) {
+            $meta_data[$meta->key] = $meta->value;
+        }
+        
+        $has_design_meta = false;
+        $design_data = null;
+        
+        // Nach Design-Daten suchen
+        if ($item->get_meta('print_design')) {
+            $has_design_meta = true;
+            $design_data = $item->get_meta('print_design');
+        } elseif ($item->get_meta('_has_print_design')) {
+            $has_design_meta = true;
+            $design_data = 'Flag set but no data';
+        }
+        
+        $item_data = array(
+            'item_id' => $item_id,
+            'name' => $item->get_name(),
+            'product_id' => $item->get_product_id(),
+            'quantity' => $item->get_quantity(),
+            'has_design_meta' => $has_design_meta,
+            'design_data' => $design_data,
+            'meta_data' => $meta_data
+        );
+        
+        $items_data[] = $item_data;
+        
+        error_log('Order Item ' . $item_id . ':');
+        error_log('  - Name: ' . $item->get_name());
+        error_log('  - Has Design: ' . ($has_design_meta ? 'YES' : 'NO'));
+        if ($design_data) {
+            error_log('  - Design Data: ' . print_r($design_data, true));
+        }
+        error_log('  - All Meta: ' . print_r($meta_data, true));
+    }
+    
+    wp_send_json_success(array(
+        'order_id' => $order_id,
+        'status' => $order->get_status(),
+        'items' => $items_data,
+        'total_items' => count($items_data)
+    ));
+}
