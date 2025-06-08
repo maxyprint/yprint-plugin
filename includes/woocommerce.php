@@ -1873,3 +1873,88 @@ function yprint_preserve_design_data_in_order($item, $cart_item_key, $values, $o
         }
     }
 }
+
+/**
+ * TEMPORÄRER DEBUG-ENDPOINT - Zur Problemdiagnose
+ */
+add_action('wp_ajax_yprint_debug_cart_session', 'yprint_debug_cart_session_callback');
+add_action('wp_ajax_nopriv_yprint_debug_cart_session', 'yprint_debug_cart_session_callback');
+
+function yprint_debug_cart_session_callback() {
+    // Sicherheitscheck
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error('Nicht berechtigt');
+        return;
+    }
+    
+    error_log('=== YPRINT DEBUG CART SESSION ===');
+    
+    // WooCommerce Cart prüfen
+    if (!class_exists('WooCommerce') || !WC()->cart) {
+        wp_send_json_error('WooCommerce nicht verfügbar');
+        return;
+    }
+    
+    $cart_contents = WC()->cart->get_cart();
+    error_log('Cart Contents Count: ' . count($cart_contents));
+    
+    $debug_data = array();
+    
+    foreach ($cart_contents as $cart_item_key => $cart_item) {
+        $item_debug = array(
+            'product_id' => $cart_item['product_id'],
+            'quantity' => $cart_item['quantity'],
+            'has_print_design' => isset($cart_item['print_design']),
+            'print_design_keys' => isset($cart_item['print_design']) ? array_keys($cart_item['print_design']) : array(),
+            'all_keys' => array_keys($cart_item)
+        );
+        
+        // Design-Daten komplett ausgeben
+        if (isset($cart_item['print_design'])) {
+            $item_debug['print_design_full'] = $cart_item['print_design'];
+            error_log('DESIGN DATA FOUND: ' . print_r($cart_item['print_design'], true));
+        }
+        
+        $debug_data[$cart_item_key] = $item_debug;
+        error_log('Cart Item ' . $cart_item_key . ': ' . print_r($item_debug, true));
+    }
+    
+    wp_send_json_success(array(
+        'cart_contents' => $debug_data,
+        'total_items' => count($cart_contents),
+        'session_data' => WC()->session->get_session_data()
+    ));
+}
+
+/**
+ * TEMPORÄRE CHECKOUT-DEBUG-HOOKS
+ */
+add_action('woocommerce_checkout_process', 'yprint_debug_checkout_process', 1);
+function yprint_debug_checkout_process() {
+    error_log('=== YPRINT CHECKOUT PROCESS DEBUG ===');
+    error_log('Cart Contents during checkout:');
+    
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        error_log('Item ' . $cart_item_key . ' has print_design: ' . (isset($cart_item['print_design']) ? 'YES' : 'NO'));
+        if (isset($cart_item['print_design'])) {
+            error_log('Design Data: ' . print_r($cart_item['print_design'], true));
+        }
+    }
+}
+
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_debug_order_line_item', 5, 4);
+function yprint_debug_order_line_item($item, $cart_item_key, $values, $order) {
+    error_log('=== YPRINT ORDER LINE ITEM DEBUG ===');
+    error_log('Cart Item Key: ' . $cart_item_key);
+    error_log('Values keys: ' . print_r(array_keys($values), true));
+    error_log('Has print_design: ' . (isset($values['print_design']) ? 'YES' : 'NO'));
+    
+    if (isset($values['print_design'])) {
+        error_log('Design Data in Order Creation: ' . print_r($values['print_design'], true));
+    } else {
+        error_log('NO DESIGN DATA FOUND IN ORDER CREATION!');
+        error_log('Available data: ' . print_r($values, true));
+    }
+    
+    return $item;
+}
