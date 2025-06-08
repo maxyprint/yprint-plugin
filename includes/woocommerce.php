@@ -852,7 +852,28 @@ function yprint_minimalist_cart_shortcode() {
                                 <?php echo $thumbnail; ?>
                             </div>
                             <div class="yprint-mini-cart-item-details">
-                                <h4 class="yprint-mini-cart-item-title"><?php echo esc_html($product_name); ?></h4>
+                                <?php
+// Prüfe, ob es ein Design-Produkt ist und verwende Designtitel
+if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
+    $display_name = $cart_item['print_design']['name'];
+    
+    // Füge Variation und Größe hinzu, falls vorhanden
+    $details = [];
+    if (!empty($cart_item['print_design']['variation_name'])) {
+        $details[] = $cart_item['print_design']['variation_name'];
+    }
+    if (!empty($cart_item['print_design']['size_name'])) {
+        $details[] = $cart_item['print_design']['size_name'];
+    }
+    
+    if (!empty($details)) {
+        $display_name .= ' (' . implode(', ', $details) . ')';
+    }
+} else {
+    $display_name = $product_name;
+}
+?>
+<h4 class="yprint-mini-cart-item-title"><?php echo esc_html($display_name); ?></h4>
                                 <div class="yprint-mini-cart-item-price"><?php echo $item_total_price_html; ?></div>
                                 <div class="yprint-mini-cart-item-quantity-control">
                                     <button class="qty-btn qty-minus" data-action="minus">−</button>
@@ -1380,7 +1401,28 @@ function yprint_refresh_cart_content_callback() {
                         <?php echo $thumbnail; ?>
                     </div>
                     <div class="yprint-mini-cart-item-details">
-                        <h4 class="yprint-mini-cart-item-title"><?php echo esc_html($product_name); ?></h4>
+                        <?php
+// Prüfe, ob es ein Design-Produkt ist und verwende Designtitel
+if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
+    $display_name = $cart_item['print_design']['name'];
+    
+    // Füge Variation und Größe hinzu, falls vorhanden
+    $details = [];
+    if (!empty($cart_item['print_design']['variation_name'])) {
+        $details[] = $cart_item['print_design']['variation_name'];
+    }
+    if (!empty($cart_item['print_design']['size_name'])) {
+        $details[] = $cart_item['print_design']['size_name'];
+    }
+    
+    if (!empty($details)) {
+        $display_name .= ' (' . implode(', ', $details) . ')';
+    }
+} else {
+    $display_name = $product_name;
+}
+?>
+<h4 class="yprint-mini-cart-item-title"><?php echo esc_html($display_name); ?></h4>
                         <div class="yprint-mini-cart-item-price"><?php echo $item_total_price_html; ?></div>
                         <div class="yprint-mini-cart-item-quantity-control">
                             <button class="qty-btn qty-minus" data-action="minus">−</button>
@@ -1684,9 +1726,9 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
     if (isset($cart_item['print_design'])) {
         $design = $cart_item['print_design'];
         
-        // Designname hinzufügen, falls vorhanden
+        // Bei Design-Produkten: Designtitel statt Produkttitel verwenden
         if (!empty($design['name'])) {
-            $name .= ' - <span class="design-name">' . esc_html($design['name']) . '</span>';
+            $name = '<span class="design-name">' . esc_html($design['name']) . '</span>';
         }
         
         // Variation und Größe hinzufügen, falls vorhanden
