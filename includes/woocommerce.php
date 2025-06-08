@@ -2086,3 +2086,74 @@ function yprint_debug_order_details_callback() {
         'total_items' => count($items_data)
     ));
 }
+
+/**
+ * DEBUG: Finde recent orders für aktuellen User
+ */
+add_action('wp_ajax_yprint_find_recent_orders', 'yprint_find_recent_orders_callback');
+add_action('wp_ajax_nopriv_yprint_find_recent_orders', 'yprint_find_recent_orders_callback');
+
+function yprint_find_recent_orders_callback() {
+    error_log('=== YPRINT FIND RECENT ORDERS ===');
+    
+    $current_user_id = get_current_user_id();
+    error_log('Current User ID: ' . $current_user_id);
+    
+    // Orders der letzten 24 Stunden für aktuellen User
+    $orders = wc_get_orders(array(
+        'limit' => 10,
+        'orderby' => 'date',
+        'order' => 'DESC',
+        'customer_id' => $current_user_id,
+        'date_created' => '>' . (time() - 24*60*60) // Letzte 24 Stunden
+    ));
+    
+    $order_data = array();
+    
+    foreach ($orders as $order) {
+        $order_info = array(
+            'id' => $order->get_id(),
+            'status' => $order->get_status(),
+            'date' => $order->get_date_created()->format('Y-m-d H:i:s'),
+            'total' => $order->get_total(),
+            'item_count' => $order->get_item_count()
+        );
+        
+        $order_data[] = $order_info;
+        
+        error_log('Found Order: ' . print_r($order_info, true));
+    }
+    
+    // Falls keine Orders für User gefunden, auch anonyme Orders der letzten Stunde prüfen
+    if (empty($order_data)) {
+        error_log('No user orders found, checking recent anonymous orders...');
+        
+        $recent_orders = wc_get_orders(array(
+            'limit' => 5,
+            'orderby' => 'date',
+            'order' => 'DESC',
+            'date_created' => '>' . (time() - 60*60) // Letzte Stunde
+        ));
+        
+        foreach ($recent_orders as $order) {
+            $order_info = array(
+                'id' => $order->get_id(),
+                'status' => $order->get_status(),
+                'date' => $order->get_date_created()->format('Y-m-d H:i:s'),
+                'total' => $order->get_total(),
+                'item_count' => $order->get_item_count(),
+                'customer_id' => $order->get_customer_id()
+            );
+            
+            $order_data[] = $order_info;
+            
+            error_log('Found Recent Order: ' . print_r($order_info, true));
+        }
+    }
+    
+    wp_send_json_success(array(
+        'orders' => $order_data,
+        'current_user_id' => $current_user_id,
+        'total_found' => count($order_data)
+    ));
+}
