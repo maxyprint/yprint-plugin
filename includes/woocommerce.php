@@ -1493,7 +1493,7 @@ add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_co
 /**
  * Stellt sicher, dass die print_design-Daten während des Checkouts erhalten bleiben
  */
-add_filter('woocommerce_checkout_create_order_line_item', 'yprint_add_design_data_to_order_item', 10, 4);
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_add_design_data_to_order_item', 1, 4);
 function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $order) {
     // Überprüfen, ob es print_design-Daten gibt
     if (isset($values['print_design']) && !empty($values['print_design'])) {
@@ -1616,7 +1616,7 @@ function yprint_extended_consolidate_cart_items() {
 /**
  * Bearbeitet cart sessions, um sicherzustellen, dass print_design-Daten erhalten bleiben
  */
-add_filter('woocommerce_get_cart_item_from_session', 'yprint_get_cart_item_from_session', 10, 2);
+add_filter('woocommerce_get_cart_item_from_session', 'yprint_get_cart_item_from_session', 1, 2);
 function yprint_get_cart_item_from_session($cart_item, $values) {
     if (isset($values['print_design'])) {
         $cart_item['print_design'] = $values['print_design'];
@@ -1957,4 +1957,59 @@ function yprint_debug_order_line_item($item, $cart_item_key, $values, $order) {
     }
     
     return $item;
+}
+
+/**
+ * BACKUP: Alternative Hook für Design-Daten-Transfer
+ */
+add_action('woocommerce_checkout_create_order', 'yprint_backup_design_transfer', 1, 2);
+function yprint_backup_design_transfer($order, $data) {
+    error_log('=== YPRINT BACKUP DESIGN TRANSFER ===');
+    
+    if (!$order) return;
+    
+    // Durchlaufe alle Cart-Items nochmal
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+            error_log('BACKUP: Found design data for item: ' . $cart_item_key);
+            error_log('BACKUP: Design data: ' . print_r($cart_item['print_design'], true));
+            
+            // Finde das entsprechende Order-Item
+            foreach ($order->get_items() as $item_id => $order_item) {
+                if ($order_item->get_meta('_cart_item_key') === $cart_item_key) {
+                    error_log('BACKUP: Adding design data to order item: ' . $item_id);
+                    
+                    // Design-Daten hinzufügen
+                    $order_item->add_meta_data('print_design', $cart_item['print_design']);
+                    $order_item->add_meta_data('_has_print_design', 'yes');
+                    $order_item->add_meta_data('_design_id', $cart_item['print_design']['design_id'] ?? '');
+                    $order_item->add_meta_data('_design_name', $cart_item['print_design']['name'] ?? '');
+                    $order_item->save();
+                    
+                    error_log('BACKUP: Design data saved to order item');
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/**
+ * ERWEITERTE DEBUG-AUSGABE für Bestellungs-Erstellung
+ */
+add_action('woocommerce_checkout_order_processed', 'yprint_debug_order_processed', 1, 3);
+function yprint_debug_order_processed($order_id, $posted_data, $order) {
+    error_log('=== YPRINT ORDER PROCESSED DEBUG ===');
+    error_log('Order ID: ' . $order_id);
+    
+    foreach ($order->get_items() as $item_id => $item) {
+        error_log('Order Item ' . $item_id . ':');
+        error_log('  - Product ID: ' . $item->get_product_id());
+        error_log('  - Meta Data: ' . print_r($item->get_meta_data(), true));
+        error_log('  - Has print_design: ' . ($item->get_meta('print_design') ? 'YES' : 'NO'));
+        
+        if ($item->get_meta('print_design')) {
+            error_log('  - Print Design: ' . print_r($item->get_meta('print_design'), true));
+        }
+    }
 }
