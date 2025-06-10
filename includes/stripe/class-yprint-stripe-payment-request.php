@@ -693,232 +693,140 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
         wp_send_json_success($data);
     }
     
-    /**
- * AJAX: Process payment
- */
-public function ajax_process_payment() {
-    check_ajax_referer('yprint-stripe-payment-request', 'security');
-    
-    if (!defined('WOOCOMMERCE_CHECKOUT')) {
-        define('WOOCOMMERCE_CHECKOUT', true);
-    }
-    
-    try {
-        // Get payment method ID from request
-        $payment_method_id = isset($_POST['payment_method_id']) ? wc_clean(wp_unslash($_POST['payment_method_id'])) : '';
+    public function ajax_process_payment() {
+        check_ajax_referer('yprint-stripe-payment-request', 'security');
         
-        if (empty($payment_method_id)) {
-            throw new Exception(__('Payment method ID is required', 'yprint-plugin'));
+        if (!defined('WOOCOMMERCE_CHECKOUT')) {
+            define('WOOCOMMERCE_CHECKOUT', true);
         }
         
-        // Set payment method
-        WC()->session->set('chosen_payment_method', 'yprint_stripe');
+        error_log('=== YPRINT EXPRESS PAYMENT: NEW IMPLEMENTATION ===');
         
-        // Store payment method ID and type
-        $_POST['payment_method'] = 'yprint_stripe';
-        $_POST['yprint_stripe_payment_method_id'] = $payment_method_id;
-        
-        if (isset($_POST['payment_request_type'])) {
-            $_POST['payment_request_type'] = wc_clean(wp_unslash($_POST['payment_request_type']));
-        }
-        
-        // YPRINT: Complete Order Creation with Cart Items and Design Data
-        error_log('=== YPRINT EXPRESS PAYMENT: Complete Order Creation ===');
-        error_log('Cart contents count: ' . WC()->cart->get_cart_contents_count());
-        
-        // Create empty order
-        $order = wc_create_order();
-        
-        if (is_wp_error($order)) {
-            throw new Exception($order->get_error_message());
-        }
-        
-        error_log('Express Payment: Order created with ID: ' . $order->get_id());
-        
-        // Add customer data to order
-        if (isset($_POST['billing_email'])) {
-            $order->set_billing_email(sanitize_email(wp_unslash($_POST['billing_email'])));
-        }
-        
-        if (isset($_POST['billing_name'])) {
-            $name_parts = explode(' ', sanitize_text_field(wp_unslash($_POST['billing_name'])));
-            $order->set_billing_first_name($name_parts[0]);
-            if (count($name_parts) > 1) {
-                $order->set_billing_last_name(end($name_parts));
-            }
-        }
-        
-        // YPRINT: Manually add cart items to order with design data transfer
-        if (!WC()->cart->is_empty()) {
-            $cart_contents = WC()->cart->get_cart();
-            $items_added = 0;
-            $design_items_transferred = 0;
+        try {
+            // Get payment method ID from request
+            $payment_method_id = isset($_POST['payment_method_id']) ? wc_clean(wp_unslash($_POST['payment_method_id'])) : '';
             
-            foreach ($cart_contents as $cart_item_key => $cart_item) {
-                $product = $cart_item['data'];
-                $quantity = $cart_item['quantity'];
-                
-                // Add product to order
-                $order_item = new WC_Order_Item_Product();
-                $order_item->set_product($product);
-                $order_item->set_quantity($quantity);
-                $order_item->set_subtotal($cart_item['line_subtotal']);
-                $order_item->set_total($cart_item['line_total']);
-                
-                // Transfer design data if present
-                if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
-                    $design_data = $cart_item['print_design'];
-                    error_log('EXPRESS: Adding design data to order item for product ' . $product->get_id());
-                    error_log('Design Data: ' . print_r($design_data, true));
-                    
-                    // Add design meta data
-                    $order_item->add_meta_data('print_design', $design_data);
-                    $order_item->add_meta_data('_is_design_product', true);
-                    $order_item->add_meta_data('_has_print_design', 'yes');
-                    $order_item->add_meta_data('_design_id', $design_data['design_id'] ?? '');
-                    $order_item->add_meta_data('_design_name', $design_data['name'] ?? '');
-                    $order_item->add_meta_data('_design_template_id', $design_data['template_id'] ?? '');
-                    $order_item->add_meta_data('_design_color', $design_data['variation_name'] ?? '');
-                    $order_item->add_meta_data('_design_size', $design_data['size_name'] ?? '');
-                    $order_item->add_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
-                    $order_item->add_meta_data('_express_payment_transfer', 'yes');
-                    $order_item->add_meta_data('_cart_item_key', $cart_item_key);
-                    $order_item->add_meta_data('_yprint_design_transferred', current_time('mysql'));
-                    
-                    $design_items_transferred++;
-                }
-                
-                // Add item to order
-                $order->add_item($order_item);
-                $items_added++;
-                
-                error_log('EXPRESS: Added cart item to order - Product: ' . $product->get_id() . ', Quantity: ' . $quantity);
+            if (empty($payment_method_id)) {
+                throw new Exception(__('Payment method ID is required', 'yprint-plugin'));
             }
             
-            error_log("EXPRESS: Added $items_added items to order, $design_items_transferred with design data");
+            error_log('EXPRESS: Payment method ID: ' . $payment_method_id);
+            error_log('EXPRESS: Cart items: ' . WC()->cart->get_cart_contents_count());
             
-            // Add fees
-            foreach (WC()->cart->get_fees() as $fee_key => $fee) {
-                $fee_item = new WC_Order_Item_Fee();
-                $fee_item->set_name($fee->name);
-                $fee_item->set_amount($fee->amount);
-                $fee_item->set_total($fee->amount);
-                $order->add_item($fee_item);
+            // YPRINT: Create order manually with complete cart transfer
+            $order = wc_create_order();
+            if (is_wp_error($order)) {
+                throw new Exception($order->get_error_message());
             }
             
-            // Add shipping if available
-            $shipping_methods = WC()->session->get('chosen_shipping_methods');
-            if (!empty($shipping_methods)) {
-                $packages = WC()->shipping->get_packages();
-                foreach ($packages as $package_key => $package) {
-                    if (isset($package['rates'][$shipping_methods[0]])) {
-                        $shipping_rate = $package['rates'][$shipping_methods[0]];
-                        $shipping_item = new WC_Order_Item_Shipping();
-                        $shipping_item->set_method_title($shipping_rate->get_label());
-                        $shipping_item->set_method_id($shipping_rate->get_method_id());
-                        $shipping_item->set_total($shipping_rate->get_cost());
-                        $order->add_item($shipping_item);
-                        break;
-                    }
+            error_log('EXPRESS: Created order ID: ' . $order->get_id());
+            
+            // Add customer data to order
+            if (isset($_POST['billing_email'])) {
+                $order->set_billing_email(sanitize_email(wp_unslash($_POST['billing_email'])));
+            }
+            
+            if (isset($_POST['billing_name'])) {
+                $name_parts = explode(' ', sanitize_text_field(wp_unslash($_POST['billing_name'])));
+                $order->set_billing_first_name($name_parts[0]);
+                if (count($name_parts) > 1) {
+                    $order->set_billing_last_name(end($name_parts));
                 }
             }
             
-        } else {
-            error_log('EXPRESS: WARNING - Cart is empty, cannot add items to order');
-            throw new Exception(__('Cart is empty', 'yprint-plugin'));
-        }
-        
-        // Calculate order totals
-        $order->calculate_totals();
-        $order->save();
-        
-        error_log('EXPRESS: Order saved with ' . count($order->get_items()) . ' items');
-        
-        // YPRINT: Design-Daten Transfer für Express Payment - MANUELL
-        error_log('=== YPRINT EXPRESS PAYMENT: Manual Design Transfer ===');
-        error_log('Order ID: ' . $order->get_id());
-        
-        if (WC()->cart && !WC()->cart->is_empty()) {
-            $cart_contents = WC()->cart->get_cart();
-            $transferred_count = 0;
-            
-            foreach ($order->get_items() as $item_id => $order_item) {
-                $product_id = $order_item->get_product_id();
-                $quantity = $order_item->get_quantity();
+            // YPRINT: Add cart items manually with design data
+            if (!WC()->cart->is_empty()) {
+                $items_added = 0;
+                $design_items = 0;
                 
-                // Suche matching cart item mit Design-Daten
-                foreach ($cart_contents as $cart_item_key => $cart_item) {
-                    if ($cart_item['product_id'] == $product_id && 
-                        $cart_item['quantity'] == $quantity &&
-                        isset($cart_item['print_design'])) {
-                        
+                foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+                    $product = $cart_item['data'];
+                    $quantity = $cart_item['quantity'];
+                    
+                    // Create order item
+                    $order_item = new WC_Order_Item_Product();
+                    $order_item->set_product($product);
+                    $order_item->set_quantity($quantity);
+                    $order_item->set_subtotal($cart_item['line_subtotal']);
+                    $order_item->set_total($cart_item['line_total']);
+                    
+                    // YPRINT: Transfer design data immediately
+                    if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
                         $design_data = $cart_item['print_design'];
-                        error_log('EXPRESS: Transferring design data for item ' . $item_id);
-                        error_log('Design Data: ' . print_r($design_data, true));
+                        error_log('EXPRESS: Adding design data to order item');
+                        error_log('Design data: ' . print_r($design_data, true));
                         
-                        // Design-Daten übertragen
-                        $order_item->update_meta_data('print_design', $design_data);
-                        $order_item->update_meta_data('_is_design_product', true);
-                        $order_item->update_meta_data('_has_print_design', 'yes');
-                        $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
-                        $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
-                        $order_item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
-                        $order_item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
-                        $order_item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
-                        $order_item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
-                        $order_item->update_meta_data('_express_payment_transfer', 'yes');
-                        $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
-                        $order_item->save_meta_data();
+                        $order_item->add_meta_data('print_design', $design_data);
+                        $order_item->add_meta_data('_is_design_product', true);
+                        $order_item->add_meta_data('_has_print_design', 'yes');
+                        $order_item->add_meta_data('_design_id', $design_data['design_id'] ?? '');
+                        $order_item->add_meta_data('_design_name', $design_data['name'] ?? '');
+                        $order_item->add_meta_data('_design_template_id', $design_data['template_id'] ?? '');
+                        $order_item->add_meta_data('_design_color', $design_data['variation_name'] ?? '');
+                        $order_item->add_meta_data('_design_size', $design_data['size_name'] ?? '');
+                        $order_item->add_meta_data('_express_payment_transfer', 'yes');
+                        $order_item->add_meta_data('_cart_item_key', $cart_item_key);
+                        $order_item->add_meta_data('_transfer_timestamp', current_time('mysql'));
                         
-                        $transferred_count++;
-                        error_log('EXPRESS: Design data successfully transferred for item ' . $item_id);
-                        break;
+                        $design_items++;
                     }
+                    
+                    // Add item to order
+                    $order->add_item($order_item);
+                    $items_added++;
+                    
+                    error_log('EXPRESS: Added item - Product: ' . $product->get_id() . ', Has design: ' . (isset($cart_item['print_design']) ? 'YES' : 'NO'));
                 }
-            }
-            
-            if ($transferred_count > 0) {
-                $order->save();
-                error_log("EXPRESS: Successfully transferred design data for $transferred_count items");
+                
+                error_log("EXPRESS: Added $items_added items to order, $design_items with design data");
             } else {
-                error_log('EXPRESS: WARNING - No design data found to transfer');
+                throw new Exception(__('Cart is empty', 'yprint-plugin'));
             }
-        } else {
-            error_log('EXPRESS: WARNING - Cart is empty, cannot transfer design data');
-        }
-        
-        // Mark order as paid
-        $order->payment_complete();
-        
-        // Add order note
-        $payment_type = isset($_POST['payment_request_type']) ? 
-            sanitize_text_field($_POST['payment_request_type']) : 'payment_request';
-        
-        $payment_type_label = 'payment_request' === $payment_type ? 'Payment Request' : 
-            ('apple_pay' === $payment_type ? 'Apple Pay' : 
-            ('google_pay' === $payment_type ? 'Google Pay' : $payment_type));
             
-        $order->add_order_note(
-            sprintf(__('Order paid via %s (Stripe Payment Request)', 'yprint-plugin'), $payment_type_label)
-        );
-        
-        // Clear cart
-        WC()->cart->empty_cart();
-        
-        // Return success
-        wp_send_json_success(array(
-            'redirect' => $order->get_checkout_order_received_url(),
-        ));
-    } catch (Exception $e) {
-        // Log error
-        error_log('YPrint Stripe Payment Request Error: ' . $e->getMessage());
-        
-        wp_send_json_error(array(
-            'message' => $e->getMessage(),
-            'code' => $e->getCode()
-        ));
+            // Set payment method
+            $order->set_payment_method('yprint_stripe');
+            $order->set_payment_method_title('Stripe Express Payment');
+            
+            // Calculate totals
+            $order->calculate_totals();
+            $order->save();
+            
+            error_log('EXPRESS: Order saved with ' . count($order->get_items()) . ' items');
+            
+            // Mark order as paid
+            $order->payment_complete($payment_method_id);
+            
+            // Add order note
+            $payment_type = isset($_POST['payment_request_type']) ? 
+                sanitize_text_field($_POST['payment_request_type']) : 'payment_request';
+            
+            $payment_type_label = 'payment_request' === $payment_type ? 'Payment Request' : 
+                ('apple_pay' === $payment_type ? 'Apple Pay' : 
+                ('google_pay' === $payment_type ? 'Google Pay' : $payment_type));
+                
+            $order->add_order_note(
+                sprintf(__('Order paid via %s (Stripe Payment Request)', 'yprint-plugin'), $payment_type_label)
+            );
+            
+            // Clear cart
+            WC()->cart->empty_cart();
+            
+            error_log('EXPRESS: Payment completed successfully for order ' . $order->get_id());
+            
+            // Return success
+            wp_send_json_success(array(
+                'redirect' => $order->get_checkout_order_received_url(),
+            ));
+        } catch (Exception $e) {
+            error_log('YPrint Stripe Payment Request Error: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
+            
+            wp_send_json_error(array(
+                'message' => $e->getMessage(),
+                'code' => $e->getCode()
+            ));
+        }
     }
-}
 }
 
 // Initialize the class
