@@ -2261,3 +2261,108 @@ function yprint_find_recent_orders_callback() {
         'total_found' => count($order_data)
     ));
 }
+
+/**
+ * DEBUG: Recent Debug-Logs abrufen
+ */
+add_action('wp_ajax_yprint_get_recent_debug_logs', 'yprint_get_recent_debug_logs');
+add_action('wp_ajax_nopriv_yprint_get_recent_debug_logs', 'yprint_get_recent_debug_logs');
+
+function yprint_get_recent_debug_logs() {
+    $debug_file = WP_CONTENT_DIR . '/debug.log';
+    
+    if (!file_exists($debug_file)) {
+        wp_send_json_success(array('logs' => array()));
+        return;
+    }
+    
+    // Letzte 20 Zeilen aus Debug-Log lesen
+    $lines = array();
+    $file = file($debug_file);
+    if ($file) {
+        $lines = array_slice($file, -20);
+        
+        // Nur YPrint-relevante Logs
+        $yprint_logs = array();
+        foreach ($lines as $line) {
+            if (strpos($line, 'YPRINT') !== false || 
+                strpos($line, 'DESIGN') !== false || 
+                strpos($line, 'EMERGENCY') !== false) {
+                $yprint_logs[] = trim($line);
+            }
+        }
+        
+        wp_send_json_success(array('logs' => $yprint_logs));
+    } else {
+        wp_send_json_success(array('logs' => array()));
+    }
+}
+
+/**
+ * DEBUG: Hook-Verifikation für Order
+ */
+add_action('wp_ajax_yprint_verify_order_hooks', 'yprint_verify_order_hooks');
+add_action('wp_ajax_nopriv_yprint_verify_order_hooks', 'yprint_verify_order_hooks');
+
+function yprint_verify_order_hooks() {
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    
+    if (!$order_id) {
+        wp_send_json_error('Keine Order ID');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Order nicht gefunden');
+        return;
+    }
+    
+    error_log('=== YPRINT HOOK VERIFICATION FOR ORDER ' . $order_id . ' ===');
+    
+    $hooks_executed = false;
+    $design_data_found = false;
+    
+    // Prüfe Debug-Log nach Hook-Ausführung
+    $debug_file = WP_CONTENT_DIR . '/debug.log';
+    if (file_exists($debug_file)) {
+        $log_content = file_get_contents($debug_file);
+        
+        // Suche nach Hook-Ausführung für diese Order
+        $patterns = [
+            'EMERGENCY DESIGN TRANSFER',
+            'FINAL DESIGN TRANSFER', 
+            'Order ID: ' . $order_id,
+            'ADDING design data to order item'
+        ];
+        
+        foreach ($patterns as $pattern) {
+            if (strpos($log_content, $pattern) !== false) {
+                $hooks_executed = true;
+                break;
+            }
+        }
+    }
+    
+    // Prüfe Order auf Design-Daten
+    foreach ($order->get_items() as $item) {
+        if ($item->get_meta('print_design') || 
+            $item->get_meta('_has_print_design') || 
+            $item->get_meta('_design_id')) {
+            $design_data_found = true;
+            break;
+        }
+    }
+    
+    $verification_result = array(
+        'order_id' => $order_id,
+        'hooks_executed' => $hooks_executed,
+        'design_data_found' => $design_data_found,
+        'debug_file_exists' => file_exists($debug_file),
+        'order_status' => $order->get_status()
+    );
+    
+    error_log('Hook verification result: ' . print_r($verification_result, true));
+    
+    wp_send_json_success($verification_result);
+}
