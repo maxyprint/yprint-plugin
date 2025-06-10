@@ -111,7 +111,15 @@ class YPrint_Simple_Debug {
         );
         
         update_post_meta($order_id, '_yprint_debug_summary', $summary);
-        error_log("YPrint Detailed Debug for Order $order_id: " . $root_cause['cause']);
+
+// Sichere Error-Log Ausgabe
+$log_message = "YPrint Detailed Debug for Order $order_id: ";
+if (is_array($root_cause) && isset($root_cause['cause'])) {
+    $log_message .= $root_cause['cause'];
+} else {
+    $log_message .= "Debug analysis completed";
+}
+error_log($log_message);
     }
     
     /**
@@ -559,70 +567,87 @@ private function determine_root_cause($debug_data, $trail) {
         echo '<div>';
         if (isset($debug_summary['root_cause'])) {
             echo '<p><strong>🔍 Wahrscheinliche Ursache:</strong></p>';
-            echo '<p style="background: #fff; padding: 8px; border: 1px solid #ddd; font-style: italic;">' . 
-                 esc_html($debug_summary['root_cause']) . '</p>';
+            if (is_array($debug_summary['root_cause'])) {
+                echo '<p style="background: #fff; padding: 8px; border: 1px solid #ddd; font-style: italic;">' . 
+                     esc_html($debug_summary['root_cause']['cause']) . '</p>';
+                echo '<p><strong>💡 Empfohlene Aktion:</strong></p>';
+                echo '<p style="background: #e8f4fd; padding: 8px; border: 1px solid #bee5eb;">' . 
+                     esc_html($debug_summary['root_cause']['action']) . '</p>';
+                echo '<p><strong>🔧 Technische Details:</strong></p>';
+                echo '<p style="background: #f8f9fa; padding: 8px; border: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">' . 
+                     esc_html($debug_summary['root_cause']['technical']) . '</p>';
+            } else {
+                echo '<p style="background: #fff; padding: 8px; border: 1px solid #ddd; font-style: italic;">' . 
+                     esc_html($debug_summary['root_cause']) . '</p>';
+            }
         }
         echo '</div>';
         echo '</div>';
         
         // Investigation Trail
-        if (!empty($debug_summary['investigation_trail'])) {
-            echo '<details style="margin-top: 15px;"><summary><strong>🔍 Detaillierte Untersuchung</strong></summary>';
-            echo '<div style="background: #fff; padding: 10px; border: 1px solid #ddd; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 300px; overflow-y: auto; margin-top: 10px;">';
-            
-            foreach ($debug_summary['investigation_trail'] as $trail_entry) {
-                $entry = esc_html($trail_entry);
-                
-                // Coloriere verschiedene Einträge
-                if (strpos($entry, '✅') !== false) {
-                    $entry = '<span style="color: green;">' . $entry . '</span>';
-                } elseif (strpos($entry, '❌') !== false) {
-                    $entry = '<span style="color: red;">' . $entry . '</span>';
-                } elseif (strpos($entry, '===') !== false) {
-                    $entry = '<strong style="color: #0073aa;">' . $entry . '</strong>';
-                } elseif (strpos($entry, '🔍') !== false) {
-                    $entry = '<span style="color: orange; font-weight: bold;">' . $entry . '</span>';
-                }
-                
-                echo $entry . "\n";
-            }
-            
-            echo '</div></details>';
+if (!empty($debug_summary['debug_trail'])) {
+    echo '<details style="margin-top: 15px;"><summary><strong>🔍 Detaillierte Untersuchung</strong></summary>';
+    echo '<div style="background: #fff; padding: 10px; border: 1px solid #ddd; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 300px; overflow-y: auto; margin-top: 10px;">';
+    
+    foreach ($debug_summary['debug_trail'] as $trail_entry) {
+        if (!is_string($trail_entry)) {
+            $trail_entry = print_r($trail_entry, true);
         }
         
-        // Item Details
-        if (!empty($debug_summary['items'])) {
-            echo '<details style="margin-top: 15px;"><summary><strong>📦 Item Details</strong></summary>';
-            echo '<table style="width: 100%; margin-top: 10px; border-collapse: collapse;">';
-            echo '<tr style="background: #f0f0f0;">';
-            echo '<th style="padding: 8px; border: 1px solid #ddd;">Item</th>';
-            echo '<th style="padding: 8px; border: 1px solid #ddd;">Design</th>';
-            echo '<th style="padding: 8px; border: 1px solid #ddd;">Cart Key</th>';
-            echo '<th style="padding: 8px; border: 1px solid #ddd;">Transfer</th>';
-            echo '</tr>';
-            
-            foreach ($debug_summary['items'] as $item) {
-                $icon = $item['has_design'] ? '✅' : '❌';
-                $transfer_info = '';
-                
-                if (isset($item['transfer_timestamp']) && !empty($item['transfer_timestamp'])) {
-                    $transfer_info = '📅 ' . $item['transfer_timestamp'];
-                } elseif (isset($item['backup_applied']) && !empty($item['backup_applied'])) {
-                    $transfer_info = '🔄 ' . $item['backup_applied'];
-                } else {
-                    $transfer_info = '❌ Kein Transfer';
-                }
-                
-                echo '<tr>';
-                echo '<td style="padding: 8px; border: 1px solid #ddd;">' . $icon . ' ' . esc_html($item['name']) . '</td>';
-                echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($item['has_design'] ? 'Ja' : 'Nein') . '</td>';
-                echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($item['cart_key'] ?: 'Fehlt') . '</td>';
-                echo '<td style="padding: 8px; border: 1px solid #ddd; font-size: 11px;">' . $transfer_info . '</td>';
-                echo '</tr>';
-            }
-            
-            echo '</table></details>';
+        $entry = esc_html($trail_entry);
+        
+        // Coloriere verschiedene Einträge
+        if (strpos($entry, '✅') !== false) {
+            $entry = '<span style="color: green;">' . $entry . '</span>';
+        } elseif (strpos($entry, '❌') !== false) {
+            $entry = '<span style="color: red;">' . $entry . '</span>';
+        } elseif (strpos($entry, '⚠️') !== false) {
+            $entry = '<span style="color: orange;">' . $entry . '</span>';
+        } elseif (strpos($entry, 'SCHRITT') !== false) {
+            $entry = '<strong style="color: #0073aa; background: #f0f8ff; padding: 2px 4px;">' . $entry . '</strong>';
+        } elseif (strpos($entry, '🔍') !== false || strpos($entry, '🎯') !== false || strpos($entry, '💡') !== false) {
+            $entry = '<span style="color: orange; font-weight: bold;">' . $entry . '</span>';
+        } elseif (strpos($entry, '├─') !== false || strpos($entry, '└─') !== false || strpos($entry, '│') !== false) {
+            $entry = '<span style="color: #666;">' . $entry . '</span>';
         }
+        
+        echo $entry . "\n";
+    }
+    
+    echo '</div></details>';
+}
+        
+        // Zeige Items aus Order Analysis wenn verfügbar
+$items_to_show = array();
+if (isset($debug_summary['order_analysis']['items'])) {
+    $items_to_show = $debug_summary['order_analysis']['items'];
+} elseif (!empty($debug_summary['items'])) {
+    $items_to_show = $debug_summary['items'];
+}
+
+if (!empty($items_to_show)) {
+    echo '<details style="margin-top: 15px;"><summary><strong>📦 Item Details</strong></summary>';
+    echo '<table style="width: 100%; margin-top: 10px; border-collapse: collapse;">';
+    echo '<tr style="background: #f0f0f0;">';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">Item</th>';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">Product ID</th>';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">Design</th>';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">Cart Key</th>';
+    echo '</tr>';
+    
+    foreach ($items_to_show as $item_id => $item) {
+        $icon = ($item['has_design'] ?? false) ? '✅' : '❌';
+        
+        echo '<tr>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . $icon . ' ' . esc_html($item['name'] ?? 'Unknown') . '</td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($item['product_id'] ?? 'Missing') . '</td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . (($item['has_design'] ?? false) ? 'Ja' : 'Nein') . '</td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($item['cart_key'] ?? 'Fehlt') . '</td>';
+        echo '</tr>';
+    }
+    
+    echo '</table></details>';
+}
         
         echo '</div>';
     }
