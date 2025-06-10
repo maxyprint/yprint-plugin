@@ -2153,8 +2153,23 @@ add_action('wp_ajax_nopriv_yprint_debug_order_details', 'yprint_debug_order_deta
 function yprint_debug_order_details_callback() {
     $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
     
+    // Fallback: Versuche Order-ID aus YPrint-Format zu extrahieren
+    if (!$order_id && isset($_POST['yprint_order_ref'])) {
+        $yprint_ref = sanitize_text_field($_POST['yprint_order_ref']);
+        
+        // Extrahiere WordPress Order-ID aus YP-Format (z.B. YP-1749539378-8458)
+        if (preg_match('/YP-(\d+)-(\d+)/', $yprint_ref, $matches)) {
+            // Versuche den zweiten Teil als Order-ID
+            $potential_order_id = intval($matches[2]);
+            if (wc_get_order($potential_order_id)) {
+                $order_id = $potential_order_id;
+                error_log('YPRINT DEBUG: Order-ID aus YPrint-Referenz extrahiert: ' . $order_id);
+            }
+        }
+    }
+    
     if (!$order_id) {
-        wp_send_json_error('Keine Order ID angegeben');
+        wp_send_json_error('Keine Order ID angegeben oder gefunden');
         return;
     }
     
@@ -2466,5 +2481,128 @@ function yprint_final_design_rescue($order_id, $posted_data, $order) {
     } else {
         error_log('FINAL RESCUE: Design-Daten bereits vorhanden');
     }
+}
+
+/**
+ * DEBUG: Verify order hooks execution
+ */
+add_action('wp_ajax_yprint_verify_order_hooks', 'yprint_verify_order_hooks_callback');
+add_action('wp_ajax_nopriv_yprint_verify_order_hooks', 'yprint_verify_order_hooks_callback');
+
+function yprint_verify_order_hooks_callback() {
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    
+    if (!$order_id) {
+        wp_send_json_error('Keine Order ID angegeben');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Bestellung nicht gefunden');
+        return;
+    }
+    
+    error_log('=== YPRINT VERIFY ORDER HOOKS ===');
+    error_log('Order ID: ' . $order_id);
+    
+    $hooks_executed = false;
+    $design_data_found = false;
+    $emergency_recovery = false;
+    
+    // Prüfe ob Design-Daten in der Order vorhanden sind
+    foreach ($order->get_items() as $item_id => $item) {
+        if ($item->get_meta('print_design')) {
+            $design_data_found = true;
+            $hooks_executed = true;
+            
+            // Prüfe ob es eine Emergency-Recovery war
+            if ($item->get_meta('_emergency_recovery')) {
+                $emergency_recovery = true;
+            }
+            
+            error_log('Hook-Verifikation: Design-Daten gefunden in Item ' . $item_id);
+            break;
+        }
+    }
+    
+    // Prüfe Order-Meta für Hook-Ausführung-Flags
+    $hook_execution_meta = get_post_meta($order_id, '_yprint_hooks_executed', true);
+    if ($hook_execution_meta) {
+        $hooks_executed = true;
+    }
+    
+    $verification_data = array(
+        'order_id' => $order_id,
+        'hooks_executed' => $hooks_executed,
+        'design_data_found' => $design_data_found,
+        'emergency_recovery' => $emergency_recovery,
+        'verification_timestamp' => current_time('mysql')
+    );
+    
+    error_log('Hook-Verifikation Ergebnisse: ' . print_r($verification_data, true));
+    
+    wp_send_json_success($verification_data);
+}
+
+/**
+ * DEBUG: Get recent debug logs
+ */
+add_action('wp_ajax_yprint_get_recent_debug_logs', 'yprint_get_recent_debug_logs_callback');
+add_action('wp_ajax_nopriv_yprint_get_recent_debug_logs', 'yprint_get_recent_debug_logs_callback');
+
+function yprint_get_recent_debug_logs_callback() {
+    // Hole die letzten Debug-Logs aus der Datenbank oder Log-Datei
+    $recent_logs = array();
+    
+    // Option 1: Aus WordPress-Logs lesen (falls verfügbar)
+    if (defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+        $log_file = WP_CONTENT_DIR . '/debug.log';
+        
+        if (file_exists($log_file)) {
+            $logs = file($log_file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            
+            // Nur die letzten 50 Zeilen mit YPrint-Bezug
+            $yprint_logs = array_filter(array_slice($logs, -200), function($line) {
+                return stripos($line, 'yprint') !== false || 
+                       stripos($line, 'design') !== false ||
+                       stripos($line, 'checkout') !== false ||
+                       stripos($line, 'order') !== false;
+            });
+            
+            $recent_logs = array_slice($yprint_logs, -20); // Letzte 20 relevante Logs
+        }
+    }
+    
+    // Option 2: Aus gespeicherten Meta-Daten (falls implementiert)
+    $stored_logs = get_option('yprint_debug_logs', array());
+    if (!empty($stored_logs)) {
+        $recent_logs = array_merge($recent_logs, array_slice($stored_logs, -10));
+    }
+    
+    error_log('YPRINT DEBUG LOGS REQUEST: Returning ' . count($recent_logs) . ' logs');
+    
+    wp_send_json_success(array(
+        'logs' => $recent_logs,
+        'count' => count($recent_logs),
+        'timestamp' => current_time('mysql')
+    ));
+}
+
+/**
+ * Helper: Log-Speicherung für Debug-Zwecke
+ */
+function yprint_store_debug_log($message) {
+    $logs = get_option('yprint_debug_logs', array());
+    
+    // Füge neuen Log hinzu
+    $logs[] = '[' . current_time('mysql') . '] ' . $message;
+    
+    // Behalte nur die letzten 100 Logs
+    if (count($logs) > 100) {
+        $logs = array_slice($logs, -100);
+    }
+    
+    update_option('yprint_debug_logs', $logs);
 }
 
