@@ -1816,58 +1816,6 @@ function yprint_after_add_to_cart($cart_item_key, $product_id, $quantity, $varia
 }
 
 /**
- * Spezielle Funktion zum Persistieren von Design-Daten während des Checkouts
- */
-/**
- * HAUPTHOOK: Design-Daten von Cart zu Order übertragen (HÖCHSTE PRIORITÄT)
- */
-add_filter('woocommerce_checkout_create_order_line_item', 'yprint_preserve_design_data_in_order', 1, 4);
-function yprint_preserve_design_data_in_order($item, $cart_item_key, $values, $order) {
-    // Erweiterte Debug-Ausgabe
-    error_log('=== YPRINT DESIGN TRANSFER HOOK AUSGEFÜHRT ===');
-    error_log('Cart Item Key: ' . $cart_item_key);
-    error_log('Values Keys: ' . print_r(array_keys($values), true));
-    error_log('Hat print_design: ' . (isset($values['print_design']) ? 'JA' : 'NEIN'));
-    
-    if (isset($values['print_design']) && !empty($values['print_design'])) {
-        $design = $values['print_design'];
-        
-        error_log('ERFOLG: Design-Daten gefunden für Transfer: ' . print_r($design, true));
-        
-        // Speichere die Design-Daten in ALLEN möglichen Formaten
-        $item->update_meta_data('print_design', $design);
-        $item->update_meta_data('_has_print_design', 'yes');
-        $item->update_meta_data('_is_design_product', true);
-        
-        // Einzelne Design-Parameter
-        $item->update_meta_data('_design_id', $design['design_id'] ?? '');
-        $item->update_meta_data('_design_name', $design['name'] ?? '');
-        $item->update_meta_data('_design_template_id', $design['template_id'] ?? '');
-        $item->update_meta_data('_design_preview_url', $design['preview_url'] ?? '');
-        
-        // Für jeden Design-Parameter ein Meta-Feld
-        foreach ($design as $key => $value) {
-            if (is_array($value) || is_object($value)) {
-                $value = wp_json_encode($value);
-            }
-            $item->update_meta_data('design_' . $key, $value);
-        }
-        
-        // Force Save
-        $item->save_meta_data();
-        
-        error_log('ERFOLG: Design-Daten in Order Item ' . $item->get_id() . ' gespeichert');
-        
-        // Debug-Flag für Hook-Verifikation
-        update_post_meta($order->get_id(), '_yprint_hooks_executed', 'yes');
-        
-    } else {
-        error_log('FEHLER: Keine Design-Daten in Cart Item gefunden!');
-        error_log('Verfügbare Values: ' . print_r($values, true));
-    }
-}
-
-/**
  * EMERGENCY BACKUP: Falls Haupthook fehlschlägt
  */
 add_action('woocommerce_checkout_order_processed', 'yprint_emergency_design_backup', 1, 3);
