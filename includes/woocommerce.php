@@ -650,19 +650,24 @@ add_action('wp_ajax_yprint_refresh_cart_content', 'yprint_refresh_cart_content_c
 add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
 
 /**
- * KORRIGIERTER DESIGN-TRANSFER-HOOK - Funktionsfähig
+ * EINZIGER DESIGN-TRANSFER-HOOK - Funktionsfähig mit korrektem Tracking
  */
 add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 10, 4);
 function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
     if (isset($values['print_design']) && !empty($values['print_design'])) {
         $design_data = $values['print_design'];
         
-        // Debug-Protokollierung OHNE die nicht-existierende Funktion
-        error_log('YPRINT: Design transfer executed - Cart Key: ' . $cart_item_key . ' | Design ID: ' . ($design_data['design_id'] ?? 'unknown'));
+        // Detaillierte Debug-Protokollierung
+        error_log('YPRINT HOOK EXECUTED: Design transfer for Cart Key: ' . $cart_item_key);
+        error_log('YPRINT DESIGN DATA: ' . print_r($design_data, true));
+        
+        // Hook-Tracking für Debug-System (Funktion existiert jetzt!)
+        yprint_log_hook_execution('checkout_create_order_line_item', "Cart Key: $cart_item_key | Design ID: " . ($design_data['design_id'] ?? 'unknown'));
         
         // Core design data
         $item->update_meta_data('print_design', $design_data);
         $item->update_meta_data('_is_design_product', true);
+        $item->update_meta_data('_has_print_design', 'yes');
         
         // Individual design fields for easy access
         $item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
@@ -672,7 +677,7 @@ function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
         $item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
         $item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
         
-        error_log('YPRINT: Design data successfully saved to order item');
+        error_log('YPRINT: Design data successfully saved to order item ' . $item->get_id());
     }
     
     return $item;
@@ -716,8 +721,14 @@ function yprint_apply_session_backup($order, $backup_data, $source) {
     return $successful_transfers > 0;
 }
 
+// VERSCHOBEN NACH OBEN - vor den Hook-Definitionen
+
+// Diese doppelten Funktionen komplett entfernt
+
+// Hooks werden direkt registriert - keine separate Registrierungsfunktion nötig
+
 /**
- * HOOK EXECUTION TRACKER - Komplett neu implementiert
+ * HOOK EXECUTION TRACKER - Muss vor Hook-Definitionen stehen
  */
 function yprint_log_hook_execution($hook_name, $details = '') {
     $hook_log = get_option('yprint_hook_execution_log', array());
@@ -740,12 +751,6 @@ function yprint_log_hook_execution($hook_name, $details = '') {
     // Zusätzlich error_log für sofortige Sichtbarkeit
     error_log("YPRINT HOOK: $hook_name - $details");
 }
-
-// Diese doppelten Funktionen komplett entfernt
-
-// Hooks werden direkt registriert - keine separate Registrierungsfunktion nötig
-
-
 
 
 /**
