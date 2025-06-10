@@ -2574,3 +2574,107 @@ function yprint_express_order_design_transfer($order_id, $order) {
         error_log('EXPRESS: Kein Design-Backup gefunden');
     }
 }
+
+/**
+ * HOOK EXECUTION TRACKER
+ * Verfolgt wann welche Hooks ausgeführt werden
+ */
+function yprint_log_hook_execution($hook_name, $details = '') {
+    $hook_log = get_option('yprint_hook_execution_log', array());
+    
+    $hook_log[] = array(
+        'hook' => $hook_name,
+        'timestamp' => current_time('mysql'),
+        'details' => $details,
+        'user_id' => get_current_user_id(),
+        'session_id' => WC()->session ? WC()->session->get_customer_id() : 'no_session'
+    );
+    
+    // Behalte nur letzte 50 Einträge
+    if (count($hook_log) > 50) {
+        $hook_log = array_slice($hook_log, -50);
+    }
+    
+    update_option('yprint_hook_execution_log', $hook_log);
+}
+
+// Erweitere die bestehenden Hooks um Tracking
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_tracked_design_transfer', 10, 4);
+function yprint_tracked_design_transfer($item, $cart_item_key, $values, $order) {
+    $has_design = isset($values['print_design']) && !empty($values['print_design']);
+    
+    yprint_log_hook_execution('checkout_create_order_line_item', 
+        "Cart Key: $cart_item_key | Has Design: " . ($has_design ? 'YES' : 'NO'));
+    
+    if ($has_design) {
+        $item->update_meta_data('print_design', $values['print_design']);
+        $item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+        $item->update_meta_data('_cart_item_key', $cart_item_key);
+        
+        error_log("YPrint: Design transferred for item $cart_item_key via standard hook");
+    }
+    
+    return $item;
+}
+
+// Backup-Transfer mit Tracking
+add_action('woocommerce_new_order', 'yprint_tracked_backup_transfer', 5, 1);
+function yprint_tracked_backup_transfer($order_id) {
+    yprint_log_hook_execution('new_order_backup_check', "Order ID: $order_id");
+    
+    $order = wc_get_order($order_id);
+    if (!$order) return;
+    
+    // Prüfe ob Design-Daten fehlen
+    $items_need_design = false;
+    $missing_items = array();
+    
+    foreach ($order->get_items() as $item_id => $item) {
+        if (!$item->get_meta('print_design') && !$item->get_meta('_yprint_design_transferred')) {
+            $items_need_design = true;
+            $missing_items[] = $item_id;
+        }
+    }
+    
+    if ($items_need_design && WC()->session) {
+        $backup_designs = WC()->session->get('yprint_express_design_backup');
+        
+        yprint_log_hook_execution('backup_transfer_attempt', 
+            "Missing Items: " . implode(',', $missing_items) . 
+            " | Backup Available: " . (!empty($backup_designs) ? 'YES' : 'NO'));
+        
+        if (!empty($backup_designs)) {
+            $successful_transfers = 0;
+            
+            foreach ($order->get_items() as $item_id => $item) {
+                // Versuche verschiedene Zuordnungsstrategien
+                $cart_key = $item->get_meta('_cart_item_key');
+                
+                if ($cart_key && isset($backup_designs[$cart_key])) {
+                    $item->update_meta_data('print_design', $backup_designs[$cart_key]);
+                    $item->update_meta_data('_yprint_design_backup_applied', current_time('mysql'));
+                    $item->save_meta_data();
+                    $successful_transfers++;
+                    
+                    error_log("YPrint: Backup design applied to item $item_id (cart key: $cart_key)");
+                } else {
+                    // Fallback: Versuche Zuordnung über Produkt-ID
+                    $product_id = $item->get_product_id();
+                    foreach ($backup_designs as $backup_key => $backup_design) {
+                        // Hier könntest du weitere Zuordnungslogik implementieren
+                        error_log("YPrint: Could not match item $item_id (product $product_id) to backup designs");
+                        break; // Nur ersten Versuch loggen
+                    }
+                }
+            }
+            
+            yprint_log_hook_execution('backup_transfer_result', 
+                "Successful Transfers: $successful_transfers of " . count($missing_items));
+            
+            // Cleanup nur wenn erfolgreich
+            if ($successful_transfers > 0) {
+                WC()->session->__unset('yprint_express_design_backup');
+            }
+        }
+    }
+}
