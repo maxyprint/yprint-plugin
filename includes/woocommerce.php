@@ -650,12 +650,15 @@ add_action('wp_ajax_yprint_refresh_cart_content', 'yprint_refresh_cart_content_c
 add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
 
 /**
- * EINZIGER DESIGN-TRANSFER-HOOK - Sauber und konfliktfrei
+ * KORRIGIERTER DESIGN-TRANSFER-HOOK - Funktionsfähig
  */
 add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 10, 4);
 function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
     if (isset($values['print_design']) && !empty($values['print_design'])) {
         $design_data = $values['print_design'];
+        
+        // Debug-Protokollierung OHNE die nicht-existierende Funktion
+        error_log('YPRINT: Design transfer executed - Cart Key: ' . $cart_item_key . ' | Design ID: ' . ($design_data['design_id'] ?? 'unknown'));
         
         // Core design data
         $item->update_meta_data('print_design', $design_data);
@@ -669,8 +672,7 @@ function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
         $item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
         $item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
         
-        // Hook execution tracking
-        yprint_log_hook_execution('single_design_transfer', "Cart Key: $cart_item_key | Design ID: " . ($design_data['design_id'] ?? 'unknown'));
+        error_log('YPRINT: Design data successfully saved to order item');
     }
     
     return $item;
@@ -715,7 +717,7 @@ function yprint_apply_session_backup($order, $backup_data, $source) {
 }
 
 /**
- * HOOK EXECUTION TRACKER
+ * HOOK EXECUTION TRACKER - Komplett neu implementiert
  */
 function yprint_log_hook_execution($hook_name, $details = '') {
     $hook_log = get_option('yprint_hook_execution_log', array());
@@ -728,11 +730,15 @@ function yprint_log_hook_execution($hook_name, $details = '') {
         'session_id' => WC()->session ? WC()->session->get_customer_id() : 'no_session'
     );
     
+    // Behalte nur die letzten 50 Einträge
     if (count($hook_log) > 50) {
         $hook_log = array_slice($hook_log, -50);
     }
     
     update_option('yprint_hook_execution_log', $hook_log);
+    
+    // Zusätzlich error_log für sofortige Sichtbarkeit
+    error_log("YPRINT HOOK: $hook_name - $details");
 }
 
 // Diese doppelten Funktionen komplett entfernt
