@@ -692,11 +692,67 @@ function yprint_tracked_design_transfer($item, $cart_item_key, $values, $order) 
 }
 
 /**
- * BACKUP TRANSFER FUNKTION
+ * VERSTÄRKTER BACKUP TRANSFER für Express Payments
  */
 function yprint_tracked_backup_transfer($order_id) {
     error_log('=== YPRINT TRACKED BACKUP TRANSFER ===');
     error_log('Order ID: ' . $order_id);
+    
+    // SOFORTIGER Cart-basierter Transfer für Express Payments
+    if (!WC()->cart->is_empty()) {
+        error_log('BACKUP: Cart has ' . WC()->cart->get_cart_contents_count() . ' items, attempting immediate transfer');
+        
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            error_log('BACKUP: Order not found');
+            return false;
+        }
+        
+        $cart_contents = WC()->cart->get_cart();
+        $transferred = 0;
+        
+        // Prüfe ob Order Items existieren aber keine Design-Daten haben
+        foreach ($order->get_items() as $item_id => $order_item) {
+            if ($order_item->get_meta('print_design')) {
+                continue; // Skip items that already have design data
+            }
+            
+            $product_id = $order_item->get_product_id();
+            $quantity = $order_item->get_quantity();
+            
+            // Suche passendes Cart Item
+            foreach ($cart_contents as $cart_key => $cart_item) {
+                if ($cart_item['product_id'] == $product_id && 
+                    $cart_item['quantity'] == $quantity &&
+                    isset($cart_item['print_design'])) {
+                    
+                    $design_data = $cart_item['print_design'];
+                    error_log('BACKUP: Transferring design data for item ' . $item_id);
+                    error_log('Design Data: ' . print_r($design_data, true));
+                    
+                    $order_item->update_meta_data('print_design', $design_data);
+                    $order_item->update_meta_data('_is_design_product', true);
+                    $order_item->update_meta_data('_has_print_design', 'yes');
+                    $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
+                    $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
+                    $order_item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
+                    $order_item->update_meta_data('_backup_transfer', 'yes');
+                    $order_item->update_meta_data('_transfer_timestamp', current_time('mysql'));
+                    $order_item->save_meta_data();
+                    
+                    $transferred++;
+                    error_log('BACKUP: Successfully transferred design data for item ' . $item_id);
+                    break;
+                }
+            }
+        }
+        
+        if ($transferred > 0) {
+            $order->save();
+            error_log("BACKUP: Successfully transferred $transferred design items from cart");
+            return true;
+        }
+    }
     
     $order = wc_get_order($order_id);
     if (!$order) {
