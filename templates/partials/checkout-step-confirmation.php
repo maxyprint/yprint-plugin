@@ -67,18 +67,6 @@ if ( ! defined( 'ABSPATH' ) ) {
             <p><i class="fas fa-undo fa-fw mr-2"></i> <?php esc_html_e('30 Tage Rückgaberecht.', 'yprint-checkout'); ?></p>
             <p><i class="fas fa-headset fa-fw mr-2"></i> <?php esc_html_e('Fragen?', 'yprint-checkout'); ?> <a href="#" class="text-yprint-blue hover:underline"><?php esc_html_e('Support kontaktieren', 'yprint-checkout'); ?></a></p>
         </div>
-
-         <div class="mt-4 text-xs text-yprint-text-secondary">
-            <?php printf(
-                wp_kses(
-                    /* translators: %1$s: AGB link, %2$s: Datenschutz link */
-                    __('Mit Klick auf "Jetzt kaufen" geben Sie eine verbindliche Bestellung ab. Sie erhalten eine Bestellbestätigung per E-Mail. Es gelten unsere <a href="%1$s" target="_blank" class="text-yprint-blue hover:underline">AGB</a> und <a href="%2$s" target="_blank" class="text-yprint-blue hover:underline">Datenschutzbestimmungen</a>.', 'yprint-checkout'),
-                    array( 'a' => array( 'href' => array(), 'class' => array(), 'target' => array() ) )
-                ),
-                esc_url( home_url('/agb') ), // Beispiel-URL, anpassen!
-                esc_url( home_url('/datenschutz') ) // Beispiel-URL, anpassen!
-            ); ?>
-        </div>
         <!-- Buttons entfernt - Zahlung bereits abgeschlossen -->
     </div>
 </div>
