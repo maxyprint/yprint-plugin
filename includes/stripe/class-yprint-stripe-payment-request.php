@@ -751,6 +751,59 @@ public function ajax_process_payment() {
         
         $order->save();
         
+        // YPRINT: Design-Daten Transfer für Express Payment - MANUELL
+        error_log('=== YPRINT EXPRESS PAYMENT: Manual Design Transfer ===');
+        error_log('Order ID: ' . $order->get_id());
+        
+        if (WC()->cart && !WC()->cart->is_empty()) {
+            $cart_contents = WC()->cart->get_cart();
+            $transferred_count = 0;
+            
+            foreach ($order->get_items() as $item_id => $order_item) {
+                $product_id = $order_item->get_product_id();
+                $quantity = $order_item->get_quantity();
+                
+                // Suche matching cart item mit Design-Daten
+                foreach ($cart_contents as $cart_item_key => $cart_item) {
+                    if ($cart_item['product_id'] == $product_id && 
+                        $cart_item['quantity'] == $quantity &&
+                        isset($cart_item['print_design'])) {
+                        
+                        $design_data = $cart_item['print_design'];
+                        error_log('EXPRESS: Transferring design data for item ' . $item_id);
+                        error_log('Design Data: ' . print_r($design_data, true));
+                        
+                        // Design-Daten übertragen
+                        $order_item->update_meta_data('print_design', $design_data);
+                        $order_item->update_meta_data('_is_design_product', true);
+                        $order_item->update_meta_data('_has_print_design', 'yes');
+                        $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
+                        $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
+                        $order_item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
+                        $order_item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
+                        $order_item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
+                        $order_item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
+                        $order_item->update_meta_data('_express_payment_transfer', 'yes');
+                        $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+                        $order_item->save_meta_data();
+                        
+                        $transferred_count++;
+                        error_log('EXPRESS: Design data successfully transferred for item ' . $item_id);
+                        break;
+                    }
+                }
+            }
+            
+            if ($transferred_count > 0) {
+                $order->save();
+                error_log("EXPRESS: Successfully transferred design data for $transferred_count items");
+            } else {
+                error_log('EXPRESS: WARNING - No design data found to transfer');
+            }
+        } else {
+            error_log('EXPRESS: WARNING - Cart is empty, cannot transfer design data');
+        }
+        
         // Mark order as paid
         $order->payment_complete();
         
