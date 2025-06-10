@@ -1448,30 +1448,34 @@ public function ajax_get_cart_data() {
         error_log('WooCommerce active: ' . (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins'))) ? 'YES' : 'NO'));
         error_log('WooCommerce init action fired: ' . (did_action('woocommerce_init') ? 'YES' : 'NO'));
     
-        // 🚨 KRITISCH: Design-Daten VOR Express-Order-Erstellung sichern
-        error_log('=== EXPRESS DESIGN DATA BACKUP START ===');
-        $cart_design_data = array();
+        // Vereinfachte Express Payment Debug-Ausgabe
+error_log('EXPRESS PAYMENT: Design data check...');
         
-        if (WC()->cart) {
-            foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-                if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
-                    $cart_design_data[$cart_item_key] = $cart_item['print_design'];
-                    error_log('EXPRESS: Gesicherte Design-Daten für ' . $cart_item_key . ': ' . print_r($cart_item['print_design'], true));
-                }
-            }
+if (WC()->cart && !WC()->cart->is_empty()) {
+    $design_items = 0;
+    $cart_debug = array();
+    
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        $has_design = isset($cart_item['print_design']);
+        if ($has_design) {
+            $design_items++;
+            $cart_debug[] = $cart_item_key . ' ✓';
             
-            // Design-Daten in Session für Express-Order speichern
-            if (!empty($cart_design_data)) {
-                WC()->session->set('yprint_express_design_backup', $cart_design_data);
-                error_log('EXPRESS: Design-Backup in Session gespeichert: ' . count($cart_design_data) . ' Items');
-            } else {
-                error_log('EXPRESS: Keine Design-Daten im Cart gefunden!');
+            // Sichere nur wenn nötig
+            if (!WC()->session->get('yprint_express_design_backup')) {
+                $existing_backup = WC()->session->get('yprint_express_design_backup', array());
+                $existing_backup[$cart_item_key] = $cart_item['print_design'];
+                WC()->session->set('yprint_express_design_backup', $existing_backup);
             }
         } else {
-            error_log('EXPRESS: WC()->cart nicht verfügbar!');
+            $cart_debug[] = $cart_item_key . ' ✗';
         }
-        
-        error_log('=== EXPRESS DESIGN DATA BACKUP END ===');
+    }
+    
+    error_log("EXPRESS: $design_items design items found [" . implode(', ', $cart_debug) . "]");
+} else {
+    error_log('EXPRESS: Cart empty or unavailable');
+}
 
 
 
