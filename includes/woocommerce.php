@@ -652,32 +652,40 @@ add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_co
 /**
  * EINZIGER DESIGN-TRANSFER-HOOK - Funktionsfähig mit korrektem Tracking
  */
-add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 10, 4);
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 5, 4);
 function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
+    // KRITISCHES DEBUGGING
+    error_log('=== YPRINT HOOK CALLED ===');
+    error_log('Hook: woocommerce_checkout_create_order_line_item');
+    error_log('Cart Item Key: ' . $cart_item_key);
+    error_log('Values: ' . print_r($values, true));
+    error_log('Order ID: ' . $order->get_id());
+    error_log('Item: ' . print_r($item, true));
+    
     if (isset($values['print_design']) && !empty($values['print_design'])) {
         $design_data = $values['print_design'];
         
-        // Detaillierte Debug-Protokollierung
         error_log('YPRINT HOOK EXECUTED: Design transfer for Cart Key: ' . $cart_item_key);
         error_log('YPRINT DESIGN DATA: ' . print_r($design_data, true));
         
-        // Hook-Tracking für Debug-System (Funktion existiert jetzt!)
+        // Hook-Tracking
         yprint_log_hook_execution('checkout_create_order_line_item', "Cart Key: $cart_item_key | Design ID: " . ($design_data['design_id'] ?? 'unknown'));
         
-        // Core design data
+        // Design-Daten übertragen
         $item->update_meta_data('print_design', $design_data);
         $item->update_meta_data('_is_design_product', true);
         $item->update_meta_data('_has_print_design', 'yes');
-        
-        // Individual design fields for easy access
         $item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
         $item->update_meta_data('_design_name', $design_data['name'] ?? '');
         $item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
         $item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
         $item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
         $item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
+        $item->update_meta_data('_primary_transfer', 'yes');
         
-        error_log('YPRINT: Design data successfully saved to order item ' . $item->get_id());
+        error_log('YPRINT: Design data successfully saved to order item');
+    } else {
+        error_log('YPRINT HOOK: NO DESIGN DATA in values');
     }
     
     return $item;
@@ -1573,6 +1581,64 @@ function yprint_cleanup_after_order($order_id) {
  */
 if (defined('WP_DEBUG') && WP_DEBUG && current_user_can('administrator')) {
     add_action('wp_footer', 'yprint_debug_checkout_info');
+}
+
+/**
+ * EMERGENCY DESIGN TRANSFER - Wird ausgeführt sobald Order existiert
+ */
+add_action('woocommerce_checkout_order_processed', 'yprint_emergency_final_design_transfer', 5, 3);
+function yprint_emergency_final_design_transfer($order_id, $posted_data, $order) {
+    error_log('=== YPRINT EMERGENCY FINAL DESIGN TRANSFER ===');
+    error_log('Order ID: ' . $order_id);
+    
+    // Prüfe ob Order Items existieren
+    $order_items = $order->get_items();
+    error_log('Order Items Count: ' . count($order_items));
+    
+    if (empty($order_items)) {
+        error_log('CRITICAL: Order has NO ITEMS - WooCommerce checkout problem!');
+        return;
+    }
+    
+    // Prüfe Cart-Daten
+    if (!WC()->cart || WC()->cart->is_empty()) {
+        error_log('Cart is empty during order processing');
+        return;
+    }
+    
+    error_log('Cart Items Count: ' . WC()->cart->get_cart_contents_count());
+    
+    // Manuelle Design-Daten-Übertragung
+    $cart_contents = WC()->cart->get_cart();
+    foreach ($order_items as $item_id => $order_item) {
+        $product_id = $order_item->get_product_id();
+        
+        // Suche passendes Cart-Item
+        foreach ($cart_contents as $cart_key => $cart_item) {
+            if ($cart_item['product_id'] == $product_id && isset($cart_item['print_design'])) {
+                $design_data = $cart_item['print_design'];
+                
+                error_log('EMERGENCY: Applying design data to order item ' . $item_id);
+                error_log('Design Data: ' . print_r($design_data, true));
+                
+                // Design-Daten übertragen
+                $order_item->update_meta_data('print_design', $design_data);
+                $order_item->update_meta_data('_is_design_product', true);
+                $order_item->update_meta_data('_has_print_design', 'yes');
+                $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
+                $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
+                $order_item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
+                $order_item->update_meta_data('_emergency_transfer', 'yes');
+                $order_item->save_meta_data();
+                
+                error_log('EMERGENCY: Design data successfully applied!');
+                break;
+            }
+        }
+    }
+    
+    $order->save();
+    error_log('EMERGENCY: Order saved with design data');
 }
 
 function yprint_debug_checkout_info() {
