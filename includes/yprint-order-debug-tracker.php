@@ -30,121 +30,472 @@ class YPrint_Simple_Debug {
         add_action('woocommerce_admin_order_data_after_order_details', array($this, 'display_debug_in_admin'));
     }
     
-   public function log_final_order($order_id) {
-    $timestamp = current_time('Y-m-d H:i:s');
-    $order = wc_get_order($order_id);
+    public function log_final_order($order_id) {
+        $timestamp = current_time('Y-m-d H:i:s');
+        $order = wc_get_order($order_id);
+        
+        if (!$order) return;
+        
+        $debug_trail = array();
+        $step_counter = 1;
+        
+        // === SCHRITT 1: CART DETAILED ANALYSIS ===
+        $debug_trail[] = "SCHRITT $step_counter: CART DETAILED ANALYSIS";
+        $step_counter++;
+        
+        $cart_analysis = $this->analyze_cart_state();
+        $debug_trail = array_merge($debug_trail, $cart_analysis['trail']);
+        
+        // === SCHRITT 2: SESSION DETAILED ANALYSIS ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: SESSION DETAILED ANALYSIS";
+        $step_counter++;
+        
+        $session_analysis = $this->analyze_session_state();
+        $debug_trail = array_merge($debug_trail, $session_analysis['trail']);
+        
+        // === SCHRITT 3: HOOK EXECUTION DETAILED ANALYSIS ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: HOOK EXECUTION DETAILED ANALYSIS";
+        $step_counter++;
+        
+        $hook_analysis = $this->analyze_hook_execution();
+        $debug_trail = array_merge($debug_trail, $hook_analysis['trail']);
+        
+        // === SCHRITT 4: ORDER CREATION DETAILED ANALYSIS ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: ORDER CREATION DETAILED ANALYSIS";
+        $step_counter++;
+        
+        $order_analysis = $this->analyze_order_items($order);
+        $debug_trail = array_merge($debug_trail, $order_analysis['trail']);
+        
+        // === SCHRITT 5: FUNCTION AVAILABILITY CHECK ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: FUNCTION AVAILABILITY CHECK";
+        $step_counter++;
+        
+        $function_analysis = $this->analyze_function_availability();
+        $debug_trail = array_merge($debug_trail, $function_analysis['trail']);
+        
+        // === SCHRITT 6: PRECISE ROOT CAUSE DETERMINATION ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: PRECISE ROOT CAUSE DETERMINATION";
+        
+        $root_cause = $this->determine_precise_root_cause(
+            $cart_analysis, 
+            $session_analysis, 
+            $hook_analysis, 
+            $order_analysis,
+            $function_analysis
+        );
+        
+        $debug_trail[] = "🎯 PRECISE ROOT CAUSE: " . $root_cause['cause'];
+        $debug_trail[] = "💡 RECOMMENDED ACTION: " . $root_cause['action'];
+        $debug_trail[] = "🔧 TECHNICAL DETAILS: " . $root_cause['technical'];
+        
+        // Speichere alle Analysen
+        $summary = array(
+            'timestamp' => $timestamp,
+            'order_id' => $order_id,
+            'status' => ($order_analysis['design_count'] > 0) ? 'SUCCESS' : 'FAILED',
+            'design_items_found' => $order_analysis['design_count'],
+            'total_items' => $order_analysis['total_items'],
+            'cart_analysis' => $cart_analysis,
+            'session_analysis' => $session_analysis,
+            'hook_analysis' => $hook_analysis,
+            'order_analysis' => $order_analysis,
+            'function_analysis' => $function_analysis,
+            'root_cause' => $root_cause,
+            'debug_trail' => $debug_trail
+        );
+        
+        update_post_meta($order_id, '_yprint_debug_summary', $summary);
+        error_log("YPrint Detailed Debug for Order $order_id: " . $root_cause['cause']);
+    }
     
-    if (!$order) return;
-    
-    $debug_data = array();
-    $design_count = 0;
-    $trail = array();
-    
-    // SCHRITT 1: Prüfe aktuellen Cart-Status
-    $trail[] = "=== CART ANALYSIS ===";
-    if (WC()->cart && !WC()->cart->is_empty()) {
-        $trail[] = "✅ Cart available with " . WC()->cart->get_cart_contents_count() . " items";
+    /**
+     * DETAILLIERTE CART-ANALYSE
+     */
+    private function analyze_cart_state() {
+        $trail = array();
+        $cart_items = array();
+        $design_count = 0;
+        
+        $trail[] = "├─ Checking WC()->cart availability...";
+        
+        if (!function_exists('WC') || !WC()) {
+            $trail[] = "│  ❌ WC() function not available";
+            return array('trail' => $trail, 'available' => false, 'design_count' => 0);
+        }
+        
+        $trail[] = "│  ✅ WC() function available";
+        
+        if (!WC()->cart) {
+            $trail[] = "│  ❌ WC()->cart object is null";
+            return array('trail' => $trail, 'available' => false, 'design_count' => 0);
+        }
+        
+        $trail[] = "│  ✅ WC()->cart object exists";
+        $trail[] = "├─ Cart status: " . (WC()->cart->is_empty() ? "EMPTY" : "HAS ITEMS");
+        $trail[] = "├─ Cart contents count: " . WC()->cart->get_cart_contents_count();
+        
+        if (WC()->cart->is_empty()) {
+            $trail[] = "│  ⚠️  Cart is empty - this explains missing designs";
+            return array('trail' => $trail, 'available' => true, 'empty' => true, 'design_count' => 0);
+        }
+        
+        $trail[] = "├─ Analyzing individual cart items...";
         
         foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-            $has_cart_design = isset($cart_item['print_design']);
-            $trail[] = "Cart Item $cart_item_key: " . ($has_cart_design ? "HAS DESIGN ✅" : "NO DESIGN ❌");
+            $trail[] = "│  ├─ Cart Item: $cart_item_key";
+            $trail[] = "│  │  ├─ Product ID: " . ($cart_item['product_id'] ?? 'MISSING');
+            $trail[] = "│  │  ├─ Quantity: " . ($cart_item['quantity'] ?? 'MISSING');
             
-            if ($has_cart_design) {
-                $design_data = $cart_item['print_design'];
-                $trail[] = "  └─ Design ID: " . ($design_data['design_id'] ?? 'MISSING');
-                $trail[] = "  └─ Template ID: " . ($design_data['template_id'] ?? 'MISSING');
+            // Prüfe Design-Daten sehr detailliert
+            if (isset($cart_item['print_design'])) {
+                $design_count++;
+                $design = $cart_item['print_design'];
+                $trail[] = "│  │  ├─ ✅ HAS DESIGN DATA";
+                $trail[] = "│  │  │  ├─ Design ID: " . ($design['design_id'] ?? 'MISSING');
+                $trail[] = "│  │  │  ├─ Template ID: " . ($design['template_id'] ?? 'MISSING');
+                $trail[] = "│  │  │  ├─ Design Name: " . ($design['name'] ?? 'MISSING');
+                $trail[] = "│  │  │  └─ Preview URL: " . (isset($design['preview_url']) ? 'SET' : 'MISSING');
+                
+                // Prüfe Datenintegrität
+                if (empty($design['design_id'])) {
+                    $trail[] = "│  │  │  ⚠️  WARNING: Design ID is empty!";
+                }
+            } else {
+                $trail[] = "│  │  └─ ❌ NO DESIGN DATA";
             }
-        }
-    } else {
-        $trail[] = "❌ Cart is empty or unavailable";
-    }
-    
-    // SCHRITT 2: Prüfe Session-Backup
-    $trail[] = "=== SESSION BACKUP ANALYSIS ===";
-    if (WC()->session) {
-        $session_backup = WC()->session->get('yprint_express_design_backup');
-        if (!empty($session_backup)) {
-            $trail[] = "✅ Session backup found with " . count($session_backup) . " designs";
-            foreach ($session_backup as $key => $design) {
-                $trail[] = "  └─ Backup Key $key: Design ID " . ($design['design_id'] ?? 'MISSING');
+            
+            // Prüfe weitere relevante Keys
+            $other_keys = array_keys($cart_item);
+            $relevant_keys = array_filter($other_keys, function($key) {
+                return strpos($key, 'design') !== false || strpos($key, 'print') !== false;
+            });
+            
+            if (!empty($relevant_keys)) {
+                $trail[] = "│  │  └─ Other design-related keys: " . implode(', ', $relevant_keys);
             }
-        } else {
-            $trail[] = "❌ No session backup found";
-        }
-    } else {
-        $trail[] = "❌ WC Session unavailable";
-    }
-    
-    // SCHRITT 3: Analysiere Order Items detailliert
-    $trail[] = "=== ORDER ITEMS ANALYSIS ===";
-    foreach ($order->get_items() as $item_id => $item) {
-        $product_id = $item->get_product_id();
-        $item_name = $item->get_name();
-        
-        // Prüfe alle möglichen Design-Meta-Felder
-        $design_meta = $item->get_meta('print_design');
-        $design_transferred = $item->get_meta('_yprint_design_transferred');
-        $backup_applied = $item->get_meta('_yprint_design_backup_applied');
-        $cart_item_key = $item->get_meta('_cart_item_key');
-        
-        $has_design = !empty($design_meta);
-        if ($has_design) {
-            $design_count++;
+            
+            $cart_items[$cart_item_key] = array(
+                'product_id' => $cart_item['product_id'] ?? null,
+                'has_design' => isset($cart_item['print_design']),
+                'design_data' => $cart_item['print_design'] ?? null
+            );
         }
         
-        $trail[] = "Item $item_id ($item_name):";
-        $trail[] = "  ├─ Product ID: $product_id";
-        $trail[] = "  ├─ Cart Key: " . ($cart_item_key ?: 'MISSING');
-        $trail[] = "  ├─ Has Design: " . ($has_design ? 'YES ✅' : 'NO ❌');
-        $trail[] = "  ├─ Transfer Flag: " . ($design_transferred ?: 'MISSING');
-        $trail[] = "  └─ Backup Applied: " . ($backup_applied ?: 'MISSING');
+        $trail[] = "└─ CART SUMMARY: $design_count design items found";
         
-        $debug_data[] = array(
-            'item_id' => $item_id,
-            'product_id' => $product_id,
-            'name' => $item_name,
-            'cart_key' => $cart_item_key,
-            'has_design' => $has_design,
-            'design_data' => $design_meta,
-            'transfer_timestamp' => $design_transferred,
-            'backup_applied' => $backup_applied
+        return array(
+            'trail' => $trail,
+            'available' => true,
+            'empty' => false,
+            'design_count' => $design_count,
+            'items' => $cart_items
         );
     }
     
-    // SCHRITT 4: Prüfe Hook-Execution-History
-    $trail[] = "=== HOOK EXECUTION HISTORY ===";
-    $hook_history = get_option('yprint_hook_execution_log', array());
-    $recent_hooks = array_slice($hook_history, -10); // Letzte 10 Hook-Ausführungen
-    
-    foreach ($recent_hooks as $hook_entry) {
-        if (isset($hook_entry['timestamp']) && 
-            strtotime($hook_entry['timestamp']) > (time() - 300)) { // Letzte 5 Minuten
-            $trail[] = "  └─ " . $hook_entry['hook'] . " @ " . $hook_entry['timestamp'];
+    /**
+     * DETAILLIERTE SESSION-ANALYSE
+     */
+    private function analyze_session_state() {
+        $trail = array();
+        
+        $trail[] = "├─ Checking WC()->session availability...";
+        
+        if (!WC() || !WC()->session) {
+            $trail[] = "│  ❌ WC()->session not available";
+            return array('trail' => $trail, 'available' => false);
         }
+        
+        $trail[] = "│  ✅ WC()->session available";
+        $trail[] = "├─ Session ID: " . WC()->session->get_customer_id();
+        
+        // Prüfe Express Backup
+        $trail[] = "├─ Checking express design backup...";
+        $express_backup = WC()->session->get('yprint_express_design_backup');
+        
+        if (empty($express_backup)) {
+            $trail[] = "│  ❌ No express design backup found";
+            $trail[] = "│  └─ Key 'yprint_express_design_backup' is empty or missing";
+        } else {
+            $trail[] = "│  ✅ Express design backup found";
+            $trail[] = "│  ├─ Backup contains " . count($express_backup) . " items";
+            
+            foreach ($express_backup as $backup_key => $backup_design) {
+                $trail[] = "│  │  ├─ Backup Key: $backup_key";
+                $trail[] = "│  │  │  ├─ Design ID: " . ($backup_design['design_id'] ?? 'MISSING');
+                $trail[] = "│  │  │  └─ Template ID: " . ($backup_design['template_id'] ?? 'MISSING');
+            }
+        }
+        
+        // Prüfe andere relevante Session-Daten
+        $trail[] = "├─ Checking other session data...";
+        $session_data = WC()->session->get_session_data();
+        $design_related_keys = array_filter(array_keys($session_data), function($key) {
+            return strpos($key, 'design') !== false || strpos($key, 'print') !== false || strpos($key, 'yprint') !== false;
+        });
+        
+        if (!empty($design_related_keys)) {
+            $trail[] = "│  ├─ Design-related session keys found: " . implode(', ', $design_related_keys);
+        } else {
+            $trail[] = "│  └─ No design-related session keys found";
+        }
+        
+        return array(
+            'trail' => $trail,
+            'available' => true,
+            'has_backup' => !empty($express_backup),
+            'backup_data' => $express_backup,
+            'session_keys' => $design_related_keys
+        );
     }
     
-    // Bestimme Root Cause
-    $root_cause = $this->determine_root_cause($debug_data, $trail);
-    $trail[] = "=== ROOT CAUSE ANALYSIS ===";
-    $trail[] = "🔍 " . $root_cause;
+    /**
+     * DETAILLIERTE HOOK-ANALYSE
+     */
+    private function analyze_hook_execution() {
+        $trail = array();
+        
+        $trail[] = "├─ Checking hook execution log...";
+        $hook_log = get_option('yprint_hook_execution_log', array());
+        
+        if (empty($hook_log)) {
+            $trail[] = "│  ❌ No hook execution log found";
+            $trail[] = "│  └─ Hook tracking may not be working";
+            return array('trail' => $trail, 'hooks_logged' => false);
+        }
+        
+        $trail[] = "│  ✅ Hook execution log found with " . count($hook_log) . " entries";
+        
+        // Analysiere letzte 10 Minuten
+        $recent_hooks = array_filter($hook_log, function($entry) {
+            return isset($entry['timestamp']) && 
+                   strtotime($entry['timestamp']) > (time() - 600); // Letzte 10 Minuten
+        });
+        
+        $trail[] = "├─ Recent hooks (last 10 minutes): " . count($recent_hooks);
+        
+        $critical_hooks = array(
+            'checkout_create_order_line_item',
+            'new_order_backup_check',
+            'backup_transfer_attempt',
+            'backup_transfer_result'
+        );
+        
+        foreach ($critical_hooks as $hook_name) {
+            $hook_found = false;
+            foreach ($recent_hooks as $hook_entry) {
+                if (strpos($hook_entry['hook'], $hook_name) !== false) {
+                    $hook_found = true;
+                    $trail[] = "│  ├─ ✅ $hook_name executed @ " . $hook_entry['timestamp'];
+                    if (!empty($hook_entry['details'])) {
+                        $trail[] = "│  │  └─ Details: " . $hook_entry['details'];
+                    }
+                    break;
+                }
+            }
+            
+            if (!$hook_found) {
+                $trail[] = "│  ├─ ❌ $hook_name NOT executed";
+                $trail[] = "│  │  └─ This is a critical missing hook!";
+            }
+        }
+        
+        return array(
+            'trail' => $trail,
+            'hooks_logged' => true,
+            'recent_hooks' => $recent_hooks,
+            'critical_hooks_missing' => array_filter($critical_hooks, function($hook) use ($recent_hooks) {
+                foreach ($recent_hooks as $entry) {
+                    if (strpos($entry['hook'], $hook) !== false) {
+                        return false;
+                    }
+                }
+                return true;
+            })
+        );
+    }
     
-    // Speichere erweiterte Debug-Info
-    $summary = array(
-        'timestamp' => $timestamp,
-        'order_id' => $order_id,
-        'total_items' => count($debug_data),
-        'design_items' => $design_count,
-        'status' => ($design_count > 0) ? 'SUCCESS' : 'NO_DESIGNS',
-        'root_cause' => $root_cause,
-        'investigation_trail' => $trail,
-        'items' => $debug_data
-    );
+    /**
+     * DETAILLIERTE ORDER-ANALYSE
+     */
+    private function analyze_order_items($order) {
+        $trail = array();
+        $design_count = 0;
+        $items_analysis = array();
+        
+        $trail[] = "├─ Analyzing order items...";
+        $trail[] = "│  ├─ Order ID: " . $order->get_id();
+        $trail[] = "│  ├─ Order Status: " . $order->get_status();
+        $trail[] = "│  └─ Total Items: " . count($order->get_items());
+        
+        foreach ($order->get_items() as $item_id => $item) {
+            $trail[] = "│  ├─ Order Item $item_id:";
+            $trail[] = "│  │  ├─ Name: " . $item->get_name();
+            $trail[] = "│  │  ├─ Product ID: " . $item->get_product_id();
+            
+            // Prüfe alle Meta-Daten
+            $meta_data = $item->get_meta_data();
+            $trail[] = "│  │  ├─ Total Meta Fields: " . count($meta_data);
+            
+            // Prüfe spezifische Design-Meta-Felder
+            $design_meta = $item->get_meta('print_design');
+            $cart_key = $item->get_meta('_cart_item_key');
+            $transfer_flag = $item->get_meta('_yprint_design_transferred');
+            $backup_flag = $item->get_meta('_yprint_design_backup_applied');
+            
+            if (!empty($design_meta)) {
+                $design_count++;
+                $trail[] = "│  │  ├─ ✅ HAS DESIGN META";
+                $trail[] = "│  │  │  └─ Design ID: " . (is_array($design_meta) ? ($design_meta['design_id'] ?? 'MISSING') : 'INVALID_FORMAT');
+            } else {
+                $trail[] = "│  │  ├─ ❌ NO DESIGN META";
+            }
+            
+            $trail[] = "│  │  ├─ Cart Key: " . ($cart_key ?: 'MISSING');
+            $trail[] = "│  │  ├─ Transfer Flag: " . ($transfer_flag ?: 'MISSING');
+            $trail[] = "│  │  └─ Backup Flag: " . ($backup_flag ?: 'MISSING');
+            
+            // Liste alle Meta-Keys auf
+            $all_meta_keys = array_map(function($meta) {
+                return $meta->key;
+            }, $meta_data);
+            
+            $design_related_meta = array_filter($all_meta_keys, function($key) {
+                return strpos($key, 'design') !== false || strpos($key, 'print') !== false;
+            });
+            
+            if (!empty($design_related_meta)) {
+                $trail[] = "│  │  └─ Design-related meta keys: " . implode(', ', $design_related_meta);
+            }
+            
+            $items_analysis[$item_id] = array(
+                'name' => $item->get_name(),
+                'product_id' => $item->get_product_id(),
+                'has_design' => !empty($design_meta),
+                'cart_key' => $cart_key,
+                'design_meta' => $design_meta
+            );
+        }
+        
+        $trail[] = "└─ ORDER SUMMARY: $design_count design items found in order";
+        
+        return array(
+            'trail' => $trail,
+            'design_count' => $design_count,
+            'total_items' => count($order->get_items()),
+            'items' => $items_analysis
+        );
+    }
     
-    update_post_meta($order_id, '_yprint_debug_summary', $summary);
+    /**
+     * FUNCTION AVAILABILITY CHECK
+     */
+    private function analyze_function_availability() {
+        $trail = array();
+        
+        $trail[] = "├─ Checking critical function availability...";
+        
+        $critical_functions = array(
+            'WC' => function_exists('WC'),
+            'wc_get_order' => function_exists('wc_get_order'),
+            'wp_verify_nonce' => function_exists('wp_verify_nonce'),
+            'current_time' => function_exists('current_time'),
+            'get_post_meta' => function_exists('get_post_meta'),
+            'update_post_meta' => function_exists('update_post_meta')
+        );
+        
+        foreach ($critical_functions as $func_name => $available) {
+            $trail[] = "│  ├─ $func_name: " . ($available ? '✅ Available' : '❌ Missing');
+        }
+        
+        // Prüfe Klassen
+        $critical_classes = array(
+            'WC_Cart' => class_exists('WC_Cart'),
+            'WC_Order' => class_exists('WC_Order'),
+            'WC_Session_Handler' => class_exists('WC_Session_Handler')
+        );
+        
+        $trail[] = "├─ Checking critical class availability...";
+        foreach ($critical_classes as $class_name => $available) {
+            $trail[] = "│  ├─ $class_name: " . ($available ? '✅ Available' : '❌ Missing');
+        }
+        
+        // Prüfe Custom Functions
+        $custom_functions = array(
+            'yprint_tracked_design_transfer' => function_exists('yprint_tracked_design_transfer'),
+            'yprint_tracked_backup_transfer' => function_exists('yprint_tracked_backup_transfer'),
+            'yprint_log_hook_execution' => function_exists('yprint_log_hook_execution')
+        );
+        
+        $trail[] = "├─ Checking custom function availability...";
+        foreach ($custom_functions as $func_name => $available) {
+            $trail[] = "│  └─ $func_name: " . ($available ? '✅ Available' : '❌ Missing');
+        }
+        
+        return array(
+            'trail' => $trail,
+            'wordpress_functions' => $critical_functions,
+            'woocommerce_classes' => $critical_classes,
+            'custom_functions' => $custom_functions
+        );
+    }
     
-    // Detaillierter Error-Log
-    error_log("YPrint Order $order_id Debug: $design_count design items | Root Cause: $root_cause");
-}
+    /**
+     * PRÄZISE ROOT CAUSE BESTIMMUNG
+     */
+    private function determine_precise_root_cause($cart_analysis, $session_analysis, $hook_analysis, $order_analysis, $function_analysis) {
+        
+        // Szenario 1: Funktionen fehlen
+        if (in_array(false, $function_analysis['custom_functions'])) {
+            return array(
+                'cause' => 'Custom Transfer Functions Missing',
+                'action' => 'Re-implement yprint_tracked_design_transfer and yprint_tracked_backup_transfer functions',
+                'technical' => 'One or more custom functions for design data transfer are not loaded or defined'
+            );
+        }
+        
+        // Szenario 2: Cart hat Design, aber Hook wird nicht ausgeführt
+        if ($cart_analysis['design_count'] > 0 && 
+            in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array())) {
+            return array(
+                'cause' => 'Design Transfer Hook Not Executed',
+                'action' => 'Check if woocommerce_checkout_create_order_line_item hook is properly registered',
+                'technical' => 'Cart contains design data but the primary transfer hook was never called'
+            );
+        }
+        
+        // Szenario 3: Cart leer, aber kein Session Backup
+        if ($cart_analysis['design_count'] == 0 && !$session_analysis['has_backup']) {
+            return array(
+                'cause' => 'Both Cart and Session Backup Empty',
+                'action' => 'Investigate why express payment backup was not created',
+                'technical' => 'Cart is empty during order creation and no session backup exists for express payments'
+            );
+        }
+        
+        // Szenario 4: Hook ausgeführt, aber Daten kommen nicht an
+        if ($cart_analysis['design_count'] > 0 && 
+            !in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array()) &&
+            $order_analysis['design_count'] == 0) {
+            return array(
+                'cause' => 'Hook Executed But Data Transfer Failed',
+                'action' => 'Debug the yprint_tracked_design_transfer function - data may be corrupted during transfer',
+                'technical' => 'Transfer hook was called but design data did not reach order items'
+            );
+        }
+        
+        // Standard-Fall
+        return array(
+            'cause' => 'Complex Multi-Factor Issue',
+            'action' => 'Manual investigation required - check all debug sections above',
+            'technical' => 'Multiple potential issues detected, requires detailed analysis'
+        );
+    }
 
 /**
  * Bestimme die wahrscheinliche Ursache des Problems
