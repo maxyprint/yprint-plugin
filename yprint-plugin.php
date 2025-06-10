@@ -75,6 +75,9 @@ require_once YPRINT_PLUGIN_DIR . 'includes/product-slider-shortcode.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/navigation-menu-popup.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/mobile-cart-popup.php';
 
+require_once YPRINT_PLUGIN_DIR . 'includes/yprint-order-debug-tracker.php';
+
+
 // Initialize Cart Data Manager early
 add_action('init', function() {
     if (class_exists('WooCommerce')) {
