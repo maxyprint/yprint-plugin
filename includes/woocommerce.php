@@ -650,22 +650,20 @@ add_action('wp_ajax_yprint_refresh_cart_content', 'yprint_refresh_cart_content_c
 add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
 
 /**
- * EINZIGER DESIGN-TRANSFER-HOOK - Funktionsfähig mit korrektem Tracking
+ * HAUPTFUNKTION: Tracked Design Transfer
  */
-add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 5, 4);
-function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
+function yprint_tracked_design_transfer($item, $cart_item_key, $values, $order) {
     // KRITISCHES DEBUGGING
-    error_log('=== YPRINT HOOK CALLED ===');
+    error_log('=== YPRINT TRACKED DESIGN TRANSFER ===');
     error_log('Hook: woocommerce_checkout_create_order_line_item');
     error_log('Cart Item Key: ' . $cart_item_key);
     error_log('Values: ' . print_r($values, true));
     error_log('Order ID: ' . $order->get_id());
-    error_log('Item: ' . print_r($item, true));
     
     if (isset($values['print_design']) && !empty($values['print_design'])) {
         $design_data = $values['print_design'];
         
-        error_log('YPRINT HOOK EXECUTED: Design transfer for Cart Key: ' . $cart_item_key);
+        error_log('YPRINT TRACKED: Design transfer for Cart Key: ' . $cart_item_key);
         error_log('YPRINT DESIGN DATA: ' . print_r($design_data, true));
         
         // Hook-Tracking
@@ -682,12 +680,115 @@ function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
         $item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
         $item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
         $item->update_meta_data('_primary_transfer', 'yes');
+        $item->update_meta_data('_cart_item_key', $cart_item_key);
+        $item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
         
-        error_log('YPRINT: Design data successfully saved to order item');
+        error_log('YPRINT TRACKED: Design data successfully saved to order item');
+        return true;
     } else {
-        error_log('YPRINT HOOK: NO DESIGN DATA in values');
+        error_log('YPRINT TRACKED: NO DESIGN DATA in values');
+        return false;
+    }
+}
+
+/**
+ * BACKUP TRANSFER FUNKTION
+ */
+function yprint_tracked_backup_transfer($order_id) {
+    error_log('=== YPRINT TRACKED BACKUP TRANSFER ===');
+    error_log('Order ID: ' . $order_id);
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        error_log('YPRINT BACKUP: Order not found');
+        return false;
     }
     
+    yprint_log_hook_execution('new_order_backup_check', "Order ID: $order_id");
+    
+    // Prüfe ob Items bereits Design-Daten haben
+    $missing_designs = false;
+    foreach ($order->get_items() as $item) {
+        if (!$item->get_meta('print_design')) {
+            $missing_designs = true;
+            break;
+        }
+    }
+    
+    if (!$missing_designs) {
+        error_log('YPRINT BACKUP: All items already have design data');
+        return false;
+    }
+    
+    if (!WC()->session) {
+        error_log('YPRINT BACKUP: No session available');
+        return false;
+    }
+    
+    // Suche nach verschiedenen Backup-Quellen
+    $backup_sources = array(
+        'yprint_express_design_backup',
+        'yprint_express_design_backup_v2',
+        'yprint_checkout_cart_data'
+    );
+    
+    $successful_transfers = 0;
+    
+    foreach ($backup_sources as $backup_key) {
+        $backup = WC()->session->get($backup_key);
+        if (!empty($backup)) {
+            error_log("YPRINT BACKUP: Found backup in $backup_key");
+            yprint_log_hook_execution('backup_transfer_attempt', "Source: $backup_key | Order: $order_id");
+            
+            foreach ($order->get_items() as $item_id => $item) {
+                if ($item->get_meta('print_design')) {
+                    continue; // Skip items that already have design data
+                }
+                
+                foreach ($backup as $design_data) {
+                    if (is_array($design_data) && isset($design_data['design_id'])) {
+                        error_log("YPRINT BACKUP: Applying design data to item $item_id");
+                        
+                        $item->update_meta_data('print_design', $design_data);
+                        $item->update_meta_data('_is_design_product', true);
+                        $item->update_meta_data('_has_print_design', 'yes');
+                        $item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
+                        $item->update_meta_data('_design_name', $design_data['name'] ?? '');
+                        $item->update_meta_data('_yprint_design_backup_applied', current_time('mysql'));
+                        $item->update_meta_data('_yprint_backup_source', $backup_key);
+                        $item->save_meta_data();
+                        
+                        $successful_transfers++;
+                        break;
+                    }
+                }
+            }
+            
+            if ($successful_transfers > 0) {
+                WC()->session->__unset($backup_key);
+                break;
+            }
+        }
+    }
+    
+    yprint_log_hook_execution('backup_transfer_result', "Transfers: $successful_transfers | Order: $order_id");
+    
+    if ($successful_transfers > 0) {
+        $order->save();
+        error_log("YPRINT BACKUP: Successfully transferred $successful_transfers design items");
+        return true;
+    }
+    
+    error_log('YPRINT BACKUP: No design data transferred');
+    return false;
+}
+
+/**
+ * EINZIGER DESIGN-TRANSFER-HOOK - Verwendet jetzt tracked Funktionen
+ */
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 5, 4);
+function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
+    $success = yprint_tracked_design_transfer($item, $cart_item_key, $values, $order);
     return $item;
 }
 
@@ -906,36 +1007,7 @@ function yprint_emergency_design_backup($order_id, $posted_data, $order) {
 // Diese Funktion komplett entfernt da sie gelöschte Funktionen aufruft
 
 // Alle Emergency-Funktionen entfernt - nur eine saubere Backup-Funktion
-add_action('woocommerce_new_order', 'yprint_simple_backup_transfer', 20, 1);
-function yprint_simple_backup_transfer($order_id) {
-    $order = wc_get_order($order_id);
-    if (!$order) return;
-    
-    // Nur ausführen wenn Designs fehlen
-    $missing_designs = false;
-    foreach ($order->get_items() as $item) {
-        if (!$item->get_meta('print_design')) {
-            $missing_designs = true;
-            break;
-        }
-    }
-    
-    if ($missing_designs && WC()->session) {
-        $backup = WC()->session->get('yprint_express_design_backup');
-        if (!empty($backup)) {
-            foreach ($order->get_items() as $item_id => $item) {
-                foreach ($backup as $design_data) {
-                    if (!$item->get_meta('print_design')) {
-                        $item->update_meta_data('print_design', $design_data);
-                        $item->save_meta_data();
-                        break;
-                    }
-                }
-            }
-            WC()->session->__unset('yprint_express_design_backup');
-        }
-    }
-}
+add_action('woocommerce_new_order', 'yprint_tracked_backup_transfer', 20, 1);
 
 // Diese Funktion entfernt da sie identisch mit yprint_simple_backup_transfer ist
 
