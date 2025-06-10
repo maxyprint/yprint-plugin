@@ -2546,3 +2546,49 @@ function yprint_store_debug_log($message) {
     update_option('yprint_debug_logs', $logs);
 }
 
+/**
+ * EXPRESS CHECKOUT: Design-Daten-Transfer für Express-Orders
+ */
+add_action('woocommerce_new_order', 'yprint_express_order_design_transfer', 1, 2);
+function yprint_express_order_design_transfer($order_id, $order) {
+    error_log('=== YPRINT EXPRESS ORDER DESIGN TRANSFER ===');
+    error_log('Checking order ' . $order_id . ' for express checkout...');
+    
+    // Prüfe ob Express-Design-Backup vorhanden ist
+    $express_design_backup = WC()->session->get('yprint_express_design_backup');
+    
+    if (!empty($express_design_backup)) {
+        error_log('EXPRESS: Design-Backup gefunden, übertrage zu Order...');
+        
+        foreach ($order->get_items() as $item_id => $order_item) {
+            $product_id = $order_item->get_product_id();
+            
+            // Finde passende Design-Daten
+            foreach ($express_design_backup as $cart_key => $design_data) {
+                // Einfache Zuordnung über Product-ID (kann verfeinert werden)
+                if (isset($design_data['template_id'])) {
+                    error_log('EXPRESS: Füge Design-Daten zu Order-Item ' . $item_id . ' hinzu');
+                    
+                    $order_item->add_meta_data('print_design', $design_data);
+                    $order_item->add_meta_data('_has_print_design', 'yes');
+                    $order_item->add_meta_data('_design_id', $design_data['design_id'] ?? '');
+                    $order_item->add_meta_data('_design_name', $design_data['name'] ?? '');
+                    $order_item->add_meta_data('_express_checkout_transfer', 'yes');
+                    
+                    $order_item->save();
+                    
+                    error_log('EXPRESS: Design-Daten erfolgreich übertragen!');
+                    break;
+                }
+            }
+        }
+        
+        $order->save();
+        
+        // Backup aus Session entfernen
+        WC()->session->__unset('yprint_express_design_backup');
+        error_log('EXPRESS: Design-Backup aus Session entfernt');
+    } else {
+        error_log('EXPRESS: Kein Design-Backup gefunden');
+    }
+}

@@ -1412,39 +1412,66 @@ public function ajax_get_cart_data() {
      * AJAX handler for processing payment methods (DEBUG VERSION)
      */
 
- public function ajax_process_payment_method() {
-    // Force WooCommerce initialization if not already done
-    if (!did_action('woocommerce_loaded')) {
-        // Include WooCommerce if not loaded
-        if (!class_exists('WooCommerce') && file_exists(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php')) {
-            include_once(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php');
-            
-            // Initialize WooCommerce manually
-            if (class_exists('WooCommerce')) {
-                WooCommerce::instance();
+     public function ajax_process_payment_method() {
+        error_log('=== YPRINT EXPRESS PAYMENT METHOD PROCESSING START ===');
+        
+        // Force WooCommerce initialization if not already done
+        if (!did_action('woocommerce_loaded')) {
+            // Include WooCommerce if not loaded
+            if (!class_exists('WooCommerce') && file_exists(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php')) {
+                include_once(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php');
+                
+                // Initialize WooCommerce manually
+                if (class_exists('WooCommerce')) {
+                    WooCommerce::instance();
+                }
             }
         }
-    }
+        
+        // Ensure WC() function is available after initialization
+        if (!function_exists('WC')) {
+            error_log('ERROR: WC() function not available after initialization attempt');
+            wp_send_json_error(array('message' => 'WooCommerce not available'));
+            return;
+        }
+        
+        // Initialize WooCommerce core components if needed
+        if (!WC()->session) {
+            WC()->init();
+        }
     
-    // Ensure WC() function is available after initialization
-    if (!function_exists('WC')) {
-        error_log('ERROR: WC() function not available after initialization attempt');
-        wp_send_json_error(array('message' => 'WooCommerce not available'));
-        return;
-    }
+        // Debug WooCommerce availability
+        error_log('=== WOOCOMMERCE AVAILABILITY CHECK ===');
+        error_log('WooCommerce class exists: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
+        error_log('WC function exists: ' . (function_exists('WC') ? 'YES' : 'NO'));
+        error_log('WooCommerce version: ' . (defined('WC_VERSION') ? WC_VERSION : 'Not defined'));
+        error_log('WooCommerce active: ' . (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins'))) ? 'YES' : 'NO'));
+        error_log('WooCommerce init action fired: ' . (did_action('woocommerce_init') ? 'YES' : 'NO'));
     
-    // Initialize WooCommerce core components if needed
-    if (!WC()->session) {
-        WC()->init();
-    }
-
-    // Debug WooCommerce availability
-error_log('=== WOOCOMMERCE AVAILABILITY CHECK ===');
-error_log('WooCommerce class exists: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
-error_log('WC function exists: ' . (function_exists('WC') ? 'YES' : 'NO'));
-error_log('WooCommerce version: ' . (defined('WC_VERSION') ? WC_VERSION : 'Not defined'));
-error_log('WooCommerce active: ' . (in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins'))) ? 'YES' : 'NO'));
-error_log('WooCommerce init action fired: ' . (did_action('woocommerce_init') ? 'YES' : 'NO'));
+        // 🚨 KRITISCH: Design-Daten VOR Express-Order-Erstellung sichern
+        error_log('=== EXPRESS DESIGN DATA BACKUP START ===');
+        $cart_design_data = array();
+        
+        if (WC()->cart) {
+            foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+                if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+                    $cart_design_data[$cart_item_key] = $cart_item['print_design'];
+                    error_log('EXPRESS: Gesicherte Design-Daten für ' . $cart_item_key . ': ' . print_r($cart_item['print_design'], true));
+                }
+            }
+            
+            // Design-Daten in Session für Express-Order speichern
+            if (!empty($cart_design_data)) {
+                WC()->session->set('yprint_express_design_backup', $cart_design_data);
+                error_log('EXPRESS: Design-Backup in Session gespeichert: ' . count($cart_design_data) . ' Items');
+            } else {
+                error_log('EXPRESS: Keine Design-Daten im Cart gefunden!');
+            }
+        } else {
+            error_log('EXPRESS: WC()->cart nicht verfügbar!');
+        }
+        
+        error_log('=== EXPRESS DESIGN DATA BACKUP END ===');
 
 
 
