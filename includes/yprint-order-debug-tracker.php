@@ -263,7 +263,7 @@ error_log($log_message);
     }
     
     /**
-     * DETAILLIERTE HOOK-ANALYSE
+     * DETAILLIERTE HOOK-ANALYSE (inkl. Express Checkout)
      */
     private function analyze_hook_execution() {
         $trail = array();
@@ -287,19 +287,61 @@ error_log($log_message);
         
         $trail[] = "├─ Recent hooks (last 10 minutes): " . count($recent_hooks);
         
+        // Erweiterte Hook-Liste für Express Checkout
         $critical_hooks = array(
             'checkout_create_order_line_item',
+            'express_checkout_order_created',
+            'express_order_design_verification',
             'new_order_backup_check',
             'backup_transfer_attempt',
             'backup_transfer_result'
         );
+        
+        $express_hooks = array(
+            'express_checkout_order_created',
+            'express_order_design_verification'
+        );
+        
+        $standard_hooks = array(
+            'checkout_create_order_line_item'
+        );
+        
+        // Bestimme Checkout-Typ
+        $is_express_checkout = false;
+        $is_standard_checkout = false;
+        
+        foreach ($recent_hooks as $hook_entry) {
+            if (in_array($hook_entry['hook'], $express_hooks)) {
+                $is_express_checkout = true;
+            }
+            if (in_array($hook_entry['hook'], $standard_hooks)) {
+                $is_standard_checkout = true;
+            }
+        }
+        
+        if ($is_express_checkout) {
+            $trail[] = "│  🔍 CHECKOUT TYPE: EXPRESS CHECKOUT detected";
+        } elseif ($is_standard_checkout) {
+            $trail[] = "│  🔍 CHECKOUT TYPE: STANDARD CHECKOUT detected";
+        } else {
+            $trail[] = "│  ⚠️  CHECKOUT TYPE: Unknown or no checkout hooks found";
+        }
         
         foreach ($critical_hooks as $hook_name) {
             $hook_found = false;
             foreach ($recent_hooks as $hook_entry) {
                 if (strpos($hook_entry['hook'], $hook_name) !== false) {
                     $hook_found = true;
-                    $trail[] = "│  ├─ ✅ $hook_name executed @ " . $hook_entry['timestamp'];
+                    
+                    // Spezielle Kennzeichnung für Express vs Standard
+                    $hook_type = '';
+                    if (in_array($hook_name, $express_hooks)) {
+                        $hook_type = ' [EXPRESS]';
+                    } elseif (in_array($hook_name, $standard_hooks)) {
+                        $hook_type = ' [STANDARD]';
+                    }
+                    
+                    $trail[] = "│  ├─ ✅ $hook_name$hook_type executed @ " . $hook_entry['timestamp'];
                     if (!empty($hook_entry['details'])) {
                         $trail[] = "│  │  └─ Details: " . $hook_entry['details'];
                     }
@@ -308,8 +350,22 @@ error_log($log_message);
             }
             
             if (!$hook_found) {
-                $trail[] = "│  ├─ ❌ $hook_name NOT executed";
-                $trail[] = "│  │  └─ This is a critical missing hook!";
+                // Nur als kritisch markieren wenn es für den erkannten Checkout-Typ relevant ist
+                $is_critical = false;
+                if ($is_express_checkout && in_array($hook_name, $express_hooks)) {
+                    $is_critical = true;
+                } elseif ($is_standard_checkout && in_array($hook_name, $standard_hooks)) {
+                    $is_critical = true;
+                } elseif (!$is_express_checkout && !$is_standard_checkout) {
+                    $is_critical = true; // Unknown type - mark all as critical
+                }
+                
+                if ($is_critical) {
+                    $trail[] = "│  ├─ ❌ $hook_name NOT executed";
+                    $trail[] = "│  │  └─ This is a critical missing hook for this checkout type!";
+                } else {
+                    $trail[] = "│  ├─ ⚪ $hook_name not executed (not required for this checkout type)";
+                }
             }
         }
         
@@ -317,13 +373,32 @@ error_log($log_message);
             'trail' => $trail,
             'hooks_logged' => true,
             'recent_hooks' => $recent_hooks,
-            'critical_hooks_missing' => array_filter($critical_hooks, function($hook) use ($recent_hooks) {
+            'is_express_checkout' => $is_express_checkout,
+            'is_standard_checkout' => $is_standard_checkout,
+            'critical_hooks_missing' => array_filter($critical_hooks, function($hook) use ($recent_hooks, $is_express_checkout, $is_standard_checkout, $express_hooks, $standard_hooks) {
+                // Prüfe ob Hook ausgeführt wurde
+                $hook_executed = false;
                 foreach ($recent_hooks as $entry) {
                     if (strpos($entry['hook'], $hook) !== false) {
-                        return false;
+                        $hook_executed = true;
+                        break;
                     }
                 }
-                return true;
+                
+                if ($hook_executed) {
+                    return false; // Hook wurde ausgeführt
+                }
+                
+                // Prüfe ob Hook für aktuellen Checkout-Typ relevant ist
+                if ($is_express_checkout && in_array($hook, $express_hooks)) {
+                    return true; // Express checkout und Hook fehlt
+                } elseif ($is_standard_checkout && in_array($hook, $standard_hooks)) {
+                    return true; // Standard checkout und Hook fehlt
+                } elseif (!$is_express_checkout && !$is_standard_checkout) {
+                    return true; // Unbekannter Typ - alle als fehlend markieren
+                }
+                
+                return false; // Hook nicht relevant für aktuellen Checkout-Typ
             })
         );
     }
@@ -454,9 +529,13 @@ error_log($log_message);
     }
     
     /**
-     * PRÄZISE ROOT CAUSE BESTIMMUNG
+     * PRÄZISE ROOT CAUSE BESTIMMUNG (inkl. Express Checkout)
      */
     private function determine_precise_root_cause($cart_analysis, $session_analysis, $hook_analysis, $order_analysis, $function_analysis) {
+        
+        // Bestimme Checkout-Typ
+        $is_express = $hook_analysis['is_express_checkout'] ?? false;
+        $is_standard = $hook_analysis['is_standard_checkout'] ?? false;
         
         // Szenario 1: Funktionen fehlen
         if (in_array(false, $function_analysis['custom_functions'])) {
@@ -467,41 +546,84 @@ error_log($log_message);
             );
         }
         
-        // Szenario 2: Cart hat Design, aber Hook wird nicht ausgeführt
-        if ($cart_analysis['design_count'] > 0 && 
-            in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array())) {
+        // EXPRESS CHECKOUT SPEZIFISCHE SZENARIEN
+        if ($is_express) {
+            // Express: Cart hat Design, aber Express Hook fehlt
+            if ($cart_analysis['design_count'] > 0 && 
+                in_array('express_checkout_order_created', $hook_analysis['critical_hooks_missing'] ?? array())) {
+                return array(
+                    'cause' => 'Express Checkout Design Transfer Failed',
+                    'action' => 'Check ajax_process_payment_method function - design transfer logic may not be executed properly',
+                    'technical' => 'Cart contains design data but express checkout order creation hook was not triggered'
+                );
+            }
+            
+            // Express: Order erstellt aber keine Design-Daten
+            if ($order_analysis['design_count'] == 0 && $cart_analysis['design_count'] > 0) {
+                return array(
+                    'cause' => 'Express Order Created Without Design Data',
+                    'action' => 'Debug manual design transfer in ajax_process_payment_method - check if cart items are properly processed',
+                    'technical' => 'Express checkout created order but manual design data transfer failed'
+                );
+            }
+            
+            // Express: Cart leer, kein Backup
+            if ($cart_analysis['design_count'] == 0 && !$session_analysis['has_backup']) {
+                return array(
+                    'cause' => 'Express Checkout: No Cart Data and No Backup',
+                    'action' => 'Check if express payment design backup was created before payment processing',
+                    'technical' => 'Express checkout processed but both cart and session backup are empty'
+                );
+            }
+        }
+        
+        // STANDARD CHECKOUT SPEZIFISCHE SZENARIEN  
+        if ($is_standard) {
+            // Standard: Cart hat Design, aber Standard Hook fehlt
+            if ($cart_analysis['design_count'] > 0 && 
+                in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array())) {
+                return array(
+                    'cause' => 'Standard Checkout Design Transfer Hook Not Executed',
+                    'action' => 'Check if woocommerce_checkout_create_order_line_item hook is properly registered',
+                    'technical' => 'Cart contains design data but the primary WooCommerce transfer hook was never called'
+                );
+            }
+            
+            // Standard: Hook ausgeführt, aber Daten kommen nicht an
+            if ($cart_analysis['design_count'] > 0 && 
+                !in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array()) &&
+                $order_analysis['design_count'] == 0) {
+                return array(
+                    'cause' => 'Standard Checkout Hook Executed But Data Transfer Failed',
+                    'action' => 'Debug the yprint_tracked_design_transfer function - data may be corrupted during transfer',
+                    'technical' => 'WooCommerce transfer hook was called but design data did not reach order items'
+                );
+            }
+        }
+        
+        // UNBEKANNTER CHECKOUT-TYP
+        if (!$is_express && !$is_standard) {
             return array(
-                'cause' => 'Design Transfer Hook Not Executed',
-                'action' => 'Check if woocommerce_checkout_create_order_line_item hook is properly registered',
-                'technical' => 'Cart contains design data but the primary transfer hook was never called'
+                'cause' => 'Unknown Checkout Type - No Hooks Detected',
+                'action' => 'Check if either standard WooCommerce or Express checkout hooks are being triggered',
+                'technical' => 'Neither express nor standard checkout hooks were detected in the log'
             );
         }
         
-        // Szenario 3: Cart leer, aber kein Session Backup
-        if ($cart_analysis['design_count'] == 0 && !$session_analysis['has_backup']) {
+        // GEMISCHTE SZENARIEN
+        if ($is_express && $is_standard) {
             return array(
-                'cause' => 'Both Cart and Session Backup Empty',
-                'action' => 'Investigate why express payment backup was not created',
-                'technical' => 'Cart is empty during order creation and no session backup exists for express payments'
-            );
-        }
-        
-        // Szenario 4: Hook ausgeführt, aber Daten kommen nicht an
-        if ($cart_analysis['design_count'] > 0 && 
-            !in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array()) &&
-            $order_analysis['design_count'] == 0) {
-            return array(
-                'cause' => 'Hook Executed But Data Transfer Failed',
-                'action' => 'Debug the yprint_tracked_design_transfer function - data may be corrupted during transfer',
-                'technical' => 'Transfer hook was called but design data did not reach order items'
+                'cause' => 'Mixed Checkout Detection - Both Express and Standard Hooks Found',
+                'action' => 'Check for conflicts between express and standard checkout processes',
+                'technical' => 'Both express and standard checkout hooks were detected, indicating possible conflict'
             );
         }
         
         // Standard-Fall
         return array(
-            'cause' => 'Complex Multi-Factor Issue',
-            'action' => 'Manual investigation required - check all debug sections above',
-            'technical' => 'Multiple potential issues detected, requires detailed analysis'
+            'cause' => 'Complex Multi-Factor Issue (' . ($is_express ? 'Express' : 'Standard') . ' Checkout)',
+            'action' => 'Manual investigation required - check all debug sections above for ' . ($is_express ? 'express' : 'standard') . ' checkout specific issues',
+            'technical' => 'Multiple potential issues detected in ' . ($is_express ? 'express' : 'standard') . ' checkout flow, requires detailed analysis'
         );
     }
 

@@ -1834,7 +1834,7 @@ if (WC()->cart->is_empty()) {
     error_log('Payment Method ID: ' . ($payment_method['id'] ?? 'Not found'));
     error_log('Payment Method Type: ' . ($payment_method['type'] ?? 'Not found'));
     
-    // Simulate payment processing (since we're in test mode)
+    // Create actual WooCommerce order for Express Checkout with design data transfer
     try {
         // Get customer email from different sources
         $customer_email = '';
@@ -1851,12 +1851,136 @@ if (WC()->cart->is_empty()) {
             }
         }
         
+        error_log('=== YPRINT EXPRESS ORDER CREATION WITH DESIGN TRANSFER ===');
         error_log('YPrint PAYMENT DEBUG: Kunden-E-Mail ermittelt: ' . $customer_email);
         
-        // Create a mock order for testing
+        // Create actual WooCommerce order instead of mock data
+        $order = wc_create_order();
+        
+        if (is_wp_error($order)) {
+            error_log('EXPRESS: Error creating order: ' . $order->get_error_message());
+            throw new Exception('Failed to create order: ' . $order->get_error_message());
+        }
+        
+        $order_id = $order->get_id();
+        error_log('EXPRESS: Created order with ID: ' . $order_id);
+        
+        // Set customer details
+        if (!empty($customer_email)) {
+            $order->set_billing_email($customer_email);
+        }
+        
+        if (isset($payment_method['billing_details']['name'])) {
+            $name_parts = explode(' ', $payment_method['billing_details']['name']);
+            $order->set_billing_first_name($name_parts[0]);
+            if (count($name_parts) > 1) {
+                $order->set_billing_last_name(end($name_parts));
+            }
+        }
+        
+        // Set address data if available
+        if (isset($payment_method['billing_details']['address'])) {
+            $billing_address = $payment_method['billing_details']['address'];
+            $order->set_billing_address_1($billing_address['line1'] ?? '');
+            $order->set_billing_city($billing_address['city'] ?? '');
+            $order->set_billing_postcode($billing_address['postal_code'] ?? '');
+            $order->set_billing_country($billing_address['country'] ?? 'DE');
+        }
+        
+        // Set shipping address if provided
+        if ($shipping_address) {
+            $order->set_shipping_first_name($order->get_billing_first_name());
+            $order->set_shipping_last_name($order->get_billing_last_name());
+            $order->set_shipping_address_1($shipping_address['addressLine'][0] ?? '');
+            $order->set_shipping_city($shipping_address['city'] ?? '');
+            $order->set_shipping_postcode($shipping_address['postalCode'] ?? '');
+            $order->set_shipping_country($shipping_address['country'] ?? 'DE');
+        }
+        
+        // Set payment method
+        $order->set_payment_method('yprint_stripe');
+        $order->set_payment_method_title('Stripe Express (Test)');
+        $order->set_transaction_id($payment_method['id']);
+        
+        // CRITICAL: Add cart items to order WITH design data transfer
+        error_log('EXPRESS: Adding cart items with design data transfer...');
+        $design_transfers_success = 0;
+        $design_transfers_failed = 0;
+        
+        if (!WC()->cart->is_empty()) {
+            foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+                error_log('EXPRESS: Processing cart item: ' . $cart_item_key);
+                
+                // Add product to order
+                $order_item = new WC_Order_Item_Product();
+                $order_item->set_product($cart_item['data']);
+                $order_item->set_quantity($cart_item['quantity']);
+                $order_item->set_variation_id($cart_item['variation_id'] ?? 0);
+                $order_item->set_subtotal($cart_item['line_subtotal']);
+                $order_item->set_total($cart_item['line_total']);
+                
+                // MANUAL DESIGN DATA TRANSFER - Bypass WooCommerce hooks
+                if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+                    $design_data = $cart_item['print_design'];
+                    error_log('EXPRESS: Found design data for cart item: ' . $cart_item_key);
+                    error_log('EXPRESS: Design data: ' . print_r($design_data, true));
+                    
+                    // Use the existing tracked design transfer function logic
+                    $order_item->update_meta_data('print_design', $design_data);
+                    $order_item->update_meta_data('_is_design_product', true);
+                    $order_item->update_meta_data('_has_print_design', 'yes');
+                    $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
+                    $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
+                    $order_item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
+                    $order_item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
+                    $order_item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
+                    $order_item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
+                    $order_item->update_meta_data('_express_checkout_transfer', 'yes');
+                    $order_item->update_meta_data('_cart_item_key', $cart_item_key);
+                    $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+                    
+                    $design_transfers_success++;
+                    error_log('EXPRESS: Design data successfully transferred for item');
+                } else {
+                    error_log('EXPRESS: No design data found for cart item: ' . $cart_item_key);
+                    $design_transfers_failed++;
+                }
+                
+                // Add item to order
+                $order->add_item($order_item);
+            }
+        } else {
+            error_log('EXPRESS: Cart is empty - attempting backup transfer');
+            
+            // Try backup transfer from session if cart is empty
+            $backup_applied = false;
+            if (function_exists('yprint_tracked_backup_transfer')) {
+                $backup_applied = yprint_tracked_backup_transfer($order_id);
+                error_log('EXPRESS: Backup transfer result: ' . ($backup_applied ? 'SUCCESS' : 'FAILED'));
+            }
+            
+            if (!$backup_applied) {
+                error_log('EXPRESS: WARNING - No cart items and backup transfer failed');
+            }
+        }
+        
+        // Calculate totals and save order
+        $order->calculate_totals();
+        $order->save();
+        
+        error_log('EXPRESS: Order saved with ID: ' . $order_id);
+        error_log('EXPRESS: Design transfers - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
+        
+        // Log hook execution for debug tracking
+        if (function_exists('yprint_log_hook_execution')) {
+            yprint_log_hook_execution('express_checkout_order_created', "Order ID: $order_id | Design transfers: $design_transfers_success");
+        }
+        
+        // Create order data for session storage
         $order_data = array(
+            'order_id' => $order_id,
             'payment_method_id' => $payment_method['id'],
-            'amount' => WC()->cart->get_total('edit'),
+            'amount' => $order->get_total(),
             'currency' => get_woocommerce_currency(),
             'customer_details' => array(
                 'name' => $payment_method['billing_details']['name'] ?? 'Test Kunde',
@@ -1865,17 +1989,24 @@ if (WC()->cart->is_empty()) {
             ),
             'billing_address' => $payment_method['billing_details']['address'] ?? array(),
             'shipping_address' => $shipping_address ?? array(),
+            'design_transfers_success' => $design_transfers_success,
+            'design_transfers_failed' => $design_transfers_failed
         );
         
         // Store order data in session for confirmation page
         WC()->session->set('yprint_pending_order', $order_data);
         
-        // Speichere auch eine einfache Order-ID für "Bestellung anzeigen" Button
-        $simple_order_id = 'YP-' . time() . '-' . wp_rand(1000, 9999);
+        // Store simple order ID for display
+        $simple_order_id = 'YP-' . $order_id;
         WC()->session->set('yprint_last_order_id', $simple_order_id);
         $order_data['simple_order_id'] = $simple_order_id;
         
-        error_log('Payment simulation successful for payment method: ' . $payment_method['id']);
+        error_log('EXPRESS: Order creation successful for payment method: ' . $payment_method['id']);
+        
+        // Trigger design transfer verification
+        if (function_exists('yprint_log_hook_execution')) {
+            yprint_log_hook_execution('express_order_design_verification', "Order ID: $order_id | Total items: " . count($order->get_items()));
+        }
         
         // Erweiterte Debug-Ausgabe für E-Mail-Versendung
         error_log('=== YPRINT PAYMENT DEBUG: Prüfe pending order für E-Mail-Versendung ===');
@@ -1970,10 +2101,15 @@ if (WC()->cart->is_empty()) {
 
         // Return success with step change instead of redirect
         wp_send_json_success(array(
-            'message' => 'Payment processed successfully (Test Mode)',
+            'message' => 'Express order created successfully with design data',
             'payment_method_id' => $payment_method['id'],
+            'order_id' => $order_id,
             'order_data' => $order_data,
             'next_step' => 'confirmation',
+            'design_transfers' => array(
+                'success' => $design_transfers_success,
+                'failed' => $design_transfers_failed
+            ),
             'test_mode' => true
         ));
         
