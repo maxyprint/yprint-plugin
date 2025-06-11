@@ -948,45 +948,93 @@ function yprint_express_design_transfer($order_id, $payment_data) {
 }
 
 /**
- * EXPRESS ORDER: Design-Daten-Transfer für Express-Orders
+ * VERSTÄRKTER EXPRESS ORDER: Design-Daten-Transfer für Express-Orders
  */
 add_action('woocommerce_new_order', 'yprint_express_order_design_transfer', 1, 1);
 function yprint_express_order_design_transfer($order_id) {
-    error_log('=== YPRINT EXPRESS ORDER DESIGN TRANSFER ===');
+    error_log('=== YPRINT VERSTÄRKTER EXPRESS ORDER DESIGN TRANSFER ===');
     error_log('Checking order ' . $order_id . ' for express checkout...');
     
     $order = wc_get_order($order_id);
-    if (!$order || !WC()->session) return;
+    if (!$order || !WC()->session) {
+        error_log('EXPRESS: Order or session not available');
+        return;
+    }
     
-    $express_design_backup = WC()->session->get('yprint_express_design_backup');
+    // Hook-Tracking
+    yprint_log_hook_execution('new_order_backup_check', "Order ID: $order_id");
     
-    if (!empty($express_design_backup)) {
-        error_log('EXPRESS: Design-Backup gefunden, übertrage zu Order...');
+    // Versuche mehrere Backup-Schlüssel
+    $backup_keys = array(
+        'yprint_express_design_backup_v3',
+        'yprint_express_design_backup_v2', 
+        'yprint_express_design_backup'
+    );
+    
+    $successful_transfers = 0;
+    
+    foreach ($backup_keys as $backup_key) {
+        $express_design_backup = WC()->session->get($backup_key);
         
-        foreach ($order->get_items() as $item_id => $order_item) {
-            foreach ($express_design_backup as $cart_key => $design_data) {
-                if (isset($design_data['template_id']) && !$order_item->get_meta('print_design')) {
-                    error_log('EXPRESS: Füge Design-Daten zu Order-Item ' . $item_id . ' hinzu');
+        if (!empty($express_design_backup)) {
+            error_log('EXPRESS: Design-Backup gefunden in ' . $backup_key . ', übertrage zu Order...');
+            
+            foreach ($order->get_items() as $item_id => $order_item) {
+                // Skip items that already have design data
+                if ($order_item->get_meta('print_design')) {
+                    continue;
+                }
+                
+                $product_id = $order_item->get_product_id();
+                
+                foreach ($express_design_backup as $cart_key => $backup_info) {
+                    $design_data = isset($backup_info['design_data']) ? $backup_info['design_data'] : $backup_info;
+                    $backup_product_id = isset($backup_info['product_id']) ? $backup_info['product_id'] : null;
                     
-                    $order_item->update_meta_data('print_design', $design_data);
-                    $order_item->update_meta_data('_has_print_design', 'yes');
-                    $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
-                    $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
-                    $order_item->update_meta_data('_express_checkout_transfer', 'yes');
-                    
-                    $order_item->save_meta_data();
-                    
-                    error_log('EXPRESS: Design-Daten erfolgreich übertragen!');
-                    break;
+                    if ($backup_product_id == $product_id || $successful_transfers == 0) {
+                        error_log('EXPRESS: Füge Design-Daten zu Order-Item ' . $item_id . ' hinzu');
+                        error_log('Design Data: ' . print_r($design_data, true));
+                        
+                        $order_item->update_meta_data('print_design', $design_data);
+                        $order_item->update_meta_data('_is_design_product', true);
+                        $order_item->update_meta_data('_has_print_design', 'yes');
+                        $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
+                        $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
+                        $order_item->update_meta_data('_design_template_id', $design_data['template_id'] ?? '');
+                        $order_item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
+                        $order_item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
+                        $order_item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
+                        $order_item->update_meta_data('_express_checkout_transfer', 'yes');
+                        $order_item->update_meta_data('_backup_source', $backup_key);
+                        $order_item->update_meta_data('_transfer_timestamp', current_time('mysql'));
+                        
+                        $order_item->save_meta_data();
+                        
+                        $successful_transfers++;
+                        error_log('EXPRESS: Design-Daten erfolgreich übertragen!');
+                        break;
+                    }
                 }
             }
+            
+            if ($successful_transfers > 0) {
+                // Entferne Backup erst nach erfolgreichem Transfer
+                WC()->session->__unset($backup_key);
+                break;
+            }
         }
-        
+    }
+    
+    // Hook-Tracking für Ergebnis
+    yprint_log_hook_execution('backup_transfer_attempt', "Transfers: $successful_transfers | Order: $order_id");
+    
+    if ($successful_transfers > 0) {
         $order->save();
-        WC()->session->__unset('yprint_express_design_backup');
-        error_log('EXPRESS: Design-Backup aus Session entfernt');
+        error_log('EXPRESS: ' . $successful_transfers . ' Design-Items erfolgreich übertragen');
+        yprint_log_hook_execution('backup_transfer_result', "SUCCESS: $successful_transfers items transferred");
     } else {
-        error_log('EXPRESS: Kein Design-Backup gefunden');
+        error_log('EXPRESS: Kein Design-Backup gefunden oder Transfer fehlgeschlagen');
+        yprint_log_hook_execution('backup_transfer_result', "FAILED: No design data transferred");
     }
 }
 

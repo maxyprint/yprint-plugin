@@ -780,6 +780,63 @@ private function add_express_checkout_ajax_handlers() {
     
     add_action('wp_ajax_yprint_save_apple_pay_address', array($this, 'ajax_save_apple_pay_address'));
     add_action('wp_ajax_nopriv_yprint_save_apple_pay_address', array($this, 'ajax_save_apple_pay_address'));
+    
+    // NEUE HANDLER FÜR DESIGN-DATEN SICHERUNG
+    add_action('wp_ajax_yprint_secure_express_design_data', array($this, 'ajax_secure_express_design_data'));
+    add_action('wp_ajax_nopriv_yprint_secure_express_design_data', array($this, 'ajax_secure_express_design_data'));
+}
+
+/**
+ * AJAX handler für Express Design Data Sicherung
+ */
+public function ajax_secure_express_design_data() {
+    check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
+    
+    error_log('=== SECURING EXPRESS DESIGN DATA ===');
+    
+    if (WC()->cart->is_empty()) {
+        error_log('EXPRESS SECURE: Cart is empty');
+        wp_send_json_error(array('message' => 'Cart is empty'));
+        return;
+    }
+    
+    $design_backup = array();
+    $design_count = 0;
+    
+    // Sammle alle Design-Daten aus dem Warenkorb
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+            $design_backup[$cart_item_key] = array(
+                'design_data' => $cart_item['print_design'],
+                'product_id' => $cart_item['product_id'],
+                'variation_id' => $cart_item['variation_id'] ?? 0,
+                'quantity' => $cart_item['quantity'],
+                'secured_at' => current_time('mysql')
+            );
+            $design_count++;
+            
+            error_log('EXPRESS SECURE: Secured design for cart key: ' . $cart_item_key);
+            error_log('Design ID: ' . ($cart_item['print_design']['design_id'] ?? 'unknown'));
+        }
+    }
+    
+    if ($design_count > 0) {
+        // Speichere in Session mit mehreren Backup-Schlüsseln
+        WC()->session->set('yprint_express_design_backup', $design_backup);
+        WC()->session->set('yprint_express_design_backup_v2', $design_backup);
+        WC()->session->set('yprint_express_design_backup_v3', $design_backup);
+        
+        error_log('EXPRESS SECURE: Saved ' . $design_count . ' design items to session backup');
+        
+        wp_send_json_success(array(
+            'message' => 'Design data secured',
+            'design_count' => $design_count,
+            'backup_keys' => array_keys($design_backup)
+        ));
+    } else {
+        error_log('EXPRESS SECURE: No design data found in cart');
+        wp_send_json_error(array('message' => 'No design data found'));
+    }
 }
 
     /**
