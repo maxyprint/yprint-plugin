@@ -1,7 +1,7 @@
 <?php
 /**
- * YPRINT SIMPLIFIED ORDER DEBUG
- * Leichtgewichtiges Debug-System das den Checkout nicht stört
+ * YPRINT ENHANCED ORDER DEBUG MIT DESIGN-DATEN ANALYSE
+ * Analysiert Bestellungen und zeigt detaillierte Design-Informationen aus der Datenbank
  */
 
 // Verhindere direkte Aufrufe
@@ -10,9 +10,9 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * SCHLANKES DEBUG-SYSTEM - nur passive Protokollierung
+ * ENHANCED DEBUG-SYSTEM - Mit Datenbank Design-Analyse
  */
-class YPrint_Simple_Debug {
+class YPrint_Enhanced_Debug {
     
     private static $instance = null;
     private $debug_log = array();
@@ -39,58 +39,49 @@ class YPrint_Simple_Debug {
         $debug_trail = array();
         $step_counter = 1;
         
-        // === SCHRITT 1: CART DETAILED ANALYSIS ===
-        $debug_trail[] = "SCHRITT $step_counter: CART DETAILED ANALYSIS";
-        $step_counter++;
-        
-        $cart_analysis = $this->analyze_cart_state();
-        $debug_trail = array_merge($debug_trail, $cart_analysis['trail']);
-        
-        // === SCHRITT 2: SESSION DETAILED ANALYSIS ===
-        $debug_trail[] = "";
-        $debug_trail[] = "SCHRITT $step_counter: SESSION DETAILED ANALYSIS";
-        $step_counter++;
-        
-        $session_analysis = $this->analyze_session_state();
-        $debug_trail = array_merge($debug_trail, $session_analysis['trail']);
-        
-        // === SCHRITT 3: HOOK EXECUTION DETAILED ANALYSIS ===
-        $debug_trail[] = "";
-        $debug_trail[] = "SCHRITT $step_counter: HOOK EXECUTION DETAILED ANALYSIS";
-        $step_counter++;
-        
-        $hook_analysis = $this->analyze_hook_execution();
-        $debug_trail = array_merge($debug_trail, $hook_analysis['trail']);
-        
-        // === SCHRITT 4: ORDER CREATION DETAILED ANALYSIS ===
-        $debug_trail[] = "";
-        $debug_trail[] = "SCHRITT $step_counter: ORDER CREATION DETAILED ANALYSIS";
+        // === SCHRITT 1: ORDER ITEMS ANALYSIS ===
+        $debug_trail[] = "SCHRITT $step_counter: ORDER ITEMS ANALYSIS";
         $step_counter++;
         
         $order_analysis = $this->analyze_order_items($order);
         $debug_trail = array_merge($debug_trail, $order_analysis['trail']);
         
-        // === SCHRITT 5: FUNCTION AVAILABILITY CHECK ===
+        // === SCHRITT 2: DESIGN DATABASE ANALYSIS ===
         $debug_trail[] = "";
-        $debug_trail[] = "SCHRITT $step_counter: FUNCTION AVAILABILITY CHECK";
+        $debug_trail[] = "SCHRITT $step_counter: DESIGN DATABASE ANALYSIS";
         $step_counter++;
         
-        $function_analysis = $this->analyze_function_availability();
-        $debug_trail = array_merge($debug_trail, $function_analysis['trail']);
+        $database_analysis = $this->analyze_design_database($order_analysis['design_ids']);
+        $debug_trail = array_merge($debug_trail, $database_analysis['trail']);
         
-        // === SCHRITT 6: PRECISE ROOT CAUSE DETERMINATION ===
+        // === SCHRITT 3: DETAILED DESIGN BREAKDOWN ===
         $debug_trail[] = "";
-        $debug_trail[] = "SCHRITT $step_counter: PRECISE ROOT CAUSE DETERMINATION";
+        $debug_trail[] = "SCHRITT $step_counter: DETAILED DESIGN BREAKDOWN";
+        $step_counter++;
         
-        $root_cause = $this->determine_precise_root_cause(
-            $cart_analysis, 
-            $session_analysis, 
-            $hook_analysis, 
-            $order_analysis,
-            $function_analysis
+        $design_breakdown = $this->create_detailed_design_breakdown($database_analysis['designs']);
+        $debug_trail = array_merge($debug_trail, $design_breakdown['trail']);
+        
+        // === SCHRITT 4: PRINT PROVIDER READINESS ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: PRINT PROVIDER READINESS";
+        $step_counter++;
+        
+        $print_readiness = $this->analyze_print_provider_readiness($design_breakdown['formatted_designs']);
+        $debug_trail = array_merge($debug_trail, $print_readiness['trail']);
+        
+        // === SCHRITT 5: ROOT CAUSE DETERMINATION ===
+        $debug_trail[] = "";
+        $debug_trail[] = "SCHRITT $step_counter: ROOT CAUSE DETERMINATION";
+        
+        $root_cause = $this->determine_enhanced_root_cause(
+            $order_analysis, 
+            $database_analysis, 
+            $design_breakdown,
+            $print_readiness
         );
         
-        $debug_trail[] = "🎯 PRECISE ROOT CAUSE: " . $root_cause['cause'];
+        $debug_trail[] = "🎯 ROOT CAUSE: " . $root_cause['cause'];
         $debug_trail[] = "💡 RECOMMENDED ACTION: " . $root_cause['action'];
         $debug_trail[] = "🔧 TECHNICAL DETAILS: " . $root_cause['technical'];
         
@@ -100,873 +91,530 @@ class YPrint_Simple_Debug {
             'order_id' => $order_id,
             'status' => ($order_analysis['design_count'] > 0) ? 'SUCCESS' : 'FAILED',
             'design_items_found' => $order_analysis['design_count'],
-            'total_items' => $order_analysis['total_items'],
-            'cart_analysis' => $cart_analysis,
-            'session_analysis' => $session_analysis,
-            'hook_analysis' => $hook_analysis,
+            'database_designs_found' => $database_analysis['found_count'],
+            'formatted_designs' => $design_breakdown['formatted_designs'],
+            'print_provider_ready' => $print_readiness['ready'],
             'order_analysis' => $order_analysis,
-            'function_analysis' => $function_analysis,
+            'database_analysis' => $database_analysis,
+            'design_breakdown' => $design_breakdown,
+            'print_readiness' => $print_readiness,
             'root_cause' => $root_cause,
             'debug_trail' => $debug_trail
         );
         
-        update_post_meta($order_id, '_yprint_debug_summary', $summary);
+        update_post_meta($order_id, '_yprint_enhanced_debug_summary', $summary);
 
-// Sichere Error-Log Ausgabe
-$log_message = "YPrint Detailed Debug for Order $order_id: ";
-if (is_array($root_cause) && isset($root_cause['cause'])) {
-    $log_message .= $root_cause['cause'];
-} else {
-    $log_message .= "Debug analysis completed";
-}
-error_log($log_message);
+        // Error-Log Ausgabe
+        $log_message = "YPrint Enhanced Debug for Order $order_id: ";
+        if (is_array($root_cause) && isset($root_cause['cause'])) {
+            $log_message .= $root_cause['cause'];
+        } else {
+            $log_message .= "Enhanced debug analysis completed";
+        }
+        error_log($log_message);
     }
     
     /**
-     * DETAILLIERTE CART-ANALYSE
+     * ANALYSIERE ORDER ITEMS FÜR DESIGN IDs
      */
-    private function analyze_cart_state() {
+    private function analyze_order_items($order) {
         $trail = array();
-        $cart_items = array();
         $design_count = 0;
+        $design_ids = array();
+        $items_analysis = array();
         
-        $trail[] = "├─ Checking WC()->cart availability...";
+        $trail[] = "├─ Analyzing order items...";
+        $trail[] = "│  ├─ Order ID: " . $order->get_id();
+        $trail[] = "│  ├─ Order Status: " . $order->get_status();
+        $trail[] = "│  └─ Total Items: " . count($order->get_items());
         
-        if (!function_exists('WC') || !WC()) {
-            $trail[] = "│  ❌ WC() function not available";
-            return array('trail' => $trail, 'available' => false, 'design_count' => 0);
-        }
-        
-        $trail[] = "│  ✅ WC() function available";
-        
-        if (!WC()->cart) {
-            $trail[] = "│  ❌ WC()->cart object is null";
-            return array('trail' => $trail, 'available' => false, 'design_count' => 0);
-        }
-        
-        $trail[] = "│  ✅ WC()->cart object exists";
-        $trail[] = "├─ Cart status: " . (WC()->cart->is_empty() ? "EMPTY" : "HAS ITEMS");
-        $trail[] = "├─ Cart contents count: " . WC()->cart->get_cart_contents_count();
-        
-        if (WC()->cart->is_empty()) {
-            $trail[] = "│  ⚠️  Cart is empty - this explains missing designs";
-            return array('trail' => $trail, 'available' => true, 'empty' => true, 'design_count' => 0);
-        }
-        
-        $trail[] = "├─ Analyzing individual cart items...";
-        
-        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-            $trail[] = "│  ├─ Cart Item: $cart_item_key";
-            $trail[] = "│  │  ├─ Product ID: " . ($cart_item['product_id'] ?? 'MISSING');
-            $trail[] = "│  │  ├─ Quantity: " . ($cart_item['quantity'] ?? 'MISSING');
+        foreach ($order->get_items() as $item_id => $item) {
+            $trail[] = "│  ├─ Order Item $item_id:";
+            $trail[] = "│  │  ├─ Name: " . $item->get_name();
+            $trail[] = "│  │  ├─ Product ID: " . $item->get_product_id();
             
-            // Prüfe Design-Daten sehr detailliert
-            if (isset($cart_item['print_design'])) {
+            // Prüfe Design ID in verschiedenen Meta-Feldern
+            $design_id = null;
+            $design_sources = array();
+            
+            // Prüfe _design_id Meta
+            $meta_design_id = $item->get_meta('_design_id');
+            if (!empty($meta_design_id)) {
+                $design_id = $meta_design_id;
+                $design_sources[] = '_design_id';
+            }
+            
+            // Prüfe print_design Meta
+            $print_design = $item->get_meta('print_design');
+            if (!empty($print_design) && is_array($print_design) && isset($print_design['design_id'])) {
+                if (!$design_id) {
+                    $design_id = $print_design['design_id'];
+                }
+                $design_sources[] = 'print_design';
+            }
+            
+            if ($design_id) {
                 $design_count++;
-                $design = $cart_item['print_design'];
-                $trail[] = "│  │  ├─ ✅ HAS DESIGN DATA";
-                $trail[] = "│  │  │  ├─ Design ID: " . ($design['design_id'] ?? 'MISSING');
-                $trail[] = "│  │  │  ├─ Template ID: " . ($design['template_id'] ?? 'MISSING');
-                $trail[] = "│  │  │  ├─ Design Name: " . ($design['name'] ?? 'MISSING');
-                $trail[] = "│  │  │  └─ Preview URL: " . (isset($design['preview_url']) ? 'SET' : 'MISSING');
-                
-                // Prüfe Datenintegrität
-                if (empty($design['design_id'])) {
-                    $trail[] = "│  │  │  ⚠️  WARNING: Design ID is empty!";
-                }
+                $design_ids[] = $design_id;
+                $trail[] = "│  │  ├─ ✅ DESIGN FOUND";
+                $trail[] = "│  │  │  ├─ Design ID: " . $design_id;
+                $trail[] = "│  │  │  └─ Sources: " . implode(', ', $design_sources);
             } else {
-                $trail[] = "│  │  └─ ❌ NO DESIGN DATA";
+                $trail[] = "│  │  └─ ❌ NO DESIGN ID FOUND";
             }
             
-            // Prüfe weitere relevante Keys
-            $other_keys = array_keys($cart_item);
-            $relevant_keys = array_filter($other_keys, function($key) {
-                return strpos($key, 'design') !== false || strpos($key, 'print') !== false;
-            });
-            
-            if (!empty($relevant_keys)) {
-                $trail[] = "│  │  └─ Other design-related keys: " . implode(', ', $relevant_keys);
-            }
-            
-            $cart_items[$cart_item_key] = array(
-                'product_id' => $cart_item['product_id'] ?? null,
-                'has_design' => isset($cart_item['print_design']),
-                'design_data' => $cart_item['print_design'] ?? null
+            $items_analysis[$item_id] = array(
+                'name' => $item->get_name(),
+                'product_id' => $item->get_product_id(),
+                'design_id' => $design_id,
+                'has_design' => !empty($design_id),
+                'design_sources' => $design_sources
             );
         }
         
-        $trail[] = "└─ CART SUMMARY: $design_count design items found";
+        $trail[] = "└─ ORDER SUMMARY: $design_count design items found with IDs: " . implode(', ', $design_ids);
         
         return array(
             'trail' => $trail,
-            'available' => true,
-            'empty' => false,
             'design_count' => $design_count,
-            'items' => $cart_items
+            'design_ids' => array_unique($design_ids),
+            'items' => $items_analysis
         );
     }
     
     /**
-     * DETAILLIERTE SESSION-ANALYSE
+     * ANALYSIERE DESIGN-DATEN AUS DATENBANK
      */
-    private function analyze_session_state() {
+    private function analyze_design_database($design_ids) {
+        global $wpdb;
         $trail = array();
+        $designs = array();
+        $found_count = 0;
         
-        $trail[] = "├─ Checking WC()->session availability...";
+        $trail[] = "├─ Querying design database...";
+        $trail[] = "│  ├─ Table: deo6_octo_user_designs";
+        $trail[] = "│  └─ Looking for Design IDs: " . implode(', ', $design_ids);
         
-        if (!WC() || !WC()->session) {
-            $trail[] = "│  ❌ WC()->session not available";
-            return array('trail' => $trail, 'available' => false);
+        if (empty($design_ids)) {
+            $trail[] = "│  ❌ No design IDs to search for";
+            return array('trail' => $trail, 'found_count' => 0, 'designs' => array());
         }
         
-        $trail[] = "│  ✅ WC()->session available";
-        $trail[] = "├─ Session ID: " . WC()->session->get_customer_id();
+        // Bereite Query vor
+        $placeholders = implode(',', array_fill(0, count($design_ids), '%d'));
+        $query = $wpdb->prepare(
+            "SELECT id, user_id, template_id, name, design_data, created_at, product_name 
+             FROM deo6_octo_user_designs 
+             WHERE id IN ($placeholders)",
+            $design_ids
+        );
         
-        // Prüfe Express Backup
-        $trail[] = "├─ Checking express design backup...";
-        $express_backup = WC()->session->get('yprint_express_design_backup');
+        $trail[] = "│  ├─ Executing query...";
         
-        if (empty($express_backup)) {
-            $trail[] = "│  ❌ No express design backup found";
-            $trail[] = "│  └─ Key 'yprint_express_design_backup' is empty or missing";
-        } else {
-            $trail[] = "│  ✅ Express design backup found";
-            $trail[] = "│  ├─ Backup contains " . count($express_backup) . " items";
+        $results = $wpdb->get_results($query, ARRAY_A);
+        
+        if ($wpdb->last_error) {
+            $trail[] = "│  ❌ Database Error: " . $wpdb->last_error;
+            return array('trail' => $trail, 'found_count' => 0, 'designs' => array());
+        }
+        
+        $found_count = count($results);
+        $trail[] = "│  ├─ Query Results: $found_count designs found";
+        
+        foreach ($results as $design_row) {
+            $design_id = $design_row['id'];
+            $trail[] = "│  ├─ Design ID $design_id:";
+            $trail[] = "│  │  ├─ Name: " . $design_row['name'];
+            $trail[] = "│  │  ├─ Template ID: " . $design_row['template_id'];
+            $trail[] = "│  │  ├─ User ID: " . $design_row['user_id'];
+            $trail[] = "│  │  ├─ Created: " . $design_row['created_at'];
             
-            foreach ($express_backup as $backup_key => $backup_design) {
-                $trail[] = "│  │  ├─ Backup Key: $backup_key";
-                $trail[] = "│  │  │  ├─ Design ID: " . ($backup_design['design_id'] ?? 'MISSING');
-                $trail[] = "│  │  │  └─ Template ID: " . ($backup_design['template_id'] ?? 'MISSING');
-            }
-        }
-        
-        // Prüfe andere relevante Session-Daten
-        $trail[] = "├─ Checking other session data...";
-        $session_data = WC()->session->get_session_data();
-        $design_related_keys = array_filter(array_keys($session_data), function($key) {
-            return strpos($key, 'design') !== false || strpos($key, 'print') !== false || strpos($key, 'yprint') !== false;
-        });
-        
-        if (!empty($design_related_keys)) {
-            $trail[] = "│  ├─ Design-related session keys found: " . implode(', ', $design_related_keys);
-        } else {
-            $trail[] = "│  └─ No design-related session keys found";
-        }
-        
-        return array(
-            'trail' => $trail,
-            'available' => true,
-            'has_backup' => !empty($express_backup),
-            'backup_data' => $express_backup,
-            'session_keys' => $design_related_keys
-        );
-    }
-    
-    /**
-     * DETAILLIERTE HOOK-ANALYSE (inkl. Express Checkout)
-     */
-    private function analyze_hook_execution() {
-        $trail = array();
-        
-        $trail[] = "├─ Checking hook execution log...";
-        $hook_log = get_option('yprint_hook_execution_log', array());
-        
-        if (empty($hook_log)) {
-            $trail[] = "│  ❌ No hook execution log found";
-            $trail[] = "│  └─ Hook tracking may not be working";
-            return array('trail' => $trail, 'hooks_logged' => false);
-        }
-        
-        $trail[] = "│  ✅ Hook execution log found with " . count($hook_log) . " entries";
-        
-        // Analysiere letzte 10 Minuten
-        $recent_hooks = array_filter($hook_log, function($entry) {
-            return isset($entry['timestamp']) && 
-                   strtotime($entry['timestamp']) > (time() - 600); // Letzte 10 Minuten
-        });
-        
-        $trail[] = "├─ Recent hooks (last 10 minutes): " . count($recent_hooks);
-        
-        // Erweiterte Hook-Liste für Express Checkout
-        $critical_hooks = array(
-            'checkout_create_order_line_item',
-            'express_checkout_order_created',
-            'express_order_design_verification',
-            'new_order_backup_check',
-            'backup_transfer_attempt',
-            'backup_transfer_result'
-        );
-        
-        $express_hooks = array(
-            'express_checkout_order_created',
-            'express_order_design_verification'
-        );
-        
-        $standard_hooks = array(
-            'checkout_create_order_line_item'
-        );
-        
-        // Bestimme Checkout-Typ
-        $is_express_checkout = false;
-        $is_standard_checkout = false;
-        
-        foreach ($recent_hooks as $hook_entry) {
-            if (in_array($hook_entry['hook'], $express_hooks)) {
-                $is_express_checkout = true;
-            }
-            if (in_array($hook_entry['hook'], $standard_hooks)) {
-                $is_standard_checkout = true;
-            }
-        }
-        
-        if ($is_express_checkout) {
-            $trail[] = "│  🔍 CHECKOUT TYPE: EXPRESS CHECKOUT detected";
-        } elseif ($is_standard_checkout) {
-            $trail[] = "│  🔍 CHECKOUT TYPE: STANDARD CHECKOUT detected";
-        } else {
-            $trail[] = "│  ⚠️  CHECKOUT TYPE: Unknown or no checkout hooks found";
-        }
-        
-        foreach ($critical_hooks as $hook_name) {
-            $hook_found = false;
-            foreach ($recent_hooks as $hook_entry) {
-                if (strpos($hook_entry['hook'], $hook_name) !== false) {
-                    $hook_found = true;
-                    
-                    // Spezielle Kennzeichnung für Express vs Standard
-                    $hook_type = '';
-                    if (in_array($hook_name, $express_hooks)) {
-                        $hook_type = ' [EXPRESS]';
-                    } elseif (in_array($hook_name, $standard_hooks)) {
-                        $hook_type = ' [STANDARD]';
-                    }
-                    
-                    $trail[] = "│  ├─ ✅ $hook_name$hook_type executed @ " . $hook_entry['timestamp'];
-                    if (!empty($hook_entry['details'])) {
-                        $trail[] = "│  │  └─ Details: " . $hook_entry['details'];
-                    }
-                    break;
-                }
-            }
-            
-            if (!$hook_found) {
-                // Nur als kritisch markieren wenn es für den erkannten Checkout-Typ relevant ist
-                $is_critical = false;
-                if ($is_express_checkout && in_array($hook_name, $express_hooks)) {
-                    $is_critical = true;
-                } elseif ($is_standard_checkout && in_array($hook_name, $standard_hooks)) {
-                    $is_critical = true;
-                } elseif (!$is_express_checkout && !$is_standard_checkout) {
-                    $is_critical = true; // Unknown type - mark all as critical
-                }
+            // Parse design_data JSON
+            $design_data = json_decode($design_row['design_data'], true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $trail[] = "│  │  ├─ ✅ Design Data JSON valid";
+                $trail[] = "│  │  │  ├─ Template ID: " . ($design_data['templateId'] ?? 'MISSING');
+                $trail[] = "│  │  │  ├─ Current Variation: " . ($design_data['currentVariation'] ?? 'MISSING');
                 
-                if ($is_critical) {
-                    $trail[] = "│  ├─ ❌ $hook_name NOT executed";
-                    $trail[] = "│  │  └─ This is a critical missing hook for this checkout type!";
+                if (isset($design_data['variationImages'])) {
+                    $view_count = count($design_data['variationImages']);
+                    $trail[] = "│  │  │  └─ Variation Images: $view_count views found";
                 } else {
-                    $trail[] = "│  ├─ ⚪ $hook_name not executed (not required for this checkout type)";
+                    $trail[] = "│  │  │  └─ ❌ No variationImages found";
                 }
-            }
-        }
-        
-        return array(
-            'trail' => $trail,
-            'hooks_logged' => true,
-            'recent_hooks' => $recent_hooks,
-            'is_express_checkout' => $is_express_checkout,
-            'is_standard_checkout' => $is_standard_checkout,
-            'critical_hooks_missing' => array_filter($critical_hooks, function($hook) use ($recent_hooks, $is_express_checkout, $is_standard_checkout, $express_hooks, $standard_hooks) {
-                // Prüfe ob Hook ausgeführt wurde
-                $hook_executed = false;
-                foreach ($recent_hooks as $entry) {
-                    if (strpos($entry['hook'], $hook) !== false) {
-                        $hook_executed = true;
-                        break;
-                    }
-                }
-                
-                if ($hook_executed) {
-                    return false; // Hook wurde ausgeführt
-                }
-                
-                // Prüfe ob Hook für aktuellen Checkout-Typ relevant ist
-                if ($is_express_checkout && in_array($hook, $express_hooks)) {
-                    return true; // Express checkout und Hook fehlt
-                } elseif ($is_standard_checkout && in_array($hook, $standard_hooks)) {
-                    return true; // Standard checkout und Hook fehlt
-                } elseif (!$is_express_checkout && !$is_standard_checkout) {
-                    return true; // Unbekannter Typ - alle als fehlend markieren
-                }
-                
-                return false; // Hook nicht relevant für aktuellen Checkout-Typ
-            })
-        );
-    }
-    
-    /**
- * DETAILLIERTE ORDER-ANALYSE MIT PRINT PROVIDER BEREITSCHAFTSPRÜFUNG
- */
-private function analyze_order_items($order) {
-    $trail = array();
-    $design_count = 0;
-    $items_analysis = array();
-    $overall_completeness = array();
-    $print_provider_ready_count = 0;
-    
-    $trail[] = "├─ Analyzing order items for Print Provider readiness...";
-    $trail[] = "│  ├─ Order ID: " . $order->get_id();
-    $trail[] = "│  ├─ Order Status: " . $order->get_status();
-    $trail[] = "│  └─ Total Items: " . count($order->get_items());
-    
-    // Definiere alle erforderlichen Meta-Felder für Print Provider E-Mail System
-    $required_meta_fields = array(
-        // Basis Design-Daten (KRITISCH für Print Provider)
-        '_design_id' => array('type' => 'integer', 'critical' => true, 'print_provider_required' => true),
-        '_design_name' => array('type' => 'string', 'critical' => true, 'print_provider_required' => true),
-        '_design_color' => array('type' => 'string', 'critical' => false, 'print_provider_required' => true), 
-        '_design_size' => array('type' => 'string', 'critical' => false, 'print_provider_required' => true),
-        '_design_preview_url' => array('type' => 'string', 'critical' => true, 'print_provider_required' => true),
-        
-        // Dimensionen (KRITISCH für Druck)
-        '_design_width_cm' => array('type' => 'numeric', 'critical' => true, 'print_provider_required' => true),
-        '_design_height_cm' => array('type' => 'numeric', 'critical' => true, 'print_provider_required' => true),
-        
-        // Multi-View Support (KRITISCH für Front/Back-Print)
-        '_design_has_multiple_images' => array('type' => 'boolean', 'critical' => false, 'print_provider_required' => true),
-        '_design_product_images' => array('type' => 'json', 'critical' => true, 'print_provider_required' => true),
-        '_design_images' => array('type' => 'json', 'critical' => true, 'print_provider_required' => true),
-        
-        // Legacy-Kompatibilität (FALLBACK)
-        '_design_image_url' => array('type' => 'string', 'critical' => false, 'print_provider_required' => false)
-    );
-    
-    foreach ($order->get_items() as $item_id => $item) {
-        $trail[] = "│  ├─ Order Item $item_id:";
-        $trail[] = "│  │  ├─ Name: " . $item->get_name();
-        $trail[] = "│  │  ├─ Product ID: " . $item->get_product_id();
-        
-        // Prüfe alle Meta-Daten
-        $meta_data = $item->get_meta_data();
-        $trail[] = "│  │  ├─ Total Meta Fields: " . count($meta_data);
-        
-        // Detaillierte Prüfung aller erforderlichen Meta-Felder
-        $trail[] = "│  │  ├─ PRINT PROVIDER META-FIELD ANALYSIS:";
-        
-        $field_status = array();
-        $has_design_data = false;
-        $missing_critical_fields = array();
-        $missing_optional_fields = array();
-        $multi_view_analysis = array();
-        $print_provider_warnings = array();
-        
-        foreach ($required_meta_fields as $field_name => $field_config) {
-            $expected_type = $field_config['type'];
-            $is_critical = $field_config['critical'];
-            $print_provider_required = $field_config['print_provider_required'];
-            $field_value = $item->get_meta($field_name);
-            $is_present = !empty($field_value) || ($field_value === '0' || $field_value === 0 || $field_value === false);
-            $is_valid = $this->validate_meta_field_type($field_value, $expected_type);
-            
-            if ($is_present && $is_valid) {
-                $display_value = $this->format_meta_value_for_display($field_value, $expected_type);
-                $trail[] = "│  │  │  ├─ ✅ $field_name: " . $display_value;
-                $field_status[$field_name] = 'valid';
-                
-                // Design ID ist der Haupt-Indikator für Design-Produkt
-                if ($field_name === '_design_id') {
-                    $has_design_data = true;
-                    $design_count++;
-                }
-                
-                // Spezielle Multi-View Validierung
-                if ($field_name === '_design_product_images') {
-                    $multi_view_analysis['product_images'] = $this->analyze_multi_view_data($field_value, 'product_images', $trail);
-                } elseif ($field_name === '_design_images') {
-                    $multi_view_analysis['design_images'] = $this->analyze_multi_view_data($field_value, 'design_images', $trail);
-                }
-                
-            } elseif ($is_present && !$is_valid) {
-                $trail[] = "│  │  │  ├─ ⚠️  $field_name: INVALID TYPE (expected $expected_type, got " . gettype($field_value) . ")";
-                $field_status[$field_name] = 'invalid_type';
-                
-                if ($print_provider_required) {
-                    $print_provider_warnings[] = "$field_name has invalid format";
-                }
-                
-                if ($is_critical) {
-                    $missing_critical_fields[] = $field_name;
-                } else {
-                    $missing_optional_fields[] = $field_name;
-                }
-                
             } else {
-                $trail[] = "│  │  │  ├─ ❌ $field_name: MISSING";
-                $field_status[$field_name] = 'missing';
-                
-                if ($print_provider_required) {
-                    $print_provider_warnings[] = "$field_name is required for print provider";
-                }
-                
-                if ($is_critical) {
-                    $missing_critical_fields[] = $field_name;
-                } else {
-                    $missing_optional_fields[] = $field_name;
-                }
-            }
-        }
-        
-        // Legacy Design Meta prüfen (für Kompatibilität)
-        $design_meta = $item->get_meta('print_design');
-        if (!empty($design_meta)) {
-            $trail[] = "│  │  │  ├─ ✅ print_design (legacy): FOUND";
-            $trail[] = "│  │  │  │  └─ Legacy Design ID: " . (is_array($design_meta) ? ($design_meta['design_id'] ?? 'MISSING') : 'INVALID_FORMAT');
-        } else {
-            $trail[] = "│  │  │  ├─ ❌ print_design (legacy): MISSING";
-        }
-        
-        // Berechne Vollständigkeit
-        $total_fields = count($required_meta_fields);
-        $valid_fields = count(array_filter($field_status, function($status) {
-            return $status === 'valid';
-        }));
-        $completeness_percentage = round(($valid_fields / $total_fields) * 100, 1);
-        
-        // Status-Zusammenfassung für dieses Item
-        $trail[] = "│  │  │  └─ COMPLETENESS: $completeness_percentage% ($valid_fields/$total_fields fields valid)";
-        
-        if (!empty($missing_critical_fields)) {
-            $trail[] = "│  │  ├─ 🚨 CRITICAL MISSING: " . implode(', ', $missing_critical_fields);
-        }
-        
-        if (!empty($missing_optional_fields)) {
-            $trail[] = "│  │  ├─ ⚠️  OPTIONAL MISSING: " . implode(', ', $missing_optional_fields);
-        }
-        
-        // Print Provider Bereitschaftsprüfung
-        $critical_fields_valid = $has_design_data && 
-                               $field_status['_design_name'] === 'valid' && 
-                               $field_status['_design_preview_url'] === 'valid' &&
-                               $field_status['_design_width_cm'] === 'valid' &&
-                               $field_status['_design_height_cm'] === 'valid';
-        
-        $multi_view_ready = ($field_status['_design_product_images'] === 'valid' && 
-                           $field_status['_design_images'] === 'valid' &&
-                           isset($multi_view_analysis['product_images']) &&
-                           isset($multi_view_analysis['design_images']) &&
-                           $multi_view_analysis['product_images']['valid'] &&
-                           $multi_view_analysis['design_images']['valid']);
-        
-        $legacy_fallback_ready = $field_status['_design_image_url'] === 'valid';
-        
-        $print_provider_ready = $critical_fields_valid && ($multi_view_ready || $legacy_fallback_ready);
-        
-        if ($print_provider_ready) {
-            $print_provider_ready_count++;
-        }
-        
-        $trail[] = "│  │  ├─ 🎯 PRINT PROVIDER READINESS ANALYSIS:";
-        $trail[] = "│  │  │  ├─ Critical Fields: " . ($critical_fields_valid ? '✅ VALID' : '❌ MISSING');
-        $trail[] = "│  │  │  ├─ Multi-View Data: " . ($multi_view_ready ? '✅ COMPLETE' : '❌ INCOMPLETE');
-        $trail[] = "│  │  │  ├─ Legacy Fallback: " . ($legacy_fallback_ready ? '✅ AVAILABLE' : '❌ N/A');
-        $trail[] = "│  │  │  └─ OVERALL STATUS: " . ($print_provider_ready ? '✅ READY TO SEND' : '❌ NOT READY');
-        
-        if (!empty($print_provider_warnings)) {
-            $trail[] = "│  │  ├─ 🚨 PRINT PROVIDER WARNINGS:";
-            foreach ($print_provider_warnings as $warning) {
-                $trail[] = "│  │  │  └─ ⚠️  $warning";
-            }
-        }
-        
-        // Multi-View Zusammenfassung
-        if (!empty($multi_view_analysis)) {
-            $trail[] = "│  │  ├─ 📋 MULTI-VIEW SUMMARY:";
-            
-            if (isset($multi_view_analysis['product_images'])) {
-                $pimg = $multi_view_analysis['product_images'];
-                $trail[] = "│  │  │  ├─ Preview Images: " . $pimg['view_count'] . " views (" . 
-                          implode(', ', $pimg['views_found']) . ")";
-                if (!empty($pimg['issues'])) {
-                    $trail[] = "│  │  │  │  └─ Issues: " . implode('; ', $pimg['issues']);
-                }
+                $trail[] = "│  │  └─ ❌ Design Data JSON invalid: " . json_last_error_msg();
+                $design_data = null;
             }
             
-            if (isset($multi_view_analysis['design_images'])) {
-                $dimg = $multi_view_analysis['design_images'];
-                $trail[] = "│  │  │  └─ Design Files: " . $dimg['view_count'] . " views (" . 
-                          implode(', ', $dimg['views_found']) . ")";
-                if (!empty($dimg['issues'])) {
-                    $trail[] = "│  │  │     └─ Issues: " . implode('; ', $dimg['issues']);
-                }
-            }
+            $designs[$design_id] = array(
+                'id' => $design_id,
+                'name' => $design_row['name'],
+                'template_id' => $design_row['template_id'],
+                'user_id' => $design_row['user_id'],
+                'created_at' => $design_row['created_at'],
+                'product_name' => $design_row['product_name'],
+                'design_data' => $design_data,
+                'raw_data' => $design_row['design_data']
+            );
         }
         
-        // Speichere detaillierte Analyse
-        $items_analysis[$item_id] = array(
-            'name' => $item->get_name(),
-            'product_id' => $item->get_product_id(),
-            'has_design' => $has_design_data,
-            'completeness_percentage' => $completeness_percentage,
-            'field_status' => $field_status,
-            'missing_critical' => $missing_critical_fields,
-            'missing_optional' => $missing_optional_fields,
-            'email_ready' => $email_ready,
-            'cart_key' => $item->get_meta('_cart_item_key'),
-            'design_meta' => $design_meta
-        );
-        
-        $overall_completeness[] = $completeness_percentage;
-    }
-    
-    // Gesamtübersicht
-    $avg_completeness = !empty($overall_completeness) ? round(array_sum($overall_completeness) / count($overall_completeness), 1) : 0;
-    
-    $trail[] = "";
-    $trail[] = "└─ 📊 PRINT PROVIDER ORDER SUMMARY:";
-    $trail[] = "   ├─ Design Items Found: $design_count";
-    $trail[] = "   ├─ Print Provider Ready: $print_provider_ready_count of " . count($items_analysis);
-    $trail[] = "   ├─ Average Data Completeness: $avg_completeness%";
-    
-    if ($print_provider_ready_count === count($items_analysis) && $design_count > 0) {
-        $trail[] = "   └─ 🎉 STATUS: ORDER READY FOR PRINT PROVIDER!";
-    } elseif ($print_provider_ready_count > 0) {
-        $trail[] = "   └─ ⚠️  STATUS: PARTIALLY READY - Some items missing data";
-    } else {
-        $trail[] = "   └─ ❌ STATUS: NOT READY - Critical data missing";
-    }
-    
-    return array(
-        'trail' => $trail,
-        'design_count' => $design_count,
-        'total_items' => count($order->get_items()),
-        'print_provider_ready_items' => $print_provider_ready_count,
-        'average_completeness' => $avg_completeness,
-        'items' => $items_analysis,
-        'required_fields' => array_keys($required_meta_fields),
-        'print_provider_ready' => $print_provider_ready_count === count($items_analysis) && $design_count > 0,
-        'multi_view_support' => true
-    );
-}
-
-/**
- * Validiere Meta-Feld-Typ
- */
-private function validate_meta_field_type($value, $expected_type) {
-    if (empty($value) && $value !== '0' && $value !== 0 && $value !== false) {
-        return false;
-    }
-    
-    switch ($expected_type) {
-        case 'integer':
-            return is_numeric($value) && (int)$value == $value;
-            
-        case 'string':
-            return is_string($value) && strlen(trim($value)) > 0;
-            
-        case 'numeric':
-            return is_numeric($value);
-            
-        case 'boolean':
-            return is_bool($value) || in_array($value, array('1', '0', 1, 0, 'true', 'false'), true);
-            
-        case 'json':
-            if (!is_string($value)) return false;
-            json_decode($value);
-            return json_last_error() === JSON_ERROR_NONE;
-            
-        default:
-            return true;
-    }
-}
-
-/**
- * Analysiere Multi-View JSON-Daten detailliert
- */
-private function analyze_multi_view_data($json_value, $data_type, &$trail) {
-    $analysis = array(
-        'valid' => false,
-        'view_count' => 0,
-        'views_found' => array(),
-        'issues' => array()
-    );
-    
-    if (empty($json_value)) {
-        $analysis['issues'][] = 'JSON data is empty';
-        return $analysis;
-    }
-    
-    $decoded = json_decode($json_value, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        $analysis['issues'][] = 'Invalid JSON format: ' . json_last_error_msg();
-        return $analysis;
-    }
-    
-    if (!is_array($decoded)) {
-        $analysis['issues'][] = 'JSON does not contain array data';
-        return $analysis;
-    }
-    
-    $trail[] = "│  │  │  │  └─ " . strtoupper($data_type) . " DETAILED ANALYSIS:";
-    
-    foreach ($decoded as $index => $view_data) {
-        if (!is_array($view_data)) {
-            $analysis['issues'][] = "Item $index is not an array";
-            continue;
-        }
-        
-        $analysis['view_count']++;
-        
-        // Prüfe erforderliche Felder je nach Datentyp
-        if ($data_type === 'product_images') {
-            $required_fields = array('url', 'view_name');
-            $optional_fields = array('view_id');
-        } else { // design_images
-            $required_fields = array('url', 'view_name', 'width_cm', 'height_cm');
-            $optional_fields = array('view_id', 'transform', 'scaleX', 'scaleY', 'visible');
-        }
-        
-        $view_name = isset($view_data['view_name']) ? $view_data['view_name'] : 
-                    (isset($view_data['view_id']) ? $view_data['view_id'] : "View $index");
-        
-        $analysis['views_found'][] = $view_name;
-        
-        $trail[] = "│  │  │  │     ├─ VIEW: $view_name";
-        
-        $missing_required = array();
-        foreach ($required_fields as $field) {
-            if (empty($view_data[$field])) {
-                $missing_required[] = $field;
-            } else {
-                $trail[] = "│  │  │  │     │  ├─ ✅ $field: " . 
-                          (strlen($view_data[$field]) > 30 ? substr($view_data[$field], 0, 30) . '...' : $view_data[$field]);
-            }
-        }
-        
-        if (!empty($missing_required)) {
-            $trail[] = "│  │  │  │     │  └─ ❌ Missing: " . implode(', ', $missing_required);
-            $analysis['issues'][] = "View '$view_name' missing: " . implode(', ', $missing_required);
-        }
-        
-        // Prüfe URL-Erreichbarkeit (vereinfacht)
-        if (!empty($view_data['url'])) {
-            $url_valid = filter_var($view_data['url'], FILTER_VALIDATE_URL) !== false;
-            if (!$url_valid) {
-                $analysis['issues'][] = "View '$view_name' has invalid URL format";
-                $trail[] = "│  │  │  │     │  └─ ⚠️  Invalid URL format";
-            }
-        }
-    }
-    
-    $analysis['valid'] = empty($analysis['issues']) && $analysis['view_count'] > 0;
-    
-    return $analysis;
-}
-
-/**
- * Formatiere Meta-Wert für Anzeige
- */
-private function format_meta_value_for_display($value, $type) {
-    switch ($type) {
-        case 'json':
-            $decoded = json_decode($value, true);
-            if (is_array($decoded)) {
-                return count($decoded) . " items";
-            }
-            return "valid JSON";
-            
-        case 'string':
-            return '"' . (strlen($value) > 30 ? substr($value, 0, 30) . '...' : $value) . '"';
-            
-        case 'boolean':
-            return $value ? 'true' : 'false';
-            
-        default:
-            return (string)$value;
-    }
-}
-    
-    /**
-     * FUNCTION AVAILABILITY CHECK
-     */
-    private function analyze_function_availability() {
-        $trail = array();
-        
-        $trail[] = "├─ Checking critical function availability...";
-        
-        $critical_functions = array(
-            'WC' => function_exists('WC'),
-            'wc_get_order' => function_exists('wc_get_order'),
-            'wp_verify_nonce' => function_exists('wp_verify_nonce'),
-            'current_time' => function_exists('current_time'),
-            'get_post_meta' => function_exists('get_post_meta'),
-            'update_post_meta' => function_exists('update_post_meta')
-        );
-        
-        foreach ($critical_functions as $func_name => $available) {
-            $trail[] = "│  ├─ $func_name: " . ($available ? '✅ Available' : '❌ Missing');
-        }
-        
-        // Prüfe Klassen
-        $critical_classes = array(
-            'WC_Cart' => class_exists('WC_Cart'),
-            'WC_Order' => class_exists('WC_Order'),
-            'WC_Session_Handler' => class_exists('WC_Session_Handler')
-        );
-        
-        $trail[] = "├─ Checking critical class availability...";
-        foreach ($critical_classes as $class_name => $available) {
-            $trail[] = "│  ├─ $class_name: " . ($available ? '✅ Available' : '❌ Missing');
-        }
-        
-        // Prüfe Custom Functions
-        $custom_functions = array(
-            'yprint_tracked_design_transfer' => function_exists('yprint_tracked_design_transfer'),
-            'yprint_tracked_backup_transfer' => function_exists('yprint_tracked_backup_transfer'),
-            'yprint_log_hook_execution' => function_exists('yprint_log_hook_execution')
-        );
-        
-        $trail[] = "├─ Checking custom function availability...";
-        foreach ($custom_functions as $func_name => $available) {
-            $trail[] = "│  └─ $func_name: " . ($available ? '✅ Available' : '❌ Missing');
-        }
+        $trail[] = "└─ DATABASE SUMMARY: $found_count of " . count($design_ids) . " designs found";
         
         return array(
             'trail' => $trail,
-            'wordpress_functions' => $critical_functions,
-            'woocommerce_classes' => $critical_classes,
-            'custom_functions' => $custom_functions
+            'found_count' => $found_count,
+            'designs' => $designs,
+            'missing_ids' => array_diff($design_ids, array_keys($designs))
         );
     }
     
     /**
-     * PRÄZISE ROOT CAUSE BESTIMMUNG (inkl. Express Checkout)
+     * ERSTELLE DETAILLIERTE DESIGN BREAKDOWN
      */
-    private function determine_precise_root_cause($cart_analysis, $session_analysis, $hook_analysis, $order_analysis, $function_analysis) {
+    private function create_detailed_design_breakdown($designs) {
+        $trail = array();
+        $formatted_designs = array();
         
-        // Bestimme Checkout-Typ
-        $is_express = $hook_analysis['is_express_checkout'] ?? false;
-        $is_standard = $hook_analysis['is_standard_checkout'] ?? false;
+        $trail[] = "├─ Creating detailed design breakdown...";
         
-        // Szenario 1: Funktionen fehlen
-        if (in_array(false, $function_analysis['custom_functions'])) {
-            return array(
-                'cause' => 'Custom Transfer Functions Missing',
-                'action' => 'Re-implement yprint_tracked_design_transfer and yprint_tracked_backup_transfer functions',
-                'technical' => 'One or more custom functions for design data transfer are not loaded or defined'
-            );
+        if (empty($designs)) {
+            $trail[] = "│  ❌ No designs to analyze";
+            return array('trail' => $trail, 'formatted_designs' => array());
         }
         
-        // EXPRESS CHECKOUT SPEZIFISCHE SZENARIEN
-        if ($is_express) {
-            // Express: Cart hat Design, aber Express Hook fehlt
-            if ($cart_analysis['design_count'] > 0 && 
-                in_array('express_checkout_order_created', $hook_analysis['critical_hooks_missing'] ?? array())) {
-                return array(
-                    'cause' => 'Express Checkout Design Transfer Failed',
-                    'action' => 'Check ajax_process_payment_method function - design transfer logic may not be executed properly',
-                    'technical' => 'Cart contains design data but express checkout order creation hook was not triggered'
-                );
+        foreach ($designs as $design_id => $design) {
+            $trail[] = "│  ├─ Processing Design ID $design_id:";
+            
+            if (!$design['design_data']) {
+                $trail[] = "│  │  └─ ❌ No valid design data to process";
+                continue;
             }
             
-            // Express: Order erstellt aber keine Design-Daten
-            if ($order_analysis['design_count'] == 0 && $cart_analysis['design_count'] > 0) {
-                return array(
-                    'cause' => 'Express Order Created Without Design Data',
-                    'action' => 'Debug manual design transfer in ajax_process_payment_method - check if cart items are properly processed',
-                    'technical' => 'Express checkout created order but manual design data transfer failed'
-                );
+            $design_data = $design['design_data'];
+            $formatted_design = array(
+                'id' => $design_id,
+                'name' => $design['name'],
+                'template_id' => $design['template_id'],
+                'views' => array()
+            );
+            
+            // Verarbeite variationImages
+            if (isset($design_data['variationImages'])) {
+                $trail[] = "│  │  ├─ Processing variation images...";
+                
+                foreach ($design_data['variationImages'] as $view_id => $images) {
+                    $trail[] = "│  │  │  ├─ View ID: $view_id";
+                    
+                    // Extrahiere Variation und View aus dem Key
+                    $parts = explode('_', $view_id);
+                    $variation_id = $parts[0] ?? '';
+                    $view_system_id = $parts[1] ?? '';
+                    
+                    $view_data = array(
+                        'view_id' => $view_id,
+                        'variation_id' => $variation_id,
+                        'system_id' => $view_system_id,
+                        'images' => array()
+                    );
+                    
+                    $image_count = 0;
+                    foreach ($images as $image) {
+                        $image_count++;
+                        $trail[] = "│  │  │  │  ├─ Image $image_count:";
+                        
+                        // Extrahiere Dateiname aus URL
+                        $filename = basename($image['url'] ?? '');
+                        $trail[] = "│  │  │  │  │  ├─ File: $filename";
+                        
+                        // Berechne Druckgröße
+                        $original_width = $image['transform']['width'] ?? 0;
+                        $original_height = $image['transform']['height'] ?? 0;
+                        $scale_x = $image['transform']['scaleX'] ?? 0;
+                        $scale_y = $image['transform']['scaleY'] ?? 0;
+                        
+                        $print_width_mm = round(($original_width * $scale_x) * 0.26458333, 1); // px zu mm
+                        $print_height_mm = round(($original_height * $scale_y) * 0.26458333, 1);
+                        
+                        $trail[] = "│  │  │  │  │  ├─ Original: {$original_width}px × {$original_height}px";
+                        $trail[] = "│  │  │  │  │  ├─ Scale: " . round($scale_x * 100, 1) . "%";
+                        $trail[] = "│  │  │  │  │  └─ Print Size: {$print_width_mm}mm × {$print_height_mm}mm";
+                        
+                        $view_data['images'][] = array(
+                            'filename' => $filename,
+                            'url' => $image['url'] ?? '',
+                            'original_width' => $original_width,
+                            'original_height' => $original_height,
+                            'position_left' => $image['transform']['left'] ?? 0,
+                            'position_top' => $image['transform']['top'] ?? 0,
+                            'scale_x' => $scale_x,
+                            'scale_y' => $scale_y,
+                            'scale_percent' => round($scale_x * 100, 1),
+                            'print_width_mm' => $print_width_mm,
+                            'print_height_mm' => $print_height_mm,
+                            'angle' => $image['transform']['angle'] ?? 0,
+                            'visible' => $image['visible'] ?? true
+                        );
+                    }
+                    
+                    $trail[] = "│  │  │  └─ View processed: $image_count images";
+                    $formatted_design['views'][$view_id] = $view_data;
+                }
             }
             
-            // Express: Cart leer, kein Backup
-            if ($cart_analysis['design_count'] == 0 && !$session_analysis['has_backup']) {
-                return array(
-                    'cause' => 'Express Checkout: No Cart Data and No Backup',
-                    'action' => 'Check if express payment design backup was created before payment processing',
-                    'technical' => 'Express checkout processed but both cart and session backup are empty'
-                );
-            }
+            $trail[] = "│  │  └─ Design processed: " . count($formatted_design['views']) . " views";
+            $formatted_designs[$design_id] = $formatted_design;
         }
         
-        // STANDARD CHECKOUT SPEZIFISCHE SZENARIEN  
-        if ($is_standard) {
-            // Standard: Cart hat Design, aber Standard Hook fehlt
-            if ($cart_analysis['design_count'] > 0 && 
-                in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array())) {
-                return array(
-                    'cause' => 'Standard Checkout Design Transfer Hook Not Executed',
-                    'action' => 'Check if woocommerce_checkout_create_order_line_item hook is properly registered',
-                    'technical' => 'Cart contains design data but the primary WooCommerce transfer hook was never called'
-                );
-            }
-            
-            // Standard: Hook ausgeführt, aber Daten kommen nicht an
-            if ($cart_analysis['design_count'] > 0 && 
-                !in_array('checkout_create_order_line_item', $hook_analysis['critical_hooks_missing'] ?? array()) &&
-                $order_analysis['design_count'] == 0) {
-                return array(
-                    'cause' => 'Standard Checkout Hook Executed But Data Transfer Failed',
-                    'action' => 'Debug the yprint_tracked_design_transfer function - data may be corrupted during transfer',
-                    'technical' => 'WooCommerce transfer hook was called but design data did not reach order items'
-                );
-            }
-        }
+        $trail[] = "└─ BREAKDOWN SUMMARY: " . count($formatted_designs) . " designs formatted";
         
-        // UNBEKANNTER CHECKOUT-TYP
-        if (!$is_express && !$is_standard) {
-            return array(
-                'cause' => 'Unknown Checkout Type - No Hooks Detected',
-                'action' => 'Check if either standard WooCommerce or Express checkout hooks are being triggered',
-                'technical' => 'Neither express nor standard checkout hooks were detected in the log'
-            );
-        }
-        
-        // GEMISCHTE SZENARIEN
-        if ($is_express && $is_standard) {
-            return array(
-                'cause' => 'Mixed Checkout Detection - Both Express and Standard Hooks Found',
-                'action' => 'Check for conflicts between express and standard checkout processes',
-                'technical' => 'Both express and standard checkout hooks were detected, indicating possible conflict'
-            );
-        }
-        
-        // Standard-Fall
         return array(
-            'cause' => 'Complex Multi-Factor Issue (' . ($is_express ? 'Express' : 'Standard') . ' Checkout)',
-            'action' => 'Manual investigation required - check all debug sections above for ' . ($is_express ? 'express' : 'standard') . ' checkout specific issues',
-            'technical' => 'Multiple potential issues detected in ' . ($is_express ? 'express' : 'standard') . ' checkout flow, requires detailed analysis'
+            'trail' => $trail,
+            'formatted_designs' => $formatted_designs
         );
     }
+    
+    /**
+     * ANALYSIERE PRINT PROVIDER BEREITSCHAFT
+     */
+    private function analyze_print_provider_readiness($formatted_designs) {
+        $trail = array();
+        $ready_count = 0;
+        $total_count = count($formatted_designs);
+        
+        $trail[] = "├─ Analyzing Print Provider readiness...";
+        
+        foreach ($formatted_designs as $design_id => $design) {
+            $trail[] = "│  ├─ Design $design_id:";
+            
+            $issues = array();
+            $view_count = count($design['views']);
+            
+            if ($view_count === 0) {
+                $issues[] = "No views found";
+            }
+            
+            foreach ($design['views'] as $view_id => $view) {
+                $image_count = count($view['images']);
+                if ($image_count === 0) {
+                    $issues[] = "View $view_id has no images";
+                }
+                
+                foreach ($view['images'] as $index => $image) {
+                    if (empty($image['url'])) {
+                        $issues[] = "View $view_id Image " . ($index + 1) . " missing URL";
+                    }
+                    if ($image['print_width_mm'] <= 0 || $image['print_height_mm'] <= 0) {
+                        $issues[] = "View $view_id Image " . ($index + 1) . " invalid print dimensions";
+                    }
+                }
+            }
+            
+            if (empty($issues)) {
+                $ready_count++;
+                $trail[] = "│  │  └─ ✅ READY - $view_count views, all data complete";
+            } else {
+                $trail[] = "│  │  └─ ❌ NOT READY - Issues: " . implode('; ', $issues);
+            }
+        }
+        
+        $trail[] = "└─ READINESS SUMMARY: $ready_count of $total_count designs ready";
+        
+        return array(
+            'trail' => $trail,
+            'ready' => $ready_count === $total_count && $total_count > 0,
+            'ready_count' => $ready_count,
+            'total_count' => $total_count
+        );
+    }
+    
+    /**
+     * BESTIMME ENHANCED ROOT CAUSE
+     */
+    private function determine_enhanced_root_cause($order_analysis, $database_analysis, $design_breakdown, $print_readiness) {
+        
+        if ($order_analysis['design_count'] === 0) {
+            return array(
+                'cause' => 'No Design IDs in Order Items',
+                'action' => 'Check design transfer hooks during checkout process',
+                'technical' => 'Order was created without any design_id meta fields'
+            );
+        }
+        
+        if ($database_analysis['found_count'] === 0) {
+            return array(
+                'cause' => 'Design IDs Not Found in Database',
+                'action' => 'Verify design IDs exist in deo6_octo_user_designs table',
+                'technical' => 'Design IDs present in order but missing from database: ' . implode(', ', $order_analysis['design_ids'])
+            );
+        }
+        
+        if (count($design_breakdown['formatted_designs']) === 0) {
+            return array(
+                'cause' => 'Invalid Design Data in Database',
+                'action' => 'Check design_data JSON format in database records',
+                'technical' => 'Design records found but contain invalid or corrupted JSON data'
+            );
+        }
+        
+        if (!$print_readiness['ready']) {
+            return array(
+                'cause' => 'Design Data Incomplete for Print Provider',
+                'action' => 'Verify all design views have complete image data and valid dimensions',
+                'technical' => $print_readiness['ready_count'] . ' of ' . $print_readiness['total_count'] . ' designs are print-ready'
+            );
+        }
+        
+        return array(
+            'cause' => 'All Systems Operational',
+            'action' => 'Order is ready for print provider processing',
+            'technical' => 'All design data validated and complete'
+        );
+    }
+    
+    /**
+     * ZEIGE DEBUG INFO IM ADMIN
+     */
+    public function display_debug_in_admin($order) {
+        $debug_summary = get_post_meta($order->get_id(), '_yprint_enhanced_debug_summary', true);
+        
+        if (empty($debug_summary)) {
+            return;
+        }
+        
+        echo '<div style="background: #f9f9f9; padding: 15px; margin: 15px 0; border-left: 4px solid #0073aa;">';
+        echo '<h3 style="margin-top: 0; color: #0073aa;">🔍 YPrint Enhanced Debug Analysis</h3>';
+        
+        // Status Overview
+        echo '<div style="margin-bottom: 15px;">';
+        echo '<strong>Status:</strong> ';
+        if ($debug_summary['status'] === 'SUCCESS') {
+            echo '<span style="color: green; font-weight: bold;">✅ SUCCESS</span>';
+        } else {
+            echo '<span style="color: red; font-weight: bold;">❌ FAILED</span>';
+        }
+        echo '<br>';
+        echo '<strong>Design Items:</strong> ' . $debug_summary['design_items_found'] . '<br>';
+        echo '<strong>Database Designs:</strong> ' . $debug_summary['database_designs_found'] . '<br>';
+        echo '<strong>Print Ready:</strong> ' . ($debug_summary['print_provider_ready'] ? 'Yes' : 'No') . '<br>';
+        echo '</div>';
+        
+        // Design Details Breakdown
+        if (!empty($debug_summary['formatted_designs'])) {
+            echo '<details style="margin-bottom: 15px;"><summary><strong>🎨 Design Details</strong></summary>';
+            echo '<div style="margin-top: 10px; font-family: monospace; font-size: 12px;">';
+            
+            foreach ($debug_summary['formatted_designs'] as $design_id => $design) {
+                echo "<h4 style='color: #0073aa; margin: 15px 0 5px 0;'>📋 Design: {$design['name']} (ID: $design_id)</h4>";
+                
+                $view_counter = 1;
+                foreach ($design['views'] as $view_id => $view) {
+                    // Bestimme View-Namen basierend auf System-ID
+                    $view_name = $this->get_view_name_by_system_id($view['system_id']);
+                    
+                    echo "<div style='margin-left: 20px; margin-bottom: 15px;'>";
+                    echo "🔹 <strong>View $view_counter: $view_name</strong><br>";
+                    echo "* <strong>System-ID der View:</strong> <code>{$view['system_id']}</code><br>";
+                    echo "* <strong>Variation (Produktvariante):</strong> <code>{$view['variation_id']}</code><br>";
+                    
+                    $image_counter = 1;
+                    foreach ($view['images'] as $image) {
+                        echo "🎨 <strong>Bild $image_counter:</strong><br>";
+                        echo "* <strong>Dateiname:</strong> <code>{$image['filename']}</code><br>";
+                        echo "* <strong>URL</strong> (<code>url</code>): <code>{$image['url']}</code><br>";
+                        echo "* <strong>Originalgröße</strong> (<code>transform.width</code> / <code>transform.height</code>): <code>{$image['original_width']} px × {$image['original_height']} px</code><br>";
+                        echo "* <strong>Platzierung</strong>:<br>";
+                        echo "   * <code>left</code>: <code>{$image['position_left']} px</code> (<code>transform.left</code>)<br>";
+                        echo "   * <code>top</code>: <code>{$image['position_top']} px</code> (<code>transform.top</code>)<br>";
+                        echo "* <strong>Skalierung</strong>:<br>";
+                        echo "   * <code>scaleX</code>: <code>{$image['scale_x']}</code> → ca. <strong>{$image['scale_percent']} %</strong><br>";
+                        echo "   * <code>scaleY</code>: <code>{$image['scale_y']}</code><br>";
+                        echo "* <strong>Druckgröße (berechnet aus Originalgröße × Skalierung)</strong>:<br>";
+                        echo "   * <strong>Breite:</strong> <code>{$image['original_width']} × {$image['scale_x']} = ~{$image['print_width_mm']} mm</code><br>";
+                        echo "   * <strong>Höhe:</strong> <code>{$image['original_height']} × {$image['scale_y']} = ~{$image['print_height_mm']} mm</code><br>";
+                        
+                        if ($image['angle'] != 0) {
+                            echo "* <strong>Rotation:</strong> <code>{$image['angle']}°</code><br>";
+                        }
+                        
+                        echo "<br>";
+                        $image_counter++;
+                    }
+                    
+                    echo "</div>";
+                    $view_counter++;
+                }
+            }
+            
+            echo '</div></details>';
+        }
+        
+        // Root Cause
+        if (isset($debug_summary['root_cause'])) {
+            echo '<details style="margin-bottom: 15px;"><summary><strong>🎯 Root Cause Analysis</strong></summary>';
+            echo '<div style="margin-top: 10px;">';
+            echo '<strong>Cause:</strong> ' . esc_html($debug_summary['root_cause']['cause']) . '<br>';
+            echo '<strong>Action:</strong> ' . esc_html($debug_summary['root_cause']['action']) . '<br>';
+            echo '<strong>Technical:</strong> ' . esc_html($debug_summary['root_cause']['technical']) . '<br>';
+            echo '</div></details>';
+        }
+        
+        // Debug Trail
+        if (!empty($debug_summary['debug_trail'])) {
+            echo '<details><summary><strong>📋 Complete Debug Trail</strong></summary>';
+            echo '<div style="background: #fff; padding: 10px; margin-top: 10px; font-family: monospace; font-size: 11px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd;">';
+            
+            foreach ($debug_summary['debug_trail'] as $entry) {
+                // Farbkodierung
+                if (strpos($entry, '✅') !== false) {
+                    $entry = '<span style="color: green;">' . $entry . '</span>';
+                } elseif (strpos($entry, '❌') !== false) {
+                    $entry = '<span style="color: red;">' . $entry . '</span>';
+                } elseif (strpos($entry, '⚠️') !== false) {
+                    $entry = '<span style="color: orange;">' . $entry . '</span>';
+                } elseif (strpos($entry, 'SCHRITT') !== false) {
+                    $entry = '<strong style="color: #0073aa; background: #f0f8ff; padding: 2px 4px;">' . $entry . '</strong>';
+                } elseif (strpos($entry, '🔍') !== false || strpos($entry, '🎯') !== false || strpos($entry, '💡') !== false) {
+                    $entry = '<span style="color: orange; font-weight: bold;">' . $entry . '</span>';
+                } elseif (strpos($entry, '├─') !== false || strpos($entry, '└─') !== false || strpos($entry, '│') !== false) {
+                    $entry = '<span style="color: #666;">' . $entry . '</span>';
+                }
+                
+                echo $entry . "\n";
+            }
+            
+            echo '</div></details>';
+        }
+        
+        echo '</div>';
+    }
+    
+    /**
+     * BESTIMME VIEW-NAMEN ANHAND DER SYSTEM-ID
+     */
+    private function get_view_name_by_system_id($system_id) {
+        // Häufige View-IDs und ihre Namen
+        $view_mappings = array(
+            '189542' => 'Vorderseite',
+            '679311' => 'Rückseite',
+            '189543' => 'Linke Seite',
+            '189544' => 'Rechte Seite',
+            '189545' => 'Oberseite',
+            '189546' => 'Unterseite',
+            '679312' => 'Innenseite',
+            '679313' => 'Ärmelvorderseite Links',
+            '679314' => 'Ärmelvorderseite Rechts',
+            '679315' => 'Ärmelrückseite Links',
+            '679316' => 'Ärmelrückseite Rechts'
+        );
+        
+        return isset($view_mappings[$system_id]) ? $view_mappings[$system_id] : "View $system_id";
+    }
+}
 
-/**
- * Bestimme die wahrscheinliche Ursache des Problems
- */
-private function determine_root_cause($debug_data, $trail) {
-    $trail_text = implode(' ', $trail);
-    
-    // Verschiedene Szenarien analysieren
-    if (strpos($trail_text, 'Cart is empty') !== false) {
-        return "Cart wurde vor Order-Erstellung geleert (Express Checkout?)";
-    }
-    
-    if (strpos($trail_text, 'Cart available') !== false && 
-        strpos($trail_text, 'HAS DESIGN') !== false &&
-        strpos($trail_text, 'Transfer Flag: MISSING') !== false) {
-        return "Design-Daten im Cart vorhanden, aber Hook-Transfer fehlgeschlagen";
-    }
-    
-    if (strpos($trail_text, 'Session backup found') !== false &&
-        strpos($trail_text, 'Backup Applied: MISSING') !== false) {
-        return "Session-Backup vorhanden, aber nicht angewendet";
-    }
-    
-    if (strpos($trail_text, 'Cart Key: MISSING') !== false) {
-        return "Cart-Item-Keys fehlen - Cart-zu-Order-Zuordnung verloren";
-    }
-    
-    if (strpos($trail_text, 'No session backup') !== false &&
-        strpos($trail_text, 'Cart is empty') !== false) {
-        return "Sowohl Cart als auch Session-Backup fehlen - Daten komplett verloren";
-    }
-    
-    return "Unbekannte Ursache - weitere Analyse erforderlich";
-}
-}
+// Initialisiere das Enhanced Debug-System
+add_action('init', function() {
+    YPrint_Enhanced_Debug::get_instance();
+});
+
+?>
