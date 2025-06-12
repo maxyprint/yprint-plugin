@@ -1935,13 +1935,13 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
     
     // === PRINT PROVIDER E-MAIL FORMAT (korrekte Feldnamen ohne Unterstrich) ===
     
-    // Basis Design-Daten
-    $order_item->update_meta_data('design_id', $design_data['design_id'] ?? '');
-    $order_item->update_meta_data('name', $design_data['name'] ?? '');
-    $order_item->update_meta_data('template_id', $design_data['template_id'] ?? '');
-    $order_item->update_meta_data('variation_id', $design_data['variation_id'] ?? '');
-    $order_item->update_meta_data('size_id', $design_data['size_id'] ?? '');
-    $order_item->update_meta_data('preview_url', $design_data['preview_url'] ?? '');
+    // Basis Design-Daten - Exakte Feldnamen wie im Print Provider System erwartet
+$order_item->update_meta_data('design_id', (int)($design_data['design_id'] ?? 0));
+$order_item->update_meta_data('name', (string)($design_data['name'] ?? ''));
+$order_item->update_meta_data('template_id', (int)($design_data['template_id'] ?? 0));
+$order_item->update_meta_data('variation_id', $design_data['variation_id'] ?? ''); // Kann leer bleiben
+$order_item->update_meta_data('size_id', $design_data['size_id'] ?? ''); // Kann leer bleiben  
+$order_item->update_meta_data('preview_url', (string)($design_data['preview_url'] ?? ''));
     
     // Dimensionen
     $order_item->update_meta_data('width_cm', $design_data['width_cm'] ?? $design_data['width'] ?? '25.4');
@@ -1951,27 +1951,98 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
     $order_item->update_meta_data('design_image_url', $design_data['design_image_url'] ?? $design_data['original_url'] ?? '');
     
     // Erweiterte Bild-Daten - Product Images (JSON)
-    if (isset($design_data['product_images']) && !empty($design_data['product_images'])) {
-        // Wenn bereits JSON String
-        if (is_string($design_data['product_images'])) {
+if (isset($design_data['product_images']) && !empty($design_data['product_images'])) {
+    if (is_string($design_data['product_images'])) {
+        // Validiere dass es gültiges JSON ist
+        $test_decode = json_decode($design_data['product_images'], true);
+        if (json_last_error() === JSON_ERROR_NONE) {
             $order_item->update_meta_data('product_images', $design_data['product_images']);
         } else {
-            // Wenn Array, zu JSON konvertieren
-            $order_item->update_meta_data('product_images', wp_json_encode($design_data['product_images']));
+            error_log('EXPRESS: Invalid JSON in product_images, creating fallback');
+            $order_item->update_meta_data('product_images', wp_json_encode(array()));
         }
-    } else {
-        // Fallback: Erstelle Standard Product Images aus vorhandenen Daten
-        $product_images = array(
-            array(
-                'url' => $design_data['preview_url'] ?? '',
-                'view_name' => 'Front View',
-                'view_id' => 'front',
-                'width_cm' => $design_data['width_cm'] ?? $design_data['width'] ?? '25.4',
-                'height_cm' => $design_data['height_cm'] ?? $design_data['height'] ?? '30.2'
-            )
-        );
-        $order_item->update_meta_data('product_images', wp_json_encode($product_images));
+    } elseif (is_array($design_data['product_images'])) {
+        // Array zu JSON konvertieren mit korrekten Datentypen
+        $product_images_clean = array();
+        foreach ($design_data['product_images'] as $img) {
+            $product_images_clean[] = array(
+                'url' => (string)($img['url'] ?? ''),
+                'view_name' => (string)($img['view_name'] ?? 'Front View'),
+                'view_id' => (string)($img['view_id'] ?? 'front'),
+                'width_cm' => (string)($img['width_cm'] ?? '25.4'),
+                'height_cm' => (string)($img['height_cm'] ?? '30.2')
+            );
+        }
+        $order_item->update_meta_data('product_images', wp_json_encode($product_images_clean));
     }
+} else {
+    // Fallback: Erstelle Standard Product Images
+    $product_images = array(
+        array(
+            'url' => (string)($design_data['preview_url'] ?? ''),
+            'view_name' => 'Front View',
+            'view_id' => 'front',
+            'width_cm' => (string)($design_data['width_cm'] ?? $design_data['width'] ?? '25.4'),
+            'height_cm' => (string)($design_data['height_cm'] ?? $design_data['height'] ?? '30.2')
+        )
+    );
+    $order_item->update_meta_data('product_images', wp_json_encode($product_images));
+}
+
+// Erweiterte Bild-Daten - Design Images (JSON)
+if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
+    if (is_string($design_data['design_images'])) {
+        // Validiere JSON
+        $test_decode = json_decode($design_data['design_images'], true);
+        if (json_last_error() === JSON_ERROR_NONE) {
+            $order_item->update_meta_data('design_images', $design_data['design_images']);
+        } else {
+            error_log('EXPRESS: Invalid JSON in design_images, creating fallback');
+            $order_item->update_meta_data('design_images', wp_json_encode(array()));
+        }
+    } elseif (is_array($design_data['design_images'])) {
+        // Array zu JSON mit korrekten Datentypen
+        $design_images_clean = array();
+        foreach ($design_data['design_images'] as $img) {
+            $design_images_clean[] = array(
+                'url' => (string)($img['url'] ?? ''),
+                'scaleX' => (float)($img['scaleX'] ?? 1),
+                'scaleY' => (float)($img['scaleY'] ?? 1),
+                'width_cm' => (string)($img['width_cm'] ?? '25.4'),
+                'height_cm' => (string)($img['height_cm'] ?? '30.2'),
+                'view_name' => (string)($img['view_name'] ?? 'Front Design')
+            );
+        }
+        $order_item->update_meta_data('design_images', wp_json_encode($design_images_clean));
+    }
+} else {
+    // Fallback: Erstelle Standard Design Images
+    $design_images = array(
+        array(
+            'url' => (string)($design_data['design_image_url'] ?? $design_data['original_url'] ?? ''),
+            'scaleX' => (float)($design_data['scaleX'] ?? 1),
+            'scaleY' => (float)($design_data['scaleY'] ?? 1),
+            'width_cm' => (string)($design_data['width_cm'] ?? $design_data['width'] ?? '25.4'),
+            'height_cm' => (string)($design_data['height_cm'] ?? $design_data['height'] ?? '30.2'),
+            'view_name' => 'Front Design'
+        )
+    );
+    $order_item->update_meta_data('design_images', wp_json_encode($design_images));
+}
+
+// Debug-Logging für Design Data Transfer Verification
+$transferred_fields = array();
+foreach (array('design_id', 'name', 'template_id', 'variation_id', 'size_id', 'preview_url', 'width_cm', 'height_cm', 'design_image_url', 'product_images', 'design_images', 'has_multiple_images') as $field) {
+    $transferred_fields[$field] = $order_item->get_meta($field, true);
+}
+
+error_log('EXPRESS: Final transferred meta data: ' . print_r($transferred_fields, true));
+
+// Verifizie JSON-Felder
+$product_images_valid = json_decode($transferred_fields['product_images'], true) !== null;
+$design_images_valid = json_decode($transferred_fields['design_images'], true) !== null;
+
+error_log('EXPRESS: JSON validation - product_images: ' . ($product_images_valid ? 'VALID' : 'INVALID') . ', design_images: ' . ($design_images_valid ? 'VALID' : 'INVALID'));
     
     // Erweiterte Bild-Daten - Design Images (JSON)
     if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
@@ -1997,16 +2068,24 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
         $order_item->update_meta_data('design_images', wp_json_encode($design_images));
     }
     
-    // Has Multiple Images Flag
-    $has_multiple_images = false;
-    if (isset($design_data['has_multiple_images'])) {
-        $has_multiple_images = $design_data['has_multiple_images'];
-    } elseif (isset($design_data['product_images']) && is_array($design_data['product_images'])) {
-        $has_multiple_images = count($design_data['product_images']) > 1;
-    } elseif (isset($design_data['design_images']) && is_array($design_data['design_images'])) {
-        $has_multiple_images = count($design_data['design_images']) > 1;
+    // Has Multiple Images Flag - Speichere exakt wie erwartet (kann leer bleiben)
+$has_multiple_images = '';
+if (isset($design_data['has_multiple_images']) && !empty($design_data['has_multiple_images'])) {
+    $has_multiple_images = $design_data['has_multiple_images'];
+}
+// Wenn nicht explizit gesetzt, prüfe automatisch basierend auf Bildern
+elseif (!isset($design_data['has_multiple_images'])) {
+    $image_count = 0;
+    if (isset($design_data['product_images']) && is_array($design_data['product_images'])) {
+        $image_count += count($design_data['product_images']);
     }
-    $order_item->update_meta_data('has_multiple_images', $has_multiple_images);
+    if (isset($design_data['design_images']) && is_array($design_data['design_images'])) {
+        $image_count += count($design_data['design_images']);
+    }
+    $has_multiple_images = $image_count > 1 ? true : '';
+}
+
+$order_item->update_meta_data('has_multiple_images', $has_multiple_images);
     
     // === ALTERNATIVE FELDNAMEN MIT UNTERSTRICH (für doppelte Kompatibilität) ===
     $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
