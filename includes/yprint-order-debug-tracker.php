@@ -404,76 +404,224 @@ error_log($log_message);
     }
     
     /**
-     * DETAILLIERTE ORDER-ANALYSE
-     */
-    private function analyze_order_items($order) {
-        $trail = array();
-        $design_count = 0;
-        $items_analysis = array();
+ * DETAILLIERTE ORDER-ANALYSE MIT SPEZIFISCHEN META-FELD-PRÜFUNG
+ */
+private function analyze_order_items($order) {
+    $trail = array();
+    $design_count = 0;
+    $items_analysis = array();
+    $overall_completeness = array();
+    
+    $trail[] = "├─ Analyzing order items...";
+    $trail[] = "│  ├─ Order ID: " . $order->get_id();
+    $trail[] = "│  ├─ Order Status: " . $order->get_status();
+    $trail[] = "│  └─ Total Items: " . count($order->get_items());
+    
+    // Definiere alle erforderlichen Meta-Felder für Print Provider E-Mail System
+    $required_meta_fields = array(
+        // Basis Design-Daten
+        '_design_id' => 'integer',
+        '_design_name' => 'string',
+        '_design_color' => 'string', 
+        '_design_size' => 'string',
+        '_design_preview_url' => 'string',
         
-        $trail[] = "├─ Analyzing order items...";
-        $trail[] = "│  ├─ Order ID: " . $order->get_id();
-        $trail[] = "│  ├─ Order Status: " . $order->get_status();
-        $trail[] = "│  └─ Total Items: " . count($order->get_items());
+        // Dimensionen
+        '_design_width_cm' => 'numeric',
+        '_design_height_cm' => 'numeric',
         
-        foreach ($order->get_items() as $item_id => $item) {
-            $trail[] = "│  ├─ Order Item $item_id:";
-            $trail[] = "│  │  ├─ Name: " . $item->get_name();
-            $trail[] = "│  │  ├─ Product ID: " . $item->get_product_id();
+        // Kompatibilitäts-Feld
+        '_design_image_url' => 'string',
+        
+        // Erweiterte Bild-Daten
+        '_design_has_multiple_images' => 'boolean',
+        '_design_product_images' => 'json',
+        '_design_images' => 'json'
+    );
+    
+    foreach ($order->get_items() as $item_id => $item) {
+        $trail[] = "│  ├─ Order Item $item_id:";
+        $trail[] = "│  │  ├─ Name: " . $item->get_name();
+        $trail[] = "│  │  ├─ Product ID: " . $item->get_product_id();
+        
+        // Prüfe alle Meta-Daten
+        $meta_data = $item->get_meta_data();
+        $trail[] = "│  │  ├─ Total Meta Fields: " . count($meta_data);
+        
+        // Detaillierte Prüfung aller erforderlichen Meta-Felder
+        $trail[] = "│  │  ├─ PRINT PROVIDER META-FIELD ANALYSIS:";
+        
+        $field_status = array();
+        $has_design_data = false;
+        $missing_critical_fields = array();
+        $missing_optional_fields = array();
+        
+        foreach ($required_meta_fields as $field_name => $expected_type) {
+            $field_value = $item->get_meta($field_name);
+            $is_present = !empty($field_value) || ($field_value === '0' || $field_value === 0 || $field_value === false);
+            $is_valid = $this->validate_meta_field_type($field_value, $expected_type);
             
-            // Prüfe alle Meta-Daten
-            $meta_data = $item->get_meta_data();
-            $trail[] = "│  │  ├─ Total Meta Fields: " . count($meta_data);
-            
-            // Prüfe spezifische Design-Meta-Felder
-            $design_meta = $item->get_meta('print_design');
-            $cart_key = $item->get_meta('_cart_item_key');
-            $transfer_flag = $item->get_meta('_yprint_design_transferred');
-            $backup_flag = $item->get_meta('_yprint_design_backup_applied');
-            
-            if (!empty($design_meta)) {
-                $design_count++;
-                $trail[] = "│  │  ├─ ✅ HAS DESIGN META";
-                $trail[] = "│  │  │  └─ Design ID: " . (is_array($design_meta) ? ($design_meta['design_id'] ?? 'MISSING') : 'INVALID_FORMAT');
+            if ($is_present && $is_valid) {
+                $trail[] = "│  │  │  ├─ ✅ $field_name: " . $this->format_meta_value_for_display($field_value, $expected_type);
+                $field_status[$field_name] = 'valid';
+                
+                // Design ID ist der Haupt-Indikator für Design-Produkt
+                if ($field_name === '_design_id') {
+                    $has_design_data = true;
+                    $design_count++;
+                }
+                
+            } elseif ($is_present && !$is_valid) {
+                $trail[] = "│  │  │  ├─ ⚠️  $field_name: INVALID TYPE (expected $expected_type, got " . gettype($field_value) . ")";
+                $field_status[$field_name] = 'invalid_type';
+                
+                // Bei kritischen Feldern als fehlend betrachten
+                if (in_array($field_name, array('_design_id', '_design_name'))) {
+                    $missing_critical_fields[] = $field_name;
+                } else {
+                    $missing_optional_fields[] = $field_name;
+                }
+                
             } else {
-                $trail[] = "│  │  ├─ ❌ NO DESIGN META";
+                $trail[] = "│  │  │  ├─ ❌ $field_name: MISSING";
+                $field_status[$field_name] = 'missing';
+                
+                // Kategorisiere fehlende Felder
+                if (in_array($field_name, array('_design_id', '_design_name', '_design_preview_url'))) {
+                    $missing_critical_fields[] = $field_name;
+                } else {
+                    $missing_optional_fields[] = $field_name;
+                }
             }
-            
-            $trail[] = "│  │  ├─ Cart Key: " . ($cart_key ?: 'MISSING');
-            $trail[] = "│  │  ├─ Transfer Flag: " . ($transfer_flag ?: 'MISSING');
-            $trail[] = "│  │  └─ Backup Flag: " . ($backup_flag ?: 'MISSING');
-            
-            // Liste alle Meta-Keys auf
-            $all_meta_keys = array_map(function($meta) {
-                return $meta->key;
-            }, $meta_data);
-            
-            $design_related_meta = array_filter($all_meta_keys, function($key) {
-                return strpos($key, 'design') !== false || strpos($key, 'print') !== false;
-            });
-            
-            if (!empty($design_related_meta)) {
-                $trail[] = "│  │  └─ Design-related meta keys: " . implode(', ', $design_related_meta);
-            }
-            
-            $items_analysis[$item_id] = array(
-                'name' => $item->get_name(),
-                'product_id' => $item->get_product_id(),
-                'has_design' => !empty($design_meta),
-                'cart_key' => $cart_key,
-                'design_meta' => $design_meta
-            );
         }
         
-        $trail[] = "└─ ORDER SUMMARY: $design_count design items found in order";
+        // Legacy Design Meta prüfen (für Kompatibilität)
+        $design_meta = $item->get_meta('print_design');
+        if (!empty($design_meta)) {
+            $trail[] = "│  │  │  ├─ ✅ print_design (legacy): FOUND";
+            $trail[] = "│  │  │  │  └─ Legacy Design ID: " . (is_array($design_meta) ? ($design_meta['design_id'] ?? 'MISSING') : 'INVALID_FORMAT');
+        } else {
+            $trail[] = "│  │  │  ├─ ❌ print_design (legacy): MISSING";
+        }
         
-        return array(
-            'trail' => $trail,
-            'design_count' => $design_count,
-            'total_items' => count($order->get_items()),
-            'items' => $items_analysis
+        // Berechne Vollständigkeit
+        $total_fields = count($required_meta_fields);
+        $valid_fields = count(array_filter($field_status, function($status) {
+            return $status === 'valid';
+        }));
+        $completeness_percentage = round(($valid_fields / $total_fields) * 100, 1);
+        
+        // Status-Zusammenfassung für dieses Item
+        $trail[] = "│  │  │  └─ COMPLETENESS: $completeness_percentage% ($valid_fields/$total_fields fields valid)";
+        
+        if (!empty($missing_critical_fields)) {
+            $trail[] = "│  │  ├─ 🚨 CRITICAL MISSING: " . implode(', ', $missing_critical_fields);
+        }
+        
+        if (!empty($missing_optional_fields)) {
+            $trail[] = "│  │  ├─ ⚠️  OPTIONAL MISSING: " . implode(', ', $missing_optional_fields);
+        }
+        
+        // E-Mail System Kompatibilität
+        $email_ready = $has_design_data && 
+                      $field_status['_design_name'] === 'valid' && 
+                      $field_status['_design_preview_url'] === 'valid';
+        
+        $trail[] = "│  │  └─ EMAIL SYSTEM READY: " . ($email_ready ? '✅ YES' : '❌ NO');
+        
+        // Speichere detaillierte Analyse
+        $items_analysis[$item_id] = array(
+            'name' => $item->get_name(),
+            'product_id' => $item->get_product_id(),
+            'has_design' => $has_design_data,
+            'completeness_percentage' => $completeness_percentage,
+            'field_status' => $field_status,
+            'missing_critical' => $missing_critical_fields,
+            'missing_optional' => $missing_optional_fields,
+            'email_ready' => $email_ready,
+            'cart_key' => $item->get_meta('_cart_item_key'),
+            'design_meta' => $design_meta
         );
+        
+        $overall_completeness[] = $completeness_percentage;
     }
+    
+    // Gesamtübersicht
+    $avg_completeness = !empty($overall_completeness) ? round(array_sum($overall_completeness) / count($overall_completeness), 1) : 0;
+    $email_ready_count = count(array_filter($items_analysis, function($item) {
+        return $item['email_ready'];
+    }));
+    
+    $trail[] = "";
+    $trail[] = "└─ ORDER SUMMARY:";
+    $trail[] = "   ├─ Design Items Found: $design_count";
+    $trail[] = "   ├─ Email System Ready: $email_ready_count of " . count($items_analysis);
+    $trail[] = "   └─ Average Completeness: $avg_completeness%";
+    
+    return array(
+        'trail' => $trail,
+        'design_count' => $design_count,
+        'total_items' => count($order->get_items()),
+        'email_ready_items' => $email_ready_count,
+        'average_completeness' => $avg_completeness,
+        'items' => $items_analysis,
+        'required_fields' => array_keys($required_meta_fields)
+    );
+}
+
+/**
+ * Validiere Meta-Feld-Typ
+ */
+private function validate_meta_field_type($value, $expected_type) {
+    if (empty($value) && $value !== '0' && $value !== 0 && $value !== false) {
+        return false;
+    }
+    
+    switch ($expected_type) {
+        case 'integer':
+            return is_numeric($value) && (int)$value == $value;
+            
+        case 'string':
+            return is_string($value) && strlen(trim($value)) > 0;
+            
+        case 'numeric':
+            return is_numeric($value);
+            
+        case 'boolean':
+            return is_bool($value) || in_array($value, array('1', '0', 1, 0, 'true', 'false'), true);
+            
+        case 'json':
+            if (!is_string($value)) return false;
+            json_decode($value);
+            return json_last_error() === JSON_ERROR_NONE;
+            
+        default:
+            return true;
+    }
+}
+
+/**
+ * Formatiere Meta-Wert für Anzeige
+ */
+private function format_meta_value_for_display($value, $type) {
+    switch ($type) {
+        case 'json':
+            $decoded = json_decode($value, true);
+            if (is_array($decoded)) {
+                return count($decoded) . " items";
+            }
+            return "valid JSON";
+            
+        case 'string':
+            return '"' . (strlen($value) > 30 ? substr($value, 0, 30) . '...' : $value) . '"';
+            
+        case 'boolean':
+            return $value ? 'true' : 'false';
+            
+        default:
+            return (string)$value;
+    }
+}
     
     /**
      * FUNCTION AVAILABILITY CHECK
@@ -748,27 +896,89 @@ if (isset($debug_summary['order_analysis']['items'])) {
 }
 
 if (!empty($items_to_show)) {
-    echo '<details style="margin-top: 15px;"><summary><strong>📦 Item Details</strong></summary>';
+    echo '<details style="margin-top: 15px;"><summary><strong>📦 Item Details & Meta-Field Status</strong></summary>';
     echo '<table style="width: 100%; margin-top: 10px; border-collapse: collapse;">';
     echo '<tr style="background: #f0f0f0;">';
     echo '<th style="padding: 8px; border: 1px solid #ddd;">Item</th>';
-    echo '<th style="padding: 8px; border: 1px solid #ddd;">Product ID</th>';
     echo '<th style="padding: 8px; border: 1px solid #ddd;">Design</th>';
-    echo '<th style="padding: 8px; border: 1px solid #ddd;">Cart Key</th>';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">Completeness</th>';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">E-Mail Ready</th>';
+    echo '<th style="padding: 8px; border: 1px solid #ddd;">Missing Critical</th>';
     echo '</tr>';
     
     foreach ($items_to_show as $item_id => $item) {
         $icon = ($item['has_design'] ?? false) ? '✅' : '❌';
+        $completeness = $item['completeness_percentage'] ?? 0;
+        $email_ready = $item['email_ready'] ?? false;
+        $missing_critical = $item['missing_critical'] ?? array();
+        
+        // Farbe basierend auf Vollständigkeit
+        $completeness_color = '#28a745'; // Grün
+        if ($completeness < 70) {
+            $completeness_color = '#ffc107'; // Gelb
+        }
+        if ($completeness < 40) {
+            $completeness_color = '#dc3545'; // Rot
+        }
         
         echo '<tr>';
         echo '<td style="padding: 8px; border: 1px solid #ddd;">' . $icon . ' ' . esc_html($item['name'] ?? 'Unknown') . '</td>';
-        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($item['product_id'] ?? 'Missing') . '</td>';
-        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . (($item['has_design'] ?? false) ? 'Ja' : 'Nein') . '</td>';
-        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($item['cart_key'] ?? 'Fehlt') . '</td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . (($item['has_design'] ?? false) ? '✅ Ja' : '❌ Nein') . '</td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd; background-color: ' . $completeness_color . '20;"><strong>' . $completeness . '%</strong></td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . ($email_ready ? '✅ Ja' : '❌ Nein') . '</td>';
+        echo '<td style="padding: 8px; border: 1px solid #ddd;">' . (empty($missing_critical) ? '✅ None' : '❌ ' . implode(', ', $missing_critical)) . '</td>';
         echo '</tr>';
     }
     
-    echo '</table></details>';
+    echo '</table>';
+    
+    // Zeige Meta-Field Details für Design-Items
+    $design_items = array_filter($items_to_show, function($item) {
+        return $item['has_design'] ?? false;
+    });
+    
+    if (!empty($design_items)) {
+        echo '<div style="margin-top: 15px;">';
+        echo '<h4>🔍 Meta-Field Details for Design Items:</h4>';
+        
+        foreach ($design_items as $item_id => $item) {
+            if (!isset($item['field_status'])) continue;
+            
+            echo '<div style="margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; background: #f9f9f9;">';
+            echo '<strong>' . esc_html($item['name']) . ' (Item #' . $item_id . ')</strong><br>';
+            
+            echo '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 5px; margin-top: 5px; font-size: 12px;">';
+            
+            foreach ($item['field_status'] as $field => $status) {
+                $status_icon = '';
+                $status_color = '';
+                
+                switch ($status) {
+                    case 'valid':
+                        $status_icon = '✅';
+                        $status_color = '#28a745';
+                        break;
+                    case 'invalid_type':
+                        $status_icon = '⚠️';
+                        $status_color = '#ffc107';
+                        break;
+                    case 'missing':
+                        $status_icon = '❌';
+                        $status_color = '#dc3545';
+                        break;
+                }
+                
+                echo '<div style="color: ' . $status_color . ';">' . $status_icon . ' ' . $field . '</div>';
+            }
+            
+            echo '</div>';
+            echo '</div>';
+        }
+        
+        echo '</div>';
+    }
+    
+    echo '</details>';
 }
         
         echo '</div>';
