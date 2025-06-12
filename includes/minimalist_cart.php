@@ -123,6 +123,9 @@ add_action('wp_ajax_nopriv_yprint_consolidate_cart_action', 'yprint_ajax_consoli
  * Minimalistischer Warenkorb-Shortcode
  */
 function yprint_minimalist_cart_shortcode() {
+    // Debug: Shortcode wird aufgerufen
+    error_log('YPRINT: yprint_minimalist_cart_shortcode called');
+    
     // Puffer-Output starten
     ob_start();
 
@@ -528,12 +531,14 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name
                     if (response.success) {
                         console.log('Cart refresh successful:', response); // Log success
 
-                        // Cart-Items aktualisieren
-                        $cart.find('.yprint-mini-cart-items').html(response.cart_items_html);
-                        // Warenkorb-Anzahl im Header aktualisieren
-                        $cart.find('.yprint-mini-cart-count').text(response.cart_count);
-                        // Zwischensumme aktualisieren - Target the class added to the span
-                        $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.cart_subtotal);
+                        // Cart-Items aktualisieren - Handle beide Response-Strukturen
+const cartHtml = response.data?.cart_items_html || response.cart_items_html;
+const cartCount = response.data?.cart_count || response.cart_count;
+const cartSubtotal = response.data?.cart_subtotal || response.cart_subtotal;
+
+$cart.find('.yprint-mini-cart-items').html(cartHtml);
+$cart.find('.yprint-mini-cart-count').text(cartCount);
+$cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(cartSubtotal);
 
                         // Trigger custom event after cart is refreshed
                         $(document.body).trigger('yprint_mini_cart_refreshed');
@@ -1393,6 +1398,10 @@ function yprint_preserve_design_data_in_order($item, $cart_item_key, $values, $o
  */
 add_filter('woocommerce_add_cart_item_data', 'yprint_enhance_cart_item_design_data', 10, 3);
 function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $variation_id) {
+    // Debug: Prüfe ob überhaupt Design-Daten vorhanden sind
+    error_log('YPRINT: enhance_cart_item_design_data called for product ' . $product_id);
+    error_log('YPRINT: cart_item_data keys: ' . implode(', ', array_keys($cart_item_data)));
+    
     // Nur wenn bereits print_design Daten vorhanden sind
     if (isset($cart_item_data['print_design'])) {
         $design_data = $cart_item_data['print_design'];
