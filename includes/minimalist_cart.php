@@ -1811,18 +1811,8 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         // Erweiterte Design-Daten zurück in cart_item_data speichern
         $cart_item_data['print_design'] = $design_data;
         
-        // Erweiterte Debug-Ausgabe mit wichtigen Feldern
-        error_log('YPRINT: Enhanced design data for product ' . $product_id . ':');
-        error_log('- variation_name: ' . ($design_data['variation_name'] ?? 'NOT SET'));
-        error_log('- size_name: ' . ($design_data['size_name'] ?? 'NOT SET'));
-        error_log('- design_image_url: ' . ($design_data['design_image_url'] ?? 'NOT SET'));
-        error_log('- design_images count: ' . (isset($design_data['design_images']) ? count(json_decode($design_data['design_images'], true)) : 0));
-        error_log('- product_images count: ' . (isset($design_data['product_images']) ? count(json_decode($design_data['product_images'], true)) : 0));
-        
-        // Vollständige Daten nur bei Bedarf
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('YPRINT: Full enhanced design data: ' . print_r($design_data, true));
-        }
+        // Debug-Ausgabe
+        error_log('YPRINT: Enhanced design data for product ' . $product_id . ': ' . print_r($design_data, true));
     }
     
      return $cart_item_data;
