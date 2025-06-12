@@ -1076,7 +1076,7 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         $item->add_meta_data('_design_back_preview_url', $design['back_preview_url'] ?? '');
         $item->add_meta_data('_design_back_image_url', $design['back_design_image_url'] ?? '');
         
-        // Multiple Images Flag basierend auf Array-Inhalten
+        // Erweiterte Multiple Images Flag Berechnung
         $product_images_count = 0;
         $design_images_count = 0;
         
@@ -1093,8 +1093,25 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         }
         
         $has_multiple = ($product_images_count > 1 || $design_images_count > 1) ? 'yes' : 'no';
+        $views_count = max($product_images_count, $design_images_count);
+        
         $item->add_meta_data('_design_has_multiple_images', $has_multiple);
-        $item->add_meta_data('_design_views_count', max($product_images_count, $design_images_count));
+        $item->add_meta_data('_design_views_count', $views_count);
+        
+        // Zusätzliche Scale-Daten aus design_images extrahieren
+        if (!empty($design_images_array) && isset($design_images_array[0])) {
+            $item->add_meta_data('_design_scaleX', $design_images_array[0]['scaleX'] ?? 1.0);
+            $item->add_meta_data('_design_scaleY', $design_images_array[0]['scaleY'] ?? 1.0);
+        }
+        
+        // Template ID falls vorhanden
+        if (!empty($design['template_id'])) {
+            $item->add_meta_data('_design_template_id', $design['template_id']);
+        }
+        
+        // Design Type für bessere Kategorisierung
+        $design_type = $has_multiple === 'yes' ? 'multi_view' : 'single_view';
+        $item->add_meta_data('_design_type', $design_type);
         
         // Stelle sicher, dass diese Informationen auch für das OctoPrint Plugin verfügbar sind
         $item->add_meta_data('_has_print_design', 'yes');
@@ -1429,7 +1446,10 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
     if (isset($cart_item_data['print_design'])) {
         $design_data = $cart_item_data['print_design'];
         
-        // Erforderliche Felder aus WooCommerce-Daten ergänzen
+        // Erweiterte WooCommerce-Daten ergänzen
+        $product = wc_get_product($product_id);
+        
+        // Variation-Daten extrahieren
         if ($variation_id && !isset($design_data['variation_name'])) {
             $variation = wc_get_product($variation_id);
             if ($variation) {
@@ -1441,6 +1461,8 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     $design_data['variation_name'] = $term ? $term->name : $attributes['pa_color'];
                 } elseif (isset($attributes['color'])) {
                     $design_data['variation_name'] = $attributes['color'];
+                } elseif (isset($attributes['attribute_pa_color'])) {
+                    $design_data['variation_name'] = $attributes['attribute_pa_color'];
                 }
                 
                 // Größe aus Attributen extrahieren
@@ -1449,8 +1471,24 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     $design_data['size_name'] = $term ? $term->name : $attributes['pa_size'];
                 } elseif (isset($attributes['size'])) {
                     $design_data['size_name'] = $attributes['size'];
+                } elseif (isset($attributes['attribute_pa_size'])) {
+                    $design_data['size_name'] = $attributes['attribute_pa_size'];
+                }
+                
+                // Fallback: Variation Name als Farbe verwenden
+                if (!isset($design_data['variation_name']) && $variation->get_name()) {
+                    $variation_name = str_replace($product->get_name() . ' - ', '', $variation->get_name());
+                    $design_data['variation_name'] = $variation_name;
                 }
             }
+        }
+        
+        // Fallback für Basis-Produkt ohne Variation
+        if (!isset($design_data['variation_name']) && $product) {
+            $design_data['variation_name'] = 'Standard';
+        }
+        if (!isset($design_data['size_name']) && $product) {
+            $design_data['size_name'] = 'One Size';
         }
         
         // Dimensionen aus Produkt-Meta oder Standard-Werten setzen
