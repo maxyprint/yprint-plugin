@@ -1430,7 +1430,7 @@ function yprint_preserve_design_data_in_order($item, $cart_item_key, $values, $o
             $item->update_meta_data('design_' . $key, $value);
         }
     }
-}($design_color) . '</p>';
+ 
 
 /**
  * Erweitert Design-Daten beim Hinzufügen zum Warenkorb
@@ -1551,45 +1551,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         
         error_log('YPRINT: Final variation_name: ' . ($design_data['variation_name'] ?? 'NOT SET'));
         error_log('YPRINT: Final size_name: ' . ($design_data['size_name'] ?? 'NOT SET'));
-            $variation = wc_get_product($variation_id);
-            if ($variation) {
-                $attributes = $variation->get_attributes();
-                
-                // Farbe aus Attributen extrahieren
-                if (isset($attributes['pa_color'])) {
-                    $term = get_term_by('slug', $attributes['pa_color'], 'pa_color');
-                    $design_data['variation_name'] = $term ? $term->name : $attributes['pa_color'];
-                } elseif (isset($attributes['color'])) {
-                    $design_data['variation_name'] = $attributes['color'];
-                } elseif (isset($attributes['attribute_pa_color'])) {
-                    $design_data['variation_name'] = $attributes['attribute_pa_color'];
-                }
-                
-                // Größe aus Attributen extrahieren
-                if (isset($attributes['pa_size'])) {
-                    $term = get_term_by('slug', $attributes['pa_size'], 'pa_size');
-                    $design_data['size_name'] = $term ? $term->name : $attributes['pa_size'];
-                } elseif (isset($attributes['size'])) {
-                    $design_data['size_name'] = $attributes['size'];
-                } elseif (isset($attributes['attribute_pa_size'])) {
-                    $design_data['size_name'] = $attributes['attribute_pa_size'];
-                }
-                
-                // Fallback: Variation Name als Farbe verwenden
-                if (!isset($design_data['variation_name']) && $variation->get_name()) {
-                    $variation_name = str_replace($product->get_name() . ' - ', '', $variation->get_name());
-                    $design_data['variation_name'] = $variation_name;
-                }
-            }
-        }
-        
-        // Fallback für Basis-Produkt ohne Variation
-        if (!isset($design_data['variation_name']) && $product) {
-            $design_data['variation_name'] = 'Standard';
-        }
-        if (!isset($design_data['size_name']) && $product) {
-            $design_data['size_name'] = 'One Size';
-        }
+             
         
         // Dimensionen aus Produkt-Meta oder Standard-Werten setzen
         if (!isset($design_data['width_cm'])) {
@@ -1733,5 +1695,37 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         error_log('YPRINT: Enhanced design data for product ' . $product_id . ': ' . print_r($design_data, true));
     }
     
-    return $cart_item_data;
+     return $cart_item_data;
+}
 
+/**
+ * Debug AJAX-Handler für Cart-Audit (vereinfacht)
+ */
+function yprint_debug_cart_callback() {
+    if (!class_exists('WooCommerce') || is_null(WC()->cart)) {
+        wp_send_json_error('WooCommerce nicht verfügbar');
+        return;
+    }
+    
+    $cart_contents = array();
+    
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        $cart_contents[$cart_item_key] = array(
+            'product_id' => $cart_item['product_id'],
+            'variation_id' => $cart_item['variation_id'] ?? 0,
+            'quantity' => $cart_item['quantity'],
+            'has_print_design' => isset($cart_item['print_design']),
+            'print_design_full' => $cart_item['print_design'] ?? null
+        );
+    }
+    
+    wp_send_json_success(array(
+        'cart_contents' => $cart_contents,
+        'cart_count' => WC()->cart->get_cart_contents_count(),
+        'cart_total' => WC()->cart->get_cart_subtotal()
+    ));
+}
+add_action('wp_ajax_yprint_debug_cart', 'yprint_debug_cart_callback');
+add_action('wp_ajax_nopriv_yprint_debug_cart', 'yprint_debug_cart_callback');
+
+}
