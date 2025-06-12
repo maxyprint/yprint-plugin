@@ -763,12 +763,46 @@ window.addEventListener('resize', adjustButtonLayout);
 
         try {
             $cart_item_data = array();
-            $design_data = $order_item->get_meta('print_design');
+            $original_design_data = $order_item->get_meta('print_design');
 
-            if (!empty($design_data) && $design_id) {
-                $cart_item_data['print_design'] = $design_data;
+            if (!empty($original_design_data)) {
+                // Ensure all required fields are present for proper cart processing
+                $complete_design_data = array(
+                    'design_id' => $original_design_data['design_id'] ?? $design_id,
+                    'name' => $original_design_data['name'] ?? $order_item->get_name(),
+                    'template_id' => $original_design_data['template_id'] ?? '',
+                    'variation_id' => $original_design_data['variation_id'] ?? '',
+                    'variation_name' => $original_design_data['variation_name'] ?? 'Standard',
+                    'variation_color' => $original_design_data['variation_color'] ?? '',
+                    'size_id' => $original_design_data['size_id'] ?? '',
+                    'size_name' => $original_design_data['size_name'] ?? 'One Size',
+                    'calculated_price' => $original_design_data['calculated_price'] ?? 0,
+                    'preview_url' => $original_design_data['preview_url'] ?? '',
+                    'design_width_cm' => $original_design_data['design_width_cm'] ?? $original_design_data['width_cm'] ?? 0,
+                    'design_height_cm' => $original_design_data['design_height_cm'] ?? $original_design_data['height_cm'] ?? 0,
+                    'design_scaleX' => $original_design_data['design_scaleX'] ?? 1,
+                    'design_scaleY' => $original_design_data['design_scaleY'] ?? 1,
+                    'design_image_url' => $original_design_data['design_image_url'] ?? $original_design_data['preview_url'] ?? '',
+                    // Critical: Include all image data for print provider
+                    'design_images' => $original_design_data['design_images'] ?? array(),
+                    'product_images' => $original_design_data['product_images'] ?? array(),
+                    'has_multiple_images' => $original_design_data['has_multiple_images'] ?? false,
+                    // Ensure backward compatibility
+                    'width_cm' => $original_design_data['width_cm'] ?? $original_design_data['design_width_cm'] ?? 0,
+                    'height_cm' => $original_design_data['height_cm'] ?? $original_design_data['design_height_cm'] ?? 0
+                );
+
+                $cart_item_data['print_design'] = $complete_design_data;
                 $cart_item_data['_is_design_product'] = true;
-                $cart_item_data['unique_design_key'] = md5(wp_json_encode($design_data));
+                $cart_item_data['unique_design_key'] = md5(wp_json_encode($complete_design_data));
+                
+                // Create unique key for cart identification (prevents merging of different designs)
+                $cart_item_data['unique_key'] = md5(
+                    ($complete_design_data['design_id'] ?? '') . 
+                    ($complete_design_data['variation_id'] ?? '') . 
+                    ($complete_design_data['size_id'] ?? '') . 
+                    microtime()
+                );
             }
 
             $cart_item_key = WC()->cart->add_to_cart(
@@ -782,7 +816,8 @@ window.addEventListener('resize', adjustButtonLayout);
             if ($cart_item_key) {
                 wp_send_json_success(array(
                     'message' => 'Artikel wurde zum Warenkorb hinzugefügt',
-                    'cart_item_key' => $cart_item_key
+                    'cart_item_key' => $cart_item_key,
+                    'design_data_transferred' => !empty($original_design_data)
                 ));
             } else {
                 wp_send_json_error('Artikel konnte nicht zum Warenkorb hinzugefügt werden');
