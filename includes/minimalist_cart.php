@@ -1697,6 +1697,9 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
             
         $design_data['has_multiple_images'] = (count($product_images_array) > 1 || count($design_images_array) > 1);
         
+        // Stelle sicher, dass has_multiple_images korrekt als String gespeichert wird für Checkout
+        $design_data['has_multiple_images_flag'] = $design_data['has_multiple_images'] ? 'yes' : 'no';
+        
         // Erweiterte Design-Daten zurück in cart_item_data speichern
         $cart_item_data['print_design'] = $design_data;
         
