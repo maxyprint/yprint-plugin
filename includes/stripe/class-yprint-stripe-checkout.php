@@ -97,6 +97,8 @@ class YPrint_Stripe_Checkout {
         add_action('wp_ajax_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
         add_action('wp_ajax_nopriv_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
 
+        // Express Checkout Design Transfer Hook
+        add_action('yprint_express_order_created', array($instance, 'express_checkout_design_transfer_hook'), 10, 1);
         
     }
 
@@ -235,6 +237,195 @@ public function ajax_refresh_checkout_context() {
         $debug .= '</div>';
         $debug .= '</div>';
         return $debug;
+    }
+
+    /**
+     * Integriere erweiterte Design-Daten aus der Datenbank
+     */
+    private function integrate_database_design_data($order_item, $design_id) {
+        global $wpdb;
+        
+        error_log('EXPRESS DB: Integrating database design data for ID: ' . $design_id);
+        
+        // Hole vollständige Design-Daten aus der Datenbank
+        $db_design = $wpdb->get_row($wpdb->prepare(
+            "SELECT id, user_id, template_id, name, design_data, created_at, product_name, product_description 
+             FROM deo6_octo_user_designs 
+             WHERE id = %d",
+            $design_id
+        ), ARRAY_A);
+        
+        if ($db_design) {
+            error_log('EXPRESS DB: Database design found, processing...');
+            
+            // Parse JSON design_data
+            $parsed_design_data = json_decode($db_design['design_data'], true);
+            
+            if (json_last_error() === JSON_ERROR_NONE && $parsed_design_data) {
+                // Erweiterte Datenbank-Meta-Daten
+                $order_item->update_meta_data('_db_design_template_id', $db_design['template_id']);
+                $order_item->update_meta_data('_db_design_user_id', $db_design['user_id']);
+                $order_item->update_meta_data('_db_design_created_at', $db_design['created_at']);
+                $order_item->update_meta_data('_db_design_product_name', $db_design['product_name']);
+                $order_item->update_meta_data('_db_design_product_description', $db_design['product_description']);
+                
+                // Vollständige JSON-Daten speichern
+                $order_item->update_meta_data('_db_design_raw_json', $db_design['design_data']);
+                $order_item->update_meta_data('_db_design_parsed_data', wp_json_encode($parsed_design_data));
+                
+                // Template Info
+                if (isset($parsed_design_data['templateId'])) {
+                    $order_item->update_meta_data('_db_template_id', $parsed_design_data['templateId']);
+                }
+                if (isset($parsed_design_data['currentVariation'])) {
+                    $order_item->update_meta_data('_db_current_variation', $parsed_design_data['currentVariation']);
+                }
+                
+                // Verarbeite variationImages für detaillierte View-Daten
+                if (isset($parsed_design_data['variationImages'])) {
+                    $this->process_variation_images($order_item, $parsed_design_data['variationImages']);
+                }
+                
+                error_log('EXPRESS DB: Database integration completed successfully');
+                return true;
+            } else {
+                error_log('EXPRESS DB: Failed to parse JSON design data: ' . json_last_error_msg());
+            }
+        } else {
+            error_log('EXPRESS DB: Design not found in database for ID: ' . $design_id);
+        }
+        
+        return false;
+    }
+
+    /**
+     * Verarbeite variationImages für detaillierte View-Daten
+     */
+    private function process_variation_images($order_item, $variation_images) {
+        $processed_views = array();
+        
+        foreach ($variation_images as $view_key => $images) {
+            $view_parts = explode('_', $view_key);
+            $variation_id = $view_parts[0] ?? '';
+            $view_system_id = $view_parts[1] ?? '';
+            
+            $view_data = array(
+                'view_key' => $view_key,
+                'variation_id' => $variation_id,
+                'system_id' => $view_system_id,
+                'view_name' => yprint_get_view_name_by_system_id($view_system_id),
+                'images' => array()
+            );
+            
+            foreach ($images as $image_index => $image) {
+                $image_data = array(
+                    'id' => $image['id'] ?? '',
+                    'url' => $image['url'] ?? '',
+                    'filename' => basename($image['url'] ?? ''),
+                    'transform' => $image['transform'] ?? array(),
+                    'visible' => $image['visible'] ?? true
+                );
+                
+                // Berechne Print-Dimensionen
+                if (isset($image['transform'])) {
+                    $transform = $image['transform'];
+                    $original_width = $transform['width'] ?? 0;
+                    $original_height = $transform['height'] ?? 0;
+                    $scale_x = $transform['scaleX'] ?? 0;
+                    $scale_y = $transform['scaleY'] ?? 0;
+                    
+                    // Pixel zu mm Konvertierung (96 DPI Standard)
+                    $image_data['print_width_mm'] = round(($original_width * $scale_x) * 0.26458333, 2);
+                    $image_data['print_height_mm'] = round(($original_height * $scale_y) * 0.26458333, 2);
+                    $image_data['scale_percent'] = round($scale_x * 100, 2);
+                    $image_data['position_left'] = $transform['left'] ?? 0;
+                    $image_data['position_top'] = $transform['top'] ?? 0;
+                    $image_data['angle'] = $transform['angle'] ?? 0;
+                }
+                
+                $view_data['images'][] = $image_data;
+            }
+            
+            $processed_views[$view_key] = $view_data;
+        }
+        
+        // Speichere processed views
+        $order_item->update_meta_data('_db_processed_views', wp_json_encode($processed_views));
+        $order_item->update_meta_data('_db_view_count', count($processed_views));
+        
+        // Separate View Meta Fields für einfachen Zugriff
+        $view_counter = 1;
+        foreach ($processed_views as $view_key => $view_data) {
+            $order_item->update_meta_data("_view_{$view_counter}_key", $view_key);
+            $order_item->update_meta_data("_view_{$view_counter}_name", $view_data['view_name']);
+            $order_item->update_meta_data("_view_{$view_counter}_system_id", $view_data['system_id']);
+            $order_item->update_meta_data("_view_{$view_counter}_variation_id", $view_data['variation_id']);
+            $order_item->update_meta_data("_view_{$view_counter}_image_count", count($view_data['images']));
+            $order_item->update_meta_data("_view_{$view_counter}_data", wp_json_encode($view_data));
+            $view_counter++;
+        }
+        
+        error_log('EXPRESS DB: Processed and saved ' . count($processed_views) . ' views');
+    }
+
+    /**
+     * Triggere Enhanced Debug-Analyse für Express Orders
+     */
+    private function trigger_enhanced_debug_analysis($order_id) {
+        error_log('EXPRESS: Triggering enhanced debug analysis for order: ' . $order_id);
+        
+        // Simuliere Enhanced Debug-Analyse
+        if (class_exists('YPrint_Enhanced_Debug')) {
+            $debug_instance = YPrint_Enhanced_Debug::get_instance();
+            
+            // Triggere die Analyse
+            if (method_exists($debug_instance, 'log_final_order')) {
+                $debug_instance->log_final_order($order_id);
+                error_log('EXPRESS: Enhanced debug analysis completed');
+            }
+        }
+        
+        // Log hook execution für Tracking
+        if (function_exists('yprint_log_hook_execution')) {
+            yprint_log_hook_execution('express_enhanced_debug', "Order ID: $order_id | Enhanced analysis triggered");
+        }
+    }
+
+    /**
+     * Express Checkout Design Transfer Hook
+     */
+    public function express_checkout_design_transfer_hook($order_id) {
+        error_log('EXPRESS HOOK: Design transfer verification for order: ' . $order_id);
+        
+        $order = wc_get_order($order_id);
+        if (!$order) {
+            return;
+        }
+        
+        $design_items = 0;
+        $complete_transfers = 0;
+        
+        foreach ($order->get_items() as $item_id => $item) {
+            if ($item->get_meta('print_design')) {
+                $design_items++;
+                
+                // Prüfe ob vollständiger Transfer stattgefunden hat
+                if ($item->get_meta('_express_checkout_transfer') === 'yes' && 
+                    $item->get_meta('design_id') && 
+                    $item->get_meta('product_images')) {
+                    $complete_transfers++;
+                }
+            }
+        }
+        
+        error_log("EXPRESS HOOK: Found $design_items design items, $complete_transfers complete transfers");
+        
+        // Speichere Transfer-Status
+        $order->update_meta_data('_express_design_items', $design_items);
+        $order->update_meta_data('_express_complete_transfers', $complete_transfers);
+        $order->save();
+        
+        return $complete_transfers;
     }
 
     /**
@@ -1919,194 +2110,31 @@ if (WC()->cart->is_empty()) {
                 $order_item->set_subtotal($cart_item['line_subtotal']);
                 $order_item->set_total($cart_item['line_total']);
                 
-                // MANUAL DESIGN DATA TRANSFER - Complete Print Provider E-Mail compatible transfer
+                // VERBESSERTE DESIGN DATA TRANSFER mit Datenbankintegration
 if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
     $design_data = $cart_item['print_design'];
     error_log('EXPRESS: Found design data for cart item: ' . $cart_item_key);
     error_log('EXPRESS: Design data: ' . print_r($design_data, true));
     
-    // === LEGACY FORMAT (für Kompatibilität) ===
-    $order_item->update_meta_data('print_design', $design_data);
-    $order_item->update_meta_data('_is_design_product', true);
-    $order_item->update_meta_data('_has_print_design', 'yes');
-    $order_item->update_meta_data('_express_checkout_transfer', 'yes');
-    $order_item->update_meta_data('_cart_item_key', $cart_item_key);
-    $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+    // Nutze die zentrale Design-Transfer-Funktion
+    $transfer_success = yprint_complete_design_transfer($order_item, $cart_item, $cart_item_key);
     
-    // === PRINT PROVIDER E-MAIL FORMAT (korrekte Feldnamen ohne Unterstrich) ===
-    
-    // Basis Design-Daten - Exakte Feldnamen wie im Print Provider System erwartet
-$order_item->update_meta_data('design_id', (int)($design_data['design_id'] ?? 0));
-$order_item->update_meta_data('name', (string)($design_data['name'] ?? ''));
-$order_item->update_meta_data('template_id', (int)($design_data['template_id'] ?? 0));
-$order_item->update_meta_data('variation_id', $design_data['variation_id'] ?? ''); // Kann leer bleiben
-$order_item->update_meta_data('size_id', $design_data['size_id'] ?? ''); // Kann leer bleiben  
-$order_item->update_meta_data('preview_url', (string)($design_data['preview_url'] ?? ''));
-    
-    // Dimensionen
-    $order_item->update_meta_data('width_cm', $design_data['width_cm'] ?? $design_data['width'] ?? '25.4');
-    $order_item->update_meta_data('height_cm', $design_data['height_cm'] ?? $design_data['height'] ?? '30.2');
-    
-    // Design Image URL
-    $order_item->update_meta_data('design_image_url', $design_data['design_image_url'] ?? $design_data['original_url'] ?? '');
-    
-    // Erweiterte Bild-Daten - Product Images (JSON)
-if (isset($design_data['product_images']) && !empty($design_data['product_images'])) {
-    if (is_string($design_data['product_images'])) {
-        // Validiere dass es gültiges JSON ist
-        $test_decode = json_decode($design_data['product_images'], true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            $order_item->update_meta_data('product_images', $design_data['product_images']);
-        } else {
-            error_log('EXPRESS: Invalid JSON in product_images, creating fallback');
-            $order_item->update_meta_data('product_images', wp_json_encode(array()));
+    if ($transfer_success) {
+        // Zusätzliche Express-Checkout-spezifische Meta-Daten
+        $order_item->update_meta_data('_express_checkout_transfer', 'yes');
+        $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+        
+        // Erweiterte Datenbankintegration wenn design_id vorhanden
+        if (!empty($design_data['design_id'])) {
+            $this->integrate_database_design_data($order_item, $design_data['design_id']);
         }
-    } elseif (is_array($design_data['product_images'])) {
-        // Array zu JSON konvertieren mit korrekten Datentypen
-        $product_images_clean = array();
-        foreach ($design_data['product_images'] as $img) {
-            $product_images_clean[] = array(
-                'url' => (string)($img['url'] ?? ''),
-                'view_name' => (string)($img['view_name'] ?? 'Front View'),
-                'view_id' => (string)($img['view_id'] ?? 'front'),
-                'width_cm' => (string)($img['width_cm'] ?? '25.4'),
-                'height_cm' => (string)($img['height_cm'] ?? '30.2')
-            );
-        }
-        $order_item->update_meta_data('product_images', wp_json_encode($product_images_clean));
-    }
-} else {
-    // Fallback: Erstelle Standard Product Images
-    $product_images = array(
-        array(
-            'url' => (string)($design_data['preview_url'] ?? ''),
-            'view_name' => 'Front View',
-            'view_id' => 'front',
-            'width_cm' => (string)($design_data['width_cm'] ?? $design_data['width'] ?? '25.4'),
-            'height_cm' => (string)($design_data['height_cm'] ?? $design_data['height'] ?? '30.2')
-        )
-    );
-    $order_item->update_meta_data('product_images', wp_json_encode($product_images));
-}
-
-// Erweiterte Bild-Daten - Design Images (JSON)
-if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
-    if (is_string($design_data['design_images'])) {
-        // Validiere JSON
-        $test_decode = json_decode($design_data['design_images'], true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            $order_item->update_meta_data('design_images', $design_data['design_images']);
-        } else {
-            error_log('EXPRESS: Invalid JSON in design_images, creating fallback');
-            $order_item->update_meta_data('design_images', wp_json_encode(array()));
-        }
-    } elseif (is_array($design_data['design_images'])) {
-        // Array zu JSON mit korrekten Datentypen
-        $design_images_clean = array();
-        foreach ($design_data['design_images'] as $img) {
-            $design_images_clean[] = array(
-                'url' => (string)($img['url'] ?? ''),
-                'scaleX' => (float)($img['scaleX'] ?? 1),
-                'scaleY' => (float)($img['scaleY'] ?? 1),
-                'width_cm' => (string)($img['width_cm'] ?? '25.4'),
-                'height_cm' => (string)($img['height_cm'] ?? '30.2'),
-                'view_name' => (string)($img['view_name'] ?? 'Front Design')
-            );
-        }
-        $order_item->update_meta_data('design_images', wp_json_encode($design_images_clean));
-    }
-} else {
-    // Fallback: Erstelle Standard Design Images
-    $design_images = array(
-        array(
-            'url' => (string)($design_data['design_image_url'] ?? $design_data['original_url'] ?? ''),
-            'scaleX' => (float)($design_data['scaleX'] ?? 1),
-            'scaleY' => (float)($design_data['scaleY'] ?? 1),
-            'width_cm' => (string)($design_data['width_cm'] ?? $design_data['width'] ?? '25.4'),
-            'height_cm' => (string)($design_data['height_cm'] ?? $design_data['height'] ?? '30.2'),
-            'view_name' => 'Front Design'
-        )
-    );
-    $order_item->update_meta_data('design_images', wp_json_encode($design_images));
-}
-
-// Debug-Logging für Design Data Transfer Verification
-$transferred_fields = array();
-foreach (array('design_id', 'name', 'template_id', 'variation_id', 'size_id', 'preview_url', 'width_cm', 'height_cm', 'design_image_url', 'product_images', 'design_images', 'has_multiple_images') as $field) {
-    $transferred_fields[$field] = $order_item->get_meta($field, true);
-}
-
-error_log('EXPRESS: Final transferred meta data: ' . print_r($transferred_fields, true));
-
-// Verifizie JSON-Felder
-$product_images_valid = json_decode($transferred_fields['product_images'], true) !== null;
-$design_images_valid = json_decode($transferred_fields['design_images'], true) !== null;
-
-error_log('EXPRESS: JSON validation - product_images: ' . ($product_images_valid ? 'VALID' : 'INVALID') . ', design_images: ' . ($design_images_valid ? 'VALID' : 'INVALID'));
-    
-    // Erweiterte Bild-Daten - Design Images (JSON)
-    if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
-        // Wenn bereits JSON String
-        if (is_string($design_data['design_images'])) {
-            $order_item->update_meta_data('design_images', $design_data['design_images']);
-        } else {
-            // Wenn Array, zu JSON konvertieren
-            $order_item->update_meta_data('design_images', wp_json_encode($design_data['design_images']));
-        }
+        
+        $design_transfers_success++;
+        error_log('EXPRESS: Complete design data successfully transferred using central function');
     } else {
-        // Fallback: Erstelle Standard Design Images aus vorhandenen Daten
-        $design_images = array(
-            array(
-                'url' => $design_data['design_image_url'] ?? $design_data['original_url'] ?? '',
-                'scaleX' => $design_data['scaleX'] ?? 1,
-                'scaleY' => $design_data['scaleY'] ?? 1,
-                'width_cm' => $design_data['width_cm'] ?? $design_data['width'] ?? '25.4',
-                'height_cm' => $design_data['height_cm'] ?? $design_data['height'] ?? '30.2',
-                'view_name' => 'Front Design'
-            )
-        );
-        $order_item->update_meta_data('design_images', wp_json_encode($design_images));
+        error_log('EXPRESS: Design transfer failed for cart item: ' . $cart_item_key);
+        $design_transfers_failed++;
     }
-    
-    // Has Multiple Images Flag - Speichere exakt wie erwartet (kann leer bleiben)
-$has_multiple_images = '';
-if (isset($design_data['has_multiple_images']) && !empty($design_data['has_multiple_images'])) {
-    $has_multiple_images = $design_data['has_multiple_images'];
-}
-// Wenn nicht explizit gesetzt, prüfe automatisch basierend auf Bildern
-elseif (!isset($design_data['has_multiple_images'])) {
-    $image_count = 0;
-    if (isset($design_data['product_images']) && is_array($design_data['product_images'])) {
-        $image_count += count($design_data['product_images']);
-    }
-    if (isset($design_data['design_images']) && is_array($design_data['design_images'])) {
-        $image_count += count($design_data['design_images']);
-    }
-    $has_multiple_images = $image_count > 1 ? true : '';
-}
-
-$order_item->update_meta_data('has_multiple_images', $has_multiple_images);
-    
-    // === ALTERNATIVE FELDNAMEN MIT UNTERSTRICH (für doppelte Kompatibilität) ===
-    $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
-    $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
-    $order_item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
-    $order_item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
-    $order_item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
-    $order_item->update_meta_data('_design_width_cm', $design_data['width_cm'] ?? $design_data['width'] ?? '25.4');
-    $order_item->update_meta_data('_design_height_cm', $design_data['height_cm'] ?? $design_data['height'] ?? '30.2');
-    $order_item->update_meta_data('_design_image_url', $design_data['design_image_url'] ?? $design_data['original_url'] ?? '');
-    $order_item->update_meta_data('_design_has_multiple_images', $has_multiple_images);
-    $order_item->update_meta_data('_design_product_images', $order_item->get_meta('product_images'));
-    $order_item->update_meta_data('_design_images', $order_item->get_meta('design_images'));
-    
-    $design_transfers_success++;
-    error_log('EXPRESS: Complete design data successfully transferred for item with ' . count(array_filter(array(
-        $design_data['design_id'] ?? '',
-        $design_data['name'] ?? '',
-        $design_data['preview_url'] ?? ''
-    ))) . ' core fields');
-    
 } else {
     error_log('EXPRESS: No design data found for cart item: ' . $cart_item_key);
     $design_transfers_failed++;
@@ -2136,6 +2164,17 @@ $order_item->update_meta_data('has_multiple_images', $has_multiple_images);
         
         error_log('EXPRESS: Order saved with ID: ' . $order_id);
         error_log('EXPRESS: Design transfers - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
+        
+        // Trigger Enhanced Debug-Analyse
+        $this->trigger_enhanced_debug_analysis($order_id);
+        
+        // Print Provider Readiness Check
+        $print_ready = $design_transfers_success > 0 && $design_transfers_failed === 0;
+        $order->update_meta_data('_print_provider_ready', $print_ready ? 'yes' : 'no');
+        if (!$print_ready) {
+            $order->update_meta_data('_print_provider_issues', "Design transfers failed: $design_transfers_failed");
+        }
+        $order->save();
         
         // Log hook execution for debug tracking
         if (function_exists('yprint_log_hook_execution')) {
