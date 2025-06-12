@@ -1209,13 +1209,22 @@ function yprint_extended_consolidate_cart_items() {
     return $changes_made;
 }
 
-/**
+ /**
  * Bearbeitet cart sessions, um sicherzustellen, dass print_design-Daten erhalten bleiben
  */
 add_filter('woocommerce_get_cart_item_from_session', 'yprint_get_cart_item_from_session', 10, 2);
 function yprint_get_cart_item_from_session($cart_item, $values) {
     if (isset($values['print_design'])) {
         $cart_item['print_design'] = $values['print_design'];
+        
+        // WICHTIG: Enhance-Funktion auch für Session-Recovery ausführen
+        // Dies stellt sicher, dass existierende Cart-Items die erweiterten Daten erhalten
+        $enhanced_data = yprint_enhance_design_data_for_existing_cart_item(
+            $values['print_design'], 
+            $cart_item['product_id'], 
+            $cart_item['variation_id'] ?? 0
+        );
+        $cart_item['print_design'] = $enhanced_data;
         
         // Markiere das Item als Design-Produkt, damit es nicht konsolidiert wird
         $cart_item['_is_design_product'] = true;
@@ -1728,4 +1737,267 @@ function yprint_debug_cart_callback() {
 add_action('wp_ajax_yprint_debug_cart', 'yprint_debug_cart_callback');
 add_action('wp_ajax_nopriv_yprint_debug_cart', 'yprint_debug_cart_callback');
 
+}
+
+/**
+ * Hilfsfunktion zum Erweitern von Design-Daten für existierende Cart-Items
+ * Diese Funktion wird beim Session-Recovery ausgeführt
+ */
+function yprint_enhance_design_data_for_existing_cart_item($design_data, $product_id, $variation_id) {
+    error_log('YPRINT: enhance_design_data_for_existing_cart_item called for product ' . $product_id);
+    
+    // Prüfe, ob bereits erweiterte Daten vorhanden sind
+    if (isset($design_data['variation_name']) && isset($design_data['size_name']) && 
+        isset($design_data['width_cm']) && isset($design_data['height_cm']) &&
+        isset($design_data['design_image_url']) && isset($design_data['product_images']) && 
+        isset($design_data['design_images'])) {
+        error_log('YPRINT: Design data already enhanced, skipping');
+        return $design_data;
+    }
+    
+    // Verwende die gleiche Logik wie in yprint_enhance_cart_item_design_data
+    $product = wc_get_product($product_id);
+    error_log('YPRINT: Processing existing cart item - product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
+    
+    // Variation-Daten extrahieren - erweiterte Fallback-Logik
+    if ($variation_id && !isset($design_data['variation_name'])) {
+        $variation = wc_get_product($variation_id);
+        if ($variation) {
+            $attributes = $variation->get_attributes();
+            error_log('YPRINT: Variation attributes: ' . print_r($attributes, true));
+            
+            // Methode 1: Direkte Attribute
+            if (isset($attributes['pa_color'])) {
+                $term = get_term_by('slug', $attributes['pa_color'], 'pa_color');
+                $design_data['variation_name'] = $term ? $term->name : $attributes['pa_color'];
+            } elseif (isset($attributes['color'])) {
+                $design_data['variation_name'] = $attributes['color'];
+            } elseif (isset($attributes['attribute_pa_color'])) {
+                $design_data['variation_name'] = $attributes['attribute_pa_color'];
+            }
+            
+            // Methode 2: Größe extrahieren
+            if (isset($attributes['pa_size'])) {
+                $term = get_term_by('slug', $attributes['pa_size'], 'pa_size');
+                $design_data['size_name'] = $term ? $term->name : $attributes['pa_size'];
+            } elseif (isset($attributes['size'])) {
+                $design_data['size_name'] = $attributes['size'];
+            } elseif (isset($attributes['attribute_pa_size'])) {
+                $design_data['size_name'] = $attributes['attribute_pa_size'];
+            }
+            
+            // Methode 3: Aus Variation Name extrahieren
+            if (!isset($design_data['variation_name']) && $variation->get_name()) {
+                $variation_name = str_replace($product->get_name() . ' - ', '', $variation->get_name());
+                // Wenn Name Format wie "Farbe - Größe" ist, splitten
+                $name_parts = explode(' - ', $variation_name);
+                if (count($name_parts) >= 1) {
+                    $design_data['variation_name'] = trim($name_parts[0]);
+                }
+                if (count($name_parts) >= 2 && !isset($design_data['size_name'])) {
+                    $design_data['size_name'] = trim($name_parts[1]);
+                }
+            }
+            
+            // Methode 4: Aus WooCommerce Meta-Daten
+            if (!isset($design_data['variation_name'])) {
+                $variation_meta = get_post_meta($variation_id);
+                foreach ($variation_meta as $key => $values) {
+                    if (strpos($key, 'attribute_') === 0 && !empty($values[0])) {
+                        if (strpos($key, 'color') !== false || strpos($key, 'farbe') !== false) {
+                            $design_data['variation_name'] = $values[0];
+                        } elseif (strpos($key, 'size') !== false || strpos($key, 'grosse') !== false || strpos($key, 'größe') !== false) {
+                            $design_data['size_name'] = $values[0];
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // Erweiterte Fallbacks für Basis-Produkt ohne Variation
+    if (!isset($design_data['variation_name'])) {
+        // Versuche aus Produkt-Attributen zu extrahieren
+        if ($product && $product->is_type('simple')) {
+            $product_attributes = $product->get_attributes();
+            foreach ($product_attributes as $attribute) {
+                if ($attribute->get_name() === 'pa_color' || $attribute->get_name() === 'color') {
+                    $terms = $attribute->get_terms();
+                    if (!empty($terms)) {
+                        $design_data['variation_name'] = $terms[0]->name;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Final fallback
+        if (!isset($design_data['variation_name'])) {
+            $design_data['variation_name'] = 'Standard';
+        }
+    }
+    
+    if (!isset($design_data['size_name'])) {
+        // Versuche aus Produkt-Attributen zu extrahieren
+        if ($product && $product->is_type('simple')) {
+            $product_attributes = $product->get_attributes();
+            foreach ($product_attributes as $attribute) {
+                if ($attribute->get_name() === 'pa_size' || $attribute->get_name() === 'size') {
+                    $terms = $attribute->get_terms();
+                    if (!empty($terms)) {
+                        $design_data['size_name'] = $terms[0]->name;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Final fallback
+        if (!isset($design_data['size_name'])) {
+            $design_data['size_name'] = 'One Size';
+        }
+    }
+    
+    error_log('YPRINT: Final variation_name: ' . ($design_data['variation_name'] ?? 'NOT SET'));
+    error_log('YPRINT: Final size_name: ' . ($design_data['size_name'] ?? 'NOT SET'));
+    
+    // Dimensionen aus Produkt-Meta oder Standard-Werten setzen
+    if (!isset($design_data['width_cm'])) {
+        $design_data['width_cm'] = get_post_meta($product_id, '_design_width_cm', true) ?: '25.4';
+    }
+    if (!isset($design_data['height_cm'])) {
+        $design_data['height_cm'] = get_post_meta($product_id, '_design_height_cm', true) ?: '30.2';
+    }
+    
+    // Verbesserte Original-Datei URL-Generierung
+    if (!isset($design_data['design_image_url']) && isset($design_data['preview_url'])) {
+        // Mehrere Konvertierungsstrategien für Original Design URLs
+        $preview_url = $design_data['preview_url'];
+        
+        // Strategie 1: preview_ zu original_ 
+        $original_url = str_replace('/preview_', '/original_', $preview_url);
+        $original_url = str_replace('-1.png', '.png', $original_url);
+        $original_url = str_replace('-1.jpg', '.jpg', $original_url);
+        
+        // Strategie 2: Falls preview im Dateinamen, entfernen
+        if (strpos($original_url, 'preview') === false) {
+            $original_url = str_replace('/previews/', '/originals/', $preview_url);
+            $original_url = str_replace('_preview', '', $original_url);
+            $original_url = str_replace('-preview', '', $original_url);
+        }
+        
+        $design_data['design_image_url'] = $original_url;
+    }
+    
+    // Back Design URLs ableiten falls vorhanden
+    if (!isset($design_data['back_design_image_url']) && isset($design_data['back_preview_url'])) {
+        $back_preview_url = $design_data['back_preview_url'];
+        
+        $back_original_url = str_replace('/preview_', '/original_', $back_preview_url);
+        $back_original_url = str_replace('-1.png', '.png', $back_original_url);
+        $back_original_url = str_replace('-1.jpg', '.jpg', $back_original_url);
+        $back_original_url = str_replace('/previews/', '/originals/', $back_original_url);
+        $back_original_url = str_replace('_preview', '', $back_original_url);
+        $back_original_url = str_replace('-preview', '', $back_original_url);
+        
+        $design_data['back_design_image_url'] = $back_original_url;
+    }
+    
+    // Verbesserte Multi-View JSON-Strukturen erstellen
+    if (!isset($design_data['product_images'])) {
+        $product_images = array();
+        
+        // Front View (Standard)
+        if (!empty($design_data['preview_url'])) {
+            $product_images[] = array(
+                'url' => $design_data['preview_url'],
+                'view_name' => 'Front',
+                'view_id' => 'front',
+                'width_cm' => $design_data['width_cm'] ?? '25.4',
+                'height_cm' => $design_data['height_cm'] ?? '30.2'
+            );
+        }
+        
+        // Back View (falls vorhanden)
+        if (!empty($design_data['back_preview_url'])) {
+            $product_images[] = array(
+                'url' => $design_data['back_preview_url'],
+                'view_name' => 'Back',
+                'view_id' => 'back',
+                'width_cm' => $design_data['width_cm'] ?? '25.4',
+                'height_cm' => $design_data['height_cm'] ?? '30.2'
+            );
+        }
+        
+        // Fallback falls keine Preview URLs vorhanden
+        if (empty($product_images) && !empty($design_data['design_image_url'])) {
+            $product_images[] = array(
+                'url' => $design_data['design_image_url'],
+                'view_name' => 'Front',
+                'view_id' => 'front',
+                'width_cm' => $design_data['width_cm'] ?? '25.4',
+                'height_cm' => $design_data['height_cm'] ?? '30.2'
+            );
+        }
+        
+        $design_data['product_images'] = wp_json_encode($product_images);
+    }
+    
+    if (!isset($design_data['design_images'])) {
+        $design_images = array();
+        
+        // Front Design (Original-Datei)
+        if (!empty($design_data['design_image_url'])) {
+            $design_images[] = array(
+                'url' => $design_data['design_image_url'],
+                'view_name' => 'Front',
+                'view_id' => 'front',
+                'scaleX' => 1.0,
+                'scaleY' => 1.0,
+                'width_cm' => $design_data['width_cm'] ?? '25.4',
+                'height_cm' => $design_data['height_cm'] ?? '30.2'
+            );
+        }
+        
+        // Back Design (falls vorhanden)
+        if (!empty($design_data['back_design_image_url'])) {
+            $design_images[] = array(
+                'url' => $design_data['back_design_image_url'],
+                'view_name' => 'Back',
+                'view_id' => 'back',
+                'scaleX' => 1.0,
+                'scaleY' => 1.0,
+                'width_cm' => $design_data['width_cm'] ?? '25.4',
+                'height_cm' => $design_data['height_cm'] ?? '30.2'
+            );
+        }
+        
+        // Fallback: Falls nur preview_url vorhanden ist, als Original verwenden
+        if (empty($design_images) && !empty($design_data['preview_url'])) {
+            $design_images[] = array(
+                'url' => $design_data['preview_url'],
+                'view_name' => 'Front',
+                'view_id' => 'front',
+                'scaleX' => 1.0,
+                'scaleY' => 1.0,
+                'width_cm' => $design_data['width_cm'] ?? '25.4',
+                'height_cm' => $design_data['height_cm'] ?? '30.2'
+            );
+        }
+        
+        $design_data['design_images'] = wp_json_encode($design_images);
+    }
+    
+    // Multiple Images Flag basierend auf tatsächlicher Anzahl setzen
+    $product_images_array = is_string($design_data['product_images']) ? 
+        json_decode($design_data['product_images'], true) : [];
+    $design_images_array = is_string($design_data['design_images']) ? 
+        json_decode($design_data['design_images'], true) : [];
+        
+    $design_data['has_multiple_images'] = (count($product_images_array) > 1 || count($design_images_array) > 1);
+    
+    // Debug-Ausgabe
+    error_log('YPRINT: Enhanced existing cart item design data for product ' . $product_id . ': ' . print_r($design_data, true));
+    
+    return $design_data;
 }
