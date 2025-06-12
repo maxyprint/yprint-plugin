@@ -1,4 +1,359 @@
 <?php
+
+/**
+ * WOOCOMMERCE ORDER DESIGN TAB - Neuer Reiter für Design-Details
+ */
+
+/**
+ * Füge Design-Tab zu WooCommerce Order-Details hinzu
+ */
+add_filter('woocommerce_admin_order_data_tabs', 'yprint_add_order_design_tab');
+function yprint_add_order_design_tab($tabs) {
+    $tabs['yprint_design'] = array(
+        'label' => __('🎨 Design Details', 'yprint'),
+        'target' => 'yprint_design_data',
+        'class' => array('yprint-design-tab'),
+        'priority' => 60
+    );
+    return $tabs;
+}
+
+/**
+ * Design-Tab Inhalt anzeigen
+ */
+add_action('woocommerce_admin_order_data_panels', 'yprint_display_order_design_panel');
+function yprint_display_order_design_panel() {
+    global $post;
+    
+    $order = wc_get_order($post->ID);
+    if (!$order) return;
+    
+    echo '<div id="yprint_design_data" class="panel woocommerce_options_panel">';
+    echo '<div class="yprint-design-panel-content">';
+    
+    // CSS für das Panel
+    echo '<style>
+        .yprint-design-panel-content {
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        .yprint-design-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .yprint-design-header {
+            background: #0073aa;
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .yprint-design-body {
+            padding: 0;
+        }
+        .yprint-view-section {
+            border-bottom: 1px solid #eee;
+            padding: 20px;
+        }
+        .yprint-view-section:last-child {
+            border-bottom: none;
+        }
+        .yprint-view-title {
+            background: #f0f8ff;
+            color: #0073aa;
+            padding: 10px 15px;
+            margin: -20px -20px 15px -20px;
+            font-weight: bold;
+            font-size: 14px;
+            border-bottom: 1px solid #cce5ff;
+        }
+        .yprint-image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .yprint-image-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: #fafafa;
+        }
+        .yprint-image-preview {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .yprint-image-preview img {
+            max-width: 150px;
+            max-height: 150px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .yprint-image-details {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .yprint-image-details strong {
+            color: #333;
+        }
+        .yprint-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .yprint-meta-item {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 3px solid #0073aa;
+        }
+        .yprint-meta-label {
+            font-weight: bold;
+            color: #333;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .yprint-meta-value {
+            color: #666;
+            word-break: break-all;
+        }
+        .yprint-empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .yprint-status-ready {
+            color: #46b450;
+            font-weight: bold;
+        }
+        .yprint-status-not-ready {
+            color: #dc3232;
+            font-weight: bold;
+        }
+    </style>';
+    
+    // Finde alle Design-Items in der Bestellung
+    $design_items = array();
+    foreach ($order->get_items() as $item_id => $item) {
+        $design_id = $item->get_meta('_design_id');
+        if (!empty($design_id)) {
+            $design_items[$item_id] = $item;
+        }
+    }
+    
+    if (empty($design_items)) {
+        echo '<div class="yprint-empty-state">';
+        echo '<h3>Keine Design-Produkte gefunden</h3>';
+        echo '<p>Diese Bestellung enthält keine Produkte mit Design-Daten.</p>';
+        echo '</div>';
+    } else {
+        echo '<h2>Design-Produkte in dieser Bestellung (' . count($design_items) . ')</h2>';
+        
+        foreach ($design_items as $item_id => $item) {
+            echo '<div class="yprint-design-item">';
+            
+            // HEADER mit Produktname und Status
+            $design_name = $item->get_meta('_design_name') ?: $item->get_meta('_db_design_product_name') ?: $item->get_name();
+            $print_ready = $item->get_meta('_print_provider_ready');
+            $status_class = ($print_ready === 'yes') ? 'yprint-status-ready' : 'yprint-status-not-ready';
+            $status_text = ($print_ready === 'yes') ? '✅ Print-Ready' : '❌ Incomplete';
+            
+            echo '<div class="yprint-design-header">';
+            echo esc_html($design_name);
+            echo '<span style="float: right;" class="' . $status_class . '">' . $status_text . '</span>';
+            echo '</div>';
+            
+            echo '<div class="yprint-design-body">';
+            
+            // GRUNDLEGENDE META-INFORMATIONEN
+            echo '<div style="padding: 20px; border-bottom: 1px solid #eee;">';
+            echo '<h3>📋 Grundinformationen</h3>';
+            echo '<div class="yprint-meta-grid">';
+            
+            $basic_meta = array(
+                'Design ID' => $item->get_meta('_design_id'),
+                'Design Name' => $item->get_meta('_db_design_product_name') ?: $item->get_meta('_design_name'),
+                'Template ID' => $item->get_meta('_db_design_template_id') ?: $item->get_meta('_db_template_id'),
+                'User ID' => $item->get_meta('_db_design_user_id'),
+                'Erstellt am' => $item->get_meta('_db_design_created_at'),
+                'Aktuelle Variation' => $item->get_meta('_db_current_variation'),
+                'Anzahl Views' => $item->get_meta('_db_view_count') ?: '0'
+            );
+            
+            foreach ($basic_meta as $label => $value) {
+                if (!empty($value)) {
+                    echo '<div class="yprint-meta-item">';
+                    echo '<span class="yprint-meta-label">' . esc_html($label) . ':</span>';
+                    echo '<span class="yprint-meta-value">' . esc_html($value) . '</span>';
+                    echo '</div>';
+                }
+            }
+            
+            echo '</div>';
+            
+            // PRINT PROVIDER STATUS
+            $print_issues = $item->get_meta('_print_provider_issues');
+            if (!empty($print_issues)) {
+                echo '<div style="background: #fff2cd; border: 1px solid #ffc107; padding: 10px; border-radius: 4px; margin-top: 15px;">';
+                echo '<strong>⚠️ Print Provider Probleme:</strong> ' . esc_html($print_issues);
+                echo '</div>';
+            }
+            
+            echo '</div>';
+            
+            // VIEWS UND BILDER
+            $view_count = intval($item->get_meta('_db_view_count'));
+            
+            if ($view_count > 0) {
+                for ($i = 1; $i <= $view_count; $i++) {
+                    $view_name = $item->get_meta("_view_{$i}_name");
+                    $view_system_id = $item->get_meta("_view_{$i}_system_id");
+                    $view_variation_id = $item->get_meta("_view_{$i}_variation_id");
+                    $view_image_count = $item->get_meta("_view_{$i}_image_count");
+                    $view_data_json = $item->get_meta("_view_{$i}_data");
+                    
+                    if (!empty($view_data_json)) {
+                        $view_data = json_decode($view_data_json, true);
+                        
+                        echo '<div class="yprint-view-section">';
+                        echo '<div class="yprint-view-title">';
+                        echo "🔹 View $i: " . esc_html($view_name);
+                        echo '<span style="float: right; font-weight: normal; color: #666;">';
+                        echo 'System-ID: ' . esc_html($view_system_id) . ' | Variation: ' . esc_html($view_variation_id);
+                        echo '</span>';
+                        echo '</div>';
+                        
+                        if (!empty($view_data['images'])) {
+                            echo '<div class="yprint-image-grid">';
+                            
+                            foreach ($view_data['images'] as $img_index => $image) {
+                                echo '<div class="yprint-image-item">';
+                                echo '<div class="yprint-image-preview">';
+                                
+                                if (!empty($image['url'])) {
+                                    echo '<img src="' . esc_url($image['url']) . '" alt="Design Preview">';
+                                    echo '<br><a href="' . esc_url($image['url']) . '" target="_blank" style="font-size: 11px;">🔗 Vollbild öffnen</a>';
+                                } else {
+                                    echo '<div style="width: 150px; height: 150px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border: 1px dashed #ccc;">Kein Bild</div>';
+                                }
+                                
+                                echo '</div>';
+                                echo '<div class="yprint-image-details">';
+                                echo '<strong>🎨 Bild ' . ($img_index + 1) . ':</strong><br>';
+                                echo '<strong>Dateiname:</strong> ' . esc_html($image['filename'] ?? 'unknown') . '<br>';
+                                
+                                if (!empty($image['url'])) {
+                                    echo '<strong>URL:</strong> <span style="font-size: 10px; word-break: break-all;">' . esc_html($image['url']) . '</span><br>';
+                                }
+                                
+                                if (isset($image['transform'])) {
+                                    $transform = $image['transform'];
+                                    echo '<strong>Originalgröße:</strong> ' . ($transform['width'] ?? 0) . ' × ' . ($transform['height'] ?? 0) . ' px<br>';
+                                }
+                                
+                                if (isset($image['position_left'], $image['position_top'])) {
+                                    echo '<strong>Position:</strong> left: ' . round($image['position_left'], 1) . 'px, top: ' . round($image['position_top'], 1) . 'px<br>';
+                                }
+                                
+                                if (isset($image['scale_percent'])) {
+                                    echo '<strong>Skalierung:</strong> ' . $image['scale_percent'] . '%<br>';
+                                }
+                                
+                                if (isset($image['print_width_mm'], $image['print_height_mm'])) {
+                                    echo '<strong>Druckgröße:</strong> ' . $image['print_width_mm'] . ' × ' . $image['print_height_mm'] . ' mm<br>';
+                                }
+                                
+                                if (isset($image['angle']) && $image['angle'] != 0) {
+                                    echo '<strong>Rotation:</strong> ' . $image['angle'] . '°<br>';
+                                }
+                                
+                                $visible = $image['visible'] ?? true;
+                                echo '<strong>Sichtbar:</strong> ' . ($visible ? 'Ja' : 'Nein');
+                                
+                                echo '</div>';
+                                echo '</div>';
+                            }
+                            
+                            echo '</div>';
+                        } else {
+                            echo '<p style="color: #666; font-style: italic;">Keine Bilder in dieser View gefunden.</p>';
+                        }
+                        
+                        echo '</div>';
+                    }
+                }
+            } else {
+                echo '<div class="yprint-view-section">';
+                echo '<p style="color: #666; font-style: italic;">Keine View-Daten verfügbar. Design könnte mit älterem System erstellt worden sein.</p>';
+                
+                // FALLBACK: Zeige verfügbare Meta-Daten
+                $fallback_fields = array(
+                    '_design_preview_url' => 'Preview URL',
+                    '_design_color' => 'Farbe',
+                    '_design_size' => 'Größe',
+                    '_design_image_url' => 'Image URL',
+                    '_design_width_cm' => 'Breite (cm)',
+                    '_design_height_cm' => 'Höhe (cm)'
+                );
+                
+                $has_fallback = false;
+                foreach ($fallback_fields as $meta_key => $label) {
+                    $value = $item->get_meta($meta_key);
+                    if (!empty($value)) {
+                        if (!$has_fallback) {
+                            echo '<h4>Verfügbare Legacy-Daten:</h4>';
+                            $has_fallback = true;
+                        }
+                        echo '<p><strong>' . $label . ':</strong> ';
+                        if ($meta_key === '_design_preview_url' || $meta_key === '_design_image_url') {
+                            echo '<a href="' . esc_url($value) . '" target="_blank">' . esc_html($value) . '</a>';
+                        } else {
+                            echo esc_html($value);
+                        }
+                        echo '</p>';
+                    }
+                }
+                
+                echo '</div>';
+            }
+            
+            echo '</div>'; // yprint-design-body
+            echo '</div>'; // yprint-design-item
+        }
+    }
+    
+    echo '</div>'; // yprint-design-panel-content
+    echo '</div>'; // panel
+}
+
+/**
+ * Lade zusätzliche Scripts für das Design-Panel
+ */
+add_action('admin_footer', 'yprint_design_panel_scripts');
+function yprint_design_panel_scripts() {
+    $screen = get_current_screen();
+    if ($screen && $screen->id === 'shop_order') {
+        echo '<script>
+        jQuery(document).ready(function($) {
+            // Füge Zähler zum Tab-Label hinzu
+            var designItemCount = $(".yprint-design-item").length;
+            if (designItemCount > 0) {
+                $("a[href=\'#yprint_design_data\']").append(" (" + designItemCount + ")");
+            }
+            
+            // Auto-expand des ersten Tabs wenn Design-Daten vorhanden
+            if (designItemCount > 0 && window.location.hash === "") {
+                $("a[href=\'#yprint_design_data\']").trigger("click");
+            }
+        });
+        </script>';
+    }
+}
+
 /**
  * YPRINT ENHANCED ORDER DEBUG MIT DESIGN-DATEN ANALYSE
  * Analysiert Bestellungen und zeigt detaillierte Design-Informationen aus der Datenbank
