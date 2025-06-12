@@ -404,39 +404,40 @@ error_log($log_message);
     }
     
     /**
- * DETAILLIERTE ORDER-ANALYSE MIT SPEZIFISCHEN META-FELD-PRÜFUNG
+ * DETAILLIERTE ORDER-ANALYSE MIT PRINT PROVIDER BEREITSCHAFTSPRÜFUNG
  */
 private function analyze_order_items($order) {
     $trail = array();
     $design_count = 0;
     $items_analysis = array();
     $overall_completeness = array();
+    $print_provider_ready_count = 0;
     
-    $trail[] = "├─ Analyzing order items...";
+    $trail[] = "├─ Analyzing order items for Print Provider readiness...";
     $trail[] = "│  ├─ Order ID: " . $order->get_id();
     $trail[] = "│  ├─ Order Status: " . $order->get_status();
     $trail[] = "│  └─ Total Items: " . count($order->get_items());
     
     // Definiere alle erforderlichen Meta-Felder für Print Provider E-Mail System
     $required_meta_fields = array(
-        // Basis Design-Daten
-        '_design_id' => 'integer',
-        '_design_name' => 'string',
-        '_design_color' => 'string', 
-        '_design_size' => 'string',
-        '_design_preview_url' => 'string',
+        // Basis Design-Daten (KRITISCH für Print Provider)
+        '_design_id' => array('type' => 'integer', 'critical' => true, 'print_provider_required' => true),
+        '_design_name' => array('type' => 'string', 'critical' => true, 'print_provider_required' => true),
+        '_design_color' => array('type' => 'string', 'critical' => false, 'print_provider_required' => true), 
+        '_design_size' => array('type' => 'string', 'critical' => false, 'print_provider_required' => true),
+        '_design_preview_url' => array('type' => 'string', 'critical' => true, 'print_provider_required' => true),
         
-        // Dimensionen
-        '_design_width_cm' => 'numeric',
-        '_design_height_cm' => 'numeric',
+        // Dimensionen (KRITISCH für Druck)
+        '_design_width_cm' => array('type' => 'numeric', 'critical' => true, 'print_provider_required' => true),
+        '_design_height_cm' => array('type' => 'numeric', 'critical' => true, 'print_provider_required' => true),
         
-        // Kompatibilitäts-Feld
-        '_design_image_url' => 'string',
+        // Multi-View Support (KRITISCH für Front/Back-Print)
+        '_design_has_multiple_images' => array('type' => 'boolean', 'critical' => false, 'print_provider_required' => true),
+        '_design_product_images' => array('type' => 'json', 'critical' => true, 'print_provider_required' => true),
+        '_design_images' => array('type' => 'json', 'critical' => true, 'print_provider_required' => true),
         
-        // Erweiterte Bild-Daten
-        '_design_has_multiple_images' => 'boolean',
-        '_design_product_images' => 'json',
-        '_design_images' => 'json'
+        // Legacy-Kompatibilität (FALLBACK)
+        '_design_image_url' => array('type' => 'string', 'critical' => false, 'print_provider_required' => false)
     );
     
     foreach ($order->get_items() as $item_id => $item) {
@@ -455,14 +456,20 @@ private function analyze_order_items($order) {
         $has_design_data = false;
         $missing_critical_fields = array();
         $missing_optional_fields = array();
+        $multi_view_analysis = array();
+        $print_provider_warnings = array();
         
-        foreach ($required_meta_fields as $field_name => $expected_type) {
+        foreach ($required_meta_fields as $field_name => $field_config) {
+            $expected_type = $field_config['type'];
+            $is_critical = $field_config['critical'];
+            $print_provider_required = $field_config['print_provider_required'];
             $field_value = $item->get_meta($field_name);
             $is_present = !empty($field_value) || ($field_value === '0' || $field_value === 0 || $field_value === false);
             $is_valid = $this->validate_meta_field_type($field_value, $expected_type);
             
             if ($is_present && $is_valid) {
-                $trail[] = "│  │  │  ├─ ✅ $field_name: " . $this->format_meta_value_for_display($field_value, $expected_type);
+                $display_value = $this->format_meta_value_for_display($field_value, $expected_type);
+                $trail[] = "│  │  │  ├─ ✅ $field_name: " . $display_value;
                 $field_status[$field_name] = 'valid';
                 
                 // Design ID ist der Haupt-Indikator für Design-Produkt
@@ -471,12 +478,22 @@ private function analyze_order_items($order) {
                     $design_count++;
                 }
                 
+                // Spezielle Multi-View Validierung
+                if ($field_name === '_design_product_images') {
+                    $multi_view_analysis['product_images'] = $this->analyze_multi_view_data($field_value, 'product_images', $trail);
+                } elseif ($field_name === '_design_images') {
+                    $multi_view_analysis['design_images'] = $this->analyze_multi_view_data($field_value, 'design_images', $trail);
+                }
+                
             } elseif ($is_present && !$is_valid) {
                 $trail[] = "│  │  │  ├─ ⚠️  $field_name: INVALID TYPE (expected $expected_type, got " . gettype($field_value) . ")";
                 $field_status[$field_name] = 'invalid_type';
                 
-                // Bei kritischen Feldern als fehlend betrachten
-                if (in_array($field_name, array('_design_id', '_design_name'))) {
+                if ($print_provider_required) {
+                    $print_provider_warnings[] = "$field_name has invalid format";
+                }
+                
+                if ($is_critical) {
                     $missing_critical_fields[] = $field_name;
                 } else {
                     $missing_optional_fields[] = $field_name;
@@ -486,8 +503,11 @@ private function analyze_order_items($order) {
                 $trail[] = "│  │  │  ├─ ❌ $field_name: MISSING";
                 $field_status[$field_name] = 'missing';
                 
-                // Kategorisiere fehlende Felder
-                if (in_array($field_name, array('_design_id', '_design_name', '_design_preview_url'))) {
+                if ($print_provider_required) {
+                    $print_provider_warnings[] = "$field_name is required for print provider";
+                }
+                
+                if ($is_critical) {
                     $missing_critical_fields[] = $field_name;
                 } else {
                     $missing_optional_fields[] = $field_name;
@@ -522,12 +542,63 @@ private function analyze_order_items($order) {
             $trail[] = "│  │  ├─ ⚠️  OPTIONAL MISSING: " . implode(', ', $missing_optional_fields);
         }
         
-        // E-Mail System Kompatibilität
-        $email_ready = $has_design_data && 
-                      $field_status['_design_name'] === 'valid' && 
-                      $field_status['_design_preview_url'] === 'valid';
+        // Print Provider Bereitschaftsprüfung
+        $critical_fields_valid = $has_design_data && 
+                               $field_status['_design_name'] === 'valid' && 
+                               $field_status['_design_preview_url'] === 'valid' &&
+                               $field_status['_design_width_cm'] === 'valid' &&
+                               $field_status['_design_height_cm'] === 'valid';
         
-        $trail[] = "│  │  └─ EMAIL SYSTEM READY: " . ($email_ready ? '✅ YES' : '❌ NO');
+        $multi_view_ready = ($field_status['_design_product_images'] === 'valid' && 
+                           $field_status['_design_images'] === 'valid' &&
+                           isset($multi_view_analysis['product_images']) &&
+                           isset($multi_view_analysis['design_images']) &&
+                           $multi_view_analysis['product_images']['valid'] &&
+                           $multi_view_analysis['design_images']['valid']);
+        
+        $legacy_fallback_ready = $field_status['_design_image_url'] === 'valid';
+        
+        $print_provider_ready = $critical_fields_valid && ($multi_view_ready || $legacy_fallback_ready);
+        
+        if ($print_provider_ready) {
+            $print_provider_ready_count++;
+        }
+        
+        $trail[] = "│  │  ├─ 🎯 PRINT PROVIDER READINESS ANALYSIS:";
+        $trail[] = "│  │  │  ├─ Critical Fields: " . ($critical_fields_valid ? '✅ VALID' : '❌ MISSING');
+        $trail[] = "│  │  │  ├─ Multi-View Data: " . ($multi_view_ready ? '✅ COMPLETE' : '❌ INCOMPLETE');
+        $trail[] = "│  │  │  ├─ Legacy Fallback: " . ($legacy_fallback_ready ? '✅ AVAILABLE' : '❌ N/A');
+        $trail[] = "│  │  │  └─ OVERALL STATUS: " . ($print_provider_ready ? '✅ READY TO SEND' : '❌ NOT READY');
+        
+        if (!empty($print_provider_warnings)) {
+            $trail[] = "│  │  ├─ 🚨 PRINT PROVIDER WARNINGS:";
+            foreach ($print_provider_warnings as $warning) {
+                $trail[] = "│  │  │  └─ ⚠️  $warning";
+            }
+        }
+        
+        // Multi-View Zusammenfassung
+        if (!empty($multi_view_analysis)) {
+            $trail[] = "│  │  ├─ 📋 MULTI-VIEW SUMMARY:";
+            
+            if (isset($multi_view_analysis['product_images'])) {
+                $pimg = $multi_view_analysis['product_images'];
+                $trail[] = "│  │  │  ├─ Preview Images: " . $pimg['view_count'] . " views (" . 
+                          implode(', ', $pimg['views_found']) . ")";
+                if (!empty($pimg['issues'])) {
+                    $trail[] = "│  │  │  │  └─ Issues: " . implode('; ', $pimg['issues']);
+                }
+            }
+            
+            if (isset($multi_view_analysis['design_images'])) {
+                $dimg = $multi_view_analysis['design_images'];
+                $trail[] = "│  │  │  └─ Design Files: " . $dimg['view_count'] . " views (" . 
+                          implode(', ', $dimg['views_found']) . ")";
+                if (!empty($dimg['issues'])) {
+                    $trail[] = "│  │  │     └─ Issues: " . implode('; ', $dimg['issues']);
+                }
+            }
+        }
         
         // Speichere detaillierte Analyse
         $items_analysis[$item_id] = array(
@@ -548,24 +619,31 @@ private function analyze_order_items($order) {
     
     // Gesamtübersicht
     $avg_completeness = !empty($overall_completeness) ? round(array_sum($overall_completeness) / count($overall_completeness), 1) : 0;
-    $email_ready_count = count(array_filter($items_analysis, function($item) {
-        return $item['email_ready'];
-    }));
     
     $trail[] = "";
-    $trail[] = "└─ ORDER SUMMARY:";
+    $trail[] = "└─ 📊 PRINT PROVIDER ORDER SUMMARY:";
     $trail[] = "   ├─ Design Items Found: $design_count";
-    $trail[] = "   ├─ Email System Ready: $email_ready_count of " . count($items_analysis);
-    $trail[] = "   └─ Average Completeness: $avg_completeness%";
+    $trail[] = "   ├─ Print Provider Ready: $print_provider_ready_count of " . count($items_analysis);
+    $trail[] = "   ├─ Average Data Completeness: $avg_completeness%";
+    
+    if ($print_provider_ready_count === count($items_analysis) && $design_count > 0) {
+        $trail[] = "   └─ 🎉 STATUS: ORDER READY FOR PRINT PROVIDER!";
+    } elseif ($print_provider_ready_count > 0) {
+        $trail[] = "   └─ ⚠️  STATUS: PARTIALLY READY - Some items missing data";
+    } else {
+        $trail[] = "   └─ ❌ STATUS: NOT READY - Critical data missing";
+    }
     
     return array(
         'trail' => $trail,
         'design_count' => $design_count,
         'total_items' => count($order->get_items()),
-        'email_ready_items' => $email_ready_count,
+        'print_provider_ready_items' => $print_provider_ready_count,
         'average_completeness' => $avg_completeness,
         'items' => $items_analysis,
-        'required_fields' => array_keys($required_meta_fields)
+        'required_fields' => array_keys($required_meta_fields),
+        'print_provider_ready' => $print_provider_ready_count === count($items_analysis) && $design_count > 0,
+        'multi_view_support' => true
     );
 }
 
@@ -598,6 +676,89 @@ private function validate_meta_field_type($value, $expected_type) {
         default:
             return true;
     }
+}
+
+/**
+ * Analysiere Multi-View JSON-Daten detailliert
+ */
+private function analyze_multi_view_data($json_value, $data_type, &$trail) {
+    $analysis = array(
+        'valid' => false,
+        'view_count' => 0,
+        'views_found' => array(),
+        'issues' => array()
+    );
+    
+    if (empty($json_value)) {
+        $analysis['issues'][] = 'JSON data is empty';
+        return $analysis;
+    }
+    
+    $decoded = json_decode($json_value, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $analysis['issues'][] = 'Invalid JSON format: ' . json_last_error_msg();
+        return $analysis;
+    }
+    
+    if (!is_array($decoded)) {
+        $analysis['issues'][] = 'JSON does not contain array data';
+        return $analysis;
+    }
+    
+    $trail[] = "│  │  │  │  └─ " . strtoupper($data_type) . " DETAILED ANALYSIS:";
+    
+    foreach ($decoded as $index => $view_data) {
+        if (!is_array($view_data)) {
+            $analysis['issues'][] = "Item $index is not an array";
+            continue;
+        }
+        
+        $analysis['view_count']++;
+        
+        // Prüfe erforderliche Felder je nach Datentyp
+        if ($data_type === 'product_images') {
+            $required_fields = array('url', 'view_name');
+            $optional_fields = array('view_id');
+        } else { // design_images
+            $required_fields = array('url', 'view_name', 'width_cm', 'height_cm');
+            $optional_fields = array('view_id', 'transform', 'scaleX', 'scaleY', 'visible');
+        }
+        
+        $view_name = isset($view_data['view_name']) ? $view_data['view_name'] : 
+                    (isset($view_data['view_id']) ? $view_data['view_id'] : "View $index");
+        
+        $analysis['views_found'][] = $view_name;
+        
+        $trail[] = "│  │  │  │     ├─ VIEW: $view_name";
+        
+        $missing_required = array();
+        foreach ($required_fields as $field) {
+            if (empty($view_data[$field])) {
+                $missing_required[] = $field;
+            } else {
+                $trail[] = "│  │  │  │     │  ├─ ✅ $field: " . 
+                          (strlen($view_data[$field]) > 30 ? substr($view_data[$field], 0, 30) . '...' : $view_data[$field]);
+            }
+        }
+        
+        if (!empty($missing_required)) {
+            $trail[] = "│  │  │  │     │  └─ ❌ Missing: " . implode(', ', $missing_required);
+            $analysis['issues'][] = "View '$view_name' missing: " . implode(', ', $missing_required);
+        }
+        
+        // Prüfe URL-Erreichbarkeit (vereinfacht)
+        if (!empty($view_data['url'])) {
+            $url_valid = filter_var($view_data['url'], FILTER_VALIDATE_URL) !== false;
+            if (!$url_valid) {
+                $analysis['issues'][] = "View '$view_name' has invalid URL format";
+                $trail[] = "│  │  │  │     │  └─ ⚠️  Invalid URL format";
+            }
+        }
+    }
+    
+    $analysis['valid'] = empty($analysis['issues']) && $analysis['view_count'] > 0;
+    
+    return $analysis;
 }
 
 /**
