@@ -11,9 +11,46 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Lädt die Warenkorb-Funktionen aus der separaten Datei
+ */
+function yprint_load_cart_functions() {
+    $cart_file = get_template_directory() . '/includes/minimalist_cart.php';
+    
+    // Prüfe, ob die Datei existiert und lade sie
+    if (file_exists($cart_file)) {
+        require_once $cart_file;
+    } else {
+        // Fallback: Versuche andere mögliche Pfade
+        $fallback_paths = array(
+            ABSPATH . 'wp-content/themes/' . get_template() . '/includes/minimalist_cart.php',
+            ABSPATH . 'wp-content/themes/' . get_stylesheet() . '/includes/minimalist_cart.php',
+            plugin_dir_path(__FILE__) . 'includes/minimalist_cart.php',
+            dirname(__FILE__) . '/minimalist_cart.php'
+        );
+        
+        foreach ($fallback_paths as $path) {
+            if (file_exists($path)) {
+                require_once $path;
+                break;
+            }
+        }
+    }
+}
+
+/**
+ * Initialisiert die Warenkorb-Funktionen beim WordPress Init
+ */
+add_action('init', 'yprint_load_cart_functions', 5);
+
+/**
  * Fügt das HTML-Struktur für das Warenkorb-Popup in den Footer ein.
  */
 function yprint_cart_popup_html() {
+    // Stelle sicher, dass die Warenkorb-Funktionen geladen sind
+    if (!function_exists('yprint_minimalist_cart_shortcode')) {
+        yprint_load_cart_functions();
+    }
+    
     ?>
     <div id="mobile-cart-popup" class="mobile-cart-popup">
         <div class="cart-container">
@@ -21,7 +58,15 @@ function yprint_cart_popup_html() {
                 ←
             </button>
             <div class="cart-content">
-                <?php echo yprint_minimalist_cart_shortcode(); ?>
+                <?php 
+                // Prüfe, ob die Funktion existiert, bevor sie aufgerufen wird
+                if (function_exists('yprint_minimalist_cart_shortcode')) {
+                    echo yprint_minimalist_cart_shortcode();
+                } else {
+                    // Fallback: Verwende den WordPress Shortcode
+                    echo do_shortcode('[yprint_minimalist_cart]');
+                }
+                ?>
             </div>
         </div>
     </div>
@@ -56,47 +101,77 @@ function yprint_add_mobile_cart_popup_css() {
             transform: translateX(0);
         }
 
-        #mobile-cart-popup > div { /* Direktes div-Kind (der Warenkorb) */
-    background-color: #fff;
-    color: #1d1d1f;
-    padding: 20px;
-    width: 300px; /* Beispielbreite für den Warenkorb */
-    height: 100%;
-    position: absolute;
-    top: 0;
-    right: 0;
-    box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
-    overflow-y: auto;
-    box-sizing: border-box;
-}
+        #mobile-cart-popup .cart-container {
+            background-color: #fff;
+            color: #1d1d1f;
+            padding: 20px;
+            width: 350px; /* Etwas breiter für bessere Darstellung */
+            max-width: 90vw; /* Responsive Breite */
+            height: 100%;
+            position: absolute;
+            top: 0;
+            right: 0;
+            box-shadow: -2px 0px 5px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
 
-/* Back Button Styles */
-.mobile-cart-back-button {
-    position: absolute;
-    top: 15px;
-    left: 15px;
-    background: none;
-    border: none;
-    font-size: 24px;
-    color: #1d1d1f;
-    cursor: pointer;
-    padding: 5px;
-    line-height: 1;
-    z-index: 10;
-    transition: color 0.2s ease;
-}
+        /* Back Button Styles */
+        .mobile-cart-back-button {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #1d1d1f;
+            cursor: pointer;
+            padding: 5px;
+            line-height: 1;
+            z-index: 10;
+            transition: color 0.2s ease;
+            border-radius: 4px;
+        }
 
-.mobile-cart-back-button:hover {
-    color: #0079FF;
-}
+        .mobile-cart-back-button:hover,
+        .mobile-cart-back-button:focus {
+            color: #0079FF;
+            background-color: rgba(0, 121, 255, 0.1);
+        }
 
-/* Adjust cart content for back button */
-#mobile-cart-popup .cart-content {
-    padding-top: 50px;
-}
+        /* Adjust cart content for back button */
+        #mobile-cart-popup .cart-content {
+            padding-top: 60px; /* Mehr Platz für den Back-Button */
+        }
+
+        /* Responsive Anpassungen */
+        @media (max-width: 480px) {
+            #mobile-cart-popup .cart-container {
+                width: 100%;
+                max-width: 100vw;
+            }
+            
+            #mobile-cart-popup .cart-content {
+                padding-top: 50px;
+            }
+        }
 
         body.cart-popup-open {
             overflow: hidden; /* Verhindert Body-Scroll, wenn Warenkorb offen ist */
+        }
+
+        /* Spezielle Styles für den Warenkorb im Popup */
+        #mobile-cart-popup .yprint-mini-cart {
+            background-color: transparent;
+            padding: 0;
+            box-shadow: none;
+            border-radius: 0;
+        }
+
+        #mobile-cart-popup .yprint-mini-cart-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
         }
     </style>
     <?php
@@ -110,136 +185,145 @@ function yprint_add_mobile_cart_popup_js() {
     ?>
     <script type="text/javascript">
         jQuery(document).ready(function($) {
-    var $cartPopup = $('#mobile-cart-popup');
-    var $cartTriggerLinks = $('a[href="#mobile-cart"], button[data-target="#mobile-cart"]');
+            var $cartPopup = $('#mobile-cart-popup');
+            var $cartTriggerLinks = $('a[href="#mobile-cart"], button[data-target="#mobile-cart"], .cart-trigger');
 
-    // Funktion zum Öffnen des Warenkorb-Popups
-    function openCartPopup() {
-        $cartPopup.addClass('open');
-        $('body').addClass('cart-popup-open');
-        $cartTriggerLinks.attr('aria-expanded', 'true');
-        $cartPopup.attr('aria-hidden', 'false');
-        console.log('Cart popup opened');
-    }
+            // Funktion zum Öffnen des Warenkorb-Popups
+            function openCartPopup() {
+                $cartPopup.addClass('open');
+                $('body').addClass('cart-popup-open');
+                $cartTriggerLinks.attr('aria-expanded', 'true');
+                $cartPopup.attr('aria-hidden', 'false');
+                console.log('Cart popup opened');
 
-    // Funktion zum Schließen des Warenkorb-Popups
-    function closeCartPopup() {
-        $cartPopup.removeClass('open');
-        $('body').removeClass('cart-popup-open');
-        $cartTriggerLinks.attr('aria-expanded', 'false');
-        $cartPopup.attr('aria-hidden', 'true');
-        console.log('Cart popup closed');
-    }
+                // Trigger refresh des Warenkorb-Inhalts beim Öffnen
+                if (typeof window.refreshCartContent === 'function') {
+                    window.refreshCartContent();
+                }
+                
+                // Custom event für andere Scripte
+                $(document).trigger('yprint:cart-popup-opened');
+            }
 
-    // Event-Listener für Klicks auf Trigger-Elemente
-    $cartTriggerLinks.on('click', function(e) {
-        e.preventDefault();
-        $cartPopup.toggleClass('open');
-        $('body').toggleClass('cart-popup-open');
-        var isExpanded = $cartPopup.hasClass('open');
-        $(this).attr('aria-expanded', isExpanded);
-        $cartPopup.attr('aria-hidden', !isExpanded);
-    });
+            // Funktion zum Schließen des Warenkorb-Popups
+            function closeCartPopup() {
+                $cartPopup.removeClass('open');
+                $('body').removeClass('cart-popup-open');
+                $cartTriggerLinks.attr('aria-expanded', 'false');
+                $cartPopup.attr('aria-hidden', 'true');
+                console.log('Cart popup closed');
+                
+                // Custom event für andere Scripte
+                $(document).trigger('yprint:cart-popup-closed');
+            }
 
-    // Back Button Event-Listener
-    $cartPopup.on('click', '.mobile-cart-back-button', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeCartPopup();
-    });
+            // Event-Listener für Klicks auf Trigger-Elemente
+            $(document).on('click', 'a[href="#mobile-cart"], button[data-target="#mobile-cart"], .cart-trigger', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                if ($cartPopup.hasClass('open')) {
+                    closeCartPopup();
+                } else {
+                    openCartPopup();
+                }
+            });
 
-    // Schließen des Popups beim Klicken außerhalb des Warenkorbs (auf das Overlay)
-    $cartPopup.on('click', function(event) {
-        if ($(event.target).is(this)) {
-            closeCartPopup();
-        }
-    });
+            // Back Button Event-Listener
+            $cartPopup.on('click', '.mobile-cart-back-button', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                closeCartPopup();
+            });
 
-    // Optional: Schließen des Popups mit der Escape-Taste
-    $(document).on('keydown', function(event) {
-        if (event.key === 'Escape' && $cartPopup.hasClass('open')) {
-            closeCartPopup();
-        }
-    });
+            // Schließen des Popups beim Klicken außerhalb des Warenkorbs (auf das Overlay)
+            $cartPopup.on('click', function(event) {
+                if ($(event.target).is(this)) {
+                    closeCartPopup();
+                }
+            });
 
-    // Überprüfe beim Laden der Seite, ob '#mobile-cart' im Hash ist
-    if (window.location.hash === '#mobile-cart') {
-        openCartPopup();
-    }
+            // Optional: Schließen des Popups mit der Escape-Taste
+            $(document).on('keydown', function(event) {
+                if (event.key === 'Escape' && $cartPopup.hasClass('open')) {
+                    closeCartPopup();
+                }
+            });
 
-    // Überwache Änderungen des Hash-Werts in der URL
-    $(window).on('hashchange', function() {
-        if (window.location.hash === '#mobile-cart') {
-            openCartPopup();
-        } else if ($cartPopup.hasClass('open')) {
-            closeCartPopup();
-        }
-    });
+            // Überprüfe beim Laden der Seite, ob '#mobile-cart' im Hash ist
+            if (window.location.hash === '#mobile-cart') {
+                openCartPopup();
+            }
 
-    // Aktualisiere den Warenkorb, wenn ein Produkt hinzugefügt wurde (AJAX-Event aus minimalistischem Warenkorb)
-    $(document.body).on('yprint_mini_cart_refreshed yprint_cart_updated', function() {
-        // Wenn das Cart-Popup geöffnet ist, aktualisiere es (der Inhalt wird ja bereits über den Shortcode geladen/aktualisiert)
-        if ($cartPopup.hasClass('open')) {
-            // Optional: Hier könnten Sie eine visuelle Bestätigung einfügen
-            console.log('Cart popup content potentially updated.');
-        }
-    });
+            // Überwache Änderungen des Hash-Werts in der URL
+            $(window).on('hashchange', function() {
+                if (window.location.hash === '#mobile-cart') {
+                    openCartPopup();
+                } else if ($cartPopup.hasClass('open')) {
+                    closeCartPopup();
+                }
+            });
 
-    // Event-Listener für automatisches Öffnen des Carts nach dem Hinzufügen eines Produkts
-    $(document.body).on('added_to_cart', function(event, fragments, cart_hash, button) {
-        console.log('Product added to cart - opening cart popup');
-        openCartPopup();
-    });
+            // Event-Listener für automatisches Öffnen des Carts nach dem Hinzufügen eines Produkts
+            $(document.body).on('added_to_cart', function(event, fragments, cart_hash, button) {
+                console.log('Product added to cart - opening cart popup');
+                // Kleiner Delay, damit der Warenkorb Zeit hat sich zu aktualisieren
+                setTimeout(function() {
+                    openCartPopup();
+                }, 300);
+            });
 
-    // Custom Event-Listener für YPrint Cart Open Events
-    $(document).on('yprint:open-cart-popup', function(e) {
-        console.log('YPrint cart open event received');
-        openCartPopup();
-    });
+            // Aktualisiere den Warenkorb, wenn ein Produkt hinzugefügt wurde
+            $(document.body).on('yprint_mini_cart_refreshed yprint_cart_updated', function() {
+                if ($cartPopup.hasClass('open')) {
+                    console.log('Cart popup content updated');
+                }
+            });
 
-    // Global function for external cart opening
-    window.openYPrintCart = function() {
-        openCartPopup();
-    };
+            // Custom Event-Listener für YPrint Cart Open Events
+            $(document).on('yprint:open-cart-popup', function(e) {
+                console.log('YPrint cart open event received');
+                openCartPopup();
+            });
 
-    // Legacy support for various cart opening methods
-    $(document).on('open-cart-popup', function(e) {
-        console.log('Legacy cart open event received');
-        openCartPopup();
+            // Global function for external cart opening
+            window.openYPrintCart = function() {
+                openCartPopup();
+            };
 
-        // Try to trigger YPrint mobile cart popup
-const mobileCartPopup = document.querySelector('#mobile-cart-popup');
-if (mobileCartPopup && typeof jQuery !== 'undefined') {
-    // Use YPrint mobile cart
-    if (typeof window.openYPrintCart === 'function') {
-        window.openYPrintCart();
-    } else {
-        jQuery(document).trigger('yprint:open-cart-popup');
-    }
-} else {
-    // Fallback to regular cart popup
-    const cartPopup = document.querySelector('#cart');
-    if (cartPopup) {
-        cartPopup.style.display = 'block';
-        cartPopup.classList.add('show');
-        
-        // jQuery fallback
-        if (typeof jQuery !== 'undefined') {
-            jQuery('#cart').fadeIn();
-        }
-    }
-}
+            // Global function for external cart closing
+            window.closeYPrintCart = function() {
+                closeCartPopup();
+            };
 
-// Dispatch custom event
-document.dispatchEvent(new CustomEvent(eventConfig.cart_open, { 
-    detail: { productId: productId, action: 'buy_blank' } 
-}));
-    });
-});
+            // Legacy support for various cart opening methods
+            $(document).on('open-cart-popup', function(e) {
+                console.log('Legacy cart open event received');
+                openCartPopup();
+            });
+
+            // Support für Design Tool Integration
+            $(document).on('design-tool:add-to-cart-success', function(e, data) {
+                console.log('Design tool cart success - opening popup');
+                setTimeout(function() {
+                    openCartPopup();
+                }, 500);
+            });
+
+            // Fallback für andere Cart-Events
+            $(document).on('wc_fragment_refresh', function() {
+                if ($cartPopup.hasClass('open')) {
+                    // Warenkorb ist offen, aktualisiere Inhalt
+                    setTimeout(function() {
+                        $(document).trigger('yprint:refresh-cart-content');
+                    }, 100);
+                }
+            });
+        });
     </script>
     <?php
 }
-add_action('wp_footer', 'yprint_add_mobile_cart_popup_js');
+add_action('wp_footer', 'yprint_add_mobile_cart_popup_js', 99);
 
 /**
  * Shortcode für einen Button zum Triggern des Warenkorb-Popups.
@@ -252,23 +336,89 @@ add_action('wp_footer', 'yprint_add_mobile_cart_popup_js');
 function mobile_cart_button_shortcode( $atts ) {
     $atts = shortcode_atts( array(
         'text'  => 'Warenkorb öffnen',
-        'class' => '',
+        'class' => 'cart-trigger',
+        'icon'  => true,
     ), $atts, 'mobile_cart_button' );
 
-    $class_attr = !empty( $atts['class'] ) ? ' class="' . sanitize_html_class( $atts['class'] ) . '"' : '';
+    $classes = array('cart-trigger');
+    if (!empty($atts['class'])) {
+        $classes[] = sanitize_html_class($atts['class']);
+    }
+    
+    $class_attr = ' class="' . implode(' ', $classes) . '"';
+    
+    $icon_html = '';
+    if ($atts['icon'] && $atts['icon'] !== 'false') {
+        $icon_html = '<span class="cart-icon">🛒</span> ';
+    }
 
-    return '<a href="#mobile-cart"' . $class_attr . '>' . esc_html( $atts['text'] ) . '</a>';
+    return '<button type="button" href="#mobile-cart"' . $class_attr . ' data-target="#mobile-cart">' . $icon_html . esc_html( $atts['text'] ) . '</button>';
 }
 add_shortcode( 'mobile_cart_button', 'mobile_cart_button_shortcode' );
 
-// Um den Trigger-Button an einer bestimmten Stelle im Theme anzuzeigen,
-// verwenden Sie den folgenden Shortcode im WordPress-Editor:
-// [mobile_cart_button text="Warenkorb öffnen" class="mein-stil"]
+/**
+ * Shortcode für einen Link zum Triggern des Warenkorb-Popups.
+ *
+ * Usage: [mobile_cart_link text="Warenkorb" class="custom-link-class"]
+ */
+function mobile_cart_link_shortcode( $atts ) {
+    $atts = shortcode_atts( array(
+        'text'  => 'Warenkorb',
+        'class' => 'cart-trigger',
+        'icon'  => true,
+    ), $atts, 'mobile_cart_link' );
 
-// Das Popup-HTML und die CSS-Stile werden automatisch im Footer bzw. Header eingefügt.
-// Das JavaScript für die Funktionalität wird ebenfalls automatisch im Footer eingefügt.
+    $classes = array('cart-trigger');
+    if (!empty($atts['class'])) {
+        $classes[] = sanitize_html_class($atts['class']);
+    }
+    
+    $class_attr = ' class="' . implode(' ', $classes) . '"';
+    
+    $icon_html = '';
+    if ($atts['icon'] && $atts['icon'] !== 'false') {
+        $icon_html = '<span class="cart-icon">🛒</span> ';
+    }
 
-// Die Funktionen für den Warenkorb-Inhalt (yprint_minimalist_cart_shortcode)
-// und die AJAX-Funktionalität (yprint_update_cart_quantity, yprint_remove_from_cart, etc.)
-// sind bereits im vorherigen Code definiert und werden hier wiederverwendet.
+    return '<a href="#mobile-cart"' . $class_attr . '>' . $icon_html . esc_html( $atts['text'] ) . '</a>';
+}
+add_shortcode( 'mobile_cart_link', 'mobile_cart_link_shortcode' );
+
+/**
+ * Hilfsfunktion zur Überprüfung, ob die Warenkorb-Funktionen verfügbar sind
+ */
+function yprint_cart_functions_available() {
+    return function_exists('yprint_minimalist_cart_shortcode');
+}
+
+/**
+ * Debug-Funktion für die Entwicklung
+ */
+function yprint_cart_popup_debug() {
+    if (defined('WP_DEBUG') && WP_DEBUG) {
+        error_log('YPrint Cart Popup Debug: Cart functions available: ' . (yprint_cart_functions_available() ? 'Yes' : 'No'));
+    }
+}
+add_action('wp_footer', 'yprint_cart_popup_debug');
+
+// Usage-Anweisungen:
+// 
+// 1. Button Shortcode:
+//    [mobile_cart_button text="Warenkorb öffnen" class="mein-button-stil"]
+//
+// 2. Link Shortcode:
+//    [mobile_cart_link text="Warenkorb" class="mein-link-stil"]
+//
+// 3. Manuell im Theme:
+//    <button class="cart-trigger" data-target="#mobile-cart">Warenkorb</button>
+//    <a href="#mobile-cart" class="cart-trigger">Warenkorb</a>
+//
+// 4. JavaScript:
+//    window.openYPrintCart(); // Öffnet den Warenkorb
+//    window.closeYPrintCart(); // Schließt den Warenkorb
+//
+// 5. jQuery Events:
+//    $(document).trigger('yprint:open-cart-popup'); // Öffnet den Warenkorb
+//
+// Das Popup wird automatisch nach dem Hinzufügen von Produkten zum Warenkorb geöffnet.
 ?>
