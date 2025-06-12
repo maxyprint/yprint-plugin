@@ -1022,8 +1022,7 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name
     // Nach dem Rendern des HTML, aktualisierte Warenkorb-Daten abrufen
     // WC()->cart->calculate_totals(); // Should already be current
 
-    wp_send_json(array(
-        'success' => true,
+    wp_send_json_success(array(
         'cart_items_html' => $cart_items_html,
         'cart_count' => WC()->cart->get_cart_contents_count(),
         'cart_subtotal' => WC()->cart->get_cart_subtotal()
@@ -1060,6 +1059,14 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         $item->add_meta_data('_design_color', $design['variation_name'] ?? '');
         $item->add_meta_data('_design_size', $design['size_name'] ?? '');
         $item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
+
+        // Neue erforderliche Meta-Daten hinzufügen
+        $item->add_meta_data('_design_width_cm', $design['width_cm'] ?? '');
+        $item->add_meta_data('_design_height_cm', $design['height_cm'] ?? '');
+        $item->add_meta_data('_design_image_url', $design['design_image_url'] ?? '');
+        $item->add_meta_data('_design_product_images', $design['product_images'] ?? '');
+        $item->add_meta_data('_design_images', $design['design_images'] ?? '');
+        $item->add_meta_data('_design_has_multiple_images', !empty($design['product_images']) ? 'yes' : 'no');
         
         // Stelle sicher, dass diese Informationen auch für das OctoPrint Plugin verfügbar sind
         $item->add_meta_data('_has_print_design', 'yes');
@@ -1379,3 +1386,95 @@ function yprint_preserve_design_data_in_order($item, $cart_item_key, $values, $o
         }
     }
 }($design_color) . '</p>';
+
+/**
+ * Erweitert Design-Daten beim Hinzufügen zum Warenkorb
+ * Diese Funktion stellt sicher, dass alle erforderlichen Design-Felder verfügbar sind
+ */
+add_filter('woocommerce_add_cart_item_data', 'yprint_enhance_cart_item_design_data', 10, 3);
+function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $variation_id) {
+    // Nur wenn bereits print_design Daten vorhanden sind
+    if (isset($cart_item_data['print_design'])) {
+        $design_data = $cart_item_data['print_design'];
+        
+        // Erforderliche Felder aus WooCommerce-Daten ergänzen
+        if ($variation_id && !isset($design_data['variation_name'])) {
+            $variation = wc_get_product($variation_id);
+            if ($variation) {
+                $attributes = $variation->get_attributes();
+                
+                // Farbe aus Attributen extrahieren
+                if (isset($attributes['pa_color'])) {
+                    $term = get_term_by('slug', $attributes['pa_color'], 'pa_color');
+                    $design_data['variation_name'] = $term ? $term->name : $attributes['pa_color'];
+                } elseif (isset($attributes['color'])) {
+                    $design_data['variation_name'] = $attributes['color'];
+                }
+                
+                // Größe aus Attributen extrahieren
+                if (isset($attributes['pa_size'])) {
+                    $term = get_term_by('slug', $attributes['pa_size'], 'pa_size');
+                    $design_data['size_name'] = $term ? $term->name : $attributes['pa_size'];
+                } elseif (isset($attributes['size'])) {
+                    $design_data['size_name'] = $attributes['size'];
+                }
+            }
+        }
+        
+        // Dimensionen aus Produkt-Meta oder Standard-Werten setzen
+        if (!isset($design_data['width_cm'])) {
+            $design_data['width_cm'] = get_post_meta($product_id, '_design_width_cm', true) ?: '25.4';
+        }
+        if (!isset($design_data['height_cm'])) {
+            $design_data['height_cm'] = get_post_meta($product_id, '_design_height_cm', true) ?: '30.2';
+        }
+        
+        // Design Image URL aus Preview URL ableiten, falls nicht vorhanden
+        if (!isset($design_data['design_image_url']) && isset($design_data['preview_url'])) {
+            // Konvertiere Preview URL zu Original Design URL
+            $design_data['design_image_url'] = str_replace('/preview_', '/original_', $design_data['preview_url']);
+            $design_data['design_image_url'] = str_replace('-1.png', '.png', $design_data['design_image_url']);
+        }
+        
+        // Standard JSON-Strukturen erstellen, falls nicht vorhanden
+        if (!isset($design_data['product_images'])) {
+            $product_images = array(
+                array(
+                    'url' => $design_data['preview_url'] ?? '',
+                    'view_name' => 'Front View',
+                    'view_id' => 'front',
+                    'width_cm' => $design_data['width_cm'] ?? '25.4',
+                    'height_cm' => $design_data['height_cm'] ?? '30.2'
+                )
+            );
+            $design_data['product_images'] = wp_json_encode($product_images);
+        }
+        
+        if (!isset($design_data['design_images'])) {
+            $design_images = array(
+                array(
+                    'url' => $design_data['design_image_url'] ?? $design_data['preview_url'] ?? '',
+                    'scaleX' => 1.0,
+                    'scaleY' => 1.0,
+                    'width_cm' => $design_data['width_cm'] ?? '25.4',
+                    'height_cm' => $design_data['height_cm'] ?? '30.2',
+                    'view_name' => 'Front Design'
+                )
+            );
+            $design_data['design_images'] = wp_json_encode($design_images);
+        }
+        
+        // Multiple Images Flag setzen
+        $design_data['has_multiple_images'] = (isset($design_data['product_images']) && 
+            is_string($design_data['product_images']) && 
+            count(json_decode($design_data['product_images'], true)) > 1);
+        
+        // Erweiterte Design-Daten zurück in cart_item_data speichern
+        $cart_item_data['print_design'] = $design_data;
+        
+        // Debug-Ausgabe
+        error_log('YPRINT: Enhanced design data for product ' . $product_id . ': ' . print_r($design_data, true));
+    }
+    
+    return $cart_item_data;
+}
