@@ -766,7 +766,38 @@ window.addEventListener('resize', adjustButtonLayout);
             $original_design_data = $order_item->get_meta('print_design');
 
             if (!empty($original_design_data)) {
-                // Ensure all required fields are present for proper cart processing
+                // Get stored image data from order item meta if not in cart data
+                $stored_design_images = $order_item->get_meta('_design_images');
+                $stored_product_images = $order_item->get_meta('_design_product_images');
+                $stored_has_multiple = $order_item->get_meta('_design_has_multiple_images');
+                
+                // Parse JSON data if stored as string
+                $design_images_array = array();
+                if (!empty($stored_design_images)) {
+                    $parsed_images = is_string($stored_design_images) ? json_decode($stored_design_images, true) : $stored_design_images;
+                    if (is_array($parsed_images)) {
+                        $design_images_array = $parsed_images;
+                    }
+                }
+                
+                $product_images_array = array();
+                if (!empty($stored_product_images)) {
+                    $parsed_product_images = is_string($stored_product_images) ? json_decode($stored_product_images, true) : $stored_product_images;
+                    if (is_array($parsed_product_images)) {
+                        $product_images_array = $parsed_product_images;
+                    }
+                }
+                
+                // Fallback to original data if meta not available
+                if (empty($design_images_array) && isset($original_design_data['design_images'])) {
+                    $design_images_array = is_array($original_design_data['design_images']) ? $original_design_data['design_images'] : array();
+                }
+                
+                if (empty($product_images_array) && isset($original_design_data['product_images'])) {
+                    $product_images_array = is_array($original_design_data['product_images']) ? $original_design_data['product_images'] : array();
+                }
+                
+                // Create complete design data structure compatible with multi-image system
                 $complete_design_data = array(
                     'design_id' => $original_design_data['design_id'] ?? $design_id,
                     'name' => $original_design_data['name'] ?? $order_item->get_name(),
@@ -783,26 +814,35 @@ window.addEventListener('resize', adjustButtonLayout);
                     'design_scaleX' => $original_design_data['design_scaleX'] ?? 1,
                     'design_scaleY' => $original_design_data['design_scaleY'] ?? 1,
                     'design_image_url' => $original_design_data['design_image_url'] ?? $original_design_data['preview_url'] ?? '',
-                    // Critical: Include all image data for print provider
-                    'design_images' => $original_design_data['design_images'] ?? array(),
-                    'product_images' => $original_design_data['product_images'] ?? array(),
-                    'has_multiple_images' => $original_design_data['has_multiple_images'] ?? false,
+                    // CRITICAL: Include all image data for print provider - from meta or original
+                    'design_images' => $design_images_array,
+                    'product_images' => $product_images_array,
+                    'has_multiple_images' => $stored_has_multiple ?? $original_design_data['has_multiple_images'] ?? (count($design_images_array) > 1),
                     // Ensure backward compatibility
                     'width_cm' => $original_design_data['width_cm'] ?? $original_design_data['design_width_cm'] ?? 0,
                     'height_cm' => $original_design_data['height_cm'] ?? $original_design_data['design_height_cm'] ?? 0
                 );
 
                 $cart_item_data['print_design'] = $complete_design_data;
-                $cart_item_data['_is_design_product'] = true;
-                $cart_item_data['unique_design_key'] = md5(wp_json_encode($complete_design_data));
-                
-                // Create unique key for cart identification (prevents merging of different designs)
-                $cart_item_data['unique_key'] = md5(
-                    ($complete_design_data['design_id'] ?? '') . 
-                    ($complete_design_data['variation_id'] ?? '') . 
-                    ($complete_design_data['size_id'] ?? '') . 
-                    microtime()
-                );
+$cart_item_data['_is_design_product'] = true;
+$cart_item_data['_is_reorder'] = true; // Mark as reorder for tracking
+$cart_item_data['_original_order_id'] = $order_id; // Track source order
+$cart_item_data['unique_design_key'] = md5(wp_json_encode($complete_design_data));
+
+// Create unique key for cart identification (prevents merging of different designs)
+$cart_item_data['unique_key'] = md5(
+    ($complete_design_data['design_id'] ?? '') . 
+    ($complete_design_data['variation_id'] ?? '') . 
+    ($complete_design_data['size_id'] ?? '') . 
+    'reorder_' . $order_id . '_' . microtime()
+);
+
+// Store original meta data for debugging and validation
+$cart_item_data['_original_meta'] = array(
+    'design_images_count' => count($design_images_array),
+    'product_images_count' => count($product_images_array),
+    'has_multiple_images' => $complete_design_data['has_multiple_images']
+);
             }
 
             $cart_item_key = WC()->cart->add_to_cart(
