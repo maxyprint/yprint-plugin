@@ -791,8 +791,8 @@ function yprint_tracked_backup_transfer($order_id) {
 /**
  * EINZIGER DESIGN-TRANSFER-HOOK - Verwendet jetzt tracked Funktionen
  */
-add_filter('woocommerce_checkout_create_order_line_item', 'yprint_single_design_transfer', 5, 4);
-function yprint_single_design_transfer($item, $cart_item_key, $values, $order) {
+add_filter('woocommerce_checkout_create_order_line_item', 'yprint_enhanced_design_transfer_hook', 5, 4);
+function yprint_enhanced_design_transfer_hook($item, $cart_item_key, $values, $order) {
     $success = yprint_tracked_design_transfer($item, $cart_item_key, $values, $order);
     return $item;
 }
