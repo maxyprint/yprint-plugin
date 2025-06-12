@@ -1735,32 +1735,3 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
     
     return $cart_item_data;
 
-    /**
- * Debug AJAX-Handler für Cart-Audit
- */
-function yprint_debug_cart_callback() {
-    if (!class_exists('WooCommerce') || is_null(WC()->cart)) {
-        wp_send_json_error('WooCommerce nicht verfügbar');
-        return;
-    }
-    
-    $cart_contents = array();
-    
-    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-        $cart_contents[$cart_item_key] = array(
-            'product_id' => $cart_item['product_id'],
-            'variation_id' => $cart_item['variation_id'] ?? 0,
-            'quantity' => $cart_item['quantity'],
-            'has_print_design' => isset($cart_item['print_design']),
-            'print_design_full' => $cart_item['print_design'] ?? null
-        );
-    }
-    
-    wp_send_json_success(array(
-        'cart_contents' => $cart_contents,
-        'cart_count' => WC()->cart->get_cart_contents_count(),
-        'cart_total' => WC()->cart->get_cart_subtotal()
-    ));
-}
-add_action('wp_ajax_yprint_debug_cart', 'yprint_debug_cart_callback');
-add_action('wp_ajax_nopriv_yprint_debug_cart', 'yprint_debug_cart_callback');
