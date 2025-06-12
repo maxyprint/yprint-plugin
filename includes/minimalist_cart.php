@@ -1065,13 +1065,36 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         $item->add_meta_data('_design_size', $design['size_name'] ?? '');
         $item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
 
-        // Neue erforderliche Meta-Daten hinzufügen
-        $item->add_meta_data('_design_width_cm', $design['width_cm'] ?? '');
-        $item->add_meta_data('_design_height_cm', $design['height_cm'] ?? '');
+        // Erweiterte erforderliche Meta-Daten hinzufügen
+        $item->add_meta_data('_design_width_cm', $design['width_cm'] ?? '25.4');
+        $item->add_meta_data('_design_height_cm', $design['height_cm'] ?? '30.2');
         $item->add_meta_data('_design_image_url', $design['design_image_url'] ?? '');
         $item->add_meta_data('_design_product_images', $design['product_images'] ?? '');
         $item->add_meta_data('_design_images', $design['design_images'] ?? '');
-        $item->add_meta_data('_design_has_multiple_images', !empty($design['product_images']) ? 'yes' : 'no');
+        
+        // Back Design URLs falls vorhanden
+        $item->add_meta_data('_design_back_preview_url', $design['back_preview_url'] ?? '');
+        $item->add_meta_data('_design_back_image_url', $design['back_design_image_url'] ?? '');
+        
+        // Multiple Images Flag basierend auf Array-Inhalten
+        $product_images_count = 0;
+        $design_images_count = 0;
+        
+        if (!empty($design['product_images'])) {
+            $product_images_array = is_string($design['product_images']) ? 
+                json_decode($design['product_images'], true) : $design['product_images'];
+            $product_images_count = is_array($product_images_array) ? count($product_images_array) : 0;
+        }
+        
+        if (!empty($design['design_images'])) {
+            $design_images_array = is_string($design['design_images']) ? 
+                json_decode($design['design_images'], true) : $design['design_images'];
+            $design_images_count = is_array($design_images_array) ? count($design_images_array) : 0;
+        }
+        
+        $has_multiple = ($product_images_count > 1 || $design_images_count > 1) ? 'yes' : 'no';
+        $item->add_meta_data('_design_has_multiple_images', $has_multiple);
+        $item->add_meta_data('_design_views_count', max($product_images_count, $design_images_count));
         
         // Stelle sicher, dass diese Informationen auch für das OctoPrint Plugin verfügbar sind
         $item->add_meta_data('_has_print_design', 'yes');
@@ -1438,45 +1461,132 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
             $design_data['height_cm'] = get_post_meta($product_id, '_design_height_cm', true) ?: '30.2';
         }
         
-        // Design Image URL aus Preview URL ableiten, falls nicht vorhanden
+        // Verbesserte Original-Datei URL-Generierung
         if (!isset($design_data['design_image_url']) && isset($design_data['preview_url'])) {
-            // Konvertiere Preview URL zu Original Design URL
-            $design_data['design_image_url'] = str_replace('/preview_', '/original_', $design_data['preview_url']);
-            $design_data['design_image_url'] = str_replace('-1.png', '.png', $design_data['design_image_url']);
+            // Mehrere Konvertierungsstrategien für Original Design URLs
+            $preview_url = $design_data['preview_url'];
+            
+            // Strategie 1: preview_ zu original_ 
+            $original_url = str_replace('/preview_', '/original_', $preview_url);
+            $original_url = str_replace('-1.png', '.png', $original_url);
+            $original_url = str_replace('-1.jpg', '.jpg', $original_url);
+            
+            // Strategie 2: Falls preview im Dateinamen, entfernen
+            if (strpos($original_url, 'preview') === false) {
+                $original_url = str_replace('/previews/', '/originals/', $preview_url);
+                $original_url = str_replace('_preview', '', $original_url);
+                $original_url = str_replace('-preview', '', $original_url);
+            }
+            
+            $design_data['design_image_url'] = $original_url;
         }
         
-        // Standard JSON-Strukturen erstellen, falls nicht vorhanden
+        // Back Design URLs ableiten falls vorhanden
+        if (!isset($design_data['back_design_image_url']) && isset($design_data['back_preview_url'])) {
+            $back_preview_url = $design_data['back_preview_url'];
+            
+            $back_original_url = str_replace('/preview_', '/original_', $back_preview_url);
+            $back_original_url = str_replace('-1.png', '.png', $back_original_url);
+            $back_original_url = str_replace('-1.jpg', '.jpg', $back_original_url);
+            $back_original_url = str_replace('/previews/', '/originals/', $back_original_url);
+            $back_original_url = str_replace('_preview', '', $back_original_url);
+            $back_original_url = str_replace('-preview', '', $back_original_url);
+            
+            $design_data['back_design_image_url'] = $back_original_url;
+        }
+        
+        // Verbesserte Multi-View JSON-Strukturen erstellen
         if (!isset($design_data['product_images'])) {
-            $product_images = array(
-                array(
-                    'url' => $design_data['preview_url'] ?? '',
-                    'view_name' => 'Front View',
+            $product_images = array();
+            
+            // Front View (Standard)
+            if (!empty($design_data['preview_url'])) {
+                $product_images[] = array(
+                    'url' => $design_data['preview_url'],
+                    'view_name' => 'Front',
                     'view_id' => 'front',
                     'width_cm' => $design_data['width_cm'] ?? '25.4',
                     'height_cm' => $design_data['height_cm'] ?? '30.2'
-                )
-            );
+                );
+            }
+            
+            // Back View (falls vorhanden)
+            if (!empty($design_data['back_preview_url'])) {
+                $product_images[] = array(
+                    'url' => $design_data['back_preview_url'],
+                    'view_name' => 'Back',
+                    'view_id' => 'back',
+                    'width_cm' => $design_data['width_cm'] ?? '25.4',
+                    'height_cm' => $design_data['height_cm'] ?? '30.2'
+                );
+            }
+            
+            // Fallback falls keine Preview URLs vorhanden
+            if (empty($product_images) && !empty($design_data['design_image_url'])) {
+                $product_images[] = array(
+                    'url' => $design_data['design_image_url'],
+                    'view_name' => 'Front',
+                    'view_id' => 'front',
+                    'width_cm' => $design_data['width_cm'] ?? '25.4',
+                    'height_cm' => $design_data['height_cm'] ?? '30.2'
+                );
+            }
+            
             $design_data['product_images'] = wp_json_encode($product_images);
         }
         
         if (!isset($design_data['design_images'])) {
-            $design_images = array(
-                array(
-                    'url' => $design_data['design_image_url'] ?? $design_data['preview_url'] ?? '',
+            $design_images = array();
+            
+            // Front Design (Original-Datei)
+            if (!empty($design_data['design_image_url'])) {
+                $design_images[] = array(
+                    'url' => $design_data['design_image_url'],
+                    'view_name' => 'Front',
+                    'view_id' => 'front',
                     'scaleX' => 1.0,
                     'scaleY' => 1.0,
                     'width_cm' => $design_data['width_cm'] ?? '25.4',
-                    'height_cm' => $design_data['height_cm'] ?? '30.2',
-                    'view_name' => 'Front Design'
-                )
-            );
+                    'height_cm' => $design_data['height_cm'] ?? '30.2'
+                );
+            }
+            
+            // Back Design (falls vorhanden)
+            if (!empty($design_data['back_design_image_url'])) {
+                $design_images[] = array(
+                    'url' => $design_data['back_design_image_url'],
+                    'view_name' => 'Back',
+                    'view_id' => 'back',
+                    'scaleX' => 1.0,
+                    'scaleY' => 1.0,
+                    'width_cm' => $design_data['width_cm'] ?? '25.4',
+                    'height_cm' => $design_data['height_cm'] ?? '30.2'
+                );
+            }
+            
+            // Fallback: Falls nur preview_url vorhanden ist, als Original verwenden
+            if (empty($design_images) && !empty($design_data['preview_url'])) {
+                $design_images[] = array(
+                    'url' => $design_data['preview_url'],
+                    'view_name' => 'Front',
+                    'view_id' => 'front',
+                    'scaleX' => 1.0,
+                    'scaleY' => 1.0,
+                    'width_cm' => $design_data['width_cm'] ?? '25.4',
+                    'height_cm' => $design_data['height_cm'] ?? '30.2'
+                );
+            }
+            
             $design_data['design_images'] = wp_json_encode($design_images);
         }
         
-        // Multiple Images Flag setzen
-        $design_data['has_multiple_images'] = (isset($design_data['product_images']) && 
-            is_string($design_data['product_images']) && 
-            count(json_decode($design_data['product_images'], true)) > 1);
+        // Multiple Images Flag basierend auf tatsächlicher Anzahl setzen
+        $product_images_array = is_string($design_data['product_images']) ? 
+            json_decode($design_data['product_images'], true) : [];
+        $design_images_array = is_string($design_data['design_images']) ? 
+            json_decode($design_data['design_images'], true) : [];
+            
+        $design_data['has_multiple_images'] = (count($product_images_array) > 1 || count($design_images_array) > 1);
         
         // Erweiterte Design-Daten zurück in cart_item_data speichern
         $cart_item_data['print_design'] = $design_data;
