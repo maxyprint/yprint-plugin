@@ -995,40 +995,123 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 return;
             }
 
-            // Parse design variations for defaults
+            // Parse design variations und design_data für korrekte Defaults
             $variations = json_decode($design->variations ?? '{}', true);
+            $design_data = json_decode($design->design_data ?? '{}', true);
+            
             if (!is_array($variations)) {
                 $variations = array();
+            }
+            
+            if (!is_array($design_data)) {
+                $design_data = array();
             }
 
             $default_variation = '';
             $default_size = '';
             
-            if (!empty($variations)) {
+            // Zuerst versuchen aus design_data die ursprünglichen Werte zu extrahieren
+            if (isset($design_data['selectedVariationId']) && !empty($design_data['selectedVariationId'])) {
+                $default_variation = $design_data['selectedVariationId'];
+            } elseif (!empty($variations)) {
                 $variation_keys = array_keys($variations);
                 $default_variation = $variation_keys[0];
-                
-                if (!empty($variations[$default_variation]['sizes'])) {
-                    $size_keys = array_keys($variations[$default_variation]['sizes']);
-                    $default_size = $size_keys[0];
+            }
+            
+            if (isset($design_data['selectedSizeId']) && !empty($design_data['selectedSizeId'])) {
+                $default_size = $design_data['selectedSizeId'];
+            } elseif (!empty($variations) && !empty($default_variation) && isset($variations[$default_variation]['sizes'])) {
+                $size_keys = array_keys($variations[$default_variation]['sizes']);
+                $default_size = $size_keys[0];
+            }
+            
+            // Fallback zu Template-Defaults wenn immer noch leer
+            if (empty($default_variation) || empty($default_size)) {
+                $template_id = $design->template_id;
+                if ($template_id) {
+                    $template_variations = get_post_meta($template_id, 'template_variations', true);
+                    if (is_array($template_variations)) {
+                        if (empty($default_variation)) {
+                            $template_var_keys = array_keys($template_variations);
+                            $default_variation = $template_var_keys[0] ?? '1';
+                        }
+                        
+                        if (empty($default_size) && isset($template_variations[$default_variation]['sizes'])) {
+                            $template_size_keys = array_keys($template_variations[$default_variation]['sizes']);
+                            $default_size = $template_size_keys[0] ?? 's';
+                        }
+                    }
                 }
             }
 
-            // Get preview URL
+            // Extrahiere alle wichtigen Daten aus dem ursprünglichen Design
             $preview_url = '';
-            $design_data = json_decode($design->design_data ?? '{}', true);
-            if (is_array($design_data) && isset($design_data['preview_url'])) {
-                $preview_url = $design_data['preview_url'];
-            }
-
-            if (empty($preview_url)) {
-                $product_images = json_decode($design->product_images ?? '[]', true);
+            $design_images = array();
+            $product_images = array();
+            $design_width_cm = 0;
+            $design_height_cm = 0;
+            
+            // Zuerst product_images verarbeiten
+            if (!empty($design->product_images)) {
+                $product_images = json_decode($design->product_images, true);
                 if (is_array($product_images) && !empty($product_images)) {
                     $preview_url = $product_images[0]['url'] ?? '';
                 }
             }
+            
+            // Dann design_images verarbeiten (für Print Provider)
+            if (!empty($design->design_images)) {
+                $design_images = json_decode($design->design_images, true);
+                if (is_array($design_images) && !empty($design_images)) {
+                    // Größe aus erstem Design-Element extrahieren
+                    $first_image = $design_images[0];
+                    $design_width_cm = floatval($first_image['width_cm'] ?? 0);
+                    $design_height_cm = floatval($first_image['height_cm'] ?? 0);
+                }
+            }
+            
+            // Fallback zu design_data wenn nötig
+            if (empty($preview_url) && is_array($design_data)) {
+                if (isset($design_data['preview_url'])) {
+                    $preview_url = $design_data['preview_url'];
+                }
+                
+                // Versuche Dimensionen aus variationImages zu extrahieren
+                if (($design_width_cm == 0 || $design_height_cm == 0) && isset($design_data['variationImages'])) {
+                    foreach ($design_data['variationImages'] as $var_key => $images) {
+                        if (is_array($images) && !empty($images)) {
+                            $first_img = is_array($images[0]) ? $images[0] : $images;
+                            if (isset($first_img['width_cm']) && isset($first_img['height_cm'])) {
+                                $design_width_cm = floatval($first_img['width_cm']);
+                                $design_height_cm = floatval($first_img['height_cm']);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Template-Informationen laden für Variation/Size Details
+            $variation_name = 'Standard';
+            $variation_color = '#000000';
+            $size_name = 'One Size';
+            
+            if ($design->template_id && !empty($default_variation) && !empty($default_size)) {
+                $template_variations = get_post_meta($design->template_id, 'template_variations', true);
+                if (is_array($template_variations)) {
+                    if (isset($template_variations[$default_variation])) {
+                        $var_data = $template_variations[$default_variation];
+                        $variation_name = $var_data['name'] ?? 'Standard';
+                        $variation_color = $var_data['color_code'] ?? '#000000';
+                        
+                        if (isset($var_data['sizes'][$default_size])) {
+                            $size_name = $var_data['sizes'][$default_size]['name'] ?? 'One Size';
+                        }
+                    }
+                }
+            }
 
-            // Add to cart with design metadata
+            // Add to cart with vollständigen design metadata für Print Provider System
             $cart_item_data = array(
                 '_design_id' => $design_id,
                 'print_design' => array(
@@ -1036,8 +1119,24 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                     'name' => $design->name ?? 'Custom Design',
                     'template_id' => $design->template_id ?? '',
                     'variation_id' => $default_variation,
+                    'variation_name' => $variation_name,
+                    'variation_color' => $variation_color,
                     'size_id' => $default_size,
-                    'preview_url' => $preview_url
+                    'size_name' => $size_name,
+                    'preview_url' => $preview_url,
+                    // Dimensionen für Print Provider
+                    'design_width_cm' => $design_width_cm,
+                    'design_height_cm' => $design_height_cm,
+                    // Multi-View Daten für Print Provider
+                    'design_images' => $design_images,
+                    'product_images' => $product_images,
+                    'has_multiple_images' => !empty($design_images),
+                    // Legacy Kompatibilität
+                    'design_image_url' => $preview_url,
+                    'design_scaleX' => 1,
+                    'design_scaleY' => 1,
+                    // Pricing
+                    'calculated_price' => $product->get_price()
                 ),
                 '_design_template_id' => $design->template_id ?? '',
                 '_design_variation_id' => $default_variation,
@@ -1146,7 +1245,26 @@ private static function debug_design_data($design) {
     }
     echo "<script>console.log('=== END DEBUG ===');</script>";
 }
+
+/**
+     * Debug Reorder Cart Data
+     */
+    private static function debug_reorder_data($design, $cart_item_data) {
+        echo "<script>console.log('=== REORDER DEBUG ===');</script>";
+        echo "<script>console.log('Design ID: " . $design->id . "');</script>";
+        echo "<script>console.log('Template ID: " . ($design->template_id ?? 'NULL') . "');</script>";
+        echo "<script>console.log('Default Variation: " . ($cart_item_data['print_design']['variation_id'] ?? 'NULL') . "');</script>";
+        echo "<script>console.log('Default Size: " . ($cart_item_data['print_design']['size_id'] ?? 'NULL') . "');</script>";
+        echo "<script>console.log('Design Images Count: " . count($cart_item_data['print_design']['design_images'] ?? []) . "');</script>";
+        echo "<script>console.log('Product Images Count: " . count($cart_item_data['print_design']['product_images'] ?? []) . "');</script>";
+        echo "<script>console.log('Width CM: " . ($cart_item_data['print_design']['design_width_cm'] ?? 'NULL') . "');</script>";
+        echo "<script>console.log('Height CM: " . ($cart_item_data['print_design']['design_height_cm'] ?? 'NULL') . "');</script>";
+        echo "<script>console.log('=== END REORDER DEBUG ===');</script>";
+    }
+    
 }
+
+
 
 // Initialize the class
 YPrint_Your_Designs::init();
