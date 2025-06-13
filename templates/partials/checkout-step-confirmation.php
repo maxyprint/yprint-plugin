@@ -65,7 +65,7 @@ if ( ! defined( 'ABSPATH' ) ) {
         <div class="mt-4 p-3 bg-yprint-info rounded-lg text-sm text-yprint-text-secondary space-y-1">
             <p><i class="fas fa-truck fa-fw mr-2"></i> <?php esc_html_e('Geschätzte Lieferzeit: 2-3 Werktage.', 'yprint-checkout'); ?></p>
             <p><i class="fas fa-undo fa-fw mr-2"></i> <?php esc_html_e('30 Tage Rückgaberecht.', 'yprint-checkout'); ?></p>
-            <p><i class="fas fa-headset fa-fw mr-2"></i> <?php esc_html_e('Fragen?', 'yprint-checkout'); ?> <a href="#" class="text-yprint-blue hover:underline"><?php esc_html_e('Support kontaktieren', 'yprint-checkout'); ?></a></p>
+            <p><i class="fas fa-headset fa-fw mr-2"></i> <?php esc_html_e('Fragen?', 'yprint-checkout'); ?> <a href="https://yprint.de/help" target="_blank" rel="noopener noreferrer" class="text-yprint-blue hover:underline"><?php esc_html_e('Support kontaktieren', 'yprint-checkout'); ?></a></p>
         </div>
         <!-- Buttons entfernt - Zahlung bereits abgeschlossen -->
     </div>
