@@ -1071,6 +1071,34 @@ function showStep(stepNumber) {
     currentStep = stepNumber;
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
+    // "Bestellung anzeigen" Button auf Bestätigungsseite ausblenden
+    const orderDisplayButtons = document.querySelectorAll('.yprint-summary-toggle, .btn-view-order, [class*="order-display"], [id*="order-display"]');
+    if (stepNumber === 3) {
+        orderDisplayButtons.forEach(button => {
+            button.style.display = 'none';
+        });
+        // Auch im Checkout Header ausblenden
+        const checkoutHeader = document.getElementById('yprint-checkout-header');
+        if (checkoutHeader) {
+            const headerToggle = checkoutHeader.querySelector('.yprint-summary-toggle');
+            if (headerToggle) {
+                headerToggle.style.display = 'none';
+            }
+        }
+    } else {
+        orderDisplayButtons.forEach(button => {
+            button.style.display = '';
+        });
+        // Checkout Header Button wieder einblenden
+        const checkoutHeader = document.getElementById('yprint-checkout-header');
+        if (checkoutHeader) {
+            const headerToggle = checkoutHeader.querySelector('.yprint-summary-toggle');
+            if (headerToggle) {
+                headerToggle.style.display = '';
+            }
+        }
+    }
+    
     // Login-optimierte Address Manager Initialisierung
 if (stepNumber === 1 && window.YPrintAddressManager) {
     console.log('Verzögerte Address Manager Initialisierung für bessere Login-Performance');
@@ -1184,6 +1212,38 @@ jQuery.ajax({
             formData.voucher = voucherInput.value;
         }
         // Zahlungsdaten sind gesammelt und bereit für Verarbeitung
+    }
+
+    /**
+     * Speichert die Bestelldaten vor der Zahlungsverarbeitung
+     */
+    async function saveOrderDataBeforePayment() {
+        console.log('=== SAVING ORDER DATA BEFORE PAYMENT ===');
+        
+        try {
+            // Lade aktuelle Warenkorbdaten ein letztes Mal
+            await loadRealCartData();
+            
+            // Speichere Bestelldaten im sessionStorage für die Bestätigungsseite
+            const orderData = {
+                items: JSON.parse(JSON.stringify(cartItems)), // Deep copy
+                totals: JSON.parse(JSON.stringify(cartTotals)), // Deep copy
+                shipping: JSON.parse(JSON.stringify(formData.shipping)),
+                billing: JSON.parse(JSON.stringify(formData.billing)),
+                payment: JSON.parse(JSON.stringify(formData.payment)),
+                timestamp: new Date().toISOString(),
+                isBillingSameAsShipping: formData.isBillingSameAsShipping,
+                voucher: formData.voucher
+            };
+            
+            sessionStorage.setItem('yprint_confirmation_order_data', JSON.stringify(orderData));
+            
+            console.log('Order data saved to sessionStorage:', orderData);
+            
+        } catch (error) {
+            console.error('Error saving order data:', error);
+            // Nicht kritisch - Weiter mit dem Checkout-Flow
+        }
     }
 
     /**
@@ -1330,24 +1390,39 @@ if (voucherButton) {
     
     console.log('🎯 Confirmation populated timestamp:', window.confirmationTimestamp);
     
-    // Debug: Prüfe Variable-Verfügbarkeit vor loadRealCartData
-    console.log('=== VARIABLE AVAILABILITY CHECK ===');
-    console.log('cartItems defined:', typeof cartItems !== 'undefined');
-    console.log('cartTotals defined:', typeof cartTotals !== 'undefined');
-    console.log('cartDataCache defined:', typeof cartDataCache !== 'undefined');
-    console.log('formData defined:', typeof formData !== 'undefined');
-    console.log('loadRealCartData defined:', typeof loadRealCartData !== 'undefined');
-    console.log('applyCartData defined:', typeof applyCartData !== 'undefined');
-    console.log('=== END VARIABLE CHECK ===');
-    
+    // Verwende gespeicherte Bestelldaten statt aktuelle Warenkorbdaten
+    let orderData = null;
     try {
-        // Lade aktuelle Warenkorbdaten
-        console.log('About to call loadRealCartData...');
-        await loadRealCartData();
-        console.log('loadRealCartData completed successfully');
+        const savedOrderData = sessionStorage.getItem('yprint_confirmation_order_data');
+        if (savedOrderData) {
+            orderData = JSON.parse(savedOrderData);
+            console.log('Using saved order data for confirmation:', orderData);
+            
+            // Überschreibe aktuelle Daten mit gespeicherten Bestelldaten
+            cartItems = orderData.items || [];
+            cartTotals = orderData.totals || cartTotals;
+            
+            // Überschreibe formData falls gespeichert
+            if (orderData.shipping) formData.shipping = orderData.shipping;
+            if (orderData.billing) formData.billing = orderData.billing;
+            if (orderData.payment) formData.payment = orderData.payment;
+            if (typeof orderData.isBillingSameAsShipping !== 'undefined') {
+                formData.isBillingSameAsShipping = orderData.isBillingSameAsShipping;
+            }
+            if (orderData.voucher) formData.voucher = orderData.voucher;
+        } else {
+            console.warn('No saved order data found, falling back to current cart data');
+            // Fallback: Lade aktuelle Warenkorbdaten (falls noch vorhanden)
+            await loadRealCartData();
+        }
     } catch (error) {
-        console.error('Error in loadRealCartData:', error);
-        console.error('Error stack:', error.stack);
+        console.error('Error loading saved order data:', error);
+        // Fallback: Lade aktuelle Warenkorbdaten
+        try {
+            await loadRealCartData();
+        } catch (fallbackError) {
+            console.error('Fallback cart data loading failed:', fallbackError);
+        }
     }
         
         // Check for pending order data from payment processing
@@ -1427,14 +1502,15 @@ if (voucherButton) {
             confirmPaymentMethodEl.innerHTML = paymentMethodText;
         }
     
-        // Produkte mit Design-Unterstützung
+        // Produkte statisch anzeigen (nicht mehr dynamisch aktualisieren)
         const productListEl = document.getElementById('confirm-product-list');
-        if (productListEl) {
+        if (productListEl && cartItems.length > 0) {
             productListEl.innerHTML = '';
             
             cartItems.forEach(item => {
                 const itemEl = document.createElement('div');
-                itemEl.className = 'flex justify-between items-center py-3 border-b border-gray-100';
+                itemEl.className = 'flex justify-between items-center py-3 border-b border-gray-100 confirmation-product-item';
+                itemEl.setAttribute('data-static', 'true'); // Markiere als statisch
                 
                 // Design-Details für Design-Produkte
                 let designDetailsHtml = '';
@@ -1448,19 +1524,37 @@ if (voucherButton) {
                     `;
                 }
                 
+                // Design-Badge für bessere Kennzeichnung
+                const designBadge = item.is_design_product ? 
+                    `<span class="design-badge text-xs bg-blue-600 text-white px-2 py-1 rounded-full ml-2">Design</span>` : '';
+                
                 itemEl.innerHTML = `
                     <div class="flex items-center flex-1">
-                        <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded border mr-3">
+                        <img src="${item.image}" alt="${item.name}" class="w-16 h-16 object-cover rounded border mr-3 bg-gray-50">
                         <div class="flex-1">
-                            <p class="font-medium text-sm">${item.name}</p>
+                            <p class="font-medium text-sm text-gray-800">${item.name}${designBadge}</p>
                             <p class="text-xs text-gray-600">Menge: ${item.quantity}</p>
                             ${designDetailsHtml}
+                            ${item.quantity > 1 ? `<p class="text-xs text-gray-500 mt-1">€${item.price.toFixed(2)} pro Stück</p>` : ''}
                         </div>
                     </div>
-                    <p class="font-medium text-sm">€${(item.price * item.quantity).toFixed(2)}</p>
+                    <div class="text-right">
+                        <p class="font-medium text-sm text-gray-800">€${(item.price * item.quantity).toFixed(2)}</p>
+                    </div>
                 `;
                 productListEl.appendChild(itemEl);
             });
+            
+            // Füge einen Hinweis hinzu, dass dies die finale Bestellung ist
+            const finalOrderNote = document.createElement('div');
+            finalOrderNote.className = 'mt-4 p-3 bg-green-50 border border-green-200 rounded-lg';
+            finalOrderNote.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                    <span class="text-sm text-green-800 font-medium">Bestellung bestätigt - Diese Artikel wurden erfolgreich bestellt.</span>
+                </div>
+            `;
+            productListEl.appendChild(finalOrderNote);
         }
 
         /**
@@ -1802,6 +1896,57 @@ window.YPrintOrderDisplay = new YPrintOrderDisplay();
         if (confirmVatEl) confirmVatEl.textContent = `€${prices.vat.toFixed(2)}`;
         if (confirmTotalEl) confirmTotalEl.textContent = `€${prices.total.toFixed(2)}`;
     }
+
+    // Neue Funktion für statische Preisanzeige auf Bestätigungsseite
+    function updateConfirmationTotalsStatic() {
+        const prices = calculatePrices();
+        
+        const confirmSubtotalEl = document.getElementById('confirm-subtotal');
+        const confirmShippingEl = document.getElementById('confirm-shipping');
+        const confirmDiscountRowEl = document.getElementById('confirm-discount-row');
+        const confirmDiscountEl = document.getElementById('confirm-discount');
+        const confirmVatEl = document.getElementById('confirm-vat');
+        const confirmTotalEl = document.getElementById('confirm-total');
+    
+        if (confirmSubtotalEl) {
+            confirmSubtotalEl.textContent = `€${prices.subtotal.toFixed(2)}`;
+            confirmSubtotalEl.setAttribute('data-static', 'true');
+        }
+        if (confirmShippingEl) {
+            confirmShippingEl.textContent = `€${prices.shipping.toFixed(2)}`;
+            confirmShippingEl.setAttribute('data-static', 'true');
+        }
+        if (confirmDiscountRowEl && confirmDiscountEl) {
+            if (prices.discount > 0) {
+                confirmDiscountEl.textContent = `-€${prices.discount.toFixed(2)}`;
+                confirmDiscountRowEl.classList.remove('hidden');
+            } else {
+                confirmDiscountRowEl.classList.add('hidden');
+            }
+            confirmDiscountEl.setAttribute('data-static', 'true');
+        }
+        if (confirmVatEl) {
+            confirmVatEl.textContent = `€${prices.vat.toFixed(2)}`;
+            confirmVatEl.setAttribute('data-static', 'true');
+        }
+        if (confirmTotalEl) {
+            confirmTotalEl.textContent = `€${prices.total.toFixed(2)}`;
+            confirmTotalEl.setAttribute('data-static', 'true');
+            
+            // Hervorhebung des finalen Betrags
+            confirmTotalEl.style.color = '#059669'; // Grün für bestätigte Bestellung
+            confirmTotalEl.style.fontWeight = 'bold';
+        }
+        
+        // Füge Bestätigungshinweis hinzu
+        const totalsContainer = confirmTotalEl?.closest('.border-t');
+        if (totalsContainer && !totalsContainer.querySelector('.final-order-confirmation')) {
+            const confirmationNote = document.createElement('div');
+            confirmationNote.className = 'final-order-confirmation mt-3 text-center text-sm text-green-700 bg-green-50 p-2 rounded';
+            confirmationNote.innerHTML = '<i class="fas fa-shield-alt mr-1"></i> Finale Bestellsumme - Keine Änderungen mehr möglich';
+            totalsContainer.appendChild(confirmationNote);
+        }
+    }
     
 
     // Debug: Prüfe ob Bestellung anzeigen Button erstellt werden sollte
@@ -1848,27 +1993,11 @@ window.YPrintOrderDisplay = new YPrintOrderDisplay();
     // Global verfügbar machen für Stripe Service
     window.populateConfirmationWithPaymentData = populateConfirmationWithPaymentData;
     
-        // Preise - verwende reale Daten
-        const prices = calculatePrices();
-        const confirmSubtotalEl = document.getElementById('confirm-subtotal');
-        const confirmShippingEl = document.getElementById('confirm-shipping');
-        const confirmDiscountRowEl = document.getElementById('confirm-discount-row');
-        const confirmDiscountEl = document.getElementById('confirm-discount');
-        const confirmVatEl = document.getElementById('confirm-vat');
-        const confirmTotalEl = document.getElementById('confirm-total');
+        // Verwende statische Preisanzeige für die Bestätigungsseite
+        updateConfirmationTotalsStatic();
+        
+        console.log('=== POPULATE CONFIRMATION DEBUG END ===');
     
-        if (confirmSubtotalEl) confirmSubtotalEl.textContent = `€${prices.subtotal.toFixed(2)}`;
-        if (confirmShippingEl) confirmShippingEl.textContent = `€${prices.shipping.toFixed(2)}`;
-        if (confirmDiscountRowEl && confirmDiscountEl) {
-            if (prices.discount > 0) {
-                confirmDiscountEl.textContent = `-€${prices.discount.toFixed(2)}`;
-                confirmDiscountRowEl.classList.remove('hidden');
-            } else {
-                confirmDiscountRowEl.classList.add('hidden');
-            }
-        }
-        if (confirmVatEl) confirmVatEl.textContent = `€${prices.vat.toFixed(2)}`;
-        if (confirmTotalEl) confirmTotalEl.textContent = `€${prices.total.toFixed(2)}`;
 
         
     }
@@ -1986,6 +2115,9 @@ window.YPrintOrderDisplay = new YPrintOrderDisplay();
                 }
                 
                 console.log('DEBUG: Payment validation passed, continuing...');
+                
+                // WICHTIG: Bestelldaten VOR Zahlungsverarbeitung speichern
+                await saveOrderDataBeforePayment();
                 
                 // Sammle Zahlungsdaten
                 collectPaymentData();
