@@ -9,7 +9,6 @@
         currentAddressType: 'shipping',
         selectedAddressId: null,
         
-        // Neue Elements-Eigenschaft hinzufügen
         elements: {
             modal: null,
             addressContainer: null,
@@ -17,7 +16,9 @@
             shippingFieldsContainer: null,
             billingFieldsContainer: null,
             addNewAddressButton: null,
-            saveAddressToggle: null
+            saveAddressToggle: null,
+            billingCheckbox: null,
+            billingContainer: null
         },
         
 
@@ -127,21 +128,25 @@
             this.elements.shippingFieldsContainer = $('#address-form'); // Anpassen an deine ID
             this.elements.billingFieldsContainer = $('#billing-address-fields'); // Anpassen an deine ID
             this.elements.addNewAddressButton = $('.add-new-address-card');
-            this.elements.saveAddressToggle = $('#yprint_save_new_address');
-            
-            // Lokale Referenzen für Rückwärtskompatibilität
-            this.modal = this.elements.modal;
-            this.addressContainer = this.elements.addressContainer;
-            this.loadingIndicator = this.elements.loadingIndicator;
-            
-            console.log('DOM Elements found:');
-            console.log('  - Modal:', this.elements.modal.length, this.elements.modal);
-            console.log('  - Address Container:', this.elements.addressContainer.length, this.elements.addressContainer);
-            console.log('  - Loading Indicator:', this.elements.loadingIndicator.length, this.elements.loadingIndicator);
-            console.log('  - Shipping Fields:', this.elements.shippingFieldsContainer.length);
-            console.log('  - Billing Fields: ', this.elements.billingFieldsContainer.length);
-            console.log('  - Add New Button:', this.elements.addNewAddressButton.length);
-            console.log('  - Save Toggle:', this.elements.saveAddressToggle.length);
+this.elements.saveAddressToggle = $('#yprint_save_new_address');
+this.elements.billingCheckbox = $('#billing-different-address');
+this.elements.billingContainer = $('#billing-address-container');
+
+// Lokale Referenzen für Rückwärtskompatibilität
+this.modal = this.elements.modal;
+this.addressContainer = this.elements.addressContainer;
+this.loadingIndicator = this.elements.loadingIndicator;
+
+console.log('DOM Elements found:');
+console.log('  - Modal:', this.elements.modal.length, this.elements.modal);
+console.log('  - Address Container:', this.elements.addressContainer.length, this.elements.addressContainer);
+console.log('  - Loading Indicator:', this.elements.loadingIndicator.length, this.elements.loadingIndicator);
+console.log('  - Shipping Fields:', this.elements.shippingFieldsContainer.length);
+console.log('  - Billing Fields: ', this.elements.billingFieldsContainer.length);
+console.log('  - Add New Button:', this.elements.addNewAddressButton.length);
+console.log('  - Save Toggle:', this.elements.saveAddressToggle.length);
+console.log('  - Billing Checkbox:', this.elements.billingCheckbox.length);
+console.log('  - Billing Container:', this.elements.billingContainer.length);
             
             console.log('DOM Elements found:');
             console.log('  - Modal:', this.modal.length, this.modal);
@@ -343,11 +348,36 @@ $('.btn-save-address').off('click.direct').on('click.direct', function(e) {
             });
             
             // Event für "Andere Adresse wählen" Link
-            $(document).on('click', '.change-address-link button', function() {
-                self.showSavedAddressesContainer(true);
-                $(this).closest('.change-address-link').remove();
-                self.showAddressForm(false);
-            });
+$(document).on('click', '.change-address-link button', function() {
+    self.showSavedAddressesContainer(true);
+    $(this).closest('.change-address-link').remove();
+    self.showAddressForm(false);
+});
+
+// NEUE Billing-Events
+$(document).on('change', '#billing-different-address', function() {
+    self.toggleBillingContainer($(this).is(':checked'));
+});
+
+// Event-Delegation für Billing-Container
+$(document).on('click', '#billing-address-container .add-new-address-card', function() {
+    self.currentAddressType = 'billing';
+    self.openAddressModal();
+    self.showAddressForm(true);
+    self.showSavedAddressesContainer(false);
+});
+
+$(document).on('click', '#billing-address-container .btn-select-address', function(e) {
+    e.preventDefault();
+    const addressCard = $(this).closest('.address-card');
+    const addressId = addressCard.data('address-id');
+    
+    self.currentAddressType = 'billing';
+    $(this).html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
+    $(this).prop('disabled', true);
+    
+    self.selectAddress(addressId);
+});
         },
 
 /**
@@ -834,70 +864,82 @@ addWooCommerceDefaultAddress: function(grid) {
             const originalBtnText = btnSelectAddress.html();
             btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
             
-            // Adresse für Checkout setzen und Formular füllen
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_set_checkout_address',
-                    nonce: yprint_address_ajax.nonce,
-                    address_id: addressId
-                },
-                success: function(response) {
-                    if (response.success) {
-                        self.fillAddressForm(response.data.address_data);
-                        
-                        console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
-                        
-                        // Aktualisiere Express Payment mit neuer Adresse
-                        if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
-                            console.log('Address Manager: Calling Express Payment updateAddress...');
-                            window.YPrintExpressCheckout.updateAddress(response.data.address_data);
-                        } else {
-                            console.warn('Address Manager: YPrintExpressCheckout not available for address update');
+            // Bestimme Action basierend auf currentAddressType
+const action = (this.currentAddressType === 'billing') ? 'yprint_set_billing_address' : 'yprint_set_checkout_address';
+
+// Adresse für Checkout setzen und Formular füllen
+$.ajax({
+    url: yprint_address_ajax.ajax_url,
+    type: 'POST',
+    data: {
+        action: action,
+        nonce: yprint_address_ajax.nonce,
+        address_id: addressId,
+        address_type: this.currentAddressType
+    },
+    success: function(response) {
+        if (response.success) {
+            if (self.currentAddressType === 'billing') {
+                // Billing-Adresse behandlung
+                self.showMessage('Rechnungsadresse ausgewählt.', 'success');
+                // Billing-Container nach Auswahl verstecken
+                self.elements.billingContainer.find('.address-cards-grid').slideUp();
+            } else {
+                // Shipping-Adresse behandlung (bestehende Logik)
+                self.fillAddressForm(response.data.address_data);
+                
+                console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
+                
+                // Aktualisiere Express Payment mit neuer Adresse
+                if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
+                    console.log('Address Manager: Calling Express Payment updateAddress...');
+                    window.YPrintExpressCheckout.updateAddress(response.data.address_data);
+                } else {
+                    console.warn('Address Manager: YPrintExpressCheckout not available for address update');
+                }
+                
+                self.showMessage('Adresse ausgewählt und für Checkout gesetzt.', 'success');
+                self.closeAddressSelectionView();
+                
+                // Wichtige Änderung: Wir simulieren einen Klick auf den "Weiter zur Zahlung"-Button
+                setTimeout(function() {
+                    const toPaymentBtn = $('#btn-to-payment');
+                    console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
+                    
+                    if (toPaymentBtn.length > 0) {
+                        if (toPaymentBtn.prop('disabled')) {
+                            console.log('Button war deaktiviert, wird aktiviert');
+                            toPaymentBtn.prop('disabled', false);
                         }
                         
-                        self.showMessage('Adresse ausgewählt und für Checkout gesetzt.', 'success');
-                        self.closeAddressSelectionView();
-                        
-                        // Wichtige Änderung: Wir simulieren einen Klick auf den "Weiter zur Zahlung"-Button
-// nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
-setTimeout(function() {
-    // Prüfen ob Formular gültig ist und Button nicht deaktiviert
-    const toPaymentBtn = $('#btn-to-payment');
-    console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
-    
-    if (toPaymentBtn.length > 0) {
-        // Aktiviere den Button falls er deaktiviert ist
-        if (toPaymentBtn.prop('disabled')) {
-            console.log('Button war deaktiviert, wird aktiviert');
-            toPaymentBtn.prop('disabled', false);
-        }
-        
-        console.log('Klicke auf "Weiter zur Zahlung"-Button');
-        toPaymentBtn.trigger('click');
-    } else {
-        // Alternativer Ansatz: Direkt zum nächsten Schritt springen
-        console.log('Button nicht gefunden, versuche direkten Schrittwechsel');
-        if (window.showStep && typeof window.showStep === 'function') {
-            window.showStep(2); // Direkt zu Schritt 2 (Zahlung) wechseln
-        } else if (typeof showStep === 'function') {
-            showStep(2);
-        } else {
-            console.error('Weder Button noch showStep-Funktion gefunden');
-        }
-    }
-}, 1000); // 1 Sekunde Verzögerung
+                        console.log('Klicke auf "Weiter zur Zahlung"-Button');
+                        toPaymentBtn.trigger('click');
                     } else {
-                        self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
-                        btnSelectAddress.html(originalBtnText);
+                        console.log('Button nicht gefunden, versuche direkten Schrittwechsel');
+                        if (window.showStep && typeof window.showStep === 'function') {
+                            window.showStep(2);
+                        } else if (typeof showStep === 'function') {
+                            showStep(2);
+                        } else {
+                            console.error('Weder Button noch showStep-Funktion gefunden');
+                        }
                     }
-                },
-                error: function() {
-                    self.showMessage('Fehler beim Setzen der Adresse für Checkout', 'error');
-                    btnSelectAddress.html(originalBtnText);
-                }
-            });
+                }, 1000);
+            }
+        } else {
+            self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
+        }
+        btnSelectAddress.html(originalBtnText);
+        
+        // Reset currentAddressType nach der Aktion
+        self.currentAddressType = 'shipping';
+    },
+    error: function() {
+        self.showMessage('Fehler beim Setzen der Adresse für Checkout', 'error');
+        btnSelectAddress.html(originalBtnText);
+        self.currentAddressType = 'shipping';
+    }
+});
         },
         
         closeAddressSelectionView: function() {
@@ -976,19 +1018,23 @@ setTimeout(function() {
             $('#new-address-form')[0].reset();
             $('.address-form-errors').hide();
             
-            // Modal-Titel anpassen
-            const modalTitle = document.querySelector('.address-modal-header h3');
-            if (modalTitle) {
-                modalTitle.textContent = addressId ? 'Adresse bearbeiten' : 'Neue Adresse hinzufügen';
-            }
-            
-            // Button-Text anpassen
-            const saveButton = document.querySelector('.btn-save-address');
-            if (saveButton) {
-                saveButton.innerHTML = addressId ? 
-                    '<i class="fas fa-save mr-2"></i>Adresse aktualisieren' : 
-                    '<i class="fas fa-save mr-2"></i>Adresse speichern';
-            }
+            // Modal-Titel anpassen basierend auf Address Type
+const modalTitle = document.querySelector('.address-modal-header h3');
+if (modalTitle) {
+    const addressTypeText = (this.currentAddressType === 'billing') ? 'Rechnungsadresse' : 'Adresse';
+    modalTitle.textContent = addressId ? 
+        `${addressTypeText} bearbeiten` : 
+        `Neue ${addressTypeText} hinzufügen`;
+}
+
+// Button-Text anpassen
+const saveButton = document.querySelector('.btn-save-address');
+if (saveButton) {
+    const addressTypeText = (this.currentAddressType === 'billing') ? 'Rechnungsadresse' : 'Adresse';
+    saveButton.innerHTML = addressId ? 
+        `<i class="fas fa-save mr-2"></i>${addressTypeText} aktualisieren` : 
+        `<i class="fas fa-save mr-2"></i>${addressTypeText} speichern`;
+}
             
             // Wichtig: Sicherstellen, dass bestehende editing-address-id entfernt wird
             self.modal.removeData('editing-address-id');
@@ -1163,6 +1209,161 @@ saveNewAddress: function() {
             console.error('saveNewAddress (ID Handling): AJAX error:', {xhr: xhr, status: status, error: error});
             self.showFormError('Fehler beim Speichern der Adresse');
         },
+
+        /**
+ * Toggle Billing-Container Sichtbarkeit
+ */
+toggleBillingContainer: function(show) {
+    if (show) {
+        this.elements.billingContainer.slideDown();
+        
+        // Lade gespeicherte Adressen für Billing-Container falls eingeloggt
+        if (this.isUserLoggedIn()) {
+            this.loadSavedAddressesForContainer('#billing-address-container');
+        }
+    } else {
+        this.elements.billingContainer.slideUp();
+        // Billing-Adresse aus Session löschen
+        this.clearBillingAddress();
+    }
+},
+
+/**
+ * Lade Adressen für spezifischen Container
+ */
+loadSavedAddressesForContainer: function(containerSelector) {
+    const self = this;
+    const container = $(containerSelector);
+    const loadingIndicator = container.find('.loading-addresses');
+    const grid = container.find('.address-cards-grid');
+    
+    loadingIndicator.show();
+    grid.hide();
+    
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_get_saved_addresses',
+            nonce: yprint_address_ajax.nonce
+        },
+        success: function(response) {
+            if (response && response.success) {
+                const addresses = response.data.addresses || {};
+                self.renderAddressesInContainer(addresses, container);
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error loading addresses for container:', error);
+        },
+        complete: function() {
+            loadingIndicator.hide();
+        }
+    });
+},
+
+/**
+ * Render Adressen in spezifischem Container
+ */
+renderAddressesInContainer: function(addresses, container) {
+    const grid = container.find('.address-cards-grid');
+    grid.empty();
+    
+    // Adressen hinzufügen (gleiche Logik wie renderAddresses)
+    if (Object.keys(addresses).length === 0) {
+        const addNewCard = `
+            <div class="address-card add-new-address-card cursor-pointer">
+                <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                    <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                    <h4 class="font-semibold text-gray-600">Neue Rechnungsadresse hinzufügen</h4>
+                </div>
+            </div>
+        `;
+        grid.html(addNewCard);
+        grid.show();
+        return;
+    }
+    
+    // Bestehende Adressen rendern
+    const sortedAddresses = Object.entries(addresses).sort(([idA, addrA], [idB, addrB]) => {
+        if (addrA.is_default && !addrB.is_default) return -1;
+        if (!addrA.is_default && addrB.is_default) return 1;
+        
+        const nameA = (addrA.name || 'Gespeicherte Adresse').toLowerCase();
+        const nameB = (addrB.name || 'Gespeicherte Adresse').toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+    
+    sortedAddresses.forEach(([addressId, address]) => {
+        const isDefault = address.is_default || false;
+        const defaultBadge = isDefault ? 
+            `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">
+                <i class="fas fa-star mr-1"></i>Standard
+            </span>` : '';
+        
+        const addressDataJson = encodeURIComponent(JSON.stringify(address));
+        
+        const card = $(`
+            <div class="address-card" data-address-id="${addressId}" data-address-data="${addressDataJson}">
+                <div class="address-card-header">
+                    <div class="address-card-title">
+                        ${address.name || 'Gespeicherte Adresse'}
+                        ${defaultBadge}
+                    </div>
+                    <div class="address-card-actions">
+                        <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="address-card-content">
+                    ${this.formatAddressDisplay(address)}
+                </div>
+                <div class="address-card-footer">
+                    <button type="button" class="btn btn-primary btn-select-address">
+                        <i class="fas fa-check mr-2"></i>
+                        Diese Rechnungsadresse verwenden
+                    </button>
+                </div>
+            </div>
+        `);
+        
+        grid.append(card);
+    });
+    
+    // "Neue Adresse" Kachel hinzufügen
+    const addNewCard = `
+        <div class="address-card add-new-address-card cursor-pointer">
+            <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                <h4 class="font-semibold text-gray-600">Neue Rechnungsadresse hinzufügen</h4>
+            </div>
+        </div>
+    `;
+    
+    grid.append(addNewCard);
+    grid.show();
+},
+
+/**
+ * Billing-Adresse löschen
+ */
+clearBillingAddress: function() {
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_clear_billing_address',
+            nonce: yprint_address_ajax.nonce
+        },
+        success: function(response) {
+            console.log('Billing address cleared:', response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error clearing billing address:', error);
+        }
+    });
+},
         complete: function() {
             saveButton.prop('disabled', false).html(originalText);
         }
@@ -1283,6 +1484,8 @@ saveNewAddress: function() {
             const errorEl = $('.address-form-errors');
             errorEl.html(`<ul><li>${message}</li></ul>`).show();
         }
+
+        
     };
 
     // Initialize on document ready

@@ -55,6 +55,11 @@ class YPrint_Address_Manager {
 
         add_action('wp_ajax_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
         add_action('wp_ajax_nopriv_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
+
+        add_action('wp_ajax_yprint_set_billing_address', array($this, 'ajax_set_billing_address'));
+add_action('wp_ajax_nopriv_yprint_set_billing_address', array($this, 'ajax_set_billing_address'));
+add_action('wp_ajax_yprint_clear_billing_address', array($this, 'ajax_clear_billing_address'));
+add_action('wp_ajax_nopriv_yprint_clear_billing_address', array($this, 'ajax_clear_billing_address'));
     }
 
 /**
@@ -853,6 +858,7 @@ public function ajax_set_checkout_address() {
     }
 
     $address_id = sanitize_text_field($_POST['address_id']);
+    $address_type = isset($_POST['address_type']) ? sanitize_text_field($_POST['address_type']) : 'shipping';
     $user_id = get_current_user_id();
     $addresses = $this->get_user_addresses($user_id);
     $address_to_set = null;
@@ -882,23 +888,82 @@ public function ajax_set_checkout_address() {
         $this->update_woocommerce_customer_data($address_to_set, 'shipping');
         $this->update_woocommerce_customer_data($address_to_set, 'billing');
         
-        // WICHTIG: Speichere Adresse auch in Session für Express Payment
-if (WC()->session) {
-    WC()->session->set('yprint_selected_address', $address_to_set);
-    error_log('=== ADDRESS MANAGER SESSION DEBUG ===');
-    error_log('Address Manager: Saved address to session for Express Payment: ' . print_r($address_to_set, true));
-    error_log('Session ID: ' . WC()->session->get_customer_id());
-    error_log('All session data: ' . print_r(WC()->session->get_session_data(), true));
-    error_log('=== ADDRESS MANAGER SESSION DEBUG END ===');
-}
+                // Session-Key basierend auf address_type
+                $session_key = ($address_type === 'billing') ? 'yprint_checkout_billing_address' : 'yprint_selected_address';
+        
+                // WICHTIG: Speichere Adresse auch in Session für Express Payment
+                if (WC()->session) {
+                    WC()->session->set($session_key, $address_to_set);
+                    error_log('=== ADDRESS MANAGER SESSION DEBUG ===');
+                    error_log('Address Manager: Saved address to session for Express Payment: ' . print_r($address_to_set, true));
+                    error_log('Address type: ' . $address_type . ', Session key: ' . $session_key);
+                    error_log('Session ID: ' . WC()->session->get_customer_id());
+                    error_log('=== ADDRESS MANAGER SESSION DEBUG END ===');
+                }
 
-        wp_send_json_success(array(
-            'message' => 'Adresse erfolgreich für den Checkout gesetzt.',
-            'address_data' => $address_to_set
-        ));
+
+
+                wp_send_json_success(array(
+                    'message' => 'Adresse erfolgreich für den Checkout gesetzt.',
+                    'address_data' => $address_to_set,
+                    'address_type' => $address_type
+                ));
     } else {
         wp_send_json_error(array('message' => 'Fehler beim Setzen der Checkout-Adresse.'));
     }
+}
+
+/**
+ * AJAX-Handler: Billing-Adresse setzen
+ */
+public function ajax_set_billing_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+
+    $address_id = sanitize_text_field($_POST['address_id']);
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
+
+    if (isset($addresses[$address_id])) {
+        $address_data = $addresses[$address_id];
+        
+        // In Session als Billing-Adresse speichern
+        if (WC()->session) {
+            WC()->session->set('yprint_checkout_billing_address', $address_data);
+        }
+        
+        wp_send_json_success(array(
+            'message' => 'Rechnungsadresse gesetzt',
+            'address_data' => $address_data
+        ));
+    } else {
+        wp_send_json_error(array('message' => 'Adresse nicht gefunden'));
+    }
+}
+
+/**
+ * AJAX-Handler: Billing-Adresse löschen
+ */
+public function ajax_clear_billing_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
+        return;
+    }
+
+    // Billing-Adresse aus Session entfernen
+    if (WC()->session) {
+        WC()->session->__unset('yprint_checkout_billing_address');
+    }
+
+    wp_send_json_success(array(
+        'message' => 'Rechnungsadresse zurückgesetzt'
+    ));
 }
 
 // **DIESE FUNKTION WIRD ENTFERNT, DA SIE NUR ZU DEBUGGING-ZWECKEN DIENTE**
@@ -972,5 +1037,7 @@ public function save_checkout_address($address_data) {
     // Adresse speichern
     return $this->save_new_user_address($formatted_data);
 }
+
+
 
 }
