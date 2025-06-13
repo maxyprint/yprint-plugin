@@ -2201,6 +2201,21 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
         // Store order data in session for confirmation page
         WC()->session->set('yprint_pending_order', $order_data);
         
+        // *** WARENKORB NACH ERFOLGREICHEM CUSTOM CHECKOUT LEEREN ***
+        if (WC()->cart && !WC()->cart->is_empty()) {
+            error_log('YPrint Custom Checkout: Leere Warenkorb nach erfolgreichem Checkout: ' . $order_id);
+            
+            try {
+                // Leere den Warenkorb
+                WC()->cart->empty_cart();
+                
+                error_log('YPrint Custom Checkout: Warenkorb erfolgreich geleert für Bestellung: ' . $order_id);
+                
+            } catch (Exception $e) {
+                error_log('YPrint Custom Checkout: FEHLER beim Leeren des Warenkorbs: ' . $e->getMessage());
+            }
+        }
+        
         // Store simple order ID for display
         $simple_order_id = 'YP-' . $order_id;
         WC()->session->set('yprint_last_order_id', $simple_order_id);
