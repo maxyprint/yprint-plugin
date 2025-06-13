@@ -123,14 +123,25 @@
             
             // DOM Elements
             this.elements.modal = $('#new-address-modal');
-            this.elements.addressContainer = $('.yprint-saved-addresses');
+            this.elements.addressContainer = $('.yprint-saved-addresses[data-address-type!="billing"]');
             this.elements.loadingIndicator = this.elements.addressContainer.find('.loading-addresses');
-            this.elements.shippingFieldsContainer = $('#address-form'); // Anpassen an deine ID
-            this.elements.billingFieldsContainer = $('#billing-address-fields'); // Anpassen an deine ID
+            this.elements.shippingFieldsContainer = $('#address-form');
+            this.elements.billingFieldsContainer = $('#billing-address-fields');
             this.elements.addNewAddressButton = $('.add-new-address-card');
-this.elements.saveAddressToggle = $('#yprint_save_new_address');
-this.elements.billingCheckbox = $('#billing-different-address');
-this.elements.billingContainer = $('#billing-address-container');
+            this.elements.saveAddressToggle = $('#yprint_save_new_address');
+            this.elements.billingCheckbox = $('#billing-different-address');
+            this.elements.billingContainer = $('#billing-address-container');
+        
+        // Lokale Referenzen für Rückwärtskompatibilität
+        this.modal = this.elements.modal;
+        this.addressContainer = this.elements.addressContainer;
+        this.loadingIndicator = this.elements.loadingIndicator;
+        
+        console.log('DOM Elements found:');
+        console.log('  - Modal:', this.elements.modal.length, this.elements.modal);
+        console.log('  - Address Container:', this.elements.addressContainer.length, this.elements.addressContainer);
+        console.log('  - Billing Container:', this.elements.billingContainer.length, this.elements.billingContainer);
+        console.log('  - Billing Checkbox:', this.elements.billingCheckbox.length, this.elements.billingCheckbox);
 
 // Lokale Referenzen für Rückwärtskompatibilität
 this.modal = this.elements.modal;
@@ -181,6 +192,26 @@ console.log('  - Billing Container:', this.elements.billingContainer.length);
             
             console.log('=== YPrint Address Manager: Initialization Complete ===');
         },
+
+        /**
+ * Billing-Adresse löschen
+ */
+clearBillingAddress: function() {
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_clear_billing_address',
+            nonce: yprint_address_ajax.nonce
+        },
+        success: function(response) {
+            console.log('Billing address cleared:', response);
+        },
+        error: function(xhr, status, error) {
+            console.error('Error clearing billing address:', error);
+        }
+    });
+},
         
         bindEvents: function() {
             const self = this;
@@ -361,14 +392,14 @@ $(document).on('change', '#billing-different-address', function() {
 
 // Event-Delegation für Billing-Container
 $(document).on('click', '#billing-address-container .add-new-address-card', function() {
+    console.log('Billing: Add new address clicked');
     self.currentAddressType = 'billing';
     self.openAddressModal();
-    self.showAddressForm(true);
-    self.showSavedAddressesContainer(false);
 });
 
 $(document).on('click', '#billing-address-container .btn-select-address', function(e) {
     e.preventDefault();
+    console.log('Billing: Select address clicked');
     const addressCard = $(this).closest('.address-card');
     const addressId = addressCard.data('address-id');
     
@@ -377,6 +408,12 @@ $(document).on('click', '#billing-address-container .btn-select-address', functi
     $(this).prop('disabled', true);
     
     self.selectAddress(addressId);
+});
+
+// Event für Billing-Checkbox
+$(document).on('change', '#billing-different-address', function() {
+    console.log('Billing checkbox changed:', $(this).is(':checked'));
+    self.toggleBillingContainer($(this).is(':checked'));
 });
         },
 
@@ -1214,18 +1251,47 @@ saveNewAddress: function() {
  * Toggle Billing-Container Sichtbarkeit
  */
 toggleBillingContainer: function(show) {
+    console.log('toggleBillingContainer called with:', show);
+    
     if (show) {
         this.elements.billingContainer.slideDown();
+        console.log('Billing container shown');
         
         // Lade gespeicherte Adressen für Billing-Container falls eingeloggt
         if (this.isUserLoggedIn()) {
             this.loadSavedAddressesForContainer('#billing-address-container');
+        } else {
+            // Falls nicht eingeloggt, zeige "Neue Adresse" Option
+            this.renderBillingNewAddressOption();
         }
     } else {
         this.elements.billingContainer.slideUp();
+        console.log('Billing container hidden');
         // Billing-Adresse aus Session löschen
         this.clearBillingAddress();
     }
+},
+
+/**
+ * Zeige "Neue Adresse" Option für nicht-eingeloggte Benutzer
+ */
+renderBillingNewAddressOption: function() {
+    const container = $('#billing-address-container');
+    const grid = container.find('.address-cards-grid');
+    
+    grid.empty();
+    
+    const addNewCard = `
+        <div class="address-card add-new-address-card cursor-pointer">
+            <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                <h4 class="font-semibold text-gray-600">Rechnungsadresse eingeben</h4>
+            </div>
+        </div>
+    `;
+    
+    grid.html(addNewCard).show();
+    container.find('.loading-addresses').hide();
 },
 
 /**
@@ -1236,6 +1302,8 @@ loadSavedAddressesForContainer: function(containerSelector) {
     const container = $(containerSelector);
     const loadingIndicator = container.find('.loading-addresses');
     const grid = container.find('.address-cards-grid');
+    
+    console.log('Loading addresses for container:', containerSelector);
     
     loadingIndicator.show();
     grid.hide();
@@ -1248,13 +1316,18 @@ loadSavedAddressesForContainer: function(containerSelector) {
             nonce: yprint_address_ajax.nonce
         },
         success: function(response) {
+            console.log('Addresses loaded for container:', response);
             if (response && response.success) {
                 const addresses = response.data.addresses || {};
                 self.renderAddressesInContainer(addresses, container);
+            } else {
+                // Fallback für keine Adressen
+                self.renderBillingNewAddressOption();
             }
         },
         error: function(xhr, status, error) {
             console.error('Error loading addresses for container:', error);
+            self.renderBillingNewAddressOption();
         },
         complete: function() {
             loadingIndicator.hide();
