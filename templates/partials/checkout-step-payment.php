@@ -590,6 +590,105 @@ h2 i {
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
 }
+
+/* Billing Container Styles */
+#billing-address-container .address-card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+#billing-address-container .address-card:hover {
+    border-color: #0079FF;
+    box-shadow: 0 2px 8px rgba(0, 121, 255, 0.1);
+}
+
+#billing-address-container .address-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+#billing-address-container .address-card-title {
+    font-weight: 600;
+    color: #1d1d1f;
+    font-size: 14px;
+}
+
+#billing-address-container .address-card-actions {
+    display: flex;
+    gap: 4px;
+}
+
+#billing-address-container .btn-address-action {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: #f5f5f7;
+    border-radius: 6px;
+    color: #6e6e73;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#billing-address-container .btn-address-action:hover {
+    background: #e5e5e5;
+    color: #1d1d1f;
+}
+
+#billing-address-container .address-card-content {
+    font-size: 13px;
+    color: #6e6e73;
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+
+#billing-address-container .btn-select-address {
+    width: 100%;
+    padding: 8px 12px;
+    background: #0079FF;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#billing-address-container .btn-select-address:hover {
+    background: #0056b3;
+}
+
+#billing-address-container .add-new-address-card .address-card-content {
+    text-align: center;
+    padding: 20px;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    transition: border-color 0.2s ease;
+}
+
+#billing-address-container .add-new-address-card:hover .address-card-content {
+    border-color: #0079FF;
+}
+
+@media (max-width: 768px) {
+    #billing-address-container .address-cards-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    #billing-address-container {
+        padding: 16px;
+        margin-top: 20px;
+    }
+}
 </style>
 
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
@@ -742,6 +841,38 @@ if (class_exists('YPrint_Stripe_Checkout')) {
             </button>
         </div>
         <p id="voucher-feedback" class="text-sm mt-1"></p>
+    </div>
+
+    <!-- Billing Address Integration -->
+    <div class="billing-checkbox-wrapper" style="display: flex; align-items: center; margin: 20px 0; padding: 12px; background: white; border-radius: 8px; border: 1px solid #e5e5e5;">
+        <input type="checkbox" id="billing-different-address" name="billing_different_address" value="1" style="width: 18px; height: 18px; margin-right: 12px; accent-color: #0079FF;">
+        <label for="billing-different-address" style="font-weight: 500; color: #1d1d1f; cursor: pointer; margin: 0;">
+            <i class="fas fa-receipt" style="margin-right: 8px;"></i>
+            Andere Rechnungsadresse verwenden
+        </label>
+    </div>
+
+    <div id="billing-address-container" style="margin-top: 24px; padding: 20px; background: #f8f9fa; border-radius: 12px; border: 1px solid #e5e5e5; display: none;">
+        <div class="section-title" style="display: flex; align-items: center; margin-bottom: 16px; font-size: 16px; font-weight: 600; color: #1d1d1f;">
+            <i class="fas fa-receipt" style="color: #0079FF; margin-right: 8px;"></i>
+            Rechnungsadresse auswählen
+        </div>
+        
+        <!-- Saved Addresses Container - IDENTISCHE Struktur wie im Address Step -->
+        <div class="yprint-saved-addresses" data-address-type="billing">
+            <!-- Loading Indicator -->
+            <div class="loading-addresses" style="text-align: center; padding: 40px 20px; color: #6e6e73;">
+                <div style="display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-spinner fa-spin" style="color: #0079FF; margin-right: 8px;"></i>
+                    <span>Lade gespeicherte Adressen...</span>
+                </div>
+            </div>
+            
+            <!-- Address Cards Grid - GLEICHE CSS-Klassen wie bestehend -->
+            <div class="address-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px;">
+                <!-- Wird dynamisch mit JavaScript gefüllt -->
+            </div>
+        </div>
     </div>
 
     <!-- Sicherheitshinweis -->
