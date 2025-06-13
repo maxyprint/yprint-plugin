@@ -2069,24 +2069,52 @@ if (WC()->cart->is_empty()) {
             }
         }
         
-        // Set address data if available
-        if (isset($payment_method['billing_details']['address'])) {
-            $billing_address = $payment_method['billing_details']['address'];
-            $order->set_billing_address_1($billing_address['line1'] ?? '');
-            $order->set_billing_city($billing_address['city'] ?? '');
-            $order->set_billing_postcode($billing_address['postal_code'] ?? '');
-            $order->set_billing_country($billing_address['country'] ?? 'DE');
-        }
-        
-        // Set shipping address if provided
-        if ($shipping_address) {
-            $order->set_shipping_first_name($order->get_billing_first_name());
-            $order->set_shipping_last_name($order->get_billing_last_name());
-            $order->set_shipping_address_1($shipping_address['addressLine'][0] ?? '');
-            $order->set_shipping_city($shipping_address['city'] ?? '');
-            $order->set_shipping_postcode($shipping_address['postalCode'] ?? '');
-            $order->set_shipping_country($shipping_address['country'] ?? 'DE');
-        }
+        // Priorisiere Address Manager Adresse
+$selected_address = WC()->session->get('yprint_selected_address');
+
+if ($selected_address && !empty($selected_address)) {
+    // Verwende Address Manager Adresse
+    $order->set_billing_first_name($selected_address['first_name'] ?? '');
+    $order->set_billing_last_name($selected_address['last_name'] ?? '');
+    $order->set_billing_address_1($selected_address['address_1'] ?? '');
+    $order->set_billing_address_2($selected_address['address_2'] ?? '');
+    $order->set_billing_city($selected_address['city'] ?? '');
+    $order->set_billing_postcode($selected_address['postcode'] ?? '');
+    $order->set_billing_country($selected_address['country'] ?? 'DE');
+    $order->set_billing_phone($selected_address['phone'] ?? '');
+    
+    // Shipping gleich Billing setzen aus Address Manager
+    $order->set_shipping_first_name($selected_address['first_name'] ?? '');
+    $order->set_shipping_last_name($selected_address['last_name'] ?? '');
+    $order->set_shipping_address_1($selected_address['address_1'] ?? '');
+    $order->set_shipping_address_2($selected_address['address_2'] ?? '');
+    $order->set_shipping_city($selected_address['city'] ?? '');
+    $order->set_shipping_postcode($selected_address['postcode'] ?? '');
+    $order->set_shipping_country($selected_address['country'] ?? 'DE');
+    
+    error_log('EXPRESS: Using Address Manager address for order');
+} else {
+    // Fallback: Payment Method Adresse
+    if (isset($payment_method['billing_details']['address'])) {
+        $billing_address = $payment_method['billing_details']['address'];
+        $order->set_billing_address_1($billing_address['line1'] ?? '');
+        $order->set_billing_city($billing_address['city'] ?? '');
+        $order->set_billing_postcode($billing_address['postal_code'] ?? '');
+        $order->set_billing_country($billing_address['country'] ?? 'DE');
+    }
+
+    // Set shipping address if provided
+    if ($shipping_address) {
+        $order->set_shipping_first_name($order->get_billing_first_name());
+        $order->set_shipping_last_name($order->get_billing_last_name());
+        $order->set_shipping_address_1($shipping_address['addressLine'][0] ?? '');
+        $order->set_shipping_city($shipping_address['city'] ?? '');
+        $order->set_shipping_postcode($shipping_address['postalCode'] ?? '');
+        $order->set_shipping_country($shipping_address['country'] ?? 'DE');
+    }
+    
+    error_log('EXPRESS: Using payment method address as fallback');
+}
         
         // Set payment method
         $order->set_payment_method('yprint_stripe');
