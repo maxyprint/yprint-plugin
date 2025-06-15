@@ -277,6 +277,16 @@ if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn())
             $('#btn-billing-to-payment').prop('disabled', !isValid);
             return isValid;
         }
+
+        // Event-Handler für "Rechnungsadresse speichern" Button
+$(document).on('click', '#save-billing-address-button', function(e) {
+    e.preventDefault();
+    if (window.YPrintAddressManager && typeof window.YPrintAddressManager.saveBillingAddressFromForm === 'function') {
+        window.YPrintAddressManager.saveBillingAddressFromForm();
+    } else {
+        console.log('YPrintAddressManager oder saveBillingAddressFromForm nicht verfügbar');
+    }
+});
         
         // Event-Handler für Formular-Validierung
         $('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
@@ -448,6 +458,27 @@ $('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
     
     // Initiale Validierung
     validateBillingForm();
+
+// Globale Initialisierungsfunktion für Billing-Step
+window.initializeBillingStep = function() {
+    console.log('🚀 Billing Step wird initialisiert...');
+    
+    if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn()) {
+        // Führe die Adressenprüfung durch
+        if (typeof checkBillingAddressesAndShow === 'function') {
+            checkBillingAddressesAndShow();
+        }
+    } else {
+        // User nicht eingeloggt - zeige nur Formular
+        $('.yprint-saved-addresses[data-address-type="billing"]').hide();
+        $('#billing-address-form').show();
+    }
+    
+    // Form-Validierung triggern
+    if (typeof validateBillingForm === 'function') {
+        validateBillingForm();
+    }
+};
 
 })(jQuery);
 </script>
