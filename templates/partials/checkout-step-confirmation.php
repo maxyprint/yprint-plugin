@@ -305,11 +305,12 @@ if (empty($cart_items)) {
 
         <!-- Dashboard Button -->
         <div class="mt-6 text-center">
-            <a href="<?php echo esc_url(wc_get_page_permalink('myaccount') ?: home_url('/mein-konto/')); ?>" 
-               class="btn btn-primary text-lg px-8 py-3 inline-flex items-center">
-                <i class="fas fa-tachometer-alt mr-2"></i> 
-                <?php esc_html_e('Zurück zum Dashboard', 'yprint-checkout'); ?>
-            </a>
-        </div>
+    <a href="https://yprint.de/dashboard" 
+       class="btn btn-primary text-lg px-8 py-3 inline-flex items-center">
+        <i class="fas fa-tachometer-alt mr-2"></i> 
+        <?php esc_html_e('Zurück zum Dashboard', 'yprint-checkout'); ?>
+    </a>
+</div>
+
     </div>
 </div>
