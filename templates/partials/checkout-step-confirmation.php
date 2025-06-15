@@ -302,5 +302,14 @@ if (empty($cart_items)) {
             <p><i class="fas fa-envelope fa-fw mr-2"></i> <?php esc_html_e('Sie erhalten eine Versandbestätigung per E-Mail', 'yprint-checkout'); ?></p>
             <p><i class="fas fa-headset fa-fw mr-2"></i> <?php esc_html_e('Fragen?', 'yprint-checkout'); ?> <a href="https://yprint.de/help" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium"><?php esc_html_e('Support kontaktieren', 'yprint-checkout'); ?></a></p>
         </div>
+
+        <!-- Dashboard Button -->
+        <div class="mt-6 text-center">
+            <a href="<?php echo esc_url(wc_get_page_permalink('myaccount') ?: home_url('/mein-konto/')); ?>" 
+               class="btn btn-primary text-lg px-8 py-3 inline-flex items-center">
+                <i class="fas fa-tachometer-alt mr-2"></i> 
+                <?php esc_html_e('Zurück zum Dashboard', 'yprint-checkout'); ?>
+            </a>
+        </div>
     </div>
 </div>
