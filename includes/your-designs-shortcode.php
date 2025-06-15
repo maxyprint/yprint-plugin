@@ -647,7 +647,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                                          data-design-id="<?php echo esc_attr($design->id); ?>"
                                          title="<?php _e('Erneut bestellen', 'yprint-plugin'); ?>">
                                         <i class="fas fa-redo-alt"></i>
-                                        <div class="yprint-design-action-label"><?php _e('Reorder', 'yprint-plugin'); ?></div>
+                                        <div class="yprint-design-action-label"><?php _e('Order', 'yprint-plugin'); ?></div>
                                     </div>
                                     
                                     <div class="yprint-design-action delete" 
