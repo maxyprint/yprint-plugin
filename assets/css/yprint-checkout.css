@@ -2211,6 +2211,21 @@ input[name="payment_method"]:checked + .payment-method-label {
     }
 }
 
+/* SEPA Element Klickbarkeit Fix */
+#stripe-sepa-element .__PrivateStripeElement-input {
+    pointer-events: auto !important;
+}
+
+#stripe-sepa-element iframe {
+    pointer-events: auto !important;
+    cursor: text !important;
+}
+
+#stripe-sepa-element .__PrivateStripeElement {
+    pointer-events: auto !important;
+    cursor: text !important;
+}
+
 /* Scroll-Verhalten für Cart Items */
 .cart-items::-webkit-scrollbar {
     width: 6px;

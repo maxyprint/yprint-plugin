@@ -779,7 +779,7 @@ class YPrintStripeCheckout {
     
         try {
             // Prüfen ob bereits gemounted
-            if (sepaElementContainer.querySelector('.StripeElement')) {
+            if (sepaElementContainer.querySelector('.StripeElement') || sepaElementContainer.querySelector('.__PrivateStripeElement')) {
                 console.log('YPrint Stripe Checkout: SEPA element already mounted');
                 return true;
             }
@@ -790,7 +790,20 @@ class YPrintStripeCheckout {
             console.log('DEBUG: Mounting SEPA element to container');
             this.sepaElement.mount('#stripe-sepa-element');
             console.log('YPrint Stripe Checkout: SEPA element mounted successfully');
-    
+
+            // CSS-Fix für Klickbarkeit hinzufügen
+            setTimeout(() => {
+                const sepaInput = sepaElementContainer.querySelector('.__PrivateStripeElement-input');
+                if (sepaInput) {
+                    sepaInput.style.pointerEvents = 'auto';
+                }
+                const sepaIframe = sepaElementContainer.querySelector('iframe');
+                if (sepaIframe) {
+                    sepaIframe.style.pointerEvents = 'auto';
+                    sepaIframe.style.cursor = 'text';
+                }
+            }, 200);
+
             // Error handling für SEPA
             this.sepaElement.on('change', (event) => {
                 const displayError = document.getElementById('stripe-sepa-errors');
@@ -2633,7 +2646,7 @@ async function validateStripeSepaElement() {
         
         // Prüfe ob SEPA Element gemountet ist
         const sepaElementContainer = document.getElementById('stripe-sepa-element');
-        if (!sepaElementContainer || !sepaElementContainer.querySelector('.StripeElement')) {
+        if (!sepaElementContainer || (!sepaElementContainer.querySelector('.StripeElement') && !sepaElementContainer.querySelector('.__PrivateStripeElement'))) {
             console.log('SEPA element not mounted or visible');
             return false;
         }
@@ -3086,6 +3099,21 @@ setTimeout(() => {
         setTimeout(async () => {
             console.log('DEBUG: Ensuring Stripe SEPA Element is ready');
             await ensureStripeSepaElementReady();
+            // CSS-Fix nach SEPA-Initialisierung
+            setTimeout(() => {
+                const sepaContainer = document.getElementById('stripe-sepa-element');
+                if (sepaContainer) {
+                    const sepaInput = sepaContainer.querySelector('.__PrivateStripeElement-input');
+                    if (sepaInput) {
+                        sepaInput.style.pointerEvents = 'auto';
+                    }
+                    const sepaIframe = sepaContainer.querySelector('iframe');
+                    if (sepaIframe) {
+                        sepaIframe.style.pointerEvents = 'auto';
+                        sepaIframe.style.cursor = 'text';
+                    }
+                }
+            }, 300);
         }, 100);
     }
 }, 50);
