@@ -154,11 +154,8 @@ if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn())
     window.YPrintAddressManager.addressContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
     window.YPrintAddressManager.loadingIndicator = $('.yprint-saved-addresses[data-address-type="billing"] .loading-addresses');
     
-    // Prüfe ob Adressen existieren und zeige entsprechend Container oder Formular
-    checkBillingAddressesAndShow();
-    
-    // Lade die gespeicherten Adressen
-    window.YPrintAddressManager.loadSavedAddresses('shipping');
+    // Lade die gespeicherten Adressen - nutze den Standard-Workflow wie beim Shipping-Step
+    window.YPrintAddressManager.loadSavedAddresses();
             
             // Überschreibe die fillAddressForm Funktion für Billing-Felder
             const originalFillAddressForm = window.YPrintAddressManager.fillAddressForm;
@@ -338,69 +335,7 @@ $(document).on('click', '#save-billing-address-button', function(e) {
         // Initiale Validierung
         validateBillingForm();
         
-        // Funktion zur Prüfung und Anzeige der Billing-Adressen
-function checkBillingAddressesAndShow() {
-    console.log('🔍 Checking billing addresses...');
-    
-    if (!window.YPrintAddressManager || !window.YPrintAddressManager.isUserLoggedIn()) {
-        // User nicht eingeloggt - zeige nur Formular
-        console.log('User nicht eingeloggt - zeige Formular');
-        $('.yprint-saved-addresses[data-address-type="billing"]').hide();
-        $('#billing-address-form').show();
-        return;
-    }
-    
-    // Zeige Loading-Indikator
-    $('.yprint-saved-addresses[data-address-type="billing"] .loading-addresses').show();
-    $('.yprint-saved-addresses[data-address-type="billing"] .address-cards-grid').hide();
-    $('.yprint-saved-addresses[data-address-type="billing"]').show();
-    $('#billing-address-form').hide();
-    
-    // AJAX-Aufruf um gespeicherte Adressen zu prüfen
-    $.ajax({
-        url: yprint_address_ajax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'yprint_get_saved_addresses',
-            nonce: yprint_address_ajax.nonce,
-            address_type: 'shipping' // Shipping-Adressen können auch als Billing verwendet werden
-        },
-        success: function(response) {
-            console.log('📋 AJAX Response:', response);
-            
-            if (response.success && response.data.addresses) {
-                const addresses = response.data.addresses;
-                const addressCount = Object.keys(addresses).length;
-                console.log(`Gefundene Adressen: ${addressCount}`);
-                
-                if (addressCount > 0) {
-                    // Adressen vorhanden - zeige Adressauswahl, verstecke Formular
-                    console.log('✅ Zeige Adressauswahl, verstecke Formular');
-                    $('.yprint-saved-addresses[data-address-type="billing"] .loading-addresses').hide();
-                    $('.yprint-saved-addresses[data-address-type="billing"] .address-cards-grid').show();
-                    $('.yprint-saved-addresses[data-address-type="billing"]').show();
-                    $('#billing-address-form').hide();
-                } else {
-                    // Keine Adressen - verstecke Adressauswahl, zeige Formular
-                    console.log('📝 Keine Adressen - zeige Formular');
-                    $('.yprint-saved-addresses[data-address-type="billing"]').hide();
-                    $('#billing-address-form').show();
-                }
-            } else {
-                // Bei Fehler oder leerer Antwort - zeige Formular
-                console.log('⚠️ Fehlerhafte Response - zeige Formular');
-                $('.yprint-saved-addresses[data-address-type="billing"]').hide();
-                $('#billing-address-form').show();
-            }
-        },
-        error: function(xhr, status, error) {
-            // Bei AJAX-Fehler - zeige Formular
-            console.log('❌ AJAX Fehler - zeige Formular:', error);
-            $('.yprint-saved-addresses[data-address-type="billing"]').hide();
-            $('#billing-address-form').show();
-        }
-    });
-}
+        // Diese gesamte Funktion wird entfernt - die Logik übernimmt der YPrintAddressManager
 
 // Event-Handler für "Neue Adresse hinzufügen"
 $(document).on('click', '.add-new-address-card', function() {
@@ -536,10 +471,8 @@ window.initializeBillingStep = function() {
     console.log('🚀 Billing Step wird initialisiert...');
     
     if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn()) {
-        // Führe die Adressenprüfung durch
-        if (typeof checkBillingAddressesAndShow === 'function') {
-            checkBillingAddressesAndShow();
-        }
+        // Nutze den Standard Address Manager Workflow
+        window.YPrintAddressManager.loadSavedAddresses();
     } else {
         // User nicht eingeloggt - zeige nur Formular
         $('.yprint-saved-addresses[data-address-type="billing"]').hide();
