@@ -1045,6 +1045,15 @@ jQuery(document).ready(function($) {
             }, 100);
         }
     });
+    
+    // Event-Handler für Billing-Adresse-Auswahl
+    $(document).on('yprint_billing_address_selected', function(event, data) {
+        console.log('🎯 Billing address selected event received:', data);
+        // Kurz warten und dann Session prüfen
+        setTimeout(() => {
+            checkBillingSessionStatus();
+        }, 200);
+    });
 
     // ➕ Add Billing Button
     $(document).on('click', '#add-billing-address-btn', function(e) {
