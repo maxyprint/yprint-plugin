@@ -143,15 +143,22 @@ $session_billing_address = WC()->session->get('yprint_billing_address', array())
         console.log('Billing address step loaded');
         
         // Address Manager für Billing-Adressen initialisieren
-        if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn()) {
-            console.log('Loading saved addresses for billing step...');
-            
-            // Lade die gleichen Adressen wie im Lieferadressen-Step
-            window.YPrintAddressManager.loadSavedAddresses('shipping');
-            
-            // Ändere die Container-Referenz für den Billing-Kontext
-            const originalAddressContainer = window.YPrintAddressManager.addressContainer;
-            window.YPrintAddressManager.addressContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
+if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn()) {
+    console.log('Loading saved addresses for billing step...');
+    
+    // Container-Referenzen für Billing-Kontext setzen
+    const originalAddressContainer = window.YPrintAddressManager.addressContainer;
+    const originalLoadingIndicator = window.YPrintAddressManager.loadingIndicator;
+    
+    // Setze die Container für Billing-Adressen
+    window.YPrintAddressManager.addressContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
+    window.YPrintAddressManager.loadingIndicator = $('.yprint-saved-addresses[data-address-type="billing"] .loading-addresses');
+    
+    // Prüfe ob Adressen existieren und zeige entsprechend Container oder Formular
+    checkBillingAddressesAndShow();
+    
+    // Lade die gespeicherten Adressen
+    window.YPrintAddressManager.loadSavedAddresses('shipping');
             
             // Überschreibe die fillAddressForm Funktion für Billing-Felder
             const originalFillAddressForm = window.YPrintAddressManager.fillAddressForm;
@@ -277,12 +284,111 @@ $session_billing_address = WC()->session->get('yprint_billing_address', array())
         // Initiale Validierung
         validateBillingForm();
         
-        // Navigation zurück zur Zahlung
-        $('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
-            // Billing-Daten in Session speichern
-            const billingData = {
-                first_name: $('#billing_first_name').val(),
-                last_name: $('#billing_last_name').val(),
+        // Funktion zur Prüfung und Anzeige der Billing-Adressen
+function checkBillingAddressesAndShow() {
+    if (!window.YPrintAddressManager || !window.YPrintAddressManager.isUserLoggedIn()) {
+        // User nicht eingeloggt - zeige nur Formular
+        $('.yprint-saved-addresses[data-address-type="billing"]').hide();
+        $('#billing-address-form').show();
+        return;
+    }
+    
+    // AJAX-Aufruf um gespeicherte Adressen zu prüfen
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_get_saved_addresses',
+            nonce: yprint_address_ajax.nonce,
+            address_type: 'shipping' // Shipping-Adressen können auch als Billing verwendet werden
+        },
+        success: function(response) {
+            if (response.success && response.data.addresses) {
+                const addresses = response.data.addresses;
+                const addressCount = Object.keys(addresses).length;
+                
+                if (addressCount > 0) {
+                    // Adressen vorhanden - zeige Adressauswahl
+                    $('.yprint-saved-addresses[data-address-type="billing"]').show();
+                    $('#billing-address-form').hide();
+                } else {
+                    // Keine Adressen - zeige Formular direkt
+                    $('.yprint-saved-addresses[data-address-type="billing"]').hide();
+                    $('#billing-address-form').show();
+                }
+            } else {
+                // Bei Fehler oder leerer Antwort - zeige Formular
+                $('.yprint-saved-addresses[data-address-type="billing"]').hide();
+                $('#billing-address-form').show();
+            }
+        },
+        error: function() {
+            // Bei AJAX-Fehler - zeige Formular
+            $('.yprint-saved-addresses[data-address-type="billing"]').hide();
+            $('#billing-address-form').show();
+        }
+    });
+}
+
+// Event-Handler für "Neue Adresse hinzufügen"
+$(document).on('click', '.add-new-address-card', function() {
+    $('.yprint-saved-addresses[data-address-type="billing"]').slideUp();
+    $('#billing-address-form').slideDown();
+});
+
+// Navigation zurück zur Zahlung
+$('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
+    const clickedBtn = $(this);
+    
+    // Billing-Daten in Session speichern falls ausgefüllt
+    if ($('#billing_first_name').val().trim()) {
+        const billingData = {
+            first_name: $('#billing_first_name').val(),
+            last_name: $('#billing_last_name').val(),
+            company: $('#billing_company').val(),
+            address_1: $('#billing_street').val(),
+            address_2: $('#billing_housenumber').val(),
+            postcode: $('#billing_zip').val(),
+            city: $('#billing_city').val(),
+            country: $('#billing_country').val()
+        };
+        
+        // AJAX zum Speichern der Billing-Session
+        $.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_save_billing_session',
+                nonce: yprint_address_ajax.nonce,
+                billing_data: billingData
+            },
+            success: function(response) {
+                console.log('Billing-Daten gespeichert:', response);
+                navigateToPaymentStep();
+            },
+            error: function() {
+                console.log('Fehler beim Speichern der Billing-Daten, navigiere trotzdem weiter');
+                navigateToPaymentStep();
+            }
+        });
+    } else {
+        // Keine Billing-Daten eingegeben, direkt navigieren
+        navigateToPaymentStep();
+    }
+    
+    function navigateToPaymentStep() {
+        // Zurück zum Payment-Step
+        $('.checkout-step').removeClass('active').hide();
+        $('#step-2').addClass('active').show();
+        
+        // URL aktualisieren
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('step', 'payment');
+        history.pushState({step: 'payment'}, '', newUrl);
+        
+        // Event triggern
+        $(document).trigger('yprint_step_changed', {step: 'payment', from: 'billing'});
+    }
                 company: $('#billing_company').val(),
                 address_1: $('#billing_street').val(),
                 address_2: $('#billing_housenumber').val(),
@@ -318,5 +424,30 @@ $session_billing_address = WC()->session->get('yprint_billing_address', array())
             });
         });
     });
+
+});
+        
+        // Container-Referenzen zurücksetzen wenn Step verlassen wird
+        $(document).on('yprint_step_changed', function(e, data) {
+            if (data.from === 'billing' && window.YPrintAddressManager) {
+                // Setze Container-Referenzen zurück auf Original-Werte
+                if (originalAddressContainer) {
+                    window.YPrintAddressManager.addressContainer = originalAddressContainer;
+                }
+                if (originalLoadingIndicator) {
+                    window.YPrintAddressManager.loadingIndicator = originalLoadingIndicator;
+                }
+            }
+        });
+        
+    } else {
+        // User nicht eingeloggt - verstecke Adressauswahl, zeige nur Formular
+        $('.yprint-saved-addresses[data-address-type="billing"]').hide();
+        $('#billing-address-form').show();
+    }
+    
+    // Initiale Validierung
+    validateBillingForm();
+
 })(jQuery);
 </script>

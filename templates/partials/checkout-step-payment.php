@@ -988,21 +988,28 @@ jQuery(document).ready(function($) {
         BillingDebug.update('button-state', 'Loading...');
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
 
-        // 🧭 Step anzeigen
-        try {
-            jQuery('.checkout-step').removeClass('active').hide();
-            $billingStep.addClass('active').show();
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('step', 'billing');
-            history.pushState({step: 'billing'}, '', newUrl);
-            $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
-
-            BillingDebug.log('✅ Billing-Step sichtbar gemacht', 'success');
-            BillingDebug.update('step-nav', 'OK');
-        } catch (err) {
-            BillingDebug.log('❌ Fehler bei Fallback-Navigation: ' + err.message, 'error');
-            BillingDebug.update('step-nav', 'Fehler');
+        // 🧭 Step anzeigen und initialisieren
+try {
+    jQuery('.checkout-step').removeClass('active').hide();
+    $billingStep.addClass('active').show();
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('step', 'billing');
+    history.pushState({step: 'billing'}, '', newUrl);
+    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+    
+    // Billing-Step initialisieren nach dem Anzeigen
+    setTimeout(() => {
+        if (typeof window.initializeBillingStep === 'function') {
+            window.initializeBillingStep();
         }
+    }, 100);
+
+    BillingDebug.log('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
+    BillingDebug.update('step-nav', 'OK');
+} catch (err) {
+    BillingDebug.log('❌ Fehler bei Navigation: ' + err.message, 'error');
+    BillingDebug.update('step-nav', 'Fehler');
+}
 
         setTimeout(() => {
             $btn.prop('disabled', false).html(original);
