@@ -281,6 +281,50 @@ if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn())
         // Event-Handler für "Rechnungsadresse speichern" Button
 $(document).on('click', '#save-billing-address-button', function(e) {
     e.preventDefault();
+    console.log('💾 Save Billing Address Button clicked');
+    
+    if (window.YPrintAddressManager && typeof window.YPrintAddressManager.saveBillingAddressFromForm === 'function') {
+        window.YPrintAddressManager.saveBillingAddressFromForm();
+    } else {
+        console.log('⚠️ YPrintAddressManager oder saveBillingAddressFromForm nicht verfügbar');
+        
+        // Fallback: Manuelle Speicherung
+        const billingData = {
+            first_name: $('#billing_first_name').val(),
+            last_name: $('#billing_last_name').val(),
+            company: $('#billing_company').val(),
+            address_1: $('#billing_street').val(),
+            address_2: $('#billing_housenumber').val(),
+            postcode: $('#billing_zip').val(),
+            city: $('#billing_city').val(),
+            country: $('#billing_country').val()
+        };
+        
+        $.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_save_billing_address',
+                nonce: yprint_address_ajax.nonce,
+                address_data: billingData
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Rechnungsadresse gespeichert!');
+                } else {
+                    $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text(response.data.message || 'Fehler beim Speichern');
+                }
+            },
+            error: function() {
+                $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Fehler beim Speichern der Adresse');
+            }
+        });
+    }
+});
+
+        // Event-Handler für "Rechnungsadresse speichern" Button
+$(document).on('click', '#save-billing-address-button', function(e) {
+    e.preventDefault();
     if (window.YPrintAddressManager && typeof window.YPrintAddressManager.saveBillingAddressFromForm === 'function') {
         window.YPrintAddressManager.saveBillingAddressFromForm();
     } else {
@@ -296,12 +340,21 @@ $(document).on('click', '#save-billing-address-button', function(e) {
         
         // Funktion zur Prüfung und Anzeige der Billing-Adressen
 function checkBillingAddressesAndShow() {
+    console.log('🔍 Checking billing addresses...');
+    
     if (!window.YPrintAddressManager || !window.YPrintAddressManager.isUserLoggedIn()) {
         // User nicht eingeloggt - zeige nur Formular
+        console.log('User nicht eingeloggt - zeige Formular');
         $('.yprint-saved-addresses[data-address-type="billing"]').hide();
         $('#billing-address-form').show();
         return;
     }
+    
+    // Zeige Loading-Indikator
+    $('.yprint-saved-addresses[data-address-type="billing"] .loading-addresses').show();
+    $('.yprint-saved-addresses[data-address-type="billing"] .address-cards-grid').hide();
+    $('.yprint-saved-addresses[data-address-type="billing"]').show();
+    $('#billing-address-form').hide();
     
     // AJAX-Aufruf um gespeicherte Adressen zu prüfen
     $.ajax({
@@ -313,27 +366,36 @@ function checkBillingAddressesAndShow() {
             address_type: 'shipping' // Shipping-Adressen können auch als Billing verwendet werden
         },
         success: function(response) {
+            console.log('📋 AJAX Response:', response);
+            
             if (response.success && response.data.addresses) {
                 const addresses = response.data.addresses;
                 const addressCount = Object.keys(addresses).length;
+                console.log(`Gefundene Adressen: ${addressCount}`);
                 
                 if (addressCount > 0) {
-                    // Adressen vorhanden - zeige Adressauswahl
+                    // Adressen vorhanden - zeige Adressauswahl, verstecke Formular
+                    console.log('✅ Zeige Adressauswahl, verstecke Formular');
+                    $('.yprint-saved-addresses[data-address-type="billing"] .loading-addresses').hide();
+                    $('.yprint-saved-addresses[data-address-type="billing"] .address-cards-grid').show();
                     $('.yprint-saved-addresses[data-address-type="billing"]').show();
                     $('#billing-address-form').hide();
                 } else {
-                    // Keine Adressen - zeige Formular direkt
+                    // Keine Adressen - verstecke Adressauswahl, zeige Formular
+                    console.log('📝 Keine Adressen - zeige Formular');
                     $('.yprint-saved-addresses[data-address-type="billing"]').hide();
                     $('#billing-address-form').show();
                 }
             } else {
                 // Bei Fehler oder leerer Antwort - zeige Formular
+                console.log('⚠️ Fehlerhafte Response - zeige Formular');
                 $('.yprint-saved-addresses[data-address-type="billing"]').hide();
                 $('#billing-address-form').show();
             }
         },
-        error: function() {
+        error: function(xhr, status, error) {
             // Bei AJAX-Fehler - zeige Formular
+            console.log('❌ AJAX Fehler - zeige Formular:', error);
             $('.yprint-saved-addresses[data-address-type="billing"]').hide();
             $('#billing-address-form').show();
         }
@@ -347,11 +409,15 @@ $(document).on('click', '.add-new-address-card', function() {
 });
 
 // Navigation zurück zur Zahlung
-$('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
+$(document).on('click', '#btn-back-to-payment, #btn-billing-to-payment', function(e) {
+    e.preventDefault();
     const clickedBtn = $(this);
+    const isComplete = clickedBtn.attr('id') === 'btn-billing-to-payment';
     
-    // Billing-Daten in Session speichern falls ausgefüllt
-    if ($('#billing_first_name').val().trim()) {
+    console.log('🚀 Navigation Button clicked:', clickedBtn.attr('id'));
+    
+    // Speichere Billing-Daten falls ausgefüllt
+    const saveBillingData = () => {
         const billingData = {
             first_name: $('#billing_first_name').val(),
             last_name: $('#billing_last_name').val(),
@@ -363,31 +429,34 @@ $('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
             country: $('#billing_country').val()
         };
         
-        // AJAX zum Speichern der Billing-Session
-        $.ajax({
-            url: yprint_address_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'yprint_save_billing_session',
-                nonce: yprint_address_ajax.nonce,
-                billing_data: billingData
-            },
-            success: function(response) {
-                console.log('Billing-Daten gespeichert:', response);
-                navigateToPaymentStep();
-            },
-            error: function() {
-                console.log('Fehler beim Speichern der Billing-Daten, navigiere trotzdem weiter');
-                navigateToPaymentStep();
-            }
-        });
-    } else {
-        // Keine Billing-Daten eingegeben, direkt navigieren
+        // Prüfe ob Daten vorhanden sind
+        const hasData = billingData.first_name.trim() || billingData.last_name.trim();
+        
+        if (hasData) {
+            return $.ajax({
+                url: yprint_address_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'yprint_save_billing_session',
+                    nonce: yprint_address_ajax.nonce,
+                    billing_data: billingData
+                }
+            });
+        } else {
+            // Keine Daten - Promise resolved
+            return $.Deferred().resolve();
+        }
+    };
+    
+    // Speichere Daten und navigiere dann
+    saveBillingData().always(() => {
         navigateToPaymentStep();
-    }
+    });
     
     function navigateToPaymentStep() {
-        // Zurück zum Payment-Step
+        console.log('📍 Navigiere zurück zum Payment-Step');
+        
+        // Step wechseln
         $('.checkout-step').removeClass('active').hide();
         $('#step-2').addClass('active').show();
         
@@ -398,7 +467,10 @@ $('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
         
         // Event triggern
         $(document).trigger('yprint_step_changed', {step: 'payment', from: 'billing'});
+        
+        console.log('✅ Navigation erfolgreich');
     }
+});
                 company: $('#billing_company').val(),
                 address_1: $('#billing_street').val(),
                 address_2: $('#billing_housenumber').val(),

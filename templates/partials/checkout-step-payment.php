@@ -885,24 +885,26 @@ if (class_exists('YPrint_Stripe_Checkout')) {
         </h3>
         
         <!-- Button zum Hinzufügen einer abweichenden Rechnungsadresse -->
-        <div id="add-billing-button-container" class="mb-4">
-            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-700 mb-1">
-                            <?php esc_html_e('Standardmäßig entspricht die Rechnungsadresse der Lieferadresse.', 'yprint-checkout'); ?>
-                        </p>
-                        <p class="text-xs text-gray-500">
-                            <?php esc_html_e('Falls Sie eine abweichende Rechnungsadresse benötigen, können Sie diese hier festlegen.', 'yprint-checkout'); ?>
-                        </p>
-                    </div>
-                    <button type="button" id="add-billing-address-btn" class="btn btn-secondary">
-                        <i class="fas fa-plus mr-2"></i>
-                        <?php esc_html_e('Abweichende Rechnungsadresse hinzufügen', 'yprint-checkout'); ?>
-                    </button>
-                </div>
+<div id="add-billing-button-container" class="mt-4">
+    <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex-1">
+                <p class="text-sm text-gray-700 mb-1 font-medium">
+                    <?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?>
+                </p>
+                <p class="text-sm text-gray-600">
+                    <?php esc_html_e('Standardmäßig entspricht die Rechnungsadresse der Lieferadresse.', 'yprint-checkout'); ?>
+                </p>
+            </div>
+            <div class="flex-shrink-0">
+                <button type="button" id="add-billing-address-btn" class="btn btn-secondary whitespace-nowrap">
+                    <i class="fas fa-plus mr-2"></i>
+                    <?php esc_html_e('Abweichende Adresse', 'yprint-checkout'); ?>
+                </button>
             </div>
         </div>
+    </div>
+</div>
             
         <!-- Nach Auswahl: Anzeige der gewählten Rechnungsadresse -->
         <div id="selected-billing-display" class="hidden">
