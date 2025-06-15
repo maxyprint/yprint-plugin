@@ -217,8 +217,40 @@ if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn())
                     success: function(response) {
                         if (response.success) {
                             self.fillAddressForm(response.data.address_data);
-                            self.showMessage('Rechnungsadresse ausgewählt und gesetzt.', 'success');
-                            self.closeAddressSelectionView();
+                            
+                            // Speichere die ausgewählte Adresse auch in der Billing-Session
+                            const addressData = response.data.address_data;
+                            const billingData = {
+                                first_name: addressData.first_name || '',
+                                last_name: addressData.last_name || '',
+                                company: addressData.company || '',
+                                address_1: addressData.address_1 || '',
+                                address_2: addressData.address_2 || '',
+                                postcode: addressData.postcode || '',
+                                city: addressData.city || '',
+                                country: addressData.country || 'DE'
+                            };
+                            
+                            // Speichere in Billing-Session
+                            $.ajax({
+                                url: yprint_address_ajax.ajax_url,
+                                type: 'POST',
+                                data: {
+                                    action: 'yprint_save_billing_session',
+                                    nonce: yprint_address_ajax.nonce,
+                                    billing_data: billingData
+                                },
+                                success: function(sessionResponse) {
+                                    console.log('✅ Billing session saved for selected address');
+                                    self.showMessage('Rechnungsadresse ausgewählt und gesetzt.', 'success');
+                                    self.closeAddressSelectionView();
+                                },
+                                error: function() {
+                                    console.log('⚠️ Warning: Could not save billing session, but address was filled');
+                                    self.showMessage('Rechnungsadresse ausgewählt und gesetzt.', 'success');
+                                    self.closeAddressSelectionView();
+                                }
+                            });
                         } else {
                             self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
                             btnSelectAddress.html(originalBtnText);
@@ -353,35 +385,45 @@ $(document).on('click', '#btn-back-to-payment, #btn-billing-to-payment', functio
     
     // Speichere Billing-Daten falls ausgefüllt
     const saveBillingData = () => {
-        const billingData = {
-            first_name: $('#billing_first_name').val(),
-            last_name: $('#billing_last_name').val(),
-            company: $('#billing_company').val(),
-            address_1: $('#billing_street').val(),
-            address_2: $('#billing_housenumber').val(),
-            postcode: $('#billing_zip').val(),
-            city: $('#billing_city').val(),
-            country: $('#billing_country').val()
+            const billingData = {
+                first_name: $('#billing_first_name').val().trim(),
+                last_name: $('#billing_last_name').val().trim(),
+                company: $('#billing_company').val().trim(),
+                address_1: $('#billing_street').val().trim(),
+                address_2: $('#billing_housenumber').val().trim(),
+                postcode: $('#billing_zip').val().trim(),
+                city: $('#billing_city').val().trim(),
+                country: $('#billing_country').val() || 'DE'
+            };
+            
+            // Prüfe ob mindestens Name und Adresse vorhanden sind
+            const hasValidData = billingData.first_name && billingData.last_name && 
+                                 billingData.address_1 && billingData.postcode && billingData.city;
+            
+            if (hasValidData) {
+                console.log('💾 Speichere Billing-Daten in Session:', billingData);
+                return $.ajax({
+                    url: yprint_address_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'yprint_save_billing_session',
+                        nonce: yprint_address_ajax.nonce,
+                        billing_data: billingData
+                    }
+                });
+            } else {
+                // Keine/unvollständige Daten - leere Session
+                console.log('🗑️ Lösche Billing-Session (unvollständige Daten)');
+                return $.ajax({
+                    url: yprint_address_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'yprint_clear_billing_session',
+                        nonce: yprint_address_ajax.nonce
+                    }
+                });
+            }
         };
-        
-        // Prüfe ob Daten vorhanden sind
-        const hasData = billingData.first_name.trim() || billingData.last_name.trim();
-        
-        if (hasData) {
-            return $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_billing_session',
-                    nonce: yprint_address_ajax.nonce,
-                    billing_data: billingData
-                }
-            });
-        } else {
-            // Keine Daten - Promise resolved
-            return $.Deferred().resolve();
-        }
-    };
     
     // Speichere Daten und navigiere dann
     saveBillingData().always(() => {

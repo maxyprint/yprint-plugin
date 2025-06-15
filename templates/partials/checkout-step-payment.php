@@ -1033,8 +1033,18 @@ jQuery(document).ready(function($) {
     const $billingContent = $('#billing-address-content');
     const $container = $('#add-billing-button-container');
 
-    // 🧪 Session prüfen
+    // 🧪 Session prüfen beim Load und nach Step-Wechsel
     checkBillingSessionStatus();
+    
+    // Prüfe Session auch nach Step-Wechsel vom Billing zurück
+    $(document).on('yprint_step_changed', function(event, stepData) {
+        if (stepData.step === 'payment' && stepData.from === 'billing') {
+            console.log('🔄 Zurück vom Billing-Step - prüfe Session erneut');
+            setTimeout(() => {
+                checkBillingSessionStatus();
+            }, 100);
+        }
+    });
 
     // ➕ Add Billing Button
     $(document).on('click', '#add-billing-address-btn', function(e) {
