@@ -500,8 +500,13 @@ saveBillingAddressFromForm: function() {
             if (response.success) {
                 feedbackElement.removeClass('text-gray-600').addClass('text-green-500').html('<i class="fas fa-check-circle mr-1"></i>' + (response.data.message || 'Rechnungsadresse erfolgreich gespeichert.'));
                 
-                // Optional: Lade gespeicherte Adressen neu
-                self.loadSavedAddresses();
+                // Lade gespeicherte Adressen für Billing-Kontext neu
+if (window.YPrintAddressManager.addressContainer.hasClass('yprint-saved-addresses[data-address-type="billing"]') || 
+window.YPrintAddressManager.addressContainer.data('address-type') === 'billing') {
+self.loadSavedAddresses('shipping');
+} else {
+self.loadSavedAddresses();
+}
             } else {
                 feedbackElement.removeClass('text-gray-600').addClass('text-red-500').html('<i class="fas fa-exclamation-circle mr-1"></i>' + (response.data.message || 'Fehler beim Speichern der Rechnungsadresse.'));
             }
@@ -528,19 +533,32 @@ saveBillingAddressFromForm: function() {
             return $('body').hasClass('logged-in') || $('#wpadminbar').length > 0;
         },
         
-        loadSavedAddresses: function() {
+        loadSavedAddresses: function(addressType = 'shipping') {
             const self = this;
             
             console.log('=== Loading Saved Addresses ===');
+            console.log('Address Type:', addressType);
+            
+            // Bestimme den richtigen Container basierend auf dem Adresstyp
+            let targetContainer, targetLoadingIndicator;
+            
+            if (addressType === 'billing') {
+                targetContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
+                targetLoadingIndicator = targetContainer.find('.loading-addresses');
+            } else {
+                targetContainer = this.addressContainer;
+                targetLoadingIndicator = this.loadingIndicator;
+            }
             
             // Container-Status vor AJAX-Call
-            self.loadingIndicator.show();
-            self.addressContainer.find('.address-cards-grid').hide();
-            self.addressContainer.show();
+            targetLoadingIndicator.show();
+            targetContainer.find('.address-cards-grid').hide();
+            targetContainer.show();
             
             const ajaxData = {
                 action: 'yprint_get_saved_addresses',
-                nonce: yprint_address_ajax.nonce
+                nonce: yprint_address_ajax.nonce,
+                address_type: addressType
             };
             
             $.ajax({
@@ -584,16 +602,25 @@ saveBillingAddressFromForm: function() {
                     self.showAddressForm(true);
                 },
                 complete: function() {
-                    self.loadingIndicator.hide();
+                    targetLoadingIndicator.hide();
                 }
             });
         },
         
-        renderAddresses: function(addresses) {
+        renderAddresses: function(addresses, addressType = 'shipping') {
             const self = this;
             
-            // Referenz zum Container und Grid
-            const container = $('.yprint-saved-addresses');
+            // Referenz zum Container und Grid - nutze den aktuell aktiven Container
+            let container = this.addressContainer;
+            
+            // Falls der Container über data-address-type spezifiziert ist, nutze diesen
+            if (addressType === 'billing') {
+                const billingContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
+                if (billingContainer.length > 0) {
+                    container = billingContainer;
+                }
+            }
+            
             if (container.length === 0) return;
             
             const grid = container.find('.address-cards-grid');

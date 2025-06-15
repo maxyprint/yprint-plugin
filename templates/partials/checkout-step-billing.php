@@ -142,6 +142,114 @@ $session_billing_address = WC()->session->get('yprint_billing_address', array())
     $(document).ready(function() {
         console.log('Billing address step loaded');
         
+        // Address Manager für Billing-Adressen initialisieren
+        if (window.YPrintAddressManager && window.YPrintAddressManager.isUserLoggedIn()) {
+            console.log('Loading saved addresses for billing step...');
+            
+            // Lade die gleichen Adressen wie im Lieferadressen-Step
+            window.YPrintAddressManager.loadSavedAddresses('shipping');
+            
+            // Ändere die Container-Referenz für den Billing-Kontext
+            const originalAddressContainer = window.YPrintAddressManager.addressContainer;
+            window.YPrintAddressManager.addressContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
+            
+            // Überschreibe die fillAddressForm Funktion für Billing-Felder
+            const originalFillAddressForm = window.YPrintAddressManager.fillAddressForm;
+            window.YPrintAddressManager.fillAddressForm = function(address) {
+                // Für Billing Step: Fülle Billing-Felder aus
+                $('#billing_first_name').val(address.first_name || '');
+                $('#billing_last_name').val(address.last_name || '');
+                $('#billing_company').val(address.company || '');
+                $('#billing_street').val(address.address_1 || '');
+                $('#billing_housenumber').val(address.address_2 || '');
+                $('#billing_zip').val(address.postcode || '');
+                $('#billing_city').val(address.city || '');
+                $('#billing_country').val(address.country || 'DE');
+                
+                // Trigger change events für Validierung
+                $('#billing_first_name, #billing_last_name, #billing_street, #billing_housenumber, #billing_zip, #billing_city, #billing_country').trigger('input');
+                
+                // Adressauswahl-Container verstecken nach Auswahl
+                $('.yprint-saved-addresses[data-address-type="billing"]').slideUp();
+                
+                // "Andere Adresse wählen" Link anzeigen
+                showChangeAddressLinkForBilling();
+            };
+            
+            // Überschreibe closeAddressSelectionView für Billing
+            window.YPrintAddressManager.closeAddressSelectionView = function() {
+                $('.yprint-saved-addresses[data-address-type="billing"]').slideUp();
+                $('#billing-address-form').slideDown();
+                showChangeAddressLinkForBilling();
+                // Validierung des Billing-Formulars triggern
+                $('#billing-address-form input').trigger('input');
+            };
+            
+            // Überschreibe selectAddress für Billing-Kontext
+            const originalSelectAddress = window.YPrintAddressManager.selectAddress;
+            window.YPrintAddressManager.selectAddress = function(addressId) {
+                const self = this;
+                
+                // Visuelle Auswahl aktualisieren
+                $('.address-card').removeClass('selected');
+                $(`.address-card[data-address-id="${addressId}"]`).addClass('selected');
+                
+                this.selectedAddressId = addressId;
+                
+                // Loading-Anzeige
+                const btnSelectAddress = $(`.address-card[data-address-id="${addressId}"] .btn-select-address`);
+                const originalBtnText = btnSelectAddress.html();
+                btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
+                
+                // Adresse für Checkout setzen
+                $.ajax({
+                    url: yprint_address_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'yprint_set_checkout_address',
+                        nonce: yprint_address_ajax.nonce,
+                        address_id: addressId
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            self.fillAddressForm(response.data.address_data);
+                            self.showMessage('Rechnungsadresse ausgewählt und gesetzt.', 'success');
+                            self.closeAddressSelectionView();
+                        } else {
+                            self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
+                            btnSelectAddress.html(originalBtnText);
+                        }
+                    },
+                    error: function() {
+                        self.showMessage('Fehler beim Setzen der Adresse für Checkout', 'error');
+                        btnSelectAddress.html(originalBtnText);
+                    }
+                });
+            };
+        }
+        
+        // Funktion für "Andere Adresse wählen" Link im Billing-Kontext
+        function showChangeAddressLinkForBilling() {
+            const existingLink = $('.change-address-link-billing');
+            if (existingLink.length > 0) return;
+            
+            const link = $(`
+                <div class="change-address-link-billing mt-3">
+                    <button type="button" class="text-yprint-blue hover:underline">
+                        <i class="fas fa-edit mr-1"></i>
+                        Andere Rechnungsadresse wählen
+                    </button>
+                </div>
+            `);
+            
+            link.on('click', function() {
+                $('.yprint-saved-addresses[data-address-type="billing"]').slideDown();
+                link.remove();
+            });
+            
+            $('#billing-address-form').prepend(link);
+        }
+        
         // Form-Validierung für Billing-Felder
         function validateBillingForm() {
             const requiredFields = ['billing_first_name', 'billing_last_name', 'billing_street', 'billing_housenumber', 'billing_zip', 'billing_city'];
@@ -168,69 +276,6 @@ $session_billing_address = WC()->session->get('yprint_billing_address', array())
         
         // Initiale Validierung
         validateBillingForm();
-        
-        // Rechnungsadresse speichern
-        $('#save-billing-address-button').on('click', function() {
-            const $this = $(this);
-            const originalText = $this.html();
-            
-            if (!validateBillingForm()) {
-                alert('Bitte füllen Sie alle Pflichtfelder aus.');
-                return;
-            }
-            
-            $this.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichern...');
-            
-            const billingData = {
-                name: 'Rechnungsadresse vom ' + new Date().toLocaleDateString('de-DE'),
-                first_name: $('#billing_first_name').val(),
-                last_name: $('#billing_last_name').val(),
-                company: $('#billing_company').val(),
-                address_1: $('#billing_street').val(),
-                address_2: $('#billing_housenumber').val(),
-                postcode: $('#billing_zip').val(),
-                city: $('#billing_city').val(),
-                country: $('#billing_country').val()
-            };
-            
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_billing_address',
-                    nonce: yprint_address_ajax.nonce,
-                    address_data: billingData,
-                    address_type: 'billing'
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $('#save-billing-address-feedback')
-                            .removeClass('hidden text-red-500')
-                            .addClass('text-green-500')
-                            .html('<i class="fas fa-check-circle mr-1"></i>Rechnungsadresse gespeichert.');
-                    } else {
-                        $('#save-billing-address-feedback')
-                            .removeClass('hidden text-green-500')
-                            .addClass('text-red-500')
-                            .html('<i class="fas fa-exclamation-circle mr-1"></i>' + (response.data.message || 'Fehler beim Speichern.'));
-                    }
-                },
-                error: function() {
-                    $('#save-billing-address-feedback')
-                        .removeClass('hidden text-green-500')
-                        .addClass('text-red-500')
-                        .html('<i class="fas fa-exclamation-circle mr-1"></i>Ein Fehler ist aufgetreten.');
-                },
-                complete: function() {
-                    $this.prop('disabled', false).html(originalText);
-                    setTimeout(() => {
-                        $('#save-billing-address-feedback').fadeOut(() => {
-                            $(this).addClass('hidden').css('display', '');
-                        });
-                    }, 5000);
-                }
-            });
-        });
         
         // Navigation zurück zur Zahlung
         $('#btn-back-to-payment, #btn-billing-to-payment').on('click', function() {
