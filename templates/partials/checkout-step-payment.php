@@ -877,6 +877,62 @@ if (class_exists('YPrint_Stripe_Checkout')) {
                     </div>
                 </div>
             </div>
+            <!-- Rechnungsadresse-Sektion -->
+    <div class="mt-6">
+        <h3 class="form-label mb-3 flex items-center">
+            <i class="fas fa-file-invoice mr-2 text-yprint-blue"></i>
+            <?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?>
+        </h3>
+        
+        <!-- Button zum Hinzufügen einer abweichenden Rechnungsadresse -->
+        <div id="add-billing-button-container" class="mb-4">
+            <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-700 mb-1">
+                            <?php esc_html_e('Standardmäßig entspricht die Rechnungsadresse der Lieferadresse.', 'yprint-checkout'); ?>
+                        </p>
+                        <p class="text-xs text-gray-500">
+                            <?php esc_html_e('Falls Sie eine abweichende Rechnungsadresse benötigen, können Sie diese hier festlegen.', 'yprint-checkout'); ?>
+                        </p>
+                    </div>
+                    <button type="button" id="add-billing-address-btn" class="btn btn-secondary">
+                        <i class="fas fa-plus mr-2"></i>
+                        <?php esc_html_e('Abweichende Rechnungsadresse hinzufügen', 'yprint-checkout'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+            
+        <!-- Nach Auswahl: Anzeige der gewählten Rechnungsadresse -->
+        <div id="selected-billing-display" class="hidden">
+            <div class="p-4 bg-white rounded-lg border-2 border-green-200">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center mb-2">
+                            <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                            <span class="font-semibold text-green-800">
+                                <?php esc_html_e('Abweichende Rechnungsadresse festgelegt', 'yprint-checkout'); ?>
+                            </span>
+                        </div>
+                        <div id="billing-address-content" class="text-sm text-gray-700">
+                            <!-- Wird via JavaScript gefüllt -->
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        <button type="button" id="change-billing-address" class="btn btn-sm btn-secondary">
+                            <i class="fas fa-edit mr-1"></i>
+                            <?php esc_html_e('Ändern', 'yprint-checkout'); ?>
+                        </button>
+                        <button type="button" id="remove-billing-address" class="btn btn-sm btn-danger">
+                            <i class="fas fa-trash mr-1"></i>
+                            <?php esc_html_e('Entfernen', 'yprint-checkout'); ?>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
         </div>
     </div>
 
