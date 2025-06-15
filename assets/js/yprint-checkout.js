@@ -3128,25 +3128,23 @@ setTimeout(() => {
     } else if (selectedMethod === 'sepa') {
         jQuery('#sepa-payment-fields').addClass('active');
         console.log('DEBUG: Showing SEPA fields');
-        // Robuste Stripe SEPA Element Initialisierung
+        // Robuste Stripe SEPA Element Initialisierung mit Fallback
         setTimeout(async () => {
             console.log('DEBUG: Ensuring Stripe SEPA Element is ready');
-            await ensureStripeSepaElementReady();
+            const isReady = await ensureStripeSepaElementReady();
+            
+            // Fallback wenn ensureStripeSepaElementReady fehlschlägt
+            if (!isReady) {
+                console.log('DEBUG: Fallback - Direct SEPA init call');
+                if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
+                    window.YPrintStripeCheckout.initSepaElement();
+                }
+            }
+            
             // CSS-Fix nach SEPA-Initialisierung
             setTimeout(() => {
-                const sepaContainer = document.getElementById('stripe-sepa-element');
-                if (sepaContainer) {
-                    const sepaInput = sepaContainer.querySelector('.__PrivateStripeElement-input');
-                    if (sepaInput) {
-                        sepaInput.style.pointerEvents = 'auto';
-                    }
-                    const sepaIframe = sepaContainer.querySelector('iframe');
-                    if (sepaIframe) {
-                        sepaIframe.style.pointerEvents = 'auto';
-                        sepaIframe.style.cursor = 'text';
-                    }
-                }
-            }, 300);
+                console.log('DEBUG: Applied CSS fixes for SEPA element');
+            }, 200);
         }, 100);
     }
 }, 50);
@@ -3322,38 +3320,45 @@ async function ensureStripeSepaElementReady() {
             continue;
         }
         
-        if (!window.YPrintStripeCheckout.sepaElement) {
-            console.log('SEPA Element not available, trying to initialize...');
+        // Prüfe sowohl Existenz als auch Mount-Status
+const sepaContainer = document.getElementById('stripe-sepa-element');
+const isProperlyMounted = sepaContainer && (
+    sepaContainer.querySelector('.__PrivateStripeElement') ||
+    sepaContainer.querySelector('iframe[name*="privateStripeFrame"]') ||
+    (sepaContainer.innerHTML.length > 100 && sepaContainer.innerHTML.includes('iframe'))
+);
+
+if (!window.YPrintStripeCheckout.sepaElement || !isProperlyMounted) {
+    console.log('SEPA Element not available or not mounted, trying to initialize...');
+    
+    try {
+        if (window.YPrintStripeCheckout.initSepaElement) {
+            const initResult = window.YPrintStripeCheckout.initSepaElement();
+            console.log('SEPA Element init result:', initResult);
             
-            try {
-                if (window.YPrintStripeCheckout.initSepaElement) {
-                    const initResult = window.YPrintStripeCheckout.initSepaElement();
-                    console.log('SEPA Element init result:', initResult);
-                    
-                    await new Promise(resolve => setTimeout(resolve, 800));
-                    
-                    // Erweiterte Validierung
-                    const sepaContainer = document.getElementById('stripe-sepa-element');
-                    const isProperlyMounted = sepaContainer && (
-                        sepaContainer.querySelector('.__PrivateStripeElement') ||
-                        sepaContainer.querySelector('iframe[name*="privateStripeFrame"]') ||
-                        (sepaContainer.innerHTML.length > 100 && sepaContainer.innerHTML.includes('iframe'))
-                    );
-                    
-                    if (window.YPrintStripeCheckout.sepaElement && isProperlyMounted) {
-                        console.log('SEPA Element successfully initialized and mounted!');
-                        return true;
-                    } else {
-                        console.log('SEPA Element init incomplete - element exists:', !!window.YPrintStripeCheckout.sepaElement, 'mounted:', isProperlyMounted);
-                    }
-                }
-            } catch (error) {
-                console.error('Error initializing SEPA Element:', error);
+            await new Promise(resolve => setTimeout(resolve, 800));
+            
+            // Nochmalige Validierung nach Init
+            const isNowMounted = sepaContainer && (
+                sepaContainer.querySelector('.__PrivateStripeElement') ||
+                sepaContainer.querySelector('iframe[name*="privateStripeFrame"]') ||
+                (sepaContainer.innerHTML.length > 100 && sepaContainer.innerHTML.includes('iframe'))
+            );
+            
+            if (window.YPrintStripeCheckout.sepaElement && isNowMounted) {
+                console.log('SEPA Element successfully initialized and mounted!');
+                return true;
+            } else {
+                console.log('SEPA Element init incomplete - element exists:', !!window.YPrintStripeCheckout.sepaElement, 'mounted:', isNowMounted);
             }
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
         }
+    } catch (error) {
+        console.error('Error initializing SEPA Element:', error);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    continue;
+}
         
         console.log('SEPA Element is ready!');
         return true;
