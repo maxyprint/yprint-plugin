@@ -778,11 +778,16 @@ class YPrintStripeCheckout {
         }
     
         try {
-            // Prüfen ob bereits gemounted
-            if (sepaElementContainer.querySelector('.StripeElement') || sepaElementContainer.querySelector('.__PrivateStripeElement')) {
-                console.log('YPrint Stripe Checkout: SEPA element already mounted');
-                return true;
-            }
+            // Prüfen ob bereits gemounted - erweiterte Validierung
+const isMounted = sepaElementContainer.querySelector('.StripeElement') || 
+sepaElementContainer.querySelector('.__PrivateStripeElement') ||
+sepaElementContainer.querySelector('iframe[name*="privateStripeFrame"]') ||
+(sepaElementContainer.innerHTML.length > 100 && sepaElementContainer.innerHTML.includes('__PrivateStripeElement'));
+
+if (isMounted) {
+console.log('YPrint Stripe Checkout: SEPA element already mounted');
+return true;
+}
     
             // Container leeren bevor mounting
             sepaElementContainer.innerHTML = '';
@@ -2286,8 +2291,15 @@ console.log('DEBUG: Card element exists, skipping mount check, going directly to
             const isSepaMounted = sepaContainer && (
     sepaContainer.querySelector('.StripeElement') ||
     sepaContainer.querySelector('.__PrivateStripeElement') ||
-    sepaContainer.querySelector('iframe[name*="privateStripeFrame"]')
+    sepaContainer.querySelector('iframe[name*="privateStripeFrame"]') ||
+    (sepaContainer.innerHTML.length > 100 && sepaContainer.innerHTML.includes('iframe')) ||
+    (sepaContainer.children.length > 0 && sepaContainer.innerHTML.includes('stripe'))
 );
+
+// Zusätzliche Logs für besseres Debugging
+console.log('DEBUG SEPA: Container content length:', sepaContainer.innerHTML.length);
+console.log('DEBUG SEPA: Contains iframe:', sepaContainer.innerHTML.includes('iframe'));
+console.log('DEBUG SEPA: Contains PrivateStripeElement:', sepaContainer.innerHTML.includes('__PrivateStripeElement'));
             console.log('DEBUG: SEPA element mounted:', isSepaMounted);
             
             if (!isSepaMounted) {
