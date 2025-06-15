@@ -1161,11 +1161,38 @@ $(document).ready(function() {
     // Initial session check
     checkBillingSessionStatus();
     
-    // Add Billing Address Button Click
-    $addBillingBtn.on('click', function(e) {
-        e.preventDefault();
-        BillingDebug.log('🎯 Add Billing Button geklickt', 'info');
-        BillingDebug.updateStatus('button-state', 'Add Clicked', 'warning');
+    // Add Billing Address Button Click - Verbesserte Version
+$(document).on('click', '#add-billing-address-btn', function(e) {
+    e.preventDefault();
+    console.log('🎯 Add Billing Button geklickt');
+    
+    const $this = $(this);
+    const originalText = $this.html();
+    
+    // Loading state
+    $this.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Lade...');
+    
+    // Navigation zur Billing Step
+    try {
+        // Methode 1: Direkte DOM-Manipulation (bewährt)
+        $('.checkout-step').removeClass('active').hide();
+        $('#step-2-5').addClass('active').show();
+        
+        // Scroll to top
+        window.scrollTo({top: 0, behavior: 'smooth'});
+        
+        // Event triggern
+        $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+        
+        console.log('✅ Navigation zu Billing Step erfolgreich');
+        
+    } catch (error) {
+        console.error('❌ Navigation fehlgeschlagen:', error);
+        
+        // Button-Zustand wiederherstellen bei Fehler
+        $this.prop('disabled', false).html(originalText);
+    }
+});
         
         const $this = $(this);
         const originalText = $this.html();
