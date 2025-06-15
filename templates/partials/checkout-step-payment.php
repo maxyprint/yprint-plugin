@@ -1161,56 +1161,75 @@ $(document).ready(function() {
     // Initial session check
     checkBillingSessionStatus();
     
-    // Add Billing Address Button Click - Verbesserte Version
+    // Add Billing Address Button Click Handler
 $(document).on('click', '#add-billing-address-btn', function(e) {
     e.preventDefault();
     console.log('🎯 Add Billing Button geklickt');
+    BillingDebug.log('🎯 Add Billing Button Event ausgelöst', 'success');
     
     const $this = $(this);
     const originalText = $this.html();
     
     // Loading state
     $this.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Lade...');
+    BillingDebug.updateStatus('button-state', 'Loading...', 'warning');
     
-    // Navigation zur Billing Step
-    try {
-        // Methode 1: Direkte DOM-Manipulation (bewährt)
-        $('.checkout-step').removeClass('active').hide();
-        $('#step-2-5').addClass('active').show();
-        
-        // Scroll to top
-        window.scrollTo({top: 0, behavior: 'smooth'});
-        
-        // Event triggern
-        $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
-        
-        console.log('✅ Navigation zu Billing Step erfolgreich');
-        
-    } catch (error) {
-        console.error('❌ Navigation fehlgeschlagen:', error);
-        
-        // Button-Zustand wiederherstellen bei Fehler
-        $this.prop('disabled', false).html(originalText);
+    // Navigation zur Billing Step - Methoden-Hierarchie
+    let navigationSuccess = false;
+    
+    // Methode 1: Verwende globale showStep Funktion (bevorzugt)
+    if (typeof window.showStep === 'function') {
+        try {
+            BillingDebug.log('🧭 Verwende globale showStep Funktion', 'info');
+            navigationSuccess = window.showStep('billing');
+            
+            if (navigationSuccess) {
+                BillingDebug.log('✅ Navigation via showStep erfolgreich', 'success');
+                BillingDebug.updateStatus('step-nav', 'showStep Success', 'success');
+            } else {
+                BillingDebug.log('⚠️ showStep gab false zurück', 'warning');
+            }
+        } catch (error) {
+            BillingDebug.log('❌ showStep Fehler: ' + error.message, 'error');
+        }
     }
+    
+    // Methode 2: Fallback - Direkte DOM-Manipulation
+    if (!navigationSuccess) {
+        try {
+            BillingDebug.log('🔄 Fallback: Direkte DOM-Manipulation', 'warning');
+            
+            $('.checkout-step').removeClass('active').hide();
+            $('#step-2-5').addClass('active').show();
+            
+            // URL Update
+            const newUrl = new URL(window.location);
+            newUrl.searchParams.set('step', 'billing');
+            window.history.pushState({step: 'billing'}, '', newUrl);
+            
+            // Scroll to top
+            window.scrollTo({top: 0, behavior: 'smooth'});
+            
+            // Event triggern
+            $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+            
+            navigationSuccess = true;
+            BillingDebug.log('✅ Fallback Navigation erfolgreich', 'success');
+            BillingDebug.updateStatus('step-nav', 'Fallback Success', 'success');
+            
+        } catch (error) {
+            BillingDebug.log('❌ Auch Fallback fehlgeschlagen: ' + error.message, 'error');
+            BillingDebug.updateStatus('step-nav', 'Complete Failure', 'error');
+        }
+    }
+    
+    // Button-Zustand wiederherstellen
+    const resetDelay = navigationSuccess ? 500 : 0;
+    setTimeout(() => {
+        $this.prop('disabled', false).html(originalText);
+        BillingDebug.updateStatus('button-state', navigationSuccess ? 'Ready' : 'Error', navigationSuccess ? 'success' : 'error');
+    }, resetDelay);
 });
-        
-        const $this = $(this);
-        const originalText = $this.html();
-        
-        // Loading state
-        $this.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Lade...');
-        BillingDebug.updateStatus('button-state', 'Loading...', 'warning');
-        
-        // Navigate to billing step
-        navigateToBillingStep().then(() => {
-            BillingDebug.log('✅ Navigation zu Billing Step erfolgreich', 'success');
-        }).catch((error) => {
-            BillingDebug.log('❌ Navigation fehlgeschlagen: ' + error, 'error');
-            // Restore button state on error
-            $this.prop('disabled', false).html(originalText);
-            BillingDebug.updateStatus('button-state', 'Error', 'error');
-        });
-    });
     
     // Change Billing Address Button
     $changeBillingBtn.on('click', function(e) {
@@ -1229,80 +1248,49 @@ $(document).on('click', '#add-billing-address-btn', function(e) {
         }
     });
     
-    // Navigation Function with Debug
-    function navigateToBillingStep() {
-        return new Promise((resolve, reject) => {
-            BillingDebug.log('🧭 Starte Navigation zu Billing Step', 'info');
-            BillingDebug.updateStatus('step-nav', 'Navigating...', 'warning');
-            
-            // Try different navigation methods
-            let navigationSuccess = false;
-            
-            // Method 1: Manual DOM manipulation (most reliable first)
-try {
-    BillingDebug.log('📍 Methode 1: Manuelle DOM-Manipulation', 'warning');
-    $('.checkout-step').removeClass('active').hide();
-    $('#step-2-5').addClass('active').show();
+    // Navigation Function für Change/Remove Buttons
+function navigateToBillingStep() {
+    BillingDebug.log('🧭 Navigiere zu Billing Step (Change/Remove)', 'info');
     
-    // Trigger custom event
-    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+    // Verwende globale showStep falls verfügbar, sonst Fallback
+    if (typeof window.showStep === 'function') {
+        try {
+            const success = window.showStep('billing');
+            if (success) {
+                BillingDebug.log('✅ Navigation via showStep erfolgreich', 'success');
+                BillingDebug.updateStatus('step-nav', 'showStep Success', 'success');
+                return;
+            }
+        } catch (error) {
+            BillingDebug.log('❌ showStep Fehler: ' + error.message, 'error');
+        }
+    }
     
-    navigationSuccess = true;
-    BillingDebug.updateStatus('step-nav', 'Manual DOM', 'success');
-    BillingDebug.log('✅ Manuelle Navigation erfolgreich', 'success');
-} catch (error) {
-    BillingDebug.log('❌ Manuelle Navigation Fehler: ' + error.message, 'error');
-}
-
-// Method 2: Check for showStep function (fallback)
-if (!navigationSuccess && typeof showStep === 'function') {
-    BillingDebug.log('📍 Methode 2: showStep() Funktion gefunden', 'success');
+    // Fallback: Direkte DOM-Manipulation
     try {
-        showStep('billing');
-        navigationSuccess = true;
-        BillingDebug.updateStatus('step-nav', 'showStep(billing)', 'success');
+        $('.checkout-step').removeClass('active').hide();
+        $('#step-2-5').addClass('active').show();
+        
+        // URL Update
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('step', 'billing');
+        window.history.pushState({step: 'billing'}, '', newUrl);
+        
+        // Scroll to top
+        window.scrollTo({top: 0, behavior: 'smooth'});
+        
+        // Event triggern
+        $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+        
+        BillingDebug.log('✅ Fallback Navigation erfolgreich', 'success');
+        BillingDebug.updateStatus('step-nav', 'Fallback Success', 'success');
+        
     } catch (error) {
-        BillingDebug.log('❌ showStep() Fehler: ' + error.message, 'error');
+        BillingDebug.log('❌ Navigation Fehler: ' + error.message, 'error');
+        BillingDebug.updateStatus('step-nav', 'Error', 'error');
+        throw error;
     }
 }
-
-// Method 3: Check for YPrintCheckout object (fallback)
-if (!navigationSuccess && window.YPrintCheckout && window.YPrintCheckout.showStep) {
-    BillingDebug.log('📍 Methode 3: YPrintCheckout.showStep() gefunden', 'success');
-    try {
-        window.YPrintCheckout.showStep('billing');
-        navigationSuccess = true;
-        BillingDebug.updateStatus('step-nav', 'YPrintCheckout.showStep(billing)', 'success');
-    } catch (error) {
-        BillingDebug.log('❌ YPrintCheckout.showStep() Fehler: ' + error.message, 'error');
-    }
-}
-            
-            // Method 4: URL-based navigation
-            if (!navigationSuccess) {
-                BillingDebug.log('📍 Methode 4: URL-basierte Navigation', 'warning');
-                try {
-                    const currentUrl = new URL(window.location.href);
-                    currentUrl.searchParams.set('step', 'billing');
-                    window.history.pushState({}, '', currentUrl.toString());
-                    
-                    // Trigger page refresh or manual step loading
-                    location.reload();
-                    navigationSuccess = true;
-                } catch (error) {
-                    BillingDebug.log('❌ URL Navigation Fehler: ' + error.message, 'error');
-                }
-            }
-            
-            if (navigationSuccess) {
-                resolve();
-            } else {
-                const error = 'Alle Navigationsmethoden fehlgeschlagen';
-                BillingDebug.updateStatus('step-nav', 'Failed', 'error');
-                reject(new Error(error));
-            }
-        });
-    }
     
     // Session Status Check with Debug
     function checkBillingSessionStatus() {
