@@ -909,492 +909,212 @@ if (class_exists('YPrint_Stripe_Checkout')) {
 </form>
 
 <script>
-// Stelle sicher, dass Payment-Slider sofort funktioniert
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Payment step loaded, initializing slider...');
-    
-    // Fallback für Payment Slider, falls Hauptskript nicht lädt
-    if (typeof initPaymentSlider === 'undefined') {
-        console.log('Main payment slider not found, creating fallback...');
-        
-        const sliderOptions = document.querySelectorAll('.slider-option');
-        const indicator = document.querySelector('.slider-indicator');
-        const hiddenInput = document.getElementById('selected-payment-method');
-        
-        sliderOptions.forEach(option => {
-            option.addEventListener('click', function() {
-                // Remove active from all
-                sliderOptions.forEach(opt => opt.classList.remove('active'));
-                
-                // Add active to clicked
-                this.classList.add('active');
-                
-                // Update indicator
-                const method = this.getAttribute('data-method');
-                if (method === 'sepa') {
-                    indicator.classList.add('sepa');
-                } else {
-                    indicator.classList.remove('sepa');
-                }
-                
-                // Update hidden input
-                const methodValue = method === 'card' ? 'yprint_stripe_card' : 'yprint_stripe_sepa';
-                if (hiddenInput) {
-                    hiddenInput.value = methodValue;
-                }
-                
-                // Show/hide payment fields
-                document.querySelectorAll('.payment-input-fields').forEach(field => {
-                    field.classList.remove('active');
-                });
-                
-                const targetField = document.getElementById(method + '-payment-fields');
-                if (targetField) {
-                    targetField.classList.add('active');
-                }
-                
-                console.log('Payment method switched to:', method);
-            });
-        });
-        
-        // Initialize Stripe elements after a short delay
-        setTimeout(() => {
-            if (typeof YPrintStripeCheckout !== 'undefined' && YPrintStripeCheckout.initCardElement) {
-                YPrintStripeCheckout.initCardElement();
-            }
-        }, 500);
-    }
-});
+jQuery(document).ready(function($) {
 
-// Express Payment Integration - Stripe Payment Request Button
-setTimeout(() => {
-    console.log('Initializing Express Payment Buttons...');
-    
-    // Prüfe ob Stripe verfügbar ist
-    if (typeof Stripe === 'undefined') {
-        console.warn('Stripe.js not loaded');
-        return;
-    }
-    
-    // Stripe instance mit publishable key
-    const stripe = Stripe(yprint_stripe_params?.publishable_key || '');
-    if (!stripe) {
-        console.warn('Could not initialize Stripe');
-        return;
-    }
-    
-    // Payment Request erstellen
-    const paymentRequest = stripe.paymentRequest({
-        country: 'DE', // Deutschland
-        currency: 'eur',
-        total: {
-            label: 'Gesamtbetrag',
-            amount: 2000, // 20.00 EUR in Cents - wird später dynamisch gesetzt
-        },
-        requestPayerName: true,
-        requestPayerEmail: true,
-    });
-    
-    // Elements erstellen
-    const elements = stripe.elements();
-    const prButton = elements.create('paymentRequestButton', {
-        paymentRequest: paymentRequest,
-        style: {
-            paymentRequestButton: {
-                type: 'default', // 'default', 'book', 'buy', or 'donate'
-                theme: 'dark', // 'dark', 'light', or 'light-outline'
-                height: '48px',
-            },
-        },
-    });
-    
-    // Prüfen ob Payment Request verfügbar ist (Apple Pay, Google Pay)
-    paymentRequest.canMakePayment().then(function(result) {
-        console.log('Payment Request availability:', result);
-        
-        if (result) {
-            // Button mounten
-            prButton.mount('#yprint-payment-request-button');
-            
-            // Container anzeigen
-            const container = document.getElementById('yprint-express-payment-container');
-            if (container) {
-                container.style.display = 'block';
-            }
-            
-            console.log('Express payment buttons mounted successfully');
-        } else {
-            console.log('No express payment methods available');
-            // Container verstecken wenn keine Express Payment verfügbar
-            const container = document.getElementById('yprint-express-payment-container');
-            if (container) {
-                container.style.display = 'none';
-            }
-        }
-    }).catch(function(error) {
-        console.error('Error checking payment request availability:', error);
-    });
-    
-    // Payment Request Event Handler
-    paymentRequest.on('paymentmethod', function(event) {
-        console.log('Payment method received:', event);
-        
-        // Hier würdest du normalerweise die Zahlung verarbeiten
-        // Für jetzt bestätigen wir nur das Payment
-        event.complete('success');
-        
-        // Event für weitere Verarbeitung dispatchen
-        document.dispatchEvent(new CustomEvent('expressPaymentCompleted', {
-            detail: event
-        }));
-    });
-    
-}, 1000);
-
-// Enhanced Billing Address Management with Debug
-$(document).ready(function() {
-    // Debug System
+    // 🔧 Debug-System
     const BillingDebug = {
         enabled: localStorage.getItem('yprint_billing_debug') === 'true',
         panel: null,
         logs: [],
         
-        init: function() {
-            this.createDebugPanel();
-            this.createToggleButton();
-            this.log('🚀 Billing Debug System initialisiert', 'success');
+        init() {
+            this.createPanel();
+            this.createToggle();
+            this.log('🚀 Debug-System initialisiert', 'success');
         },
         
-        createDebugPanel: function() {
-            const panelHtml = `
-                <div class="yprint-debug-panel" id="billing-debug-panel" style="display: ${this.enabled ? 'block' : 'none'}">
-                    <h4>🔧 Billing Address Debug</h4>
-                    <div class="debug-item">
-                        <span class="debug-label">Status:</span>
-                        <span class="debug-value" id="debug-billing-status">Initialisiert</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Session:</span>
-                        <span class="debug-value" id="debug-session-status">Unbekannt</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Step Navigation:</span>
-                        <span class="debug-value" id="debug-step-nav">Bereit</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Letzter AJAX:</span>
-                        <span class="debug-value" id="debug-last-ajax">Keiner</span>
-                    </div>
-                    <div class="debug-item">
-                        <span class="debug-label">Button State:</span>
-                        <span class="debug-value" id="debug-button-state">Initial</span>
-                    </div>
+        createPanel() {
+            const html = `
+                <div id="billing-debug-panel" style="display: ${this.enabled ? 'block' : 'none'}; position:fixed; bottom:0; right:0; background:#fff; padding:10px; border:1px solid #ccc; z-index:9999; font-size:12px;">
+                    <div><strong>🔍 Billing Debug</strong></div>
+                    <div>Status: <span id="debug-billing-status">Init</span></div>
+                    <div>Session: <span id="debug-session-status">Unknown</span></div>
+                    <div>Step Nav: <span id="debug-step-nav">Ready</span></div>
+                    <div>Letzter AJAX: <span id="debug-last-ajax">None</span></div>
+                    <div>Button: <span id="debug-button-state">Init</span></div>
                 </div>
             `;
-            $('body').append(panelHtml);
+            $('body').append(html);
             this.panel = $('#billing-debug-panel');
         },
         
-        createToggleButton: function() {
-            const buttonHtml = `
-                <button class="yprint-debug-toggle" id="toggle-billing-debug">
-                    ${this.enabled ? '🐛 Hide' : '🔍 Debug'}
-                </button>
-            `;
-            $('body').append(buttonHtml);
-            
+        createToggle() {
+            const toggle = `<button id="toggle-billing-debug" style="position:fixed; bottom:0; left:0; z-index:9999;">${this.enabled ? '❌ Hide Debug' : '🐞 Show Debug'}</button>`;
+            $('body').append(toggle);
             $('#toggle-billing-debug').on('click', () => {
                 this.enabled = !this.enabled;
                 localStorage.setItem('yprint_billing_debug', this.enabled);
                 this.panel.toggle(this.enabled);
-                $('#toggle-billing-debug').text(this.enabled ? '🐛 Hide' : '🔍 Debug');
+                $('#toggle-billing-debug').text(this.enabled ? '❌ Hide Debug' : '🐞 Show Debug');
             });
         },
         
-        log: function(message, type = 'info') {
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = `[${timestamp}] ${message}`;
-            
-            console.log(`%c[BILLING DEBUG] ${logEntry}`, this.getLogStyle(type));
-            this.logs.push({timestamp, message, type});
-            
-            if (this.logs.length > 50) {
-                this.logs = this.logs.slice(-25);
-            }
-        },
-        
-        updateStatus: function(key, value, type = 'info') {
-            const element = $(`#debug-${key}`);
-            if (element.length) {
-                element.text(value).removeClass('debug-status-success debug-status-error debug-status-warning');
-                if (type === 'success') element.addClass('debug-status-success');
-                if (type === 'error') element.addClass('debug-status-error');
-                if (type === 'warning') element.addClass('debug-status-warning');
-            }
-        },
-        
-        getLogStyle: function(type) {
+        log(msg, type = 'info') {
+            const ts = new Date().toLocaleTimeString();
             const styles = {
-                success: 'color: #00aa00; font-weight: bold;',
-                error: 'color: #ff0000; font-weight: bold;',
-                warning: 'color: #ff8800; font-weight: bold;',
-                info: 'color: #0088ff;'
+                success: 'color: green;',
+                error: 'color: red;',
+                warning: 'color: orange;',
+                info: 'color: blue;'
             };
-            return styles[type] || styles.info;
+            console.log(`%c[BILLING DEBUG ${ts}] ${msg}`, styles[type] || '');
+            this.logs.push({ ts, msg, type });
+        },
+        
+        update(id, value) {
+            $(`#debug-${id}`).text(value);
         }
     };
-    
-    // Initialize Debug System
+
     BillingDebug.init();
-    
-    // Element References
-    const $addBillingBtn = $('#add-billing-address-btn');
-    const $addBillingContainer = $('#add-billing-button-container');
-    const $selectedBillingDisplay = $('#selected-billing-display');
-    const $billingAddressContent = $('#billing-address-content');
-    const $changeBillingBtn = $('#change-billing-address');
-    const $removeBillingBtn = $('#remove-billing-address');
-    
-    BillingDebug.log('📋 DOM-Elemente referenziert', 'info');
-    BillingDebug.updateStatus('billing-status', 'DOM Geladen', 'success');
-    
-    // Initial session check
+
+    // 🔗 DOM-Referenzen
+    const $addBtn = $('#add-billing-address-btn');
+    const $billingStep = $('#step-2-5');
+    const $selectedDisplay = $('#selected-billing-display');
+    const $billingContent = $('#billing-address-content');
+    const $container = $('#add-billing-button-container');
+
+    // 🧪 Session prüfen
     checkBillingSessionStatus();
-    
-    // Add Billing Address Button Click Handler
-$(document).on('click', '#add-billing-address-btn', function(e) {
-    e.preventDefault();
-    console.log('🎯 Add Billing Button geklickt');
-    BillingDebug.log('🎯 Add Billing Button Event ausgelöst', 'success');
-    
-    const $this = $(this);
-    const originalText = $this.html();
-    
-    // Loading state
-    $this.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Lade...');
-    BillingDebug.updateStatus('button-state', 'Loading...', 'warning');
-    
-    // Navigation zur Billing Step - Methoden-Hierarchie
-    let navigationSuccess = false;
-    
-    // Methode 1: Verwende globale showStep Funktion (bevorzugt)
-    if (typeof window.showStep === 'function') {
+
+    // ➕ Add Billing Button
+    $(document).on('click', '#add-billing-address-btn', function(e) {
+        e.preventDefault();
+        const $btn = $(this);
+        const original = $btn.html();
+        
+        BillingDebug.log('🎯 Klick auf Add Billing Button', 'success');
+        BillingDebug.update('button-state', 'Loading...');
+        $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
+
+        // 🧭 Step anzeigen
         try {
-            BillingDebug.log('🧭 Verwende globale showStep Funktion', 'info');
-            navigationSuccess = window.showStep('billing');
-            
-            if (navigationSuccess) {
-                BillingDebug.log('✅ Navigation via showStep erfolgreich', 'success');
-                BillingDebug.updateStatus('step-nav', 'showStep Success', 'success');
-            } else {
-                BillingDebug.log('⚠️ showStep gab false zurück', 'warning');
-            }
-        } catch (error) {
-            BillingDebug.log('❌ showStep Fehler: ' + error.message, 'error');
-        }
-    }
-    
-    // Methode 2: Fallback - Direkte DOM-Manipulation
-    if (!navigationSuccess) {
-        try {
-            BillingDebug.log('🔄 Fallback: Direkte DOM-Manipulation', 'warning');
-            
-            $('.checkout-step').removeClass('active').hide();
-            $('#step-2-5').addClass('active').show();
-            
-            // URL Update
+            jQuery('.checkout-step').removeClass('active').hide();
+            $billingStep.addClass('active').show();
             const newUrl = new URL(window.location);
             newUrl.searchParams.set('step', 'billing');
-            window.history.pushState({step: 'billing'}, '', newUrl);
-            
-            // Scroll to top
-            window.scrollTo({top: 0, behavior: 'smooth'});
-            
-            // Event triggern
+            history.pushState({step: 'billing'}, '', newUrl);
             $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
-            
-            navigationSuccess = true;
-            BillingDebug.log('✅ Fallback Navigation erfolgreich', 'success');
-            BillingDebug.updateStatus('step-nav', 'Fallback Success', 'success');
-            
-        } catch (error) {
-            BillingDebug.log('❌ Auch Fallback fehlgeschlagen: ' + error.message, 'error');
-            BillingDebug.updateStatus('step-nav', 'Complete Failure', 'error');
+
+            BillingDebug.log('✅ Billing-Step sichtbar gemacht', 'success');
+            BillingDebug.update('step-nav', 'OK');
+        } catch (err) {
+            BillingDebug.log('❌ Fehler bei Fallback-Navigation: ' + err.message, 'error');
+            BillingDebug.update('step-nav', 'Fehler');
         }
-    }
-    
-    // Button-Zustand wiederherstellen
-    const resetDelay = navigationSuccess ? 500 : 0;
-    setTimeout(() => {
-        $this.prop('disabled', false).html(originalText);
-        BillingDebug.updateStatus('button-state', navigationSuccess ? 'Ready' : 'Error', navigationSuccess ? 'success' : 'error');
-    }, resetDelay);
-});
-    
-    // Change Billing Address Button
-    $changeBillingBtn.on('click', function(e) {
-        e.preventDefault();
-        BillingDebug.log('✏️ Change Billing Button geklickt', 'info');
-        navigateToBillingStep();
+
+        setTimeout(() => {
+            $btn.prop('disabled', false).html(original);
+            BillingDebug.update('button-state', 'Bereit');
+        }, 400);
     });
-    
-    // Remove Billing Address Button
-    $removeBillingBtn.on('click', function(e) {
+
+    // ✏️ Change Button
+    $('#change-billing-address').on('click', function(e) {
         e.preventDefault();
-        BillingDebug.log('🗑️ Remove Billing Button geklickt', 'warning');
-        
-        if (confirm('Möchten Sie die abweichende Rechnungsadresse wirklich entfernen?')) {
+        BillingDebug.log('✏️ Klick auf Change Billing', 'info');
+        showBillingStep();
+    });
+
+    // 🗑️ Remove Button
+    $('#remove-billing-address').on('click', function(e) {
+        e.preventDefault();
+        BillingDebug.log('🗑️ Klick auf Remove Billing', 'warning');
+        if (confirm('Rechnungsadresse entfernen?')) {
             clearBillingAddress();
         }
     });
-    
-    // Navigation Function für Change/Remove Buttons
-function navigateToBillingStep() {
-    BillingDebug.log('🧭 Navigiere zu Billing Step (Change/Remove)', 'info');
-    
-    // Verwende globale showStep falls verfügbar, sonst Fallback
-    if (typeof window.showStep === 'function') {
-        try {
-            const success = window.showStep('billing');
-            if (success) {
-                BillingDebug.log('✅ Navigation via showStep erfolgreich', 'success');
-                BillingDebug.updateStatus('step-nav', 'showStep Success', 'success');
-                return;
-            }
-        } catch (error) {
-            BillingDebug.log('❌ showStep Fehler: ' + error.message, 'error');
-        }
-    }
-    
-    // Fallback: Direkte DOM-Manipulation
-    try {
-        $('.checkout-step').removeClass('active').hide();
-        $('#step-2-5').addClass('active').show();
-        
-        // URL Update
-        const newUrl = new URL(window.location);
-        newUrl.searchParams.set('step', 'billing');
-        window.history.pushState({step: 'billing'}, '', newUrl);
-        
-        // Scroll to top
-        window.scrollTo({top: 0, behavior: 'smooth'});
-        
-        // Event triggern
-        $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
-        
-        BillingDebug.log('✅ Fallback Navigation erfolgreich', 'success');
-        BillingDebug.updateStatus('step-nav', 'Fallback Success', 'success');
-        
-    } catch (error) {
-        BillingDebug.log('❌ Navigation Fehler: ' + error.message, 'error');
-        BillingDebug.updateStatus('step-nav', 'Error', 'error');
-        throw error;
-    }
-}
-    
-    // Session Status Check with Debug
+
+    // 📦 Funktionen
     function checkBillingSessionStatus() {
-        BillingDebug.log('🔍 Prüfe Billing Session Status', 'info');
-        BillingDebug.updateStatus('session-status', 'Checking...', 'warning');
-        BillingDebug.updateStatus('last-ajax', 'get_billing_session', 'info');
+        BillingDebug.log('🔍 AJAX: Session prüfen', 'info');
+        BillingDebug.update('last-ajax', 'get_billing_session');
+        BillingDebug.update('session-status', 'Lade...');
         
-        $.ajax({
+        jQuery.ajax({
             url: yprint_address_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'yprint_get_billing_session',
                 nonce: yprint_address_ajax.nonce
             },
-            success: function(response) {
-                BillingDebug.log('📥 Session Check Response: ' + JSON.stringify(response), 'info');
-                
-                if (response.success && response.data.has_billing_address) {
-                    BillingDebug.log('✅ Billing Address in Session gefunden', 'success');
-                    BillingDebug.updateStatus('session-status', 'Has Billing', 'success');
-                    displayBillingAddress(response.data.billing_address);
+            success(response) {
+                if (response.success && response.data?.has_billing_address) {
+                    BillingDebug.log('✅ Session hat Billing Address', 'success');
+                    BillingDebug.update('session-status', 'OK');
+                    displayBilling(response.data.billing_address);
                 } else {
-                    BillingDebug.log('ℹ️ Keine Billing Address in Session', 'info');
-                    BillingDebug.updateStatus('session-status', 'No Billing', 'info');
+                    BillingDebug.log('ℹ️ Keine Billing Address vorhanden', 'info');
+                    BillingDebug.update('session-status', 'Leer');
                     showAddBillingButton();
                 }
             },
-            error: function(xhr, status, error) {
-                BillingDebug.log('❌ Session Check Fehler: ' + error, 'error');
-                BillingDebug.updateStatus('session-status', 'Error', 'error');
+            error(err) {
+                BillingDebug.log('❌ Fehler bei Session-Check: ' + err.statusText, 'error');
+                BillingDebug.update('session-status', 'Fehler');
                 showAddBillingButton();
             }
         });
     }
-    
-    // Display Billing Address with Debug
-    function displayBillingAddress(billingData) {
-        BillingDebug.log('📋 Zeige Billing Address an: ' + JSON.stringify(billingData), 'success');
-        BillingDebug.updateStatus('billing-status', 'Displaying', 'success');
-        
-        let addressHtml = '';
-        addressHtml += '<strong>' + (billingData.first_name || '') + ' ' + (billingData.last_name || '') + '</strong><br>';
-        
-        if (billingData.company) {
-            addressHtml += billingData.company + '<br>';
-        }
-        
-        addressHtml += (billingData.address_1 || '') + ' ' + (billingData.address_2 || '') + '<br>';
-        addressHtml += (billingData.postcode || '') + ' ' + (billingData.city || '') + '<br>';
-        addressHtml += (billingData.country || '');
-        
-        $billingAddressContent.html(addressHtml);
-        $addBillingContainer.hide();
-        $selectedBillingDisplay.removeClass('hidden').show();
-        
-        BillingDebug.updateStatus('button-state', 'Showing Selected', 'success');
+
+    function displayBilling(data) {
+        BillingDebug.log('📋 Zeige Billing Address an', 'success');
+        let html = `<strong>${data.first_name || ''} ${data.last_name || ''}</strong><br>`;
+        if (data.company) html += `${data.company}<br>`;
+        html += `${data.address_1 || ''} ${data.address_2 || ''}<br>`;
+        html += `${data.postcode || ''} ${data.city || ''}<br>`;
+        html += `${data.country || ''}`;
+        $billingContent.html(html);
+        $container.hide();
+        $selectedDisplay.show();
+        BillingDebug.update('billing-status', 'Angezeigt');
     }
-    
-    // Show Add Billing Button
+
     function showAddBillingButton() {
         BillingDebug.log('🔘 Zeige Add Billing Button', 'info');
-        BillingDebug.updateStatus('button-state', 'Showing Add Button', 'info');
-        
-        $selectedBillingDisplay.addClass('hidden').hide();
-        $addBillingContainer.show();
-        $addBillingBtn.prop('disabled', false).html('<i class="fas fa-plus mr-2"></i>Abweichende Rechnungsadresse hinzufügen');
+        $selectedDisplay.hide();
+        $container.show();
+        $addBtn.prop('disabled', false).html('<i class="fas fa-plus mr-2"></i> Abweichende Rechnungsadresse hinzufügen');
+        BillingDebug.update('button-state', 'Bereit');
     }
-    
-    // Clear Billing Address with Debug
+
     function clearBillingAddress() {
-        BillingDebug.log('🗑️ Lösche Billing Address aus Session', 'warning');
-        BillingDebug.updateStatus('last-ajax', 'clear_billing_session', 'info');
+        BillingDebug.log('🗑️ Lösche Billing Address via AJAX', 'warning');
+        BillingDebug.update('last-ajax', 'clear_billing_session');
         
-        $.ajax({
+        jQuery.ajax({
             url: yprint_address_ajax.ajax_url,
             type: 'POST',
             data: {
                 action: 'yprint_clear_billing_session',
                 nonce: yprint_address_ajax.nonce
             },
-            success: function(response) {
-                BillingDebug.log('✅ Billing Address erfolgreich gelöscht', 'success');
-                BillingDebug.updateStatus('session-status', 'Cleared', 'success');
+            success() {
+                BillingDebug.log('✅ Billing Address gelöscht', 'success');
                 showAddBillingButton();
+                BillingDebug.update('session-status', 'Geklärt');
             },
-            error: function(xhr, status, error) {
-                BillingDebug.log('❌ Fehler beim Löschen: ' + error, 'error');
-                BillingDebug.updateStatus('session-status', 'Clear Error', 'error');
+            error(err) {
+                BillingDebug.log('❌ Fehler beim Löschen: ' + err.statusText, 'error');
+                BillingDebug.update('session-status', 'Fehler');
             }
         });
     }
-    
-    // Global Debug Access
-    window.YPrintBillingDebug = BillingDebug;
-    
-    BillingDebug.log('🎉 Billing Address Management vollständig initialisiert', 'success');
-});
 
-// Debug Console Commands
-if (typeof console !== 'undefined') {
-    console.log('%c🎯 YPrint Billing Debug Commands:', 'color: #0079FF; font-weight: bold; font-size: 14px;');
-    console.log('%cYPrintBillingDebug.enabled', 'color: #666;', '- Toggle debug panel');
-    console.log('%cYPrintBillingDebug.logs', 'color: #666;', '- View all debug logs');
-    console.log('%cYPrintBillingDebug.updateStatus(key, value, type)', 'color: #666;', '- Update debug status');
-    console.log('%cYPrintBillingDebug.log(message, type)', 'color: #666;', '- Add debug log');
-}
+    function showBillingStep() {
+        try {
+            $('.checkout-step').removeClass('active').hide();
+            $billingStep.addClass('active').show();
+            BillingDebug.log('🔁 Billing Step sichtbar (Change)', 'info');
+            BillingDebug.update('step-nav', 'OK');
+        } catch (err) {
+            BillingDebug.log('❌ Navigation Fehler: ' + err.message, 'error');
+        }
+    }
+
+    // 🔓 Debug global machen
+    window.YPrintBillingDebug = BillingDebug;
+
+});
 </script>
