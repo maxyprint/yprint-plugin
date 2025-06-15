@@ -55,6 +55,18 @@ class YPrint_Address_Manager {
 
         add_action('wp_ajax_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
         add_action('wp_ajax_nopriv_yprint_save_checkout_address', array($this, 'ajax_save_checkout_address'));
+        
+        // Neue AJAX-Handler für Billing Address Step
+        add_action('wp_ajax_yprint_save_billing_address', array($this, 'ajax_save_billing_address'));
+        add_action('wp_ajax_nopriv_yprint_save_billing_address', array($this, 'ajax_save_billing_address'));
+        add_action('wp_ajax_yprint_save_billing_session', array($this, 'ajax_save_billing_session'));
+        add_action('wp_ajax_nopriv_yprint_save_billing_session', array($this, 'ajax_save_billing_session'));
+
+        // Session-Handler für Billing Address
+        add_action('wp_ajax_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
+        add_action('wp_ajax_nopriv_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
+        add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
+        add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
     }
 
 /**
@@ -572,6 +584,142 @@ public function save_new_user_address($address_data) {
 
         return $html;
     }
+
+    /**
+ * AJAX-Handler zum Speichern einer Rechnungsadresse
+ */
+public function ajax_save_billing_address() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error(array('message' => __('Sie müssen angemeldet sein, um Adressen zu speichern.', 'yprint-plugin')));
+        return;
+    }
+    
+    $posted_data = isset($_POST['address_data']) ? $_POST['address_data'] : array();
+    
+    if (empty($posted_data)) {
+        wp_send_json_error(array('message' => __('Keine Adressdaten übermittelt.', 'yprint-plugin')));
+        return;
+    }
+    
+    // Markiere als Rechnungsadresse
+    $posted_data['address_type'] = 'billing';
+    
+    $result = $this->save_checkout_address($posted_data);
+    
+    if (is_wp_error($result)) {
+        wp_send_json_error(array('message' => $result->get_error_message()));
+    } else {
+        wp_send_json_success(array(
+            'message' => __('Rechnungsadresse erfolgreich gespeichert.', 'yprint-plugin'),
+            'address_id' => $result['address_id'] ?? '',
+            'address_data' => $result['address_data'] ?? $posted_data
+        ));
+    }
+}
+
+/**
+ * AJAX-Handler zum Speichern der Rechnungsadresse in der Session
+ */
+public function ajax_save_billing_session() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    $billing_data = isset($_POST['billing_data']) ? $_POST['billing_data'] : array();
+    
+    if (!empty($billing_data)) {
+        // Daten sanitizen
+        $sanitized_billing = array();
+        foreach ($billing_data as $key => $value) {
+            $sanitized_billing[sanitize_key($key)] = sanitize_text_field($value);
+        }
+        
+        // In WooCommerce Session speichern
+        if (WC()->session) {
+            WC()->session->set('yprint_billing_address', $sanitized_billing);
+            WC()->session->set('yprint_billing_address_different', true);
+        }
+        
+        wp_send_json_success(array(
+            'message' => __('Rechnungsadresse in Session gespeichert.', 'yprint-plugin'),
+            'billing_data' => $sanitized_billing
+        ));
+    } else {
+        wp_send_json_error(array('message' => __('Keine Rechnungsadressdaten erhalten.', 'yprint-plugin')));
+    }
+}
+
+/**
+ * AJAX-Handler zum Abrufen der Billing-Session
+ */
+public function ajax_get_billing_session() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    $billing_address = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+    $has_billing_address = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+    
+    wp_send_json_success(array(
+        'has_billing_address' => $has_billing_address && !empty($billing_address),
+        'billing_address' => $billing_address
+    ));
+}
+
+/**
+ * AJAX-Handler zum Löschen der Billing-Session
+ */
+public function ajax_clear_billing_session() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (WC()->session) {
+        WC()->session->set('yprint_billing_address', array());
+        WC()->session->set('yprint_billing_address_different', false);
+    }
+    
+    wp_send_json_success(array('message' => __('Rechnungsadresse aus Session entfernt.', 'yprint-plugin')));
+}
+
+/**
+ * Formatierte Rechnungsadresse aus Session abrufen
+ */
+public static function getFormattedBillingAddress() {
+    if (!WC()->session) {
+        return '';
+    }
+    
+    $billing_address = WC()->session->get('yprint_billing_address', array());
+    $has_different_billing = WC()->session->get('yprint_billing_address_different', false);
+    
+    if (!$has_different_billing || empty($billing_address)) {
+        return '';
+    }
+    
+    $formatted = '';
+    if (!empty($billing_address['first_name']) || !empty($billing_address['last_name'])) {
+        $formatted .= trim($billing_address['first_name'] . ' ' . $billing_address['last_name']) . '<br>';
+    }
+    
+    if (!empty($billing_address['company'])) {
+        $formatted .= $billing_address['company'] . '<br>';
+    }
+    
+    if (!empty($billing_address['address_1'])) {
+        $formatted .= $billing_address['address_1'];
+        if (!empty($billing_address['address_2'])) {
+            $formatted .= ' ' . $billing_address['address_2'];
+        }
+        $formatted .= '<br>';
+    }
+    
+    if (!empty($billing_address['postcode']) || !empty($billing_address['city'])) {
+        $formatted .= trim($billing_address['postcode'] . ' ' . $billing_address['city']) . '<br>';
+    }
+    
+    if (!empty($billing_address['country'])) {
+        $formatted .= $billing_address['country'];
+    }
+    
+    return $formatted;
+}
 
 
     /**

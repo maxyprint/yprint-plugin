@@ -35,7 +35,7 @@ if ( !isset($cart_totals_data) || !is_array($cart_totals_data) ) {
 }
 
 // Aktuellen Schritt bestimmen
-$possible_steps_slugs = array('address', 'payment', 'confirmation', 'thankyou');
+$possible_steps_slugs = array('address', 'billing', 'payment', 'confirmation', 'thankyou');
 $current_step_slug = isset($_GET['step']) && in_array($_GET['step'], $possible_steps_slugs) ? sanitize_text_field($_GET['step']) : 'address';
 
 // Debug-Ausgabe
@@ -410,6 +410,7 @@ wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-aw
         // Mapping von Schritt-Slug zu Step-ID für die 'active' Klasse
         $step_slug_to_id = [
             'address'      => 'step-1',
+            'billing'      => 'step-2-5',
             'payment'      => 'step-2',
             'confirmation' => 'step-3',
             'thankyou'     => 'step-4',
@@ -444,10 +445,24 @@ wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-aw
             ?>
         </div>
 
+        <!-- Billing Address Step (optional) -->
+        <div id="step-2-5" class="checkout-step <?php echo ($current_step_id === 'step-2-5') ? 'active' : ''; ?>">
+            <?php 
+            // Checkout Header für Rechnungsadress-Schritt
+            echo do_shortcode('[yprint_checkout_header step="billing" show_total="yes" show_progress="yes"]');
+            
+            if (file_exists($partials_dir . 'checkout-step-billing.php')) {
+                include($partials_dir . 'checkout-step-billing.php');
+            } else {
+                echo '<p>Fehler: Rechnungsadress-Schritt-Template nicht gefunden.</p>';
+            }
+            ?>
+        </div>
+
         <div id="step-2" class="checkout-step <?php echo ($current_step_id === 'step-2') ? 'active' : ''; ?>">
         <?php 
-    // Checkout Header für Zahlungs-Schritt
-    echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
+        // Checkout Header für Zahlungs-Schritt
+        echo do_shortcode('[yprint_checkout_header step="payment" show_total="yes" show_progress="yes"]');
             if (file_exists($partials_dir . 'checkout-step-payment.php')) {
                 include($partials_dir . 'checkout-step-payment.php');
             } else {

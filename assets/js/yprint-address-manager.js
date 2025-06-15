@@ -337,10 +337,15 @@ $('.btn-save-address').off('click.direct').on('click.direct', function(e) {
             });
         
             // Adresse speichern Button für das Checkout-Formular
-            $(document).on('click', '#save-address-button', function() {
-                self.saveAddressFromForm();
-                self.triggerSaveNewAddress(); self.closeAddressModal();
-            });
+        $(document).on('click', '#save-address-button', function() {
+            self.saveAddressFromForm();
+            self.triggerSaveNewAddress(); self.closeAddressModal();
+        });
+        
+        // Billing-Adresse speichern Button
+        $(document).on('click', '#save-billing-address-button', function() {
+            self.saveBillingAddressFromForm();
+        });
             
             // Event für "Andere Adresse wählen" Link
             $(document).on('click', '.change-address-link button', function() {
@@ -423,6 +428,90 @@ saveAddressFromForm: function() {
         },
         complete: function() {
             saveButton.prop('disabled', false).html('<i class="fas fa-save mr-2"></i>Adresse speichern');
+            
+            // Blende das Feedback nach 5 Sekunden aus
+            setTimeout(function() {
+                feedbackElement.fadeOut(function() {
+                    $(this).addClass('hidden').css('display', '');
+                });
+            }, 5000);
+        }
+    });
+},
+
+/**
+ * Speichert eine Rechnungsadresse aus dem Billing-Formular
+ */
+saveBillingAddressFromForm: function() {
+    const self = this;
+    const saveButton = $('#save-billing-address-button');
+    const feedbackElement = $('#save-billing-address-feedback');
+
+    // Prüfe, ob die erforderlichen Felder vorhanden sind
+    const requiredFields = ['billing_first_name', 'billing_last_name', 'billing_street', 'billing_housenumber', 'billing_zip', 'billing_city', 'billing_country'];
+    let isValid = true;
+    let missingFields = [];
+
+    requiredFields.forEach(field => {
+        const value = $('#' + field).val();
+        if (!value || !value.trim()) {
+            isValid = false;
+            missingFields.push(field);
+            $('#' + field).addClass('border-red-500');
+        } else {
+            $('#' + field).removeClass('border-red-500');
+        }
+    });
+
+    if (!isValid) {
+        const errorMessage = 'Bitte füllen Sie alle Pflichtfelder aus: ' + missingFields.join(', ');
+        feedbackElement.removeClass('hidden text-green-500').addClass('text-red-500').html(errorMessage);
+        return;
+    }
+    
+    // Sammle die Daten aus den Formularfeldern
+    const billingData = {
+        name: 'Rechnungsadresse vom ' + new Date().toLocaleDateString('de-DE'),
+        first_name: $('#billing_first_name').val(),
+        last_name: $('#billing_last_name').val(),
+        company: $('#billing_company').val() || '',
+        address_1: $('#billing_street').val(),
+        address_2: $('#billing_housenumber').val(),
+        postcode: $('#billing_zip').val(),
+        city: $('#billing_city').val(),
+        country: $('#billing_country').val() || 'DE',
+        address_type: 'billing'
+    };
+    
+    // Aktualisiere Button und zeige Feedback
+    saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichern...');
+    feedbackElement.removeClass('text-green-500 text-red-500').addClass('text-gray-600').html('Rechnungsadresse wird gespeichert...').removeClass('hidden');
+    
+    // AJAX-Request zum Speichern
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_save_billing_address',
+            nonce: yprint_address_ajax.nonce,
+            address_data: billingData
+        },
+        success: function(response) {
+            if (response.success) {
+                feedbackElement.removeClass('text-gray-600').addClass('text-green-500').html('<i class="fas fa-check-circle mr-1"></i>' + (response.data.message || 'Rechnungsadresse erfolgreich gespeichert.'));
+                
+                // Optional: Lade gespeicherte Adressen neu
+                self.loadSavedAddresses();
+            } else {
+                feedbackElement.removeClass('text-gray-600').addClass('text-red-500').html('<i class="fas fa-exclamation-circle mr-1"></i>' + (response.data.message || 'Fehler beim Speichern der Rechnungsadresse.'));
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error saving billing address:', error);
+            feedbackElement.removeClass('text-gray-600').addClass('text-red-500').html('<i class="fas fa-exclamation-circle mr-1"></i>Ein Fehler ist aufgetreten.');
+        },
+        complete: function() {
+            saveButton.prop('disabled', false).html('<i class="fas fa-save mr-2"></i>Rechnungsadresse speichern');
             
             // Blende das Feedback nach 5 Sekunden aus
             setTimeout(function() {

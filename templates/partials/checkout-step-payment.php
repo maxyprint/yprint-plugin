@@ -732,6 +732,34 @@ if (class_exists('YPrint_Stripe_Checkout')) {
         </div>
     </div>
 
+    <!-- Rechnungsadresse Sektion -->
+    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h3 class="text-lg font-semibold mb-4">
+            <i class="fas fa-file-invoice mr-2"></i>
+            <?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?>
+        </h3>
+        
+        <div class="flex items-center mb-4">
+            <input type="checkbox" id="use-separate-billing" class="form-checkbox mr-3">
+            <label for="use-separate-billing" class="text-sm cursor-pointer">
+                <?php esc_html_e('Rechnungsadresse abweichend von Lieferadresse', 'yprint-checkout'); ?>
+            </label>
+        </div>
+        
+        <!-- Anzeige der gewählten Rechnungsadresse -->
+        <div id="selected-billing-display" class="hidden p-3 bg-white rounded border">
+            <div class="flex justify-between items-start">
+                <div id="billing-address-content">
+                    <!-- Wird via JavaScript gefüllt -->
+                </div>
+                <button type="button" id="change-billing-address" class="text-blue-600 hover:text-blue-800 text-sm">
+                    <i class="fas fa-edit mr-1"></i>
+                    <?php esc_html_e('Ändern', 'yprint-checkout'); ?>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Gutscheincode -->
     <div class="mt-4">
         <label for="voucher" class="form-label"><?php esc_html_e('Gutscheincode', 'yprint-checkout'); ?></label>
@@ -902,4 +930,97 @@ setTimeout(() => {
     });
     
 }, 1000);
+
+// Billing Address Toggle Funktionalität
+$(document).ready(function() {
+    const $useSeparateBilling = $('#use-separate-billing');
+    const $selectedBillingDisplay = $('#selected-billing-display');
+    const $billingAddressContent = $('#billing-address-content');
+    
+    // Prüfe Session-Status beim Laden
+    checkBillingSessionStatus();
+    
+    // Toggle separate billing address
+    $useSeparateBilling.on('change', function() {
+        if ($(this).is(':checked')) {
+            // Zur Billing Address Step navigieren
+            console.log('Navigating to billing step...');
+            if (typeof showStep === 'function') {
+                showStep(2.5); // Billing Step
+            } else if (window.YPrintCheckout && window.YPrintCheckout.showStep) {
+                window.YPrintCheckout.showStep(2.5);
+            } else {
+                // Fallback: Step manually aktivieren
+                $('.checkout-step').removeClass('active').hide();
+                $('#step-2-5').addClass('active').show();
+            }
+        } else {
+            // Billing-Daten aus Session entfernen
+            clearBillingAddress();
+        }
+    });
+    
+    // Change billing address button
+    $('#change-billing-address').on('click', function() {
+        if (typeof showStep === 'function') {
+            showStep(2.5); // Billing Step
+        }
+    });
+    
+    // Session-Status prüfen
+    function checkBillingSessionStatus() {
+        $.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_get_billing_session',
+                nonce: yprint_address_ajax.nonce
+            },
+            success: function(response) {
+                if (response.success && response.data.has_billing_address) {
+                    $useSeparateBilling.prop('checked', true);
+                    displayBillingAddress(response.data.billing_address);
+                }
+            },
+            error: function() {
+                console.log('Could not check billing session status');
+            }
+        });
+    }
+    
+    // Billing-Adresse anzeigen
+    function displayBillingAddress(billingData) {
+        let addressHtml = '<div class="text-sm">';
+        addressHtml += '<strong>' + (billingData.first_name || '') + ' ' + (billingData.last_name || '') + '</strong><br>';
+        
+        if (billingData.company) {
+            addressHtml += billingData.company + '<br>';
+        }
+        
+        addressHtml += (billingData.address_1 || '') + ' ' + (billingData.address_2 || '') + '<br>';
+        addressHtml += (billingData.postcode || '') + ' ' + (billingData.city || '') + '<br>';
+        addressHtml += (billingData.country || '');
+        addressHtml += '</div>';
+        
+        $billingAddressContent.html(addressHtml);
+        $selectedBillingDisplay.removeClass('hidden');
+    }
+    
+    // Billing-Adresse löschen
+    function clearBillingAddress() {
+        $.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_clear_billing_session',
+                nonce: yprint_address_ajax.nonce
+            },
+            success: function(response) {
+                $selectedBillingDisplay.addClass('hidden');
+                $billingAddressContent.empty();
+                console.log('Billing address cleared from session');
+            }
+        });
+    }
+});
 </script>

@@ -109,54 +109,7 @@ if ( ! defined( 'ABSPATH' ) ) {
             <label for="phone" class="form-label"><?php esc_html_e('Telefonnummer', 'yprint-checkout'); ?> <span class="text-sm text-yprint-text-secondary">(<?php esc_html_e('optional, für Versand-Updates', 'yprint-checkout'); ?>)</span></label>
             <input type="tel" id="phone" name="phone" class="form-input" autocomplete="shipping tel" inputmode="tel">
         </div>
-        <div class="flex items-center mt-4">
-            <input type="checkbox" id="billing-same-as-shipping" name="billing_same_as_shipping" class="form-checkbox" checked>
-            <label for="billing-same-as-shipping" class="text-sm cursor-pointer"><?php esc_html_e('Rechnungsadresse ist identisch mit Lieferadresse', 'yprint-checkout'); ?></label>
-        </div>
-
-        <?php // Container für abweichende Rechnungsadresse, initial versteckt wenn Checkbox aktiv ?>
-        <div id="billing-address-fields" class="hidden space-y-4 mt-4 border-t border-yprint-medium-gray pt-6">
-    <h3 class="text-lg font-semibold"><?php esc_html_e('Rechnungsadresse (falls abweichend)', 'yprint-checkout'); ?></h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label for="billing_first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_first_name" name="billing_first_name" class="form-input" autocomplete="billing given-name">
-        </div>
-        <div>
-            <label for="billing_last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_last_name" name="billing_last_name" class="form-input" autocomplete="billing family-name">
-        </div>
-    </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label for="billing_street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_street" name="billing_street" class="form-input" autocomplete="billing street-address">
-        </div>
-        <div>
-            <label for="billing_housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_housenumber" name="billing_housenumber" class="form-input" autocomplete="billing address-line2">
-        </div>
-    </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label for="billing_zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>
-                    <input type="text" id="billing_zip" name="billing_zip" class="form-input" autocomplete="billing postal-code" inputmode="numeric">
-                </div>
-                <div>
-                    <label for="billing_city" class="form-label"><?php esc_html_e('Ort', 'yprint-checkout'); ?></label>
-                    <input type="text" id="billing_city" name="billing_city" class="form-input" autocomplete="billing address-level2">
-                </div>
-            </div>
-            <div>
-                <label for="billing_country" class="form-label"><?php esc_html_e('Land', 'yprint-checkout'); ?></label>
-                <select id="billing_country" name="billing_country" class="form-select" autocomplete="billing country">
-                     <option value="DE" selected><?php esc_html_e('Deutschland', 'yprint-checkout'); ?></option>
-                     <option value="AT"><?php esc_html_e('Österreich', 'yprint-checkout'); ?></option>
-                     <option value="CH"><?php esc_html_e('Schweiz', 'yprint-checkout'); ?></option>
-                     <option value="NL"><?php esc_html_e('Niederlande', 'yprint-checkout'); ?></option>
-                </select>
-            </div>
-        </div>
+        <!-- Rechnungsadresse-Felder entfernt - jetzt im separaten Billing Step -->
         <div class="yprint-save-address-actions mt-6">
     <button type="button" id="save-address-button" class="btn btn-secondary">
         <i class="fas fa-save mr-2"></i><?php esc_html_e('Adresse speichern', 'yprint-checkout'); ?>
