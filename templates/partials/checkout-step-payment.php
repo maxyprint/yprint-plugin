@@ -590,6 +590,103 @@ h2 i {
     font-family: "Font Awesome 6 Free";
     font-weight: 900;
 }
+
+/* Neue Button-Styles für Rechnungsadresse */
+.btn-outline {
+    background-color: transparent;
+    border: 2px solid #0079FF;
+    color: #0079FF;
+}
+
+.btn-outline:hover {
+    background-color: #0079FF;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.875rem;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+    border: 1px solid #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Debug Panel Styles */
+.yprint-debug-panel {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    color: #00ff00;
+    padding: 15px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    max-width: 300px;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.yprint-debug-panel h4 {
+    color: #ffff00;
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+
+.yprint-debug-panel .debug-item {
+    margin: 5px 0;
+    padding: 3px 0;
+    border-bottom: 1px dotted #333;
+}
+
+.yprint-debug-panel .debug-label {
+    color: #ff9900;
+    font-weight: bold;
+}
+
+.yprint-debug-panel .debug-value {
+    color: #00ffff;
+}
+
+.yprint-debug-panel .debug-status-success {
+    color: #00ff00;
+}
+
+.yprint-debug-panel .debug-status-error {
+    color: #ff0000;
+}
+
+.yprint-debug-panel .debug-status-warning {
+    color: #ffaa00;
+}
+
+.yprint-debug-toggle {
+    position: fixed;
+    top: 10px;
+    right: 320px;
+    background: #0079FF;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    z-index: 10001;
+    font-size: 12px;
+}
 </style>
 
 <h2 class="flex items-center"><i class="fas fa-credit-card mr-2 text-yprint-blue"></i><?php esc_html_e('Zahlungsart wählen', 'yprint-checkout'); ?></h2>
@@ -739,23 +836,46 @@ if (class_exists('YPrint_Stripe_Checkout')) {
             <?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?>
         </h3>
         
-        <div class="flex items-center mb-4">
-            <input type="checkbox" id="use-separate-billing" class="form-checkbox mr-3">
-            <label for="use-separate-billing" class="text-sm cursor-pointer">
-                <?php esc_html_e('Rechnungsadresse abweichend von Lieferadresse', 'yprint-checkout'); ?>
-            </label>
-        </div>
-        
-        <!-- Anzeige der gewählten Rechnungsadresse -->
-        <div id="selected-billing-display" class="hidden p-3 bg-white rounded border">
-            <div class="flex justify-between items-start">
-                <div id="billing-address-content">
-                    <!-- Wird via JavaScript gefüllt -->
-                </div>
-                <button type="button" id="change-billing-address" class="text-blue-600 hover:text-blue-800 text-sm">
-                    <i class="fas fa-edit mr-1"></i>
-                    <?php esc_html_e('Ändern', 'yprint-checkout'); ?>
+        <!-- Billing Address Button/Status Container -->
+        <div id="billing-address-container">
+            <!-- Initial: Button zum Hinzufügen -->
+            <div id="add-billing-button-container" class="mb-4">
+                <button type="button" id="add-billing-address-btn" class="btn btn-outline w-full md:w-auto flex items-center justify-center">
+                    <i class="fas fa-plus mr-2"></i>
+                    <?php esc_html_e('Abweichende Rechnungsadresse hinzufügen', 'yprint-checkout'); ?>
                 </button>
+                <p class="text-sm text-gray-600 mt-2">
+                    <?php esc_html_e('Standardmäßig wird die Lieferadresse als Rechnungsadresse verwendet.', 'yprint-checkout'); ?>
+                </p>
+            </div>
+            
+            <!-- Nach Auswahl: Anzeige der gewählten Rechnungsadresse -->
+            <div id="selected-billing-display" class="hidden">
+                <div class="p-4 bg-white rounded-lg border-2 border-green-200">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center mb-2">
+                                <i class="fas fa-check-circle text-green-600 mr-2"></i>
+                                <span class="font-semibold text-green-800">
+                                    <?php esc_html_e('Abweichende Rechnungsadresse festgelegt', 'yprint-checkout'); ?>
+                                </span>
+                            </div>
+                            <div id="billing-address-content" class="text-sm text-gray-700">
+                                <!-- Wird via JavaScript gefüllt -->
+                            </div>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button type="button" id="change-billing-address" class="btn btn-sm btn-secondary">
+                                <i class="fas fa-edit mr-1"></i>
+                                <?php esc_html_e('Ändern', 'yprint-checkout'); ?>
+                            </button>
+                            <button type="button" id="remove-billing-address" class="btn btn-sm btn-danger">
+                                <i class="fas fa-trash mr-1"></i>
+                                <?php esc_html_e('Entfernen', 'yprint-checkout'); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -931,44 +1051,240 @@ setTimeout(() => {
     
 }, 1000);
 
-// Billing Address Toggle Funktionalität
+// Enhanced Billing Address Management with Debug
 $(document).ready(function() {
-    const $useSeparateBilling = $('#use-separate-billing');
+    // Debug System
+    const BillingDebug = {
+        enabled: localStorage.getItem('yprint_billing_debug') === 'true',
+        panel: null,
+        logs: [],
+        
+        init: function() {
+            this.createDebugPanel();
+            this.createToggleButton();
+            this.log('🚀 Billing Debug System initialisiert', 'success');
+        },
+        
+        createDebugPanel: function() {
+            const panelHtml = `
+                <div class="yprint-debug-panel" id="billing-debug-panel" style="display: ${this.enabled ? 'block' : 'none'}">
+                    <h4>🔧 Billing Address Debug</h4>
+                    <div class="debug-item">
+                        <span class="debug-label">Status:</span>
+                        <span class="debug-value" id="debug-billing-status">Initialisiert</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Session:</span>
+                        <span class="debug-value" id="debug-session-status">Unbekannt</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Step Navigation:</span>
+                        <span class="debug-value" id="debug-step-nav">Bereit</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Letzter AJAX:</span>
+                        <span class="debug-value" id="debug-last-ajax">Keiner</span>
+                    </div>
+                    <div class="debug-item">
+                        <span class="debug-label">Button State:</span>
+                        <span class="debug-value" id="debug-button-state">Initial</span>
+                    </div>
+                </div>
+            `;
+            $('body').append(panelHtml);
+            this.panel = $('#billing-debug-panel');
+        },
+        
+        createToggleButton: function() {
+            const buttonHtml = `
+                <button class="yprint-debug-toggle" id="toggle-billing-debug">
+                    ${this.enabled ? '🐛 Hide' : '🔍 Debug'}
+                </button>
+            `;
+            $('body').append(buttonHtml);
+            
+            $('#toggle-billing-debug').on('click', () => {
+                this.enabled = !this.enabled;
+                localStorage.setItem('yprint_billing_debug', this.enabled);
+                this.panel.toggle(this.enabled);
+                $('#toggle-billing-debug').text(this.enabled ? '🐛 Hide' : '🔍 Debug');
+            });
+        },
+        
+        log: function(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            
+            console.log(`%c[BILLING DEBUG] ${logEntry}`, this.getLogStyle(type));
+            this.logs.push({timestamp, message, type});
+            
+            if (this.logs.length > 50) {
+                this.logs = this.logs.slice(-25);
+            }
+        },
+        
+        updateStatus: function(key, value, type = 'info') {
+            const element = $(`#debug-${key}`);
+            if (element.length) {
+                element.text(value).removeClass('debug-status-success debug-status-error debug-status-warning');
+                if (type === 'success') element.addClass('debug-status-success');
+                if (type === 'error') element.addClass('debug-status-error');
+                if (type === 'warning') element.addClass('debug-status-warning');
+            }
+        },
+        
+        getLogStyle: function(type) {
+            const styles = {
+                success: 'color: #00aa00; font-weight: bold;',
+                error: 'color: #ff0000; font-weight: bold;',
+                warning: 'color: #ff8800; font-weight: bold;',
+                info: 'color: #0088ff;'
+            };
+            return styles[type] || styles.info;
+        }
+    };
+    
+    // Initialize Debug System
+    BillingDebug.init();
+    
+    // Element References
+    const $addBillingBtn = $('#add-billing-address-btn');
+    const $addBillingContainer = $('#add-billing-button-container');
     const $selectedBillingDisplay = $('#selected-billing-display');
     const $billingAddressContent = $('#billing-address-content');
+    const $changeBillingBtn = $('#change-billing-address');
+    const $removeBillingBtn = $('#remove-billing-address');
     
-    // Prüfe Session-Status beim Laden
+    BillingDebug.log('📋 DOM-Elemente referenziert', 'info');
+    BillingDebug.updateStatus('billing-status', 'DOM Geladen', 'success');
+    
+    // Initial session check
     checkBillingSessionStatus();
     
-    // Toggle separate billing address
-    $useSeparateBilling.on('change', function() {
-        if ($(this).is(':checked')) {
-            // Zur Billing Address Step navigieren
-            console.log('Navigating to billing step...');
-            if (typeof showStep === 'function') {
-                showStep(2.5); // Billing Step
-            } else if (window.YPrintCheckout && window.YPrintCheckout.showStep) {
-                window.YPrintCheckout.showStep(2.5);
-            } else {
-                // Fallback: Step manually aktivieren
-                $('.checkout-step').removeClass('active').hide();
-                $('#step-2-5').addClass('active').show();
-            }
-        } else {
-            // Billing-Daten aus Session entfernen
+    // Add Billing Address Button Click
+    $addBillingBtn.on('click', function(e) {
+        e.preventDefault();
+        BillingDebug.log('🎯 Add Billing Button geklickt', 'info');
+        BillingDebug.updateStatus('button-state', 'Add Clicked', 'warning');
+        
+        const $this = $(this);
+        const originalText = $this.html();
+        
+        // Loading state
+        $this.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Lade...');
+        BillingDebug.updateStatus('button-state', 'Loading...', 'warning');
+        
+        // Navigate to billing step
+        navigateToBillingStep().then(() => {
+            BillingDebug.log('✅ Navigation zu Billing Step erfolgreich', 'success');
+        }).catch((error) => {
+            BillingDebug.log('❌ Navigation fehlgeschlagen: ' + error, 'error');
+            // Restore button state on error
+            $this.prop('disabled', false).html(originalText);
+            BillingDebug.updateStatus('button-state', 'Error', 'error');
+        });
+    });
+    
+    // Change Billing Address Button
+    $changeBillingBtn.on('click', function(e) {
+        e.preventDefault();
+        BillingDebug.log('✏️ Change Billing Button geklickt', 'info');
+        navigateToBillingStep();
+    });
+    
+    // Remove Billing Address Button
+    $removeBillingBtn.on('click', function(e) {
+        e.preventDefault();
+        BillingDebug.log('🗑️ Remove Billing Button geklickt', 'warning');
+        
+        if (confirm('Möchten Sie die abweichende Rechnungsadresse wirklich entfernen?')) {
             clearBillingAddress();
         }
     });
     
-    // Change billing address button
-    $('#change-billing-address').on('click', function() {
-        if (typeof showStep === 'function') {
-            showStep(2.5); // Billing Step
-        }
-    });
+    // Navigation Function with Debug
+    function navigateToBillingStep() {
+        return new Promise((resolve, reject) => {
+            BillingDebug.log('🧭 Starte Navigation zu Billing Step', 'info');
+            BillingDebug.updateStatus('step-nav', 'Navigating...', 'warning');
+            
+            // Try different navigation methods
+            let navigationSuccess = false;
+            
+            // Method 1: Check for showStep function
+            if (typeof showStep === 'function') {
+                BillingDebug.log('📍 Methode 1: showStep() Funktion gefunden', 'success');
+                try {
+                    showStep(2.5);
+                    navigationSuccess = true;
+                    BillingDebug.updateStatus('step-nav', 'showStep(2.5)', 'success');
+                } catch (error) {
+                    BillingDebug.log('❌ showStep() Fehler: ' + error.message, 'error');
+                }
+            }
+            
+            // Method 2: Check for YPrintCheckout object
+            if (!navigationSuccess && window.YPrintCheckout && window.YPrintCheckout.showStep) {
+                BillingDebug.log('📍 Methode 2: YPrintCheckout.showStep() gefunden', 'success');
+                try {
+                    window.YPrintCheckout.showStep(2.5);
+                    navigationSuccess = true;
+                    BillingDebug.updateStatus('step-nav', 'YPrintCheckout.showStep(2.5)', 'success');
+                } catch (error) {
+                    BillingDebug.log('❌ YPrintCheckout.showStep() Fehler: ' + error.message, 'error');
+                }
+            }
+            
+            // Method 3: Manual DOM manipulation
+            if (!navigationSuccess) {
+                BillingDebug.log('📍 Methode 3: Manuelle DOM-Manipulation', 'warning');
+                try {
+                    $('.checkout-step').removeClass('active').hide();
+                    $('#step-2-5').addClass('active').show();
+                    
+                    // Trigger custom event
+                    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+                    
+                    navigationSuccess = true;
+                    BillingDebug.updateStatus('step-nav', 'Manual DOM', 'success');
+                    BillingDebug.log('✅ Manuelle Navigation erfolgreich', 'success');
+                } catch (error) {
+                    BillingDebug.log('❌ Manuelle Navigation Fehler: ' + error.message, 'error');
+                }
+            }
+            
+            // Method 4: URL-based navigation
+            if (!navigationSuccess) {
+                BillingDebug.log('📍 Methode 4: URL-basierte Navigation', 'warning');
+                try {
+                    const currentUrl = new URL(window.location.href);
+                    currentUrl.searchParams.set('step', 'billing');
+                    window.history.pushState({}, '', currentUrl.toString());
+                    
+                    // Trigger page refresh or manual step loading
+                    location.reload();
+                    navigationSuccess = true;
+                } catch (error) {
+                    BillingDebug.log('❌ URL Navigation Fehler: ' + error.message, 'error');
+                }
+            }
+            
+            if (navigationSuccess) {
+                resolve();
+            } else {
+                const error = 'Alle Navigationsmethoden fehlgeschlagen';
+                BillingDebug.updateStatus('step-nav', 'Failed', 'error');
+                reject(new Error(error));
+            }
+        });
+    }
     
-    // Session-Status prüfen
+    // Session Status Check with Debug
     function checkBillingSessionStatus() {
+        BillingDebug.log('🔍 Prüfe Billing Session Status', 'info');
+        BillingDebug.updateStatus('session-status', 'Checking...', 'warning');
+        BillingDebug.updateStatus('last-ajax', 'get_billing_session', 'info');
+        
         $.ajax({
             url: yprint_address_ajax.ajax_url,
             type: 'POST',
@@ -977,20 +1293,32 @@ $(document).ready(function() {
                 nonce: yprint_address_ajax.nonce
             },
             success: function(response) {
+                BillingDebug.log('📥 Session Check Response: ' + JSON.stringify(response), 'info');
+                
                 if (response.success && response.data.has_billing_address) {
-                    $useSeparateBilling.prop('checked', true);
+                    BillingDebug.log('✅ Billing Address in Session gefunden', 'success');
+                    BillingDebug.updateStatus('session-status', 'Has Billing', 'success');
                     displayBillingAddress(response.data.billing_address);
+                } else {
+                    BillingDebug.log('ℹ️ Keine Billing Address in Session', 'info');
+                    BillingDebug.updateStatus('session-status', 'No Billing', 'info');
+                    showAddBillingButton();
                 }
             },
-            error: function() {
-                console.log('Could not check billing session status');
+            error: function(xhr, status, error) {
+                BillingDebug.log('❌ Session Check Fehler: ' + error, 'error');
+                BillingDebug.updateStatus('session-status', 'Error', 'error');
+                showAddBillingButton();
             }
         });
     }
     
-    // Billing-Adresse anzeigen
+    // Display Billing Address with Debug
     function displayBillingAddress(billingData) {
-        let addressHtml = '<div class="text-sm">';
+        BillingDebug.log('📋 Zeige Billing Address an: ' + JSON.stringify(billingData), 'success');
+        BillingDebug.updateStatus('billing-status', 'Displaying', 'success');
+        
+        let addressHtml = '';
         addressHtml += '<strong>' + (billingData.first_name || '') + ' ' + (billingData.last_name || '') + '</strong><br>';
         
         if (billingData.company) {
@@ -1000,14 +1328,29 @@ $(document).ready(function() {
         addressHtml += (billingData.address_1 || '') + ' ' + (billingData.address_2 || '') + '<br>';
         addressHtml += (billingData.postcode || '') + ' ' + (billingData.city || '') + '<br>';
         addressHtml += (billingData.country || '');
-        addressHtml += '</div>';
         
         $billingAddressContent.html(addressHtml);
-        $selectedBillingDisplay.removeClass('hidden');
+        $addBillingContainer.hide();
+        $selectedBillingDisplay.removeClass('hidden').show();
+        
+        BillingDebug.updateStatus('button-state', 'Showing Selected', 'success');
     }
     
-    // Billing-Adresse löschen
+    // Show Add Billing Button
+    function showAddBillingButton() {
+        BillingDebug.log('🔘 Zeige Add Billing Button', 'info');
+        BillingDebug.updateStatus('button-state', 'Showing Add Button', 'info');
+        
+        $selectedBillingDisplay.addClass('hidden').hide();
+        $addBillingContainer.show();
+        $addBillingBtn.prop('disabled', false).html('<i class="fas fa-plus mr-2"></i>Abweichende Rechnungsadresse hinzufügen');
+    }
+    
+    // Clear Billing Address with Debug
     function clearBillingAddress() {
+        BillingDebug.log('🗑️ Lösche Billing Address aus Session', 'warning');
+        BillingDebug.updateStatus('last-ajax', 'clear_billing_session', 'info');
+        
         $.ajax({
             url: yprint_address_ajax.ajax_url,
             type: 'POST',
@@ -1016,11 +1359,29 @@ $(document).ready(function() {
                 nonce: yprint_address_ajax.nonce
             },
             success: function(response) {
-                $selectedBillingDisplay.addClass('hidden');
-                $billingAddressContent.empty();
-                console.log('Billing address cleared from session');
+                BillingDebug.log('✅ Billing Address erfolgreich gelöscht', 'success');
+                BillingDebug.updateStatus('session-status', 'Cleared', 'success');
+                showAddBillingButton();
+            },
+            error: function(xhr, status, error) {
+                BillingDebug.log('❌ Fehler beim Löschen: ' + error, 'error');
+                BillingDebug.updateStatus('session-status', 'Clear Error', 'error');
             }
         });
     }
+    
+    // Global Debug Access
+    window.YPrintBillingDebug = BillingDebug;
+    
+    BillingDebug.log('🎉 Billing Address Management vollständig initialisiert', 'success');
 });
+
+// Debug Console Commands
+if (typeof console !== 'undefined') {
+    console.log('%c🎯 YPrint Billing Debug Commands:', 'color: #0079FF; font-weight: bold; font-size: 14px;');
+    console.log('%cYPrintBillingDebug.enabled', 'color: #666;', '- Toggle debug panel');
+    console.log('%cYPrintBillingDebug.logs', 'color: #666;', '- View all debug logs');
+    console.log('%cYPrintBillingDebug.updateStatus(key, value, type)', 'color: #666;', '- Update debug status');
+    console.log('%cYPrintBillingDebug.log(message, type)', 'color: #666;', '- Add debug log');
+}
 </script>
