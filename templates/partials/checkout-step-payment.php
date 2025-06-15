@@ -1211,47 +1211,45 @@ $(document).ready(function() {
             // Try different navigation methods
             let navigationSuccess = false;
             
-            // Method 1: Check for showStep function
-            if (typeof showStep === 'function') {
-                BillingDebug.log('📍 Methode 1: showStep() Funktion gefunden', 'success');
-                try {
-                    showStep(2.5);
-                    navigationSuccess = true;
-                    BillingDebug.updateStatus('step-nav', 'showStep(2.5)', 'success');
-                } catch (error) {
-                    BillingDebug.log('❌ showStep() Fehler: ' + error.message, 'error');
-                }
-            }
-            
-            // Method 2: Check for YPrintCheckout object
-            if (!navigationSuccess && window.YPrintCheckout && window.YPrintCheckout.showStep) {
-                BillingDebug.log('📍 Methode 2: YPrintCheckout.showStep() gefunden', 'success');
-                try {
-                    window.YPrintCheckout.showStep(2.5);
-                    navigationSuccess = true;
-                    BillingDebug.updateStatus('step-nav', 'YPrintCheckout.showStep(2.5)', 'success');
-                } catch (error) {
-                    BillingDebug.log('❌ YPrintCheckout.showStep() Fehler: ' + error.message, 'error');
-                }
-            }
-            
-            // Method 3: Manual DOM manipulation
-            if (!navigationSuccess) {
-                BillingDebug.log('📍 Methode 3: Manuelle DOM-Manipulation', 'warning');
-                try {
-                    $('.checkout-step').removeClass('active').hide();
-                    $('#step-2-5').addClass('active').show();
-                    
-                    // Trigger custom event
-                    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
-                    
-                    navigationSuccess = true;
-                    BillingDebug.updateStatus('step-nav', 'Manual DOM', 'success');
-                    BillingDebug.log('✅ Manuelle Navigation erfolgreich', 'success');
-                } catch (error) {
-                    BillingDebug.log('❌ Manuelle Navigation Fehler: ' + error.message, 'error');
-                }
-            }
+            // Method 1: Manual DOM manipulation (most reliable first)
+try {
+    BillingDebug.log('📍 Methode 1: Manuelle DOM-Manipulation', 'warning');
+    $('.checkout-step').removeClass('active').hide();
+    $('#step-2-5').addClass('active').show();
+    
+    // Trigger custom event
+    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+    
+    navigationSuccess = true;
+    BillingDebug.updateStatus('step-nav', 'Manual DOM', 'success');
+    BillingDebug.log('✅ Manuelle Navigation erfolgreich', 'success');
+} catch (error) {
+    BillingDebug.log('❌ Manuelle Navigation Fehler: ' + error.message, 'error');
+}
+
+// Method 2: Check for showStep function (fallback)
+if (!navigationSuccess && typeof showStep === 'function') {
+    BillingDebug.log('📍 Methode 2: showStep() Funktion gefunden', 'success');
+    try {
+        showStep('billing');
+        navigationSuccess = true;
+        BillingDebug.updateStatus('step-nav', 'showStep(billing)', 'success');
+    } catch (error) {
+        BillingDebug.log('❌ showStep() Fehler: ' + error.message, 'error');
+    }
+}
+
+// Method 3: Check for YPrintCheckout object (fallback)
+if (!navigationSuccess && window.YPrintCheckout && window.YPrintCheckout.showStep) {
+    BillingDebug.log('📍 Methode 3: YPrintCheckout.showStep() gefunden', 'success');
+    try {
+        window.YPrintCheckout.showStep('billing');
+        navigationSuccess = true;
+        BillingDebug.updateStatus('step-nav', 'YPrintCheckout.showStep(billing)', 'success');
+    } catch (error) {
+        BillingDebug.log('❌ YPrintCheckout.showStep() Fehler: ' + error.message, 'error');
+    }
+}
             
             // Method 4: URL-based navigation
             if (!navigationSuccess) {

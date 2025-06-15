@@ -597,4 +597,64 @@ wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-aw
             }
         });
     });
+    
+    // Global Navigation Function für alle Steps
+    window.showStep = function(stepIdentifier) {
+        console.log('Global showStep called with:', stepIdentifier);
+        
+        // Step ID mapping
+        const stepMapping = {
+            1: 'step-1',
+            'address': 'step-1',
+            2: 'step-2', 
+            'payment': 'step-2',
+            2.5: 'step-2-5',
+            'billing': 'step-2-5',
+            3: 'step-3',
+            'confirmation': 'step-3',
+            4: 'step-4',
+            'thankyou': 'step-4'
+        };
+        
+        const targetStepId = stepMapping[stepIdentifier];
+        
+        if (!targetStepId) {
+            console.error('Unknown step identifier:', stepIdentifier);
+            return false;
+        }
+        
+        const targetStep = document.getElementById(targetStepId);
+        if (!targetStep) {
+            console.error('Step element not found:', targetStepId);
+            return false;
+        }
+        
+        // Hide all steps
+        document.querySelectorAll('.checkout-step').forEach(step => {
+            step.classList.remove('active');
+            step.style.display = 'none';
+        });
+        
+        // Show target step
+        targetStep.classList.add('active');
+        targetStep.style.display = 'block';
+        
+        // Scroll to top
+        window.scrollTo({top: 0, behavior: 'smooth'});
+        
+        // Trigger event
+        jQuery(document).trigger('yprint_step_changed', {
+            step: stepIdentifier,
+            stepId: targetStepId
+        });
+        
+        console.log('Navigation successful to:', targetStepId);
+        return true;
+    };
+    
+    // Expose for compatibility
+    if (typeof window.YPrintCheckout === 'undefined') {
+        window.YPrintCheckout = {};
+    }
+    window.YPrintCheckout.showStep = window.showStep;
     </script>
