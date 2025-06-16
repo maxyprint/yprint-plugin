@@ -162,6 +162,20 @@ if (is_user_logged_in()) {
     $(document).ready(function() {
         console.log('🚀 Billing Step loaded - initializing with Address Manager');
 
+        // ✅ URL-basierte Schritt-Aktivierung für den Billing Step
+        // Dies ist KRITISCH, damit der Billing Step sichtbar wird, wenn direkt über URL aufgerufen
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentStep = urlParams.get('step');
+
+        if (currentStep === 'billing') {
+            console.log('💡 URL indicates billing step, activating #step-2-5');
+            $('.checkout-step').removeClass('active').hide(); // Alle Schritte ausblenden
+            $('#step-2-5').addClass('active').show(); // Billing Step (ID basierend auf Debug-Log) anzeigen
+            // Optional: Header-Indikatoren aktualisieren, falls vorhanden
+            $(document).trigger('yprint_step_changed', {step: 'billing', from: 'url_load'});
+        }
+
+
         // ✅ 1. KONTEXT SETZEN (Kritisch!)
         // Setzt den globalen Kontext für den Address Manager für diesen Schritt
         window.currentAddressContext = 'billing';
@@ -272,7 +286,11 @@ if (is_user_logged_in()) {
             const addressCardsContainer = $('#billing-address-cards-container');
             // Eine kleine Verzögerung geben, damit der DOM vom Address Manager aktualisiert wird
             setTimeout(() => {
-                if (addressCardsContainer.children().length <= 1) { // Nur der "Neue Adresse" Button bleibt
+                // Hier überprüfen wir, ob nach dem Löschen nur der "Neue Adresse" Button übrig ist.
+                // Das Element für "Neue Adresse" sollte ebenfalls eine Adresse sein, aber ohne id und mit der Klasse `add-new-address-card`
+                // Eine bessere Prüfung wäre: ob der Address Manager tatsächlich keine Adressen mehr rendert (außer dem "add-new" button)
+                const renderedAddressCards = addressCardsContainer.find('.address-card:not(.add-new-address-card)');
+                if (renderedAddressCards.length === 0) {
                     $('#billing-address-form').show();
                     $('.yprint-saved-addresses').hide();
                     resetBillingForm(); // Felder leeren und Button disablen
@@ -396,7 +414,7 @@ if (is_user_logged_in()) {
 
         // Step wechseln
         $('.checkout-step').removeClass('active').hide();
-        $('#step-2').addClass('active').show();
+        $('#step-2').addClass('active').show(); // Angenommen, der Payment Step hat die ID 'step-2'
 
         // URL aktualisieren
         const newUrl = new URL(window.location);
