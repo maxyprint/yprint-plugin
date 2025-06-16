@@ -38,8 +38,33 @@ if (is_user_logged_in()) {
         </h3>
         
         <div class="address-cards-grid">
+            <?php 
+            // DEBUG: Address loading information
+            echo '<div class="debug-output bg-yellow-100 p-2 mb-4 text-xs">';
+            echo '<strong>🔍 DEBUG - Address Loading:</strong><br>';
+            echo 'User logged in: ' . (is_user_logged_in() ? 'YES' : 'NO') . '<br>';
+            echo 'User ID: ' . get_current_user_id() . '<br>';
+            echo 'Raw $user_addresses type: ' . gettype($user_addresses) . '<br>';
+            echo 'Raw $user_addresses count: ' . (is_array($user_addresses) ? count($user_addresses) : 'not array') . '<br>';
+            echo 'Has saved addresses: ' . ($has_saved_addresses ? 'YES' : 'NO') . '<br>';
+            if (is_array($user_addresses)) {
+                echo 'Address keys: ' . implode(', ', array_keys($user_addresses)) . '<br>';
+            }
+            echo '</div>';
+            ?>
+            
             <?php if ($has_saved_addresses) : ?>
                 <?php foreach ($user_addresses as $address_id => $address_data) : ?>
+                    <?php
+                    // DEBUG: Each address card
+                    echo '<div class="debug-address bg-blue-100 p-2 mb-2 text-xs">';
+                    echo '<strong>DEBUG Address ID:</strong> ' . esc_html($address_id) . '<br>';
+                    echo '<strong>DEBUG Address Data Type:</strong> ' . gettype($address_data) . '<br>';
+                    if (is_array($address_data)) {
+                        echo '<strong>DEBUG Address Fields:</strong> ' . implode(', ', array_keys($address_data)) . '<br>';
+                    }
+                    echo '</div>';
+                    ?>
                     <div class="address-card" data-address-id="<?php echo esc_attr($address_id); ?>">
                         <div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500 cursor-pointer">
                             <div class="flex items-center justify-between mb-2">
