@@ -12,7 +12,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Address Manager Instanz holen
 $address_manager = YPrint_Address_Manager::get_instance();
 
-// Session-Daten für vorausgefüllte Felder abrufen  
+// Session-Daten für vorausgefüllte Felder abrufen
+// yprint_billing_address ist der Session-Key für die ausgewählte/eingegebene Rechnungsadresse
 $session_billing_address = WC()->session->get('yprint_billing_address', array());
 
 // Prüfe ob User eingeloggt ist und lade Adressen
@@ -30,23 +31,20 @@ if (is_user_logged_in()) {
 </h2>
 
 <?php if (is_user_logged_in()) : ?>
-    <!-- Adresskarten-Container für Address Manager -->
     <div class="yprint-saved-addresses mt-6" data-address-type="billing">
         <h3 class="saved-addresses-title">
             <i class="fas fa-file-invoice mr-2"></i>
             <?php _e('Gespeicherte Rechnungsadressen', 'yprint-plugin'); ?>
         </h3>
-        
+
         <div class="address-cards-grid">
-            <!-- Address Cards werden dynamisch durch Address Manager geladen -->
             <div id="billing-address-cards-container">
-                <!-- Wird durch YPrintAddressManager.loadSavedAddresses('billing') gefüllt -->
-            </div>
+                </div>
         </div>
     </div>
-    
+
     <?php
-    // Modal HTML bereitstellen
+    // Modal HTML bereitstellen (wiederverwendet das bestehende Modal des Address Managers)
     try {
         echo $address_manager->get_address_modal_html();
     } catch (Exception $e) {
@@ -75,41 +73,40 @@ if (is_user_logged_in()) {
     </div>
 <?php endif; ?>
 
-<!-- Billing-Formular (wird ausgeblendet wenn gespeicherte Adressen vorhanden sind) -->
-<form id="billing-address-form" class="space-y-6 mt-6" style="display: <?php echo $has_saved_addresses ? 'none' : 'block'; ?>;">
+<form id="billing-address-form" class="space-y-6 mt-6" style="display: <?php echo $has_saved_addresses && is_user_logged_in() ? 'none' : 'block'; ?>;">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="billing_first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_first_name" name="billing_first_name" 
-                   value="<?php echo esc_attr($session_billing_address['first_name'] ?? ''); ?>" 
+            <input type="text" id="billing_first_name" name="billing_first_name"
+                   value="<?php echo esc_attr($session_billing_address['first_name'] ?? ''); ?>"
                    class="form-input" required>
         </div>
         <div>
             <label for="billing_last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_last_name" name="billing_last_name" 
-                   value="<?php echo esc_attr($session_billing_address['last_name'] ?? ''); ?>" 
+            <input type="text" id="billing_last_name" name="billing_last_name"
+                   value="<?php echo esc_attr($session_billing_address['last_name'] ?? ''); ?>"
                    class="form-input" required>
         </div>
     </div>
 
     <div>
         <label for="billing_company" class="form-label"><?php esc_html_e('Firma (optional)', 'yprint-checkout'); ?></label>
-        <input type="text" id="billing_company" name="billing_company" 
-               value="<?php echo esc_attr($session_billing_address['company'] ?? ''); ?>" 
+        <input type="text" id="billing_company" name="billing_company"
+               value="<?php echo esc_attr($session_billing_address['company'] ?? ''); ?>"
                class="form-input">
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="md:col-span-2">
             <label for="billing_street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_street" name="billing_street" 
-                   value="<?php echo esc_attr($session_billing_address['address_1'] ?? ''); ?>" 
+            <input type="text" id="billing_street" name="billing_street"
+                   value="<?php echo esc_attr($session_billing_address['address_1'] ?? ''); ?>"
                    class="form-input" required>
         </div>
         <div>
             <label for="billing_housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_housenumber" name="billing_housenumber" 
-                   value="<?php echo esc_attr($session_billing_address['address_2'] ?? ''); ?>" 
+            <input type="text" id="billing_housenumber" name="billing_housenumber"
+                   value="<?php echo esc_attr($session_billing_address['address_2'] ?? ''); ?>"
                    class="form-input" required>
         </div>
     </div>
@@ -117,14 +114,14 @@ if (is_user_logged_in()) {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label for="billing_zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_zip" name="billing_zip" 
-                   value="<?php echo esc_attr($session_billing_address['postcode'] ?? ''); ?>" 
+            <input type="text" id="billing_zip" name="billing_zip"
+                   value="<?php echo esc_attr($session_billing_address['postcode'] ?? ''); ?>"
                    class="form-input" required>
         </div>
         <div>
             <label for="billing_city" class="form-label"><?php esc_html_e('Stadt', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_city" name="billing_city" 
-                   value="<?php echo esc_attr($session_billing_address['city'] ?? ''); ?>" 
+            <input type="text" id="billing_city" name="billing_city"
+                   value="<?php echo esc_attr($session_billing_address['city'] ?? ''); ?>"
                    class="form-input" required>
         </div>
     </div>
@@ -148,7 +145,6 @@ if (is_user_logged_in()) {
         </div>
     <?php endif; ?>
 
-    <!-- Navigation Buttons -->
     <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
         <button type="button" id="btn-back-to-payment" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">
             <i class="fas fa-arrow-left mr-2"></i> <?php esc_html_e('Zurück zur Zahlung', 'yprint-checkout'); ?>
@@ -165,43 +161,212 @@ if (is_user_logged_in()) {
 
     $(document).ready(function() {
         console.log('🚀 Billing Step loaded - initializing with Address Manager');
-        
-        // Initiale Validierung
+
+        // ✅ 1. KONTEXT SETZEN (Kritisch!)
+        // Setzt den globalen Kontext für den Address Manager für diesen Schritt
+        window.currentAddressContext = 'billing';
+
+        // Initiale Validierung des Formulars (für den Fall, dass es angezeigt wird)
         validateBillingForm();
-        
-        // Address Manager für Billing initialisieren
+
+        // ✅ 2. ADDRESS MANAGER INITIALISIEREN
         if (typeof window.YPrintAddressManager !== 'undefined' && isUserLoggedIn()) {
             console.log('🏗️ Loading billing addresses with Address Manager');
-            
-            // Address Manager für Billing-Typ laden
+
+            // Verzögerung für DOM-Bereitschaft und um Race Conditions zu vermeiden
             setTimeout(() => {
+                // GLEICHE Funktion wie Shipping, nur mit 'billing' Parameter
                 window.YPrintAddressManager.loadSavedAddresses('billing');
             }, 300);
         }
 
-        // Event-Handler für Address Manager Events (standardisiert)
-$(document).on('address_selected', function(event, addressId, addressData) {
-    // Prüfe ob es sich um eine Billing-Adresse handelt
-    const addressType = $(event.target).closest('[data-address-type]').attr('data-address-type');
-    if (addressType === 'billing' || window.currentAddressContext === 'billing') {
-        console.log('🎯 Billing address selected via Address Manager:', addressData);
-        
-        // Session speichern mit standardisierten Daten
-        saveBillingAddressToSession(addressData, () => {
-            console.log('✅ Billing address saved to session');
-            navigateToPaymentStep();
+        // ✅ 3. ADDRESS MANAGER EVENTS ABHÖREN (Wiederverwendung!)
+        // Diese Events werden vom YPrintAddressManager ausgelöst
+        $(document).on('address_selected', handleBillingAddressSelected);
+        $(document).on('address_saved', handleBillingAddressSaved);
+        $(document).on('address_deleted', handleBillingAddressDeleted);
+        $(document).on('modal_opened', handleBillingModalOpened);
+
+        // ✅ 4. BILLING-SPEZIFISCHE NAVIGATION SETUP
+        setupBillingNavigation();
+
+        // Event-Handler für Formular-Validierung
+        // Triggered by manual input or changes in the form fields
+        $('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
+
+        // Event-Handler für den "Rechnungsadresse speichern" Button
+        $('#save-billing-address-button').on('click', function(e) {
+            e.preventDefault();
+            if (typeof window.YPrintAddressManager !== 'undefined') {
+                const addressData = {
+                    type: 'billing', // Wichtig: Typ setzen
+                    first_name: $('#billing_first_name').val().trim(),
+                    last_name: $('#billing_last_name').val().trim(),
+                    company: $('#billing_company').val().trim(),
+                    address_1: $('#billing_street').val().trim(),
+                    address_2: $('#billing_housenumber').val().trim(),
+                    postcode: $('#billing_zip').val().trim(),
+                    city: $('#billing_city').val().trim(),
+                    country: $('#billing_country').val() || 'DE'
+                };
+
+                // Validierung vor dem Speichern (optional, Address Manager sollte es auch tun)
+                if (validateBillingForm(true)) { // Pass true to check validation without UI update
+                    window.YPrintAddressManager.saveAddress(addressData);
+                } else {
+                    $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Bitte alle erforderlichen Felder ausfüllen.');
+                }
+            }
+        });
+    }); // End of document.ready
+
+    // 🎯 Event Handler für Adressauswahl (address_selected)
+    function handleBillingAddressSelected(event, addressId, addressData) {
+        // Prüfe Kontext über data-address-type des übergeordneten Containers
+        // Oder über die globale Variable window.currentAddressContext
+        const addressType = $(event.target).closest('[data-address-type]').attr('data-address-type');
+
+        if (addressType === 'billing' || window.currentAddressContext === 'billing') {
+            console.log('🎯 Billing address selected via Address Manager:', addressData);
+
+            // Formular ausblenden und Adresskarten anzeigen, da eine Adresse ausgewählt wurde
+            $('#billing-address-form').hide();
+            $('.yprint-saved-addresses').show(); // Sicherstellen, dass der Container sichtbar ist
+
+            // Session speichern mit standardisierten Daten
+            saveBillingAddressToSession(addressData, () => {
+                console.log('✅ Billing address saved to session');
+                navigateToPaymentStep(); // Direkt weiter zum Payment Step nach Auswahl
+            });
+        }
+    }
+
+    // 💾 Event Handler für gespeicherte Adresse (address_saved)
+    function handleBillingAddressSaved(event, addressData) {
+        // Prüfe, ob es sich um eine Rechnungsadresse handelt
+        if (addressData.type === 'billing' || window.currentAddressContext === 'billing') {
+            console.log('✅ Billing address saved via Address Manager');
+            $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Adresse erfolgreich gespeichert!');
+
+            // UI aktualisieren - Adresskarten neu laden
+            setTimeout(() => {
+                if (window.YPrintAddressManager && window.YPrintAddressManager.loadSavedAddresses) {
+                    window.YPrintAddressManager.loadSavedAddresses('billing');
+                }
+                // Nach dem Speichern Formular ausblenden und Karten anzeigen
+                $('#billing-address-form').hide();
+                $('.yprint-saved-addresses').show();
+            }, 500);
+        }
+    }
+
+    // 🗑️ Event Handler für gelöschte Adresse (address_deleted)
+    function handleBillingAddressDeleted(event, addressId) {
+        // Die Bedingung addressId.includes('billing_') ist spezifisch für diese Implementierung
+        // Besser: Der Address Manager sollte den Typ im Event-Payload liefern.
+        // Falls nicht, auf window.currentAddressContext verlassen.
+        if (window.currentAddressContext === 'billing' && addressId.startsWith('billing_')) {
+            console.log('🗑️ Billing address deleted via Address Manager:', addressId);
+            // UI-Reset: Formular anzeigen, falls keine Adressen mehr gespeichert sind
+            // Oder wenn der Nutzer keine Adresse ausgewählt hat und das Formular benötigt wird
+            const addressCardsContainer = $('#billing-address-cards-container');
+            // Eine kleine Verzögerung geben, damit der DOM vom Address Manager aktualisiert wird
+            setTimeout(() => {
+                if (addressCardsContainer.children().length <= 1) { // Nur der "Neue Adresse" Button bleibt
+                    $('#billing-address-form').show();
+                    $('.yprint-saved-addresses').hide();
+                    resetBillingForm(); // Felder leeren und Button disablen
+                }
+            }, 200);
+        }
+    }
+
+    // 📝 Event Handler für Modal-Öffnung (modal_opened)
+    function handleBillingModalOpened(event, modalContext) {
+        // Stellt sicher, dass das Modal den korrekten Kontext erhält
+        if (modalContext === 'billing' || window.currentAddressContext === 'billing') {
+            $('#new-address-modal').attr('data-context', 'billing');
+            console.log('Modal opened for billing context.');
+        }
+    }
+
+    // 🧭 Navigation Setup
+    function setupBillingNavigation() {
+        $(document).on('click', '#btn-back-to-payment', function(e) {
+            e.preventDefault();
+            console.log('🧭 Navigation back to Payment Step');
+            navigateToPaymentStep(); // Immer zurück zum Payment Step
+        });
+
+        $(document).on('click', '#btn-billing-to-payment', function(e) {
+            e.preventDefault();
+            console.log('🧭 Navigation to Payment Step from Billing Form');
+            // Speichere Formulardaten und navigiere dann
+            saveBillingFormData(navigateToPaymentStep);
         });
     }
-});
 
-        // Save-Button Handler durch Address Manager
-$('#save-billing-address-button').on('click', function(e) {
-    e.preventDefault();
-    
-    if (typeof window.YPrintAddressManager !== 'undefined') {
-        // Sammle Formulardaten
-        const addressData = {
-            type: 'billing',
+    // 🔧 Hilfsfunktionen
+
+    /**
+     * Validiert das Rechnungsformular.
+     * @param {boolean} silent If true, no visual feedback (red borders) will be applied.
+     * @returns {boolean} True if all required fields are valid, false otherwise.
+     */
+    function validateBillingForm(silent = false) {
+        const requiredFields = ['#billing_first_name', '#billing_last_name', '#billing_street', '#billing_housenumber', '#billing_zip', '#billing_city'];
+        let allValid = true;
+
+        requiredFields.forEach(selector => {
+            const $field = $(selector);
+            const value = $field.val().trim();
+
+            if (!value) {
+                allValid = false;
+                if (!silent) {
+                    $field.addClass('border-red-500');
+                }
+            } else {
+                if (!silent) {
+                    $field.removeClass('border-red-500');
+                }
+            }
+        });
+
+        // "Weiter zur Zahlung" Button nur aktivieren, wenn alle Felder gültig sind
+        $('#btn-billing-to-payment').prop('disabled', !allValid);
+        return allValid;
+    }
+
+    function resetBillingForm() {
+        $('#billing-address-form')[0]?.reset();
+        validateBillingForm(); // Disable button and clear validation styles
+    }
+
+    // Speichert die ausgewählte/eingegebene Billing-Adresse in der Session
+    function saveBillingAddressToSession(addressData, callback) {
+        $.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_save_billing_session', // Der spezifische AJAX-Action Hook für Billing
+                nonce: yprint_address_ajax.nonce,
+                billing_data: addressData
+            },
+            success: function(response) {
+                console.log('💾 Billing address saved to session:', response);
+                if (callback) callback();
+            },
+            error: function(error) {
+                console.error('❌ Billing session save error:', error);
+                if (callback) callback(); // Trotzdem weiter navigieren, um den Fluss nicht zu blockieren
+            }
+        });
+    }
+
+    // Sammelt Formulardaten und speichert sie in der Session
+    function saveBillingFormData(callback) {
+        const billingData = {
             first_name: $('#billing_first_name').val().trim(),
             last_name: $('#billing_last_name').val().trim(),
             company: $('#billing_company').val().trim(),
@@ -211,176 +376,44 @@ $('#save-billing-address-button').on('click', function(e) {
             city: $('#billing_city').val().trim(),
             country: $('#billing_country').val() || 'DE'
         };
-        
-        // Address Manager verwenden
-        window.YPrintAddressManager.saveAddress(addressData);
+
+        // Prüfe, ob mindestens die erforderlichen Felder ausgefüllt sind
+        const hasValidData = billingData.first_name && billingData.last_name &&
+                             billingData.address_1 && billingData.postcode && billingData.city &&
+                             validateBillingForm(true); // Überprüft auch visuell, wenn nicht silent
+
+        if (hasValidData) {
+            saveBillingAddressToSession(billingData, callback);
+        } else {
+            console.warn('Form data is incomplete or invalid. Not saving to session, but navigating.');
+            if (callback) callback(); // Navigieren auch wenn Daten unvollständig sind (z.B. User ignoriert Felder)
+        }
     }
-});
-                        
-                        // Reload page to show new address in cards
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1500);
-                    } else {
-                        $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text(response.data?.message || 'Fehler beim Speichern');
-                    }
-                },
-                error: function() {
-                    $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Fehler beim Speichern der Adresse');
-                }
 
-        // Navigation zurück zur Zahlung
-        $(document).on('click', '#btn-back-to-payment, #btn-billing-to-payment', function(e) {
-            e.preventDefault();
-            
-            const isComplete = $(this).attr('id') === 'btn-billing-to-payment';
-            console.log('🧭 Navigation button clicked:', $(this).attr('id'));
-            
-            if (isComplete) {
-                // Speichere Formular-Daten wenn ausgefüllt
-                saveBillingFormData(navigateToPaymentStep);
-            } else {
-                // Direkt zurück navigieren
-                navigateToPaymentStep();
-            }
-        });
+    // Navigiert zum Payment Step
+    function navigateToPaymentStep() {
+        console.log('🔄 Navigating to Payment Step');
 
-        // Event-Handler für Formular-Validierung
-$('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
+        // Step wechseln
+        $('.checkout-step').removeClass('active').hide();
+        $('#step-2').addClass('active').show();
 
-// Address Manager Events für UI-Updates
-$(document).on('address_saved', function(event, addressData) {
-    if (addressData.type === 'billing') {
-        console.log('✅ Billing address saved via Address Manager');
-        $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Adresse erfolgreich gespeichert!');
-        
-        // UI aktualisieren - Adresskarten neu laden
-        setTimeout(() => {
-            if (window.YPrintAddressManager && window.YPrintAddressManager.loadSavedAddresses) {
-                window.YPrintAddressManager.loadSavedAddresses('billing');
-            }
-        }, 500);
+        // URL aktualisieren
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('step', 'payment');
+        history.pushState({step: 'payment'}, '', newUrl);
+
+        // Event triggern für Payment Step UI-Update
+        $(document).trigger('yprint_step_changed', {step: 'payment', from: 'billing'});
+
+        console.log('✅ Navigation completed');
     }
-});
 
-$(document).on('address_deleted', function(event, addressId) {
-    if (addressId.includes('billing_') || window.currentAddressContext === 'billing') {
-        console.log('🗑️ Billing address deleted via Address Manager');
-        // UI-Reset
-        $('#billing-address-form')[0].reset();
-        validateBillingForm();
+    // Hilfsfunktion für Login-Status
+    function isUserLoggedIn() {
+        return document.body.classList.contains('logged-in') ||
+               (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes');
     }
-});
-
-        // Hilfsfunktionen
-        function validateBillingForm() {
-            const requiredFields = ['#billing_first_name', '#billing_last_name', '#billing_street', '#billing_housenumber', '#billing_zip', '#billing_city'];
-            let allValid = true;
-            
-            requiredFields.forEach(selector => {
-                const $field = $(selector);
-                const value = $field.val().trim();
-                
-                if (!value) {
-                    allValid = false;
-                    $field.addClass('border-red-500');
-                } else {
-                    $field.removeClass('border-red-500');
-                }
-            });
-            
-            $('#btn-billing-to-payment').prop('disabled', !allValid);
-        }
-
-        function saveAddressToSession(addressData, callback) {
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_billing_session',
-                    nonce: yprint_address_ajax.nonce,
-                    billing_data: addressData
-                },
-                success: function(response) {
-                    console.log('💾 Address saved to session:', response);
-                    if (callback) callback();
-                },
-                error: function(error) {
-                    console.error('❌ Session save error:', error);
-                    if (callback) callback(); // Trotzdem weiter navigieren
-                }
-            });
-        }
-
-        function saveBillingFormData(callback) {
-            const billingData = {
-                first_name: $('#billing_first_name').val().trim(),
-                last_name: $('#billing_last_name').val().trim(),
-                company: $('#billing_company').val().trim(),
-                address_1: $('#billing_street').val().trim(),
-                address_2: $('#billing_housenumber').val().trim(),
-                postcode: $('#billing_zip').val().trim(),
-                city: $('#billing_city').val().trim(),
-                country: $('#billing_country').val() || 'DE'
-            };
-            
-            // Prüfe ob mindestens Name und Adresse vorhanden sind
-            const hasValidData = billingData.first_name && billingData.last_name && 
-                                 billingData.address_1 && billingData.postcode && billingData.city;
-            
-            if (hasValidData) {
-                saveAddressToSession(billingData, callback);
-            } else {
-                // Keine/unvollständige Daten - direkt navigieren
-                if (callback) callback();
-            }
-        }
-
-        function navigateToPaymentStep() {
-            console.log('🔄 Navigating back to Payment Step');
-            
-            // Step wechseln
-            $('.checkout-step').removeClass('active').hide();
-            $('#step-2').addClass('active').show();
-            
-            // URL aktualisieren
-            const newUrl = new URL(window.location);
-            newUrl.searchParams.set('step', 'payment');
-            history.pushState({step: 'payment'}, '', newUrl);
-            
-            // Event triggern für Payment Step UI-Update
-            $(document).trigger('yprint_step_changed', {step: 'payment', from: 'billing'});
-            
-            console.log('✅ Navigation completed');
-        }
-
-        // Hilfsfunktion für Login-Status
-        function isUserLoggedIn() {
-            return document.body.classList.contains('logged-in') || 
-                   (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes');
-        }
-
-        // Hilfsfunktion für Billing Session speichern
-        function saveBillingAddressToSession(addressData, callback) {
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_billing_session',
-                    nonce: yprint_address_ajax.nonce,
-                    billing_data: addressData
-                },
-                success: function(response) {
-                    console.log('💾 Billing address saved to session:', response);
-                    if (callback) callback();
-                },
-                error: function(error) {
-                    console.error('❌ Billing session save error:', error);
-                    if (callback) callback(); // Trotzdem weiter navigieren
-                }
-            });
-        }
-    });
 
 })(jQuery);
 </script>
