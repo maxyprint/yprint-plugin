@@ -41,6 +41,9 @@ public function __construct() {
     add_action('wp_ajax_nopriv_yprint_reset_password', array($this, 'ajax_process_password_reset'));
     add_action('wp_ajax_yprint_reset_password', array($this, 'ajax_process_password_reset'));
     
+    // AJAX für eingeloggte User - Passwort-Reset
+    add_action('wp_ajax_yprint_logged_in_reset', array($this, 'ajax_logged_in_reset'));
+    
     // Register dynamic pages
     add_action('init', array($this, 'register_recovery_pages'));
     
@@ -1053,6 +1056,137 @@ if (!$mail_sent) {
         }
         
         return $ip;
+    }
+    
+    /**
+     * AJAX Handler für eingeloggte User - Passwort-Reset
+     */
+    public function ajax_logged_in_reset() {
+        // Debug-Logging
+        error_log("YPrint: Logged-in user password reset request received");
+        error_log("YPrint: POST Data: " . print_r($_POST, true));
+        error_log("YPrint: User logged in: " . (is_user_logged_in() ? 'Yes' : 'No'));
+        
+        // Prüfen ob User eingeloggt ist
+        if (!is_user_logged_in()) {
+            error_log("YPrint: User not logged in");
+            wp_send_json_error(array('message' => 'Du musst angemeldet sein.'));
+            return;
+        }
+        
+        // Nonce Sicherheitsprüfung
+        $nonce = isset($_POST['nonce']) ? $_POST['nonce'] : '';
+        if (!wp_verify_nonce($nonce, 'yprint_logged_in_reset')) {
+            error_log("YPrint: Nonce verification failed. Provided: " . $nonce);
+            wp_send_json_error(array('message' => 'Sicherheitsprüfung fehlgeschlagen.'));
+            return;
+        }
+        
+        // Rate Limiting (außer für Admins)
+        $current_user = wp_get_current_user();
+        if (!current_user_can('administrator')) {
+            $rate_key = 'yprint_reset_' . $current_user->ID;
+            $rate_count = get_transient($rate_key);
+            
+            if ($rate_count !== false && $rate_count >= 3) {
+                error_log("YPrint: Rate limit exceeded for user: " . $current_user->ID);
+                wp_send_json_error(array('message' => 'Zu viele Versuche. Bitte warte eine Stunde.'));
+                return;
+            }
+        } else {
+            error_log("YPrint: Admin user - bypassing rate limiting");
+        }
+        
+        try {
+            $this->process_logged_in_user_reset();
+        } catch (Exception $e) {
+            error_log("YPrint: Exception in logged-in user reset: " . $e->getMessage());
+            wp_send_json_error(array(
+                'message' => 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es später erneut.'
+            ));
+        }
+    }
+    
+    /**
+     * Verarbeitet Passwort-Reset für eingeloggte User
+     */
+    public function process_logged_in_user_reset() {
+        $current_user = wp_get_current_user();
+        $user_id = $current_user->ID;
+        $user_login = $current_user->user_login;
+        
+        error_log("YPrint: Processing logged-in user reset for: " . $user_login . " (ID: " . $user_id . ")");
+        
+        // Rate Limiting Update (nur für Nicht-Admins)
+        if (!current_user_can('administrator')) {
+            $rate_key = 'yprint_reset_' . $user_id;
+            $rate_count = get_transient($rate_key);
+            
+            if ($rate_count === false) {
+                set_transient($rate_key, 1, HOUR_IN_SECONDS);
+            } else {
+                set_transient($rate_key, $rate_count + 1, HOUR_IN_SECONDS);
+            }
+            
+            error_log("YPrint: Rate limit updated for user " . $user_id . ": " . ($rate_count + 1));
+        }
+        
+        // Generate token
+        $token = $this->generate_token();
+        $user_email = $current_user->user_email;
+        
+        // Hash token for secure storage
+        $token_hash = wp_hash_password($token);
+        
+        // Debug-Ausgabe zur Token-Generierung
+        error_log("YPrint: Generated token for logged-in user $user_login (ID: $user_id) - Token length: " . strlen($token));
+        
+        // Store token in database
+        global $wpdb;
+        $token_table = 'wp_password_reset_tokens';
+        
+        // First, clean up any existing tokens for this user
+        $wpdb->delete(
+            $token_table,
+            array('user_id' => $user_id),
+            array('%d')
+        );
+        
+        // Then insert the new token
+        $current_time = current_time('mysql');
+        $expires_at = date('Y-m-d H:i:s', strtotime('+1 hour', strtotime($current_time)));
+        
+        $result = $wpdb->insert(
+            $token_table,
+            array(
+                'user_id' => $user_id,
+                'token_hash' => $token_hash,
+                'created_at' => $current_time,
+                'expires_at' => $expires_at
+            ),
+            array('%d', '%s', '%s', '%s')
+        );
+        
+        // Debug-Ausgabe, ob der Eintrag erfolgreich war
+        if ($result === false) {
+            error_log("YPrint: Token insert failed: " . $wpdb->last_error);
+            wp_send_json_error(array('message' => 'Fehler beim Erstellen des Reset-Tokens. Bitte versuche es später erneut.'));
+            return;
+        }
+        
+        error_log("YPrint: Token stored successfully in database");
+        
+        // Reset URL erstellen
+        $reset_url = home_url("/recover-account/reset/{$user_login}/{$token}/");
+        
+        // E-Mail senden (bestehende Methode verwenden)
+        $this->send_recovery_email($current_user, $reset_url);
+        
+        error_log("YPrint: Password reset email sent to logged-in user: {$user_email}");
+        
+        wp_send_json_success(array(
+            'message' => 'Eine Passwort-Reset-E-Mail wurde an ' . $user_email . ' gesendet.'
+        ));
     }
     
 /**
