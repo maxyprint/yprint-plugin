@@ -46,9 +46,11 @@ if (is_user_logged_in()) {
                                 <h4 class="font-semibold">
                                     <?php echo esc_html(($address_data['first_name'] ?? '') . ' ' . ($address_data['last_name'] ?? '')); ?>
                                 </h4>
-                                <button type="button" class="btn-select-address btn btn-sm btn-primary" data-address-id="<?php echo esc_attr($address_id); ?>">
-                                    <?php esc_html_e('Auswählen', 'yprint-checkout'); ?>
-                                </button>
+                                <div class="address-card-actions mt-3">
+    <button type="button" class="btn-select-address btn btn-sm btn-primary w-full" data-address-id="<?php echo esc_attr($address_id); ?>">
+        <i class="fas fa-check mr-2"></i><?php esc_html_e('Diese Adresse verwenden', 'yprint-checkout'); ?>
+    </button>
+</div>
                             </div>
                             <div class="address-details text-sm text-gray-600">
                                 <?php if (!empty($address_data['company'])) : ?>
@@ -84,6 +86,23 @@ if (is_user_logged_in()) {
         error_log('YPrint Billing Address Modal Error: ' . $e->getMessage());
     }
     ?>
+<?php endif; ?>
+
+<?php if (current_user_can('administrator') && isset($_GET['debug'])) : ?>
+    <div class="debug-info bg-yellow-100 p-4 mt-4 rounded">
+        <h4>🔍 Debug Information:</h4>
+        <p><strong>User logged in:</strong> <?php echo is_user_logged_in() ? 'Yes' : 'No'; ?></p>
+        <p><strong>Has saved addresses:</strong> <?php echo $has_saved_addresses ? 'Yes' : 'No'; ?></p>
+        <p><strong>Address count:</strong> <?php echo count($user_addresses); ?></p>
+        <?php if ($has_saved_addresses) : ?>
+            <p><strong>Address IDs:</strong></p>
+            <ul>
+                <?php foreach ($user_addresses as $address_id => $address_data) : ?>
+                    <li><?php echo esc_html($address_id); ?> - <?php echo esc_html(($address_data['first_name'] ?? '') . ' ' . ($address_data['last_name'] ?? '')); ?></li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
 <?php endif; ?>
 
 <!-- Billing-Formular (wird ausgeblendet wenn gespeicherte Adressen vorhanden sind) -->
@@ -182,10 +201,21 @@ if (is_user_logged_in()) {
 
         // Event-Handler für Adressauswahl (nutzt zentrale Address Manager Funktion)
         $(document).on('click', '.btn-select-address', function(e) {
-            e.preventDefault();
-            
-            const $btn = $(this);
-            const addressId = $btn.data('address-id');
+    e.preventDefault();
+    
+    const $btn = $(this);
+    const addressId = $btn.attr('data-address-id') || $btn.data('address-id');
+    
+    console.log('🔍 Debug - Button element:', $btn[0]);
+    console.log('🔍 Debug - data-address-id attr:', $btn.attr('data-address-id'));
+    console.log('🔍 Debug - jQuery data():', $btn.data('address-id'));
+    console.log('🔍 Debug - Final addressId:', addressId);
+    
+    if (!addressId) {
+        console.error('❌ No address ID found on button');
+        alert('Fehler: Adress-ID nicht gefunden. Bitte laden Sie die Seite neu.');
+        return;
+    }
             const originalText = $btn.html();
             
             console.log('📍 Selecting billing address:', addressId);
@@ -193,15 +223,49 @@ if (is_user_logged_in()) {
             // Loading-State
             $btn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
             
-            // Nutze zentrale Address Manager AJAX-Funktion
             $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_set_checkout_address',  // Zentrale Funktion
-                    nonce: yprint_address_ajax.nonce,
-                    address_id: addressId
-                },
+    url: yprint_address_ajax.ajax_url,
+    type: 'POST',
+    data: {
+        action: 'yprint_set_checkout_address',  // Zentrale Funktion
+        nonce: yprint_address_ajax.nonce,
+        address_id: addressId
+    },
+    beforeSend: function() {
+        console.log('📡 Sending AJAX request with data:', {
+            action: 'yprint_set_checkout_address',
+            address_id: addressId,
+            nonce: yprint_address_ajax.nonce
+        });
+    },
+
+    success: function(response) {
+    console.log('📥 Full AJAX response:', response);
+    console.log('📥 Response type:', typeof response);
+    console.log('📥 Response.success:', response.success);
+    console.log('📥 Response.data:', response.data);
+    
+    if (response.success && response.data && response.data.address_data) {
+        // ... existing success code
+    } else {
+        console.error('❌ Invalid response structure:', response);
+        
+        // Detaillierte Fehleranalyse
+        if (!response.success) {
+            console.error('❌ Response success = false');
+            console.error('❌ Error message:', response.data?.message || 'No error message');
+        }
+        if (!response.data) {
+            console.error('❌ No response.data');
+        }
+        if (response.data && !response.data.address_data) {
+            console.error('❌ No address_data in response.data');
+        }
+        
+        $btn.html(originalText);
+        alert('Fehler beim Auswählen der Adresse: ' + (response.data?.message || 'Unbekannter Fehler'));
+    }
+},
                 success: function(response) {
                     if (response.success && response.data && response.data.address_data) {
                         const addressData = response.data.address_data;
