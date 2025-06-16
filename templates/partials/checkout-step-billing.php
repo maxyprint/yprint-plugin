@@ -238,34 +238,6 @@ if (is_user_logged_in()) {
             nonce: yprint_address_ajax.nonce
         });
     },
-
-    success: function(response) {
-    console.log('📥 Full AJAX response:', response);
-    console.log('📥 Response type:', typeof response);
-    console.log('📥 Response.success:', response.success);
-    console.log('📥 Response.data:', response.data);
-    
-    if (response.success && response.data && response.data.address_data) {
-        // ... existing success code
-    } else {
-        console.error('❌ Invalid response structure:', response);
-        
-        // Detaillierte Fehleranalyse
-        if (!response.success) {
-            console.error('❌ Response success = false');
-            console.error('❌ Error message:', response.data?.message || 'No error message');
-        }
-        if (!response.data) {
-            console.error('❌ No response.data');
-        }
-        if (response.data && !response.data.address_data) {
-            console.error('❌ No address_data in response.data');
-        }
-        
-        $btn.html(originalText);
-        alert('Fehler beim Auswählen der Adresse: ' + (response.data?.message || 'Unbekannter Fehler'));
-    }
-},
                 success: function(response) {
                     if (response.success && response.data && response.data.address_data) {
                         const addressData = response.data.address_data;
