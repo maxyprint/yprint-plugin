@@ -30,34 +30,18 @@ if (is_user_logged_in()) {
 </h2>
 
 <?php if (is_user_logged_in()) : ?>
-    <!-- Adresskarten-Container (wird nur angezeigt wenn Adressen vorhanden) -->
+    <!-- Adresskarten-Container für Address Manager -->
     <div class="yprint-saved-addresses mt-6" data-address-type="billing">
-    <h3 class="saved-addresses-title">
-        <i class="fas fa-file-invoice mr-2"></i>
-        <?php _e('Gespeicherte Rechnungsadressen', 'yprint-plugin'); ?>
-    </h3>
-    
-    <div class="address-cards-grid">
-        <!-- Container wird durch Address Manager gefüllt -->
-            <?php 
-            // DEBUG: Address loading information
-            echo '<div class="debug-output bg-yellow-100 p-2 mb-4 text-xs">';
-            echo '<strong>🔍 DEBUG - Address Loading:</strong><br>';
-            echo 'User logged in: ' . (is_user_logged_in() ? 'YES' : 'NO') . '<br>';
-            echo 'User ID: ' . get_current_user_id() . '<br>';
-            echo 'Raw $user_addresses type: ' . gettype($user_addresses) . '<br>';
-            echo 'Raw $user_addresses count: ' . (is_array($user_addresses) ? count($user_addresses) : 'not array') . '<br>';
-            echo 'Has saved addresses: ' . ($has_saved_addresses ? 'YES' : 'NO') . '<br>';
-            if (is_array($user_addresses)) {
-                echo 'Address keys: ' . implode(', ', array_keys($user_addresses)) . '<br>';
-            }
-            echo '</div>';
-            ?>
-            
+        <h3 class="saved-addresses-title">
+            <i class="fas fa-file-invoice mr-2"></i>
+            <?php _e('Gespeicherte Rechnungsadressen', 'yprint-plugin'); ?>
+        </h3>
+        
+        <div class="address-cards-grid">
             <!-- Address Cards werden dynamisch durch Address Manager geladen -->
-<div id="billing-address-cards-container">
-    <!-- Hier werden die Cards durch YPrintAddressManager.loadSavedAddresses('billing') eingefügt -->
-</div>
+            <div id="billing-address-cards-container">
+                <!-- Wird durch YPrintAddressManager.loadSavedAddresses('billing') gefüllt -->
+            </div>
         </div>
     </div>
     
@@ -180,145 +164,39 @@ if (is_user_logged_in()) {
     'use strict';
 
     $(document).ready(function() {
-    console.log('🚀 Billing Step loaded - initializing with Address Manager');
-    
-    // Initiale Validierung
-    validateBillingForm();
-    
-    // Address Manager für Billing initialisieren
-    if (typeof window.YPrintAddressManager !== 'undefined' && isUserLoggedIn()) {
-        console.log('🏗️ Loading billing addresses with Address Manager');
+        console.log('🚀 Billing Step loaded - initializing with Address Manager');
         
-        // Container für Address Manager vorbereiten
-        const $container = $('.yprint-saved-addresses .address-cards-grid');
-        if ($container.length) {
-            $container.html('<div id="billing-address-cards-container"></div>');
-        }
+        // Initiale Validierung
+        validateBillingForm();
         
-        // Address Manager für Billing-Typ laden
-        setTimeout(() => {
-            window.YPrintAddressManager.loadSavedAddresses('billing', 'billing-address-cards-container');
-        }, 300);
-    }
-
-    // Event-Handler für Address Manager Events
-    $(document).on('yprint_address_selected', function(event, data) {
-        if (data.type === 'billing') {
-            console.log('🎯 Billing address selected via Address Manager:', data);
+        // Address Manager für Billing initialisieren
+        if (typeof window.YPrintAddressManager !== 'undefined' && isUserLoggedIn()) {
+            console.log('🏗️ Loading billing addresses with Address Manager');
             
-            // Session speichern
-            saveBillingAddressToSession(data.address, () => {
-                console.log('✅ Billing address saved, navigating to payment');
-                navigateToPaymentStep();
-            });
+            // Address Manager für Billing-Typ laden
+            setTimeout(() => {
+                window.YPrintAddressManager.loadSavedAddresses('billing');
+            }, 300);
         }
-    });
 
-    // Hilfsfunktion für Login-Status
-    function isUserLoggedIn() {
-        return document.body.classList.contains('logged-in') || 
-               (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes');
-    }
-
-    // Hilfsfunktion für Billing Session speichern
-    function saveBillingAddressToSession(addressData, callback) {
-        $.ajax({
-            url: yprint_address_ajax.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'yprint_save_billing_session',
-                nonce: yprint_address_ajax.nonce,
-                billing_data: addressData
-            },
-            success: function(response) {
-                console.log('💾 Billing address saved to session:', response);
-                if (callback) callback();
-            },
-            error: function(error) {
-                console.error('❌ Billing session save error:', error);
-                if (callback) callback(); // Trotzdem weiter navigieren
+        // Event-Handler für Address Manager Events
+        $(document).on('yprint_address_selected', function(event, data) {
+            if (data.type === 'billing') {
+                console.log('🎯 Billing address selected via Address Manager:', data);
+                
+                // Session speichern
+                saveBillingAddressToSession(data.address, () => {
+                    console.log('✅ Billing address saved, navigating to payment');
+                    navigateToPaymentStep();
+                });
             }
         });
-    }
-        return;
-    }
-            const originalText = $btn.html();
-            
-            console.log('📍 Selecting billing address:', addressId);
-            
-            // Loading-State
-            $btn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
-            
-            $.ajax({
-    url: yprint_address_ajax.ajax_url,
-    type: 'POST',
-    data: {
-        action: 'yprint_set_checkout_address',  // Zentrale Funktion
-        nonce: yprint_address_ajax.nonce,
-        address_id: addressId
-    },
-    beforeSend: function() {
-        console.log('📡 Sending AJAX request with data:', {
-            action: 'yprint_set_checkout_address',
-            address_id: addressId,
-            nonce: yprint_address_ajax.nonce
-        });
-    },
-                success: function(response) {
-                    if (response.success && response.data && response.data.address_data) {
-                        const addressData = response.data.address_data;
-                        
-                        // Speichere in Session für Payment Step
-                        saveAddressToSession(addressData, function() {
-                            console.log('✅ Billing address selected and saved to session');
-                            
-                            // Event für Payment Step UI-Update triggern
-                            $(document).trigger('yprint_billing_address_selected', {
-                                addressData: addressData,
-                                addressId: addressId
-                            });
-                            
-                            // Navigation zurück zum Payment Step
-                            navigateToPaymentStep();
-                        });
-                        
-                    } else {
-                        console.error('❌ Invalid response structure:', response);
-                        $btn.html(originalText);
-                        alert('Fehler beim Auswählen der Adresse. Bitte versuchen Sie es erneut.');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('❌ AJAX error:', error);
-                    $btn.html(originalText);
-                    alert('Fehler beim Auswählen der Adresse. Bitte versuchen Sie es erneut.');
-                }
-            });
-        });
 
-        // Event-Handler für "Neue Adresse hinzufügen"
-        $(document).on('click', '.add-new-address-card', function() {
-            console.log('📝 Adding new billing address');
-            
-            // Zeige Formular, verstecke Adresskarten
-            $('.yprint-saved-addresses[data-address-type="billing"]').slideUp(300);
-            $('#billing-address-form').slideDown(300);
-            
-            // Form-Felder leeren
-            $('#billing-address-form input[type="text"]').val('');
-            $('#billing_country').val('DE');
-            
-            // Validierung triggern
-            setTimeout(validateBillingForm, 100);
-        });
-
-        // Event-Handler für "Rechnungsadresse speichern"
-        $(document).on('click', '#save-billing-address-button', function(e) {
+        // Event-Handler für Adresse-Speichern
+        $('#save-billing-address-button').on('click', function(e) {
             e.preventDefault();
             
-            console.log('💾 Saving new billing address');
-            
-            const billingData = {
+            const addressData = {
                 first_name: $('#billing_first_name').val().trim(),
                 last_name: $('#billing_last_name').val().trim(),
                 company: $('#billing_company').val().trim(),
@@ -328,25 +206,25 @@ if (is_user_logged_in()) {
                 city: $('#billing_city').val().trim(),
                 country: $('#billing_country').val() || 'DE'
             };
-            
+
             // Validierung
-            if (!billingData.first_name || !billingData.last_name || !billingData.address_1 || !billingData.postcode || !billingData.city) {
+            if (!addressData.first_name || !addressData.last_name || !addressData.address_1 || !addressData.postcode || !addressData.city) {
                 $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Bitte füllen Sie alle Pflichtfelder aus.');
                 return;
             }
-            
-            // Nutze zentrale Address Manager Speicherfunktion
+
+            // AJAX Speichern
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'yprint_save_checkout_address',  // Zentrale Funktion
-                    nonce: yprint_address_ajax.nonce,
-                    address_data: billingData
+                    action: 'yprint_save_address',
+                    yprint_address_nonce: yprint_address_ajax.nonce,
+                    ...addressData
                 },
                 success: function(response) {
                     if (response.success) {
-                        $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Rechnungsadresse gespeichert!');
+                        $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Adresse erfolgreich gespeichert!');
                         
                         // Reload page to show new address in cards
                         setTimeout(() => {
@@ -406,7 +284,7 @@ if (is_user_logged_in()) {
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'yprint_save_billing_session',  // Nutze existierende Session-Funktion
+                    action: 'yprint_save_billing_session',
                     nonce: yprint_address_ajax.nonce,
                     billing_data: addressData
                 },
@@ -461,6 +339,33 @@ if (is_user_logged_in()) {
             $(document).trigger('yprint_step_changed', {step: 'payment', from: 'billing'});
             
             console.log('✅ Navigation completed');
+        }
+
+        // Hilfsfunktion für Login-Status
+        function isUserLoggedIn() {
+            return document.body.classList.contains('logged-in') || 
+                   (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes');
+        }
+
+        // Hilfsfunktion für Billing Session speichern
+        function saveBillingAddressToSession(addressData, callback) {
+            $.ajax({
+                url: yprint_address_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'yprint_save_billing_session',
+                    nonce: yprint_address_ajax.nonce,
+                    billing_data: addressData
+                },
+                success: function(response) {
+                    console.log('💾 Billing address saved to session:', response);
+                    if (callback) callback();
+                },
+                error: function(error) {
+                    console.error('❌ Billing session save error:', error);
+                    if (callback) callback(); // Trotzdem weiter navigieren
+                }
+            });
         }
     });
 
