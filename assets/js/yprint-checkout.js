@@ -3040,10 +3040,24 @@ function populateAddressFields(addressData, type = 'shipping') {
 
 // Integration mit Address Manager statt eigene Handler
 if (window.YPrintAddressManager) {
-    // Event-Integration mit Address Manager
-    jQuery(document).on('address_selected', function(event, addressData) {
+    // Event-Integration mit Address Manager (standardisiert)
+    jQuery(document).on('address_selected', function(event, addressId, addressData) {
         console.log('Adresse vom Address Manager ausgewählt:', addressData);
-        validateAddressForm(); // Button-Status aktualisieren
+        
+        // Prüfe Kontext (Shipping vs Billing)
+        const addressType = $(event.target).closest('[data-address-type]').attr('data-address-type');
+        if (addressType === 'shipping' || window.currentAddressContext === 'shipping' || !addressType) {
+            // Für Shipping-Kontext: Formular ausfüllen
+            populateCheckoutFields(addressData);
+            validateAddressForm(); // Button-Status aktualisieren
+        }
+    });
+    
+    // Address Manager Events für Shipping
+    jQuery(document).on('address_saved', function(event, addressData) {
+        if (addressData.type === 'shipping' || !addressData.type) {
+            console.log('✅ Shipping address saved via Address Manager');
+        }
     });
 }
 

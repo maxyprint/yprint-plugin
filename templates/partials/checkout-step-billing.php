@@ -179,52 +179,43 @@ if (is_user_logged_in()) {
             }, 300);
         }
 
-        // Event-Handler für Address Manager Events
-        $(document).on('yprint_address_selected', function(event, data) {
-            if (data.type === 'billing') {
-                console.log('🎯 Billing address selected via Address Manager:', data);
-                
-                // Session speichern
-                saveBillingAddressToSession(data.address, () => {
-                    console.log('✅ Billing address saved, navigating to payment');
-                    navigateToPaymentStep();
-                });
-            }
+        // Event-Handler für Address Manager Events (standardisiert)
+$(document).on('address_selected', function(event, addressId, addressData) {
+    // Prüfe ob es sich um eine Billing-Adresse handelt
+    const addressType = $(event.target).closest('[data-address-type]').attr('data-address-type');
+    if (addressType === 'billing' || window.currentAddressContext === 'billing') {
+        console.log('🎯 Billing address selected via Address Manager:', addressData);
+        
+        // Session speichern mit standardisierten Daten
+        saveBillingAddressToSession(addressData, () => {
+            console.log('✅ Billing address saved to session');
+            navigateToPaymentStep();
         });
+    }
+});
 
-        // Event-Handler für Adresse-Speichern
-        $('#save-billing-address-button').on('click', function(e) {
-            e.preventDefault();
-            
-            const addressData = {
-                first_name: $('#billing_first_name').val().trim(),
-                last_name: $('#billing_last_name').val().trim(),
-                company: $('#billing_company').val().trim(),
-                address_1: $('#billing_street').val().trim(),
-                address_2: $('#billing_housenumber').val().trim(),
-                postcode: $('#billing_zip').val().trim(),
-                city: $('#billing_city').val().trim(),
-                country: $('#billing_country').val() || 'DE'
-            };
-
-            // Validierung
-            if (!addressData.first_name || !addressData.last_name || !addressData.address_1 || !addressData.postcode || !addressData.city) {
-                $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Bitte füllen Sie alle Pflichtfelder aus.');
-                return;
-            }
-
-            // AJAX Speichern
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_save_address',
-                    yprint_address_nonce: yprint_address_ajax.nonce,
-                    ...addressData
-                },
-                success: function(response) {
-                    if (response.success) {
-                        $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Adresse erfolgreich gespeichert!');
+        // Save-Button Handler durch Address Manager
+$('#save-billing-address-button').on('click', function(e) {
+    e.preventDefault();
+    
+    if (typeof window.YPrintAddressManager !== 'undefined') {
+        // Sammle Formulardaten
+        const addressData = {
+            type: 'billing',
+            first_name: $('#billing_first_name').val().trim(),
+            last_name: $('#billing_last_name').val().trim(),
+            company: $('#billing_company').val().trim(),
+            address_1: $('#billing_street').val().trim(),
+            address_2: $('#billing_housenumber').val().trim(),
+            postcode: $('#billing_zip').val().trim(),
+            city: $('#billing_city').val().trim(),
+            country: $('#billing_country').val() || 'DE'
+        };
+        
+        // Address Manager verwenden
+        window.YPrintAddressManager.saveAddress(addressData);
+    }
+});
                         
                         // Reload page to show new address in cards
                         setTimeout(() => {
@@ -237,8 +228,6 @@ if (is_user_logged_in()) {
                 error: function() {
                     $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Fehler beim Speichern der Adresse');
                 }
-            });
-        });
 
         // Navigation zurück zur Zahlung
         $(document).on('click', '#btn-back-to-payment, #btn-billing-to-payment', function(e) {
@@ -257,7 +246,31 @@ if (is_user_logged_in()) {
         });
 
         // Event-Handler für Formular-Validierung
-        $('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
+$('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
+
+// Address Manager Events für UI-Updates
+$(document).on('address_saved', function(event, addressData) {
+    if (addressData.type === 'billing') {
+        console.log('✅ Billing address saved via Address Manager');
+        $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Adresse erfolgreich gespeichert!');
+        
+        // UI aktualisieren - Adresskarten neu laden
+        setTimeout(() => {
+            if (window.YPrintAddressManager && window.YPrintAddressManager.loadSavedAddresses) {
+                window.YPrintAddressManager.loadSavedAddresses('billing');
+            }
+        }, 500);
+    }
+});
+
+$(document).on('address_deleted', function(event, addressId) {
+    if (addressId.includes('billing_') || window.currentAddressContext === 'billing') {
+        console.log('🗑️ Billing address deleted via Address Manager');
+        // UI-Reset
+        $('#billing-address-form')[0].reset();
+        validateBillingForm();
+    }
+});
 
         // Hilfsfunktionen
         function validateBillingForm() {
