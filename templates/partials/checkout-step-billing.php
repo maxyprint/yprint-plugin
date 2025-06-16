@@ -31,13 +31,14 @@ if (is_user_logged_in()) {
 
 <?php if (is_user_logged_in()) : ?>
     <!-- Adresskarten-Container (wird nur angezeigt wenn Adressen vorhanden) -->
-    <div class="yprint-saved-addresses mt-6" data-address-type="billing" style="display: <?php echo $has_saved_addresses ? 'block' : 'none'; ?>;">
-        <h3 class="saved-addresses-title">
-            <i class="fas fa-file-invoice mr-2"></i>
-            <?php _e('Gespeicherte Rechnungsadressen', 'yprint-plugin'); ?>
-        </h3>
-        
-        <div class="address-cards-grid">
+    <div class="yprint-saved-addresses mt-6" data-address-type="billing">
+    <h3 class="saved-addresses-title">
+        <i class="fas fa-file-invoice mr-2"></i>
+        <?php _e('Gespeicherte Rechnungsadressen', 'yprint-plugin'); ?>
+    </h3>
+    
+    <div class="address-cards-grid">
+        <!-- Container wird durch Address Manager gefüllt -->
             <?php 
             // DEBUG: Address loading information
             echo '<div class="debug-output bg-yellow-100 p-2 mb-4 text-xs">';
@@ -53,50 +54,10 @@ if (is_user_logged_in()) {
             echo '</div>';
             ?>
             
-            <?php if ($has_saved_addresses) : ?>
-                <?php foreach ($user_addresses as $address_id => $address_data) : ?>
-                    <?php
-                    // DEBUG: Each address card
-                    echo '<div class="debug-address bg-blue-100 p-2 mb-2 text-xs">';
-                    echo '<strong>DEBUG Address ID:</strong> ' . esc_html($address_id) . '<br>';
-                    echo '<strong>DEBUG Address Data Type:</strong> ' . gettype($address_data) . '<br>';
-                    if (is_array($address_data)) {
-                        echo '<strong>DEBUG Address Fields:</strong> ' . implode(', ', array_keys($address_data)) . '<br>';
-                    }
-                    echo '</div>';
-                    ?>
-                    <div class="address-card" data-address-id="<?php echo esc_attr($address_id); ?>">
-                        <div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500 cursor-pointer">
-                            <div class="flex items-center justify-between mb-2">
-                                <h4 class="font-semibold">
-                                    <?php echo esc_html(($address_data['first_name'] ?? '') . ' ' . ($address_data['last_name'] ?? '')); ?>
-                                </h4>
-                                <div class="address-card-actions mt-3">
-    <button type="button" class="btn-select-address btn btn-sm btn-primary w-full" data-address-id="<?php echo esc_attr($address_id); ?>">
-        <i class="fas fa-check mr-2"></i><?php esc_html_e('Diese Adresse verwenden', 'yprint-checkout'); ?>
-    </button>
+            <!-- Address Cards werden dynamisch durch Address Manager geladen -->
+<div id="billing-address-cards-container">
+    <!-- Hier werden die Cards durch YPrintAddressManager.loadSavedAddresses('billing') eingefügt -->
 </div>
-                            </div>
-                            <div class="address-details text-sm text-gray-600">
-                                <?php if (!empty($address_data['company'])) : ?>
-                                    <div class="font-medium"><?php echo esc_html($address_data['company']); ?></div>
-                                <?php endif; ?>
-                                <div><?php echo esc_html($address_data['address_1'] . ' ' . ($address_data['address_2'] ?? '')); ?></div>
-                                <div><?php echo esc_html(($address_data['postcode'] ?? '') . ' ' . ($address_data['city'] ?? '')); ?></div>
-                                <div><?php echo esc_html($address_data['country'] ?? 'DE'); ?></div>
-                            </div>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            <?php endif; ?>
-            
-            <!-- "Neue Adresse hinzufügen" Karte -->
-            <div class="address-card add-new-address-card cursor-pointer">
-                <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue add-new-address-content">
-                    <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
-                    <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Rechnungsadresse hinzufügen', 'yprint-checkout'); ?></h4>
-                </div>
-            </div>
         </div>
     </div>
     
@@ -219,26 +180,66 @@ if (is_user_logged_in()) {
     'use strict';
 
     $(document).ready(function() {
-        console.log('🚀 Optimized Billing Step loaded - using central Address Manager functions');
+    console.log('🚀 Billing Step loaded - initializing with Address Manager');
+    
+    // Initiale Validierung
+    validateBillingForm();
+    
+    // Address Manager für Billing initialisieren
+    if (typeof window.YPrintAddressManager !== 'undefined' && isUserLoggedIn()) {
+        console.log('🏗️ Loading billing addresses with Address Manager');
         
-        // Initiale Validierung
-        validateBillingForm();
+        // Container für Address Manager vorbereiten
+        const $container = $('.yprint-saved-addresses .address-cards-grid');
+        if ($container.length) {
+            $container.html('<div id="billing-address-cards-container"></div>');
+        }
+        
+        // Address Manager für Billing-Typ laden
+        setTimeout(() => {
+            window.YPrintAddressManager.loadSavedAddresses('billing', 'billing-address-cards-container');
+        }, 300);
+    }
 
-        // Event-Handler für Adressauswahl (nutzt zentrale Address Manager Funktion)
-        $(document).on('click', '.btn-select-address', function(e) {
-    e.preventDefault();
-    
-    const $btn = $(this);
-    const addressId = $btn.attr('data-address-id') || $btn.data('address-id');
-    
-    console.log('🔍 Debug - Button element:', $btn[0]);
-    console.log('🔍 Debug - data-address-id attr:', $btn.attr('data-address-id'));
-    console.log('🔍 Debug - jQuery data():', $btn.data('address-id'));
-    console.log('🔍 Debug - Final addressId:', addressId);
-    
-    if (!addressId) {
-        console.error('❌ No address ID found on button');
-        alert('Fehler: Adress-ID nicht gefunden. Bitte laden Sie die Seite neu.');
+    // Event-Handler für Address Manager Events
+    $(document).on('yprint_address_selected', function(event, data) {
+        if (data.type === 'billing') {
+            console.log('🎯 Billing address selected via Address Manager:', data);
+            
+            // Session speichern
+            saveBillingAddressToSession(data.address, () => {
+                console.log('✅ Billing address saved, navigating to payment');
+                navigateToPaymentStep();
+            });
+        }
+    });
+
+    // Hilfsfunktion für Login-Status
+    function isUserLoggedIn() {
+        return document.body.classList.contains('logged-in') || 
+               (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes');
+    }
+
+    // Hilfsfunktion für Billing Session speichern
+    function saveBillingAddressToSession(addressData, callback) {
+        $.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_save_billing_session',
+                nonce: yprint_address_ajax.nonce,
+                billing_data: addressData
+            },
+            success: function(response) {
+                console.log('💾 Billing address saved to session:', response);
+                if (callback) callback();
+            },
+            error: function(error) {
+                console.error('❌ Billing session save error:', error);
+                if (callback) callback(); // Trotzdem weiter navigieren
+            }
+        });
+    }
         return;
     }
             const originalText = $btn.html();
