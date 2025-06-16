@@ -1838,10 +1838,36 @@ function loadSettingsContent(href) {
                 </div>
             </div>
             
-            <div>
+            <div class="yprint-form-buttons">
                 <button type="submit" class="yprint-button">Änderungen speichern</button>
             </div>
         </form>
+        
+        <!-- Passwort-Reset Sektion -->
+        <div class="yprint-password-reset-section" style="margin-top: 40px; padding-top: 30px; border-top: 1px solid #e0e0e0;">
+            <h3>Passwort-Sicherheit</h3>
+            <p style="color: #666; margin-bottom: 20px;">Setze dein Passwort zurück, wenn du den Verdacht hast, dass dein Konto kompromittiert wurde.</p>
+            
+            <button type="button" id="reset-password-btn" class="yprint-button yprint-button-secondary">
+                <i class="fas fa-key" style="margin-right: 8px;"></i>
+                Passwort zurücksetzen
+            </button>
+            
+            <div id="password-reset-loading" style="display: none; margin-top: 15px;">
+                <div class="yprint-overlay-loader"></div>
+                <p style="text-align: center; color: #666;">Reset-E-Mail wird versendet...</p>
+            </div>
+            
+            <div id="password-reset-success" style="display: none; margin-top: 15px; padding: 15px; background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; color: #155724;">
+                <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+                <strong>E-Mail versendet!</strong> Du erhältst in Kürze eine E-Mail mit Anweisungen zum Zurücksetzen deines Passworts.
+            </div>
+            
+            <div id="password-reset-error" style="display: none; margin-top: 15px; padding: 15px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; color: #721c24;">
+                <i class="fas fa-exclamation-triangle" style="margin-right: 8px;"></i>
+                <strong>Fehler:</strong> <span id="error-message">Bitte versuche es später erneut.</span>
+            </div>
+        </div>
     </div>
     
     <script>
@@ -1857,6 +1883,95 @@ function loadSettingsContent(href) {
             } else {
                 emailWarning.slideUp();
             }
+        });
+        
+        // Rate Limiting für eingeloggte User
+        var lastResetAttempt = 0;
+        var resetAttempts = 0;
+        var maxAttempts = 3;
+        var cooldownTime = 3600000; // 1 Stunde in Millisekunden
+        
+        // Passwort-Reset Button Handler
+        $('#reset-password-btn').on('click', function() {
+            var currentTime = Date.now();
+            
+            // Rate Limiting prüfen
+            if (currentTime - lastResetAttempt < cooldownTime && resetAttempts >= maxAttempts) {
+                $('#password-reset-error #error-message').text('Zu viele Versuche. Bitte warte eine Stunde bis zum nächsten Versuch.');
+                $('#password-reset-error').slideDown();
+                return;
+            }
+            
+            // Reset previous messages
+            $('#password-reset-success, #password-reset-error').slideUp();
+            
+            // Show loading
+            $('#password-reset-loading').slideDown();
+            $(this).prop('disabled', true);
+            
+            // Logging für Sicherheit
+            console.log('YPrint: Password reset initiated for logged-in user at ' + new Date().toISOString());
+            
+            // AJAX-Call mit bestehender Infrastruktur
+            $.ajax({
+                type: 'POST',
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                data: {
+                    action: 'yprint_logged_in_reset',
+                    nonce: '<?php echo wp_create_nonce('yprint_logged_in_reset'); ?>'
+                },
+                success: function(response) {
+                    $('#password-reset-loading').slideUp();
+                    $('#reset-password-btn').prop('disabled', false);
+                    
+                    if (response.success) {
+                        $('#password-reset-success').slideDown();
+                        
+                        // Erfolgreiche Anfrage loggen
+                        console.log('YPrint: Password reset email sent successfully');
+                        
+                        // Button temporär deaktivieren
+                        $('#reset-password-btn').prop('disabled', true);
+                        setTimeout(function() {
+                            $('#reset-password-btn').prop('disabled', false);
+                        }, 60000); // 1 Minute Wartezeit
+                        
+                    } else {
+                        var errorMsg = response.data && response.data.message ? 
+                            response.data.message : 'Ein unerwarteter Fehler ist aufgetreten.';
+                        $('#password-reset-error #error-message').text(errorMsg);
+                        $('#password-reset-error').slideDown();
+                        
+                        // Rate Limiting Update
+                        resetAttempts++;
+                        lastResetAttempt = currentTime;
+                        
+                        // Fehlschlag loggen
+                        console.error('YPrint: Password reset failed - ' + errorMsg);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $('#password-reset-loading').slideUp();
+                    $('#reset-password-btn').prop('disabled', false);
+                    
+                    $('#password-reset-error #error-message').text('Verbindungsfehler. Bitte versuche es erneut.');
+                    $('#password-reset-error').slideDown();
+                    
+                    // Rate Limiting Update
+                    resetAttempts++;
+                    lastResetAttempt = currentTime;
+                    
+                    // Fehler loggen
+                    console.error('YPrint: Password reset AJAX error - ', error);
+                }
+            });
+        });
+        
+        // Auto-hide success message nach 10 Sekunden
+        $(document).on('show', '#password-reset-success', function() {
+            setTimeout(function() {
+                $('#password-reset-success').slideUp();
+            }, 10000);
         });
     });
     </script>
