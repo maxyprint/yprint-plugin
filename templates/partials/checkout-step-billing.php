@@ -38,8 +38,14 @@ if (is_user_logged_in()) {
         </h3>
 
         <div class="address-cards-grid">
-            <div id="billing-address-cards-container">
-                </div>
+        <div id="billing-address-cards-container">
+    <div class="address-card add-new-address-card cursor-pointer">
+        <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue add-new-address-content">
+            <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+            <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
+        </div>
+    </div>
+</div>
         </div>
     </div>
 
