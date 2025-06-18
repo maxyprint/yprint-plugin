@@ -183,16 +183,59 @@ if (is_user_logged_in()) {
         // Initiale Validierung des Formulars (für den Fall, dass es angezeigt wird)
         validateBillingForm();
 
-        // ✅ 2. ADDRESS MANAGER INITIALISIEREN
-        if (typeof window.YPrintAddressManager !== 'undefined' && isUserLoggedIn()) {
-            console.log('🏗️ Loading billing addresses with Address Manager');
+        // ✅ 2. ADDRESS MANAGER INITIALISIEREN (ROBUST)
+        function initializeBillingAddressManager() {
+            // Prüfe alle Voraussetzungen
+            if (typeof window.YPrintAddressManager === 'undefined') {
+                console.log('⏳ Address Manager not yet available, retrying...');
+                return false;
+            }
+            
+            if (!isUserLoggedIn()) {
+                console.log('👤 User not logged in, skipping address loading');
+                return true; // Beenden, aber als erfolgreich markieren
+            }
+            
+            if (typeof window.YPrintAddressManager.loadSavedAddresses !== 'function') {
+                console.log('⚠️ loadSavedAddresses method not available, retrying...');
+                return false;
+            }
+            
+            // Prüfe DOM-Bereitschaft der Ziel-Container
+            const targetContainer = document.querySelector('#billing-address-cards-container');
+            if (!targetContainer) {
+                console.log('📦 Target container not ready, retrying...');
+                return false;
+            }
 
-            // Verzögerung für DOM-Bereitschaft und um Race Conditions zu vermeiden
-            setTimeout(() => {
-                // GLEICHE Funktion wie Shipping, nur mit 'billing' Parameter
-                window.YPrintAddressManager.loadSavedAddresses('billing');
-            }, 300);
+            console.log('🏗️ Loading billing addresses with Address Manager');
+            window.YPrintAddressManager.loadSavedAddresses('billing');
+            return true;
         }
+
+        // Robuste Initialisierung mit Polling statt feste Verzögerung
+        let initAttempts = 0;
+        const maxAttempts = 20; // Maximal 4 Sekunden (20 * 200ms)
+        
+        function attemptInitialization() {
+            initAttempts++;
+            
+            if (initializeBillingAddressManager()) {
+                console.log(`✅ Address Manager initialized after ${initAttempts} attempts`);
+                return;
+            }
+            
+            if (initAttempts >= maxAttempts) {
+                console.warn('❌ Address Manager initialization failed after maximum attempts');
+                return;
+            }
+            
+            // Kurze Verzögerung und erneut versuchen
+            setTimeout(attemptInitialization, 200);
+        }
+        
+        // Start der robusten Initialisierung
+        attemptInitialization();
 
         // ✅ 3. ADDRESS MANAGER EVENTS ABHÖREN (Wiederverwendung!)
         // Diese Events werden vom YPrintAddressManager ausgelöst
@@ -427,10 +470,16 @@ if (is_user_logged_in()) {
         console.log('✅ Navigation completed');
     }
 
-    // Hilfsfunktion für Login-Status
+    // 🔧 Hilfsfunktionen für robuste Initialisierung
     function isUserLoggedIn() {
-        return document.body.classList.contains('logged-in') ||
-               (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes');
+        // Mehrere Methoden zur User-Status-Prüfung
+        return document.body.classList.contains('logged-in') || 
+               (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.is_logged_in === 'yes') ||
+               (typeof window.yprint_address_ajax !== 'undefined' && window.yprint_address_ajax.is_logged_in === 'yes');
+    }
+    
+    function isDOMReady() {
+        return document.readyState === 'complete' || document.readyState === 'interactive';
     }
 
 })(jQuery);
