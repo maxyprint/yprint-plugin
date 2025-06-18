@@ -194,32 +194,31 @@ $(document).on('click', '#add-billing-address-btn', function(e) {
     const $btn = $(this);
     const original = $btn.html();
     
-    safeDebugLog('🎯 Klick auf Add Billing Button', 'success');
-    safeDebugUpdate('button-state', 'Loading...');
+    // Button in Ladezustand versetzen
     $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
-
-    // 🧭 Step anzeigen und initialisieren
-try {
-    jQuery('.checkout-step').removeClass('active').hide();
-    $billingStep.addClass('active').show();
-    const newUrl = new URL(window.location);
-    newUrl.searchParams.set('step', 'billing');
-    history.pushState({step: 'billing'}, '', newUrl);
-    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
     
-    // Billing-Step initialisieren nach dem Anzeigen
+    // Kontext setzen und Modal öffnen
+    window.currentAddressContext = 'billing';
+    
+    // Sicherstellen, dass das Modal im body ist
+    const modal = $('#new-address-modal');
+    if (modal.parent().attr('id') === 'step-1') {
+        modal.appendTo('body');
+    }
+    
+    // Modal öffnen
+    if (typeof window.YPrintAddressManager !== 'undefined') {
+        window.YPrintAddressManager.openAddressModal();
+    } else {
+        // Fallback: Direktes Event triggern
+        $('.add-new-address-card').trigger('click');
+    }
+    
+    // Button zurücksetzen
     setTimeout(() => {
-        if (typeof window.initializeBillingStep === 'function') {
-            window.initializeBillingStep();
-        }
-    }, 100);
-
-    safeDebugLog('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
-    safeDebugUpdate('step-nav', 'OK');
-} catch (err) {
-    safeDebugLog('❌ Fehler bei Navigation: ' + err.message, 'error');
-    safeDebugUpdate('step-nav', 'Fehler');
-}
+        $btn.prop('disabled', false).html(original);
+    }, 500);
+});
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
 function initializeBillingAddressManager() {
     console.log('🔧 initializeBillingAddressManager() aufgerufen');
