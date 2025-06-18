@@ -197,27 +197,23 @@ $(document).on('click', '#add-billing-address-btn', function(e) {
     // Button in Ladezustand versetzen
     $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
     
-    // Kontext setzen und Modal öffnen
+    // Kontext setzen
     window.currentAddressContext = 'billing';
     
-    // Sicherstellen, dass das Modal im body ist
-    const modal = $('#new-address-modal');
-    if (modal.parent().attr('id') === 'step-1') {
-        modal.appendTo('body');
-    }
-    
-    // Modal öffnen
-    if (typeof window.YPrintAddressManager !== 'undefined') {
-        window.YPrintAddressManager.openAddressModal();
-    } else {
-        // Fallback: Direktes Event triggern
-        $('.add-new-address-card').trigger('click');
-    }
+    // Event für das Öffnen des Modals triggern
+    $(document).trigger('yprint_open_address_modal', ['billing']);
     
     // Button zurücksetzen
     setTimeout(() => {
         $btn.prop('disabled', false).html(original);
     }, 500);
+});
+
+// FÜGE HINZU (am Ende der Datei, vor dem schließenden }):
+$(document).on('yprint_open_address_modal', function(e, context) {
+    if (typeof window.YPrintAddressManager !== 'undefined') {
+        window.YPrintAddressManager.openAddressModal();
+    }
 });
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
 function initializeBillingAddressManager() {
