@@ -38,12 +38,11 @@ if (is_user_logged_in()) {
         </h3>
 
         <div class="address-cards-grid">
-        <div id="billing-address-cards-container">
-    <div class="address-card add-new-address-card cursor-pointer">
-        <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue add-new-address-content">
-            <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
-            <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
-        </div>
+<div id="billing-address-cards-container">
+    <!-- Container wird von YPrintAddressManager befüllt -->
+    <div class="loading-addresses text-center py-4">
+        <i class="fas fa-spinner fa-spin text-yprint-blue text-2xl"></i>
+        <p><?php esc_html_e('Adressen werden geladen...', 'yprint-checkout'); ?></p>
     </div>
 </div>
         </div>
@@ -201,28 +200,44 @@ try {
         }
     }
 
-    // ➕ Add Billing Button - Nutzt Standard YPrintAddressManager (wie Address Step)
-// Setze Billing-Kontext vor dem Standard-Handler
-$(document).on('click', '.add-new-address-card', function(e) {
+    // ➕ Robuste Event-Bindung für "Neue Adresse" Button im Billing-Kontext
+$(document).on('click', '[data-action="add-new-address"]', function(e) {
     e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🆕 Neue Adresse Button geklickt im Billing-Kontext');
+    
+    // Billing-Kontext explizit setzen
     window.currentAddressContext = 'billing';
-    if (typeof window.YPrintAddressManager !== 'undefined') {
-        // Modal öffnen und Kontext setzen
+    
+    // Prüfen ob YPrintAddressManager verfügbar ist
+    if (typeof window.YPrintAddressManager === 'undefined') {
+        console.error('❌ YPrintAddressManager nicht verfügbar');
+        return;
+    }
+    
+    try {
+        // Modal für Billing-Kontext vorbereiten
+        $('#new-address-modal').attr('data-context', 'billing');
+        
+        // Modal öffnen mit korrektem Kontext
         window.YPrintAddressManager.openAddressModal();
         
-        // Formular anzeigen und Container verstecken
+        // UI-Status setzen
         window.YPrintAddressManager.showAddressForm(true);
         window.YPrintAddressManager.showSavedAddressesContainer(false);
         
-        // Modal-Kontext setzen
-        $('#new-address-modal').attr('data-context', 'billing');
-        
-        // Event triggern für Modal-Öffnung
+        // Event für andere Handler triggern
         $(document).trigger('modal_opened', ['billing']);
+        
+        console.log('✅ Modal erfolgreich für Billing-Kontext geöffnet');
+        
+    } catch (error) {
+        console.error('❌ Fehler beim Öffnen des Modals:', error);
     }
 });
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
-function initializeBillingAddressManager() {
+        function initializeBillingAddressManager() {
     console.log('🔧 initializeBillingAddressManager() aufgerufen');
     console.log('⏰ Timestamp:', new Date().toLocaleTimeString());
     
@@ -235,9 +250,26 @@ function initializeBillingAddressManager() {
     
     if (!isUserLoggedIn()) {
         console.log('👤 User not logged in, skipping address loading');
-        return true; // Beenden, aber als erfolgreich markieren
+        // Verstecke Loading-Spinner bei nicht eingeloggten Usern
+        $('.loading-addresses').hide();
+        return true;
     }
-    console.log('✅ User ist eingeloggt');
+    console.log('✅ User eingeloggt, lade Billing-Adressen');
+    
+    // Billing-Kontext für Adressladen setzen
+    window.currentAddressContext = 'billing';
+    
+    // Adressen in Billing-Container laden
+    try {
+        window.YPrintAddressManager.loadSavedAddresses('billing');
+        console.log('✅ Billing-Adressen erfolgreich geladen');
+        return true;
+    } catch (error) {
+        console.error('❌ Fehler beim Laden der Billing-Adressen:', error);
+        $('.loading-addresses').hide();
+        return false;
+    }
+}
     
     if (typeof window.YPrintAddressManager.loadSavedAddresses !== 'function') {
         console.log('❌ loadSavedAddresses method not available, retrying...');
