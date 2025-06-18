@@ -1147,21 +1147,21 @@ try {
 
         setTimeout(() => {
             $btn.prop('disabled', false).html(original);
-            BillingDebug.update('button-state', 'Bereit');
+            safeDebugUpdate('button-state', 'Bereit');
         }, 400);
     });
 
     // ✏️ Change Button
     $('#change-billing-address').on('click', function(e) {
         e.preventDefault();
-        BillingDebug.log('✏️ Klick auf Change Billing', 'info');
+        safeDebugLog('✏️ Klick auf Change Billing', 'info');
         showBillingStep();
     });
 
     // 🗑️ Remove Button
     $('#remove-billing-address').on('click', function(e) {
         e.preventDefault();
-        BillingDebug.log('🗑️ Klick auf Remove Billing', 'warning');
+        safeDebugLog('🗑️ Klick auf Remove Billing', 'warning');
         if (confirm('Rechnungsadresse entfernen?')) {
             clearBillingAddress();
         }
@@ -1169,9 +1169,9 @@ try {
 
     // 📦 Funktionen
     function checkBillingSessionStatus() {
-        BillingDebug.log('🔍 AJAX: Session prüfen', 'info');
-        BillingDebug.update('last-ajax', 'get_billing_session');
-        BillingDebug.update('session-status', 'Lade...');
+        safeDebugLog('🔍 AJAX: Session prüfen', 'info');
+        safeDebugUpdate('last-ajax', 'get_billing_session');
+        safeDebugUpdate('session-status', 'Lade...');
         
         jQuery.ajax({
             url: yprint_address_ajax.ajax_url,
@@ -1182,25 +1182,25 @@ try {
             },
             success(response) {
                 if (response.success && response.data?.has_billing_address) {
-                    BillingDebug.log('✅ Session hat Billing Address', 'success');
-                    BillingDebug.update('session-status', 'OK');
+                    safeDebugLog('✅ Session hat Billing Address', 'success');
+                    safeDebugUpdate('session-status', 'OK');
                     displayBilling(response.data.billing_address);
                 } else {
-                    BillingDebug.log('ℹ️ Keine Billing Address vorhanden', 'info');
-                    BillingDebug.update('session-status', 'Leer');
+                    safeDebugLog('ℹ️ Keine Billing Address vorhanden', 'info');
+                    safeDebugUpdate('session-status', 'Leer');
                     showAddBillingButton();
                 }
             },
             error(err) {
-                BillingDebug.log('❌ Fehler bei Session-Check: ' + err.statusText, 'error');
-                BillingDebug.update('session-status', 'Fehler');
+                safeDebugLog('❌ Fehler bei Session-Check: ' + err.statusText, 'error');
+                safeDebugUpdate('session-status', 'Fehler');
                 showAddBillingButton();
             }
         });
     }
 
     function displayBilling(data) {
-        BillingDebug.log('📋 Zeige Billing Address an', 'success');
+        safeDebugLog('📋 Zeige Billing Address an', 'success');
         let html = `<strong>${data.first_name || ''} ${data.last_name || ''}</strong><br>`;
         if (data.company) html += `${data.company}<br>`;
         html += `${data.address_1 || ''} ${data.address_2 || ''}<br>`;
@@ -1209,20 +1209,20 @@ try {
         $billingContent.html(html);
         $container.hide();
         $selectedDisplay.show();
-        BillingDebug.update('billing-status', 'Angezeigt');
+        safeDebugUpdate('billing-status', 'Angezeigt');
     }
 
     function showAddBillingButton() {
-        BillingDebug.log('🔘 Zeige Add Billing Button', 'info');
+        safeDebugLog('🔘 Zeige Add Billing Button', 'info');
         $selectedDisplay.hide();
         $container.show();
         $addBtn.prop('disabled', false).html('<i class="fas fa-plus mr-2"></i> Abweichende Rechnungsadresse hinzufügen');
-        BillingDebug.update('button-state', 'Bereit');
+        safeDebugUpdate('button-state', 'Bereit');
     }
 
     function clearBillingAddress() {
-        BillingDebug.log('🗑️ Lösche Billing Address via AJAX', 'warning');
-        BillingDebug.update('last-ajax', 'clear_billing_session');
+        safeDebugLog('🗑️ Lösche Billing Address via AJAX', 'warning');
+        safeDebugUpdate('last-ajax', 'clear_billing_session');
         
         jQuery.ajax({
             url: yprint_address_ajax.ajax_url,
@@ -1232,13 +1232,13 @@ try {
                 nonce: yprint_address_ajax.nonce
             },
             success() {
-                BillingDebug.log('✅ Billing Address gelöscht', 'success');
+                safeDebugLog('✅ Billing Address gelöscht', 'success');
                 showAddBillingButton();
-                BillingDebug.update('session-status', 'Geklärt');
+                safeDebugUpdate('session-status', 'Geklärt');
             },
             error(err) {
-                BillingDebug.log('❌ Fehler beim Löschen: ' + err.statusText, 'error');
-                BillingDebug.update('session-status', 'Fehler');
+                safeDebugLog('❌ Fehler beim Löschen: ' + err.statusText, 'error');
+                safeDebugUpdate('session-status', 'Fehler');
             }
         });
     }
@@ -1247,10 +1247,10 @@ try {
         try {
             $('.checkout-step').removeClass('active').hide();
             $billingStep.addClass('active').show();
-            BillingDebug.log('🔁 Billing Step sichtbar (Change)', 'info');
-            BillingDebug.update('step-nav', 'OK');
+            safeDebugLog('🔁 Billing Step sichtbar (Change)', 'info');
+            safeDebugUpdate('step-nav', 'OK');
         } catch (err) {
-            BillingDebug.log('❌ Navigation Fehler: ' + err.message, 'error');
+            safeDebugLog('❌ Navigation Fehler: ' + err.message, 'error');
         }
     }
 
