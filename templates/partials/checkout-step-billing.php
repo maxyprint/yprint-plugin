@@ -159,59 +159,83 @@ if (is_user_logged_in()) {
 (function($) {
     'use strict';
 
-    $(document).ready(function() {
-        console.log('🚀 Billing Step loaded - initializing with Address Manager');
+    // ➕ Add Billing Button
+$(document).on('click', '#add-billing-address-btn', function(e) {
+    e.preventDefault();
+    const $btn = $(this);
+    const original = $btn.html();
+    
+    BillingDebug.log('🎯 Klick auf Add Billing Button', 'success');
+    BillingDebug.update('button-state', 'Loading...');
+    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
 
-        // ✅ URL-basierte Schritt-Aktivierung für den Billing Step
-        // Dies ist KRITISCH, damit der Billing Step sichtbar wird, wenn direkt über URL aufgerufen
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentStep = urlParams.get('step');
-
-        if (currentStep === 'billing') {
-            console.log('💡 URL indicates billing step, activating #step-2-5');
-            $('.checkout-step').removeClass('active').hide(); // Alle Schritte ausblenden
-            $('#step-2-5').addClass('active').show(); // Billing Step (ID basierend auf Debug-Log) anzeigen
-            // Optional: Header-Indikatoren aktualisieren, falls vorhanden
-            $(document).trigger('yprint_step_changed', {step: 'billing', from: 'url_load'});
+    // 🧭 Step anzeigen und initialisieren
+try {
+    jQuery('.checkout-step').removeClass('active').hide();
+    $billingStep.addClass('active').show();
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('step', 'billing');
+    history.pushState({step: 'billing'}, '', newUrl);
+    $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
+    
+    // Billing-Step initialisieren nach dem Anzeigen
+    setTimeout(() => {
+        if (typeof window.initializeBillingStep === 'function') {
+            window.initializeBillingStep();
         }
+    }, 100);
 
+    BillingDebug.log('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
+    BillingDebug.update('step-nav', 'OK');
+} catch (err) {
+    BillingDebug.log('❌ Fehler bei Navigation: ' + err.message, 'error');
+    BillingDebug.update('step-nav', 'Fehler');
+}
+        // ADDRESS MANAGER INITIALISIEREN (ROBUST)
+function initializeBillingAddressManager() {
+    console.log('🔧 initializeBillingAddressManager() aufgerufen');
+    console.log('⏰ Timestamp:', new Date().toLocaleTimeString());
+    
+    // Prüfe alle Voraussetzungen
+    if (typeof window.YPrintAddressManager === 'undefined') {
+        console.log('❌ Address Manager not yet available, retrying...');
+        return false;
+    }
+    console.log('✅ Address Manager verfügbar');
+    
+    if (!isUserLoggedIn()) {
+        console.log('👤 User not logged in, skipping address loading');
+        return true; // Beenden, aber als erfolgreich markieren
+    }
+    console.log('✅ User ist eingeloggt');
+    
+    if (typeof window.YPrintAddressManager.loadSavedAddresses !== 'function') {
+        console.log('❌ loadSavedAddresses method not available, retrying...');
+        return false;
+    }
+    console.log('✅ loadSavedAddresses Methode verfügbar');
+    
+    // Prüfe DOM-Bereitschaft der Ziel-Container
+    const targetContainer = document.querySelector('#billing-address-cards-container');
+    if (!targetContainer) {
+        console.log('❌ Target container (#billing-address-cards-container) not ready, retrying...');
+        return false;
+    }
+    console.log('✅ Target container gefunden:', targetContainer);
 
-        // ✅ 1. KONTEXT SETZEN (Kritisch!)
-        // Setzt den globalen Kontext für den Address Manager für diesen Schritt
-        window.currentAddressContext = 'billing';
-
-        // Initiale Validierung des Formulars (für den Fall, dass es angezeigt wird)
-        validateBillingForm();
-
-        // ✅ 2. ADDRESS MANAGER INITIALISIEREN (ROBUST)
-        function initializeBillingAddressManager() {
-            // Prüfe alle Voraussetzungen
-            if (typeof window.YPrintAddressManager === 'undefined') {
-                console.log('⏳ Address Manager not yet available, retrying...');
-                return false;
-            }
-            
-            if (!isUserLoggedIn()) {
-                console.log('👤 User not logged in, skipping address loading');
-                return true; // Beenden, aber als erfolgreich markieren
-            }
-            
-            if (typeof window.YPrintAddressManager.loadSavedAddresses !== 'function') {
-                console.log('⚠️ loadSavedAddresses method not available, retrying...');
-                return false;
-            }
-            
-            // Prüfe DOM-Bereitschaft der Ziel-Container
-            const targetContainer = document.querySelector('#billing-address-cards-container');
-            if (!targetContainer) {
-                console.log('📦 Target container not ready, retrying...');
-                return false;
-            }
-
-            console.log('🏗️ Loading billing addresses with Address Manager');
-            window.YPrintAddressManager.loadSavedAddresses('billing');
-            return true;
-        }
+    console.log('🏗️ Loading billing addresses with Address Manager');
+    console.log('📞 Rufe window.YPrintAddressManager.loadSavedAddresses("billing") auf...');
+    
+    try {
+        window.YPrintAddressManager.loadSavedAddresses('billing');
+        console.log('✅ loadSavedAddresses() erfolgreich aufgerufen');
+    } catch (error) {
+        console.log('❌ Fehler beim Aufruf von loadSavedAddresses():', error);
+        return false;
+    }
+    
+    return true;
+}
 
         // Robuste Initialisierung mit Polling statt feste Verzögerung
         let initAttempts = 0;
