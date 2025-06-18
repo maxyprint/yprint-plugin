@@ -204,8 +204,13 @@ try {
     // ➕ Add Billing Button - Nutzt Standard YPrintAddressManager (wie Address Step)
 // Setze Billing-Kontext vor dem Standard-Handler
 $(document).on('click', '.add-new-address-card', function(e) {
-    // Kontext setzen BEVOR der Address Manager Handler ausgeführt wird
+    e.preventDefault();
     window.currentAddressContext = 'billing';
+    if (typeof window.YPrintAddressManager !== 'undefined') {
+        window.YPrintAddressManager.openAddressModal();
+        window.YPrintAddressManager.showAddressForm(true);
+        window.YPrintAddressManager.showSavedAddressesContainer(false);
+    }
 });
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
 function initializeBillingAddressManager() {
