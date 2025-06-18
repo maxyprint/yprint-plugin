@@ -38,14 +38,19 @@ if (is_user_logged_in()) {
         </h3>
 
         <div class="address-cards-grid">
-<div id="billing-address-cards-container">
-    <!-- Container wird von YPrintAddressManager befüllt -->
+    <!-- "Neue Adresse hinzufügen" Karte mit korrekter Address Manager Klasse -->
+    <div class="address-card add-new-address-card cursor-pointer">
+        <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+            <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+            <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
+        </div>
+    </div>
+    
     <div class="loading-addresses text-center py-4">
         <i class="fas fa-spinner fa-spin text-yprint-blue text-2xl"></i>
         <p><?php esc_html_e('Adressen werden geladen...', 'yprint-checkout'); ?></p>
     </div>
 </div>
-        </div>
     </div>
 
     <?php
@@ -200,76 +205,48 @@ try {
         }
     }
 
-    // ➕ Robuste Event-Bindung für "Neue Adresse" Button im Billing-Kontext
-$(document).on('click', '[data-action="add-new-address"]', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('🆕 Neue Adresse Button geklickt im Billing-Kontext');
-    
-    // Billing-Kontext explizit setzen
-    window.currentAddressContext = 'billing';
-    
-    // Prüfen ob YPrintAddressManager verfügbar ist
-    if (typeof window.YPrintAddressManager === 'undefined') {
-        console.error('❌ YPrintAddressManager nicht verfügbar');
-        return;
-    }
-    
-    try {
-        // Modal für Billing-Kontext vorbereiten
-        $('#new-address-modal').attr('data-context', 'billing');
+    // Event-Handler für "Neue Adresse hinzufügen" (nutzt Standard Address Manager)
+    $(document).on('click', '.add-new-address-card', function(e) {
+        e.preventDefault();
+        console.log('🆕 Neue Adresse Button geklickt im Billing-Kontext');
         
-        // Modal öffnen mit korrektem Kontext
-        window.YPrintAddressManager.openAddressModal();
+        // Billing-Kontext setzen für nachfolgende Operationen
+        window.currentAddressContext = 'billing';
         
-        // UI-Status setzen
-        window.YPrintAddressManager.showAddressForm(true);
-        window.YPrintAddressManager.showSavedAddressesContainer(false);
-        
-        // Event für andere Handler triggern
-        $(document).trigger('modal_opened', ['billing']);
-        
-        console.log('✅ Modal erfolgreich für Billing-Kontext geöffnet');
-        
-    } catch (error) {
-        console.error('❌ Fehler beim Öffnen des Modals:', error);
-    }
-});
-        // ADDRESS MANAGER INITIALISIEREN (ROBUST)
+        // Standard Address Manager Modal öffnen
+        if (typeof window.YPrintAddressManager !== 'undefined') {
+            window.YPrintAddressManager.openAddressModal();
+        } else {
+            console.error('❌ YPrintAddressManager nicht verfügbar');
+        }
+    });
+        // ADDRESS MANAGER INITIALISIEREN (wie im Address Step)
         function initializeBillingAddressManager() {
-    console.log('🔧 initializeBillingAddressManager() aufgerufen');
-    console.log('⏰ Timestamp:', new Date().toLocaleTimeString());
-    
-    // Prüfe alle Voraussetzungen
-    if (typeof window.YPrintAddressManager === 'undefined') {
-        console.log('❌ Address Manager not yet available, retrying...');
-        return false;
-    }
-    console.log('✅ Address Manager verfügbar');
-    
-    if (!isUserLoggedIn()) {
-        console.log('👤 User not logged in, skipping address loading');
-        // Verstecke Loading-Spinner bei nicht eingeloggten Usern
-        $('.loading-addresses').hide();
-        return true;
-    }
-    console.log('✅ User eingeloggt, lade Billing-Adressen');
-    
-    // Billing-Kontext für Adressladen setzen
-    window.currentAddressContext = 'billing';
-    
-    // Adressen in Billing-Container laden
-    try {
-        window.YPrintAddressManager.loadSavedAddresses('billing');
-        console.log('✅ Billing-Adressen erfolgreich geladen');
-        return true;
-    } catch (error) {
-        console.error('❌ Fehler beim Laden der Billing-Adressen:', error);
-        $('.loading-addresses').hide();
-        return false;
-    }
-}
+            console.log('🔧 Billing Address Manager wird initialisiert');
+            
+            if (typeof window.YPrintAddressManager === 'undefined') {
+                console.log('❌ Address Manager noch nicht verfügbar');
+                return false;
+            }
+            
+            if (!isUserLoggedIn()) {
+                console.log('👤 User nicht eingeloggt, zeige nur "Neue Adresse" Button');
+                $('.loading-addresses').hide();
+                $('.add-new-address-card').show();
+                return true;
+            }
+            
+            // Standard Address Manager laden (wie im Address Step)
+            try {
+                window.YPrintAddressManager.loadSavedAddresses();
+                console.log('✅ Address Manager erfolgreich geladen');
+                return true;
+            } catch (error) {
+                console.error('❌ Fehler beim Laden:', error);
+                $('.loading-addresses').hide();
+                return false;
+            }
+        }
     
     if (typeof window.YPrintAddressManager.loadSavedAddresses !== 'function') {
         console.log('❌ loadSavedAddresses method not available, retrying...');
@@ -296,27 +273,23 @@ $(document).on('click', '[data-action="add-new-address"]', function(e) {
     return false;
 }
 
-        // Sofortige Initialisierung mit Event-basierter Nachladung
-$(document).ready(function() {
-    // Standard-Initialisierung (wie im Address Step)
-    if (typeof window.YPrintAddressManager !== 'undefined') {
-        window.YPrintAddressManager.loadSavedAddresses();
-        console.log('✅ Billing Address Manager sofort initialisiert');
-    } else {
-        console.log('⏳ Address Manager noch nicht verfügbar - warte auf Step-Wechsel');
-    }
-    
-    // Event-Listener für Step-Wechsel
-    $(document).on('yprint_step_changed', function(e, data) {
-        if (data.step === 'billing') {
-            console.log('🔄 Step-Wechsel zu Billing erkannt');
-            if (typeof window.YPrintAddressManager !== 'undefined') {
-                window.YPrintAddressManager.loadSavedAddresses();
-                console.log('✅ Address Manager nach Step-Wechsel initialisiert');
+        // Initialisierung beim Step-Wechsel
+        $(document).on('yprint_step_changed', function(e, data) {
+            if (data.step === 'billing') {
+                console.log('🔄 Step-Wechsel zu Billing erkannt');
+                window.currentAddressContext = 'billing';
+                
+                setTimeout(() => {
+                    initializeBillingAddressManager();
+                }, 100);
             }
+        });
+        
+        // Sofort-Initialisierung falls bereits im Billing Step
+        if ($('#step-2-5').hasClass('active')) {
+            window.currentAddressContext = 'billing';
+            initializeBillingAddressManager();
         }
-    });
-});
 
         // ✅ 3. ADDRESS MANAGER EVENTS ABHÖREN (Wiederverwendung!)
         // Event-Integration mit standardisiertem YPrintAddressManager (wie Address Step)
