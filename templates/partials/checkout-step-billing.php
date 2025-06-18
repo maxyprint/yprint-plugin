@@ -196,8 +196,11 @@ try {
     }
 
     // ➕ Add Billing Button - Nutzt Standard YPrintAddressManager (wie Address Step)
-// KEIN eigener Event-Handler - YPrintAddressManager übernimmt automatisch
-// Der Standard-Handler reagiert auf .add-new-address-card Klicks
+// Setze Billing-Kontext vor dem Standard-Handler
+$(document).on('click', '.add-new-address-card', function(e) {
+    // Kontext setzen BEVOR der Address Manager Handler ausgeführt wird
+    window.currentAddressContext = 'billing';
+});
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
 function initializeBillingAddressManager() {
     console.log('🔧 initializeBillingAddressManager() aufgerufen');
