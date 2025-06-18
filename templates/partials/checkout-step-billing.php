@@ -176,6 +176,120 @@ try {
 (function($) {
     'use strict';
 
+    // 🔍 FOKUSSIERTER BUTTON-DEBUGGER
+    const ButtonDebugger = {
+        logs: [],
+        
+        log(step, message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] STEP ${step}: ${message}`;
+            this.logs.push({step, message, data, timestamp});
+            
+            if (data) {
+                console.log(`%c${logEntry}`, 'color: #3b82f6; font-weight: bold;', data);
+            } else {
+                console.log(`%c${logEntry}`, 'color: #3b82f6; font-weight: bold;');
+            }
+        },
+        
+        error(step, message, error = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] STEP ${step} FEHLER: ${message}`;
+            console.error(`%c${logEntry}`, 'color: #ef4444; font-weight: bold;', error);
+            this.logs.push({step, message: `FEHLER: ${message}`, error, timestamp});
+        },
+        
+        success(step, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] STEP ${step} ERFOLG: ${message}`;
+            console.log(`%c${logEntry}`, 'color: #22c55e; font-weight: bold;');
+            this.logs.push({step, message: `ERFOLG: ${message}`, timestamp});
+        }
+    };
+
+    // Globale Debug-Funktion
+    window.debugNewAddressButton = function() {
+        console.clear();
+        console.log('%c🔍 DEBUGGING: Neue Adresse Button', 'color: #8b5cf6; font-size: 16px; font-weight: bold;');
+        
+        ButtonDebugger.log(1, 'Starte Button-Debug');
+        
+        // Schritt 1: Button-Element finden
+        const buttons = $('.add-new-address-card');
+        ButtonDebugger.log(2, `Button-Suche: ${buttons.length} Elemente gefunden`, {
+            selector: '.add-new-address-card',
+            elements: buttons.toArray().map(el => ({
+                text: $(el).text().trim(),
+                visible: $(el).is(':visible'),
+                classes: el.className
+            }))
+        });
+        
+        if (buttons.length === 0) {
+            ButtonDebugger.error(2, 'Keine .add-new-address-card Buttons gefunden!');
+            return;
+        }
+        
+        // Schritt 2: Event-Handler prüfen
+        const events = $._data(document, 'events');
+        let hasClickHandler = false;
+        if (events && events.click) {
+            events.click.forEach(handler => {
+                if (handler.selector && handler.selector.includes('add-new-address-card')) {
+                    hasClickHandler = true;
+                    ButtonDebugger.success(3, `Event-Handler gefunden: ${handler.selector}`);
+                }
+            });
+        }
+        
+        if (!hasClickHandler) {
+            ButtonDebugger.error(3, 'Kein Click-Event-Handler für .add-new-address-card gefunden!');
+        }
+        
+        // Schritt 3: Dependencies prüfen
+        ButtonDebugger.log(4, 'Prüfe Abhängigkeiten', {
+            jQuery: typeof jQuery !== 'undefined',
+            YPrintAddressManager: typeof window.YPrintAddressManager !== 'undefined',
+            openAddressModal: typeof window.YPrintAddressManager?.openAddressModal === 'function',
+            modal_element: $('#new-address-modal').length > 0
+        });
+        
+        // Schritt 4: Button-Klick simulieren
+        const firstButton = buttons.first();
+        ButtonDebugger.log(5, 'Simuliere Button-Klick', {
+            button: firstButton[0],
+            text: firstButton.text().trim()
+        });
+        
+        // URL vor Klick merken
+        const urlBefore = window.location.href;
+        
+        // Klick ausführen
+        firstButton.trigger('click');
+        
+        // Nach Klick prüfen
+        setTimeout(() => {
+            const urlAfter = window.location.href;
+            if (urlBefore !== urlAfter) {
+                ButtonDebugger.error(6, `URL hat sich geändert! Von ${urlBefore} zu ${urlAfter}`);
+            } else {
+                ButtonDebugger.success(6, 'URL unverändert - preventDefault() funktioniert');
+            }
+            
+            // Modal-Status prüfen
+            const modal = $('#new-address-modal');
+            ButtonDebugger.log(7, 'Modal-Status nach Klick', {
+                exists: modal.length > 0,
+                visible: modal.is(':visible'),
+                display: modal.css('display'),
+                hasActiveClass: modal.hasClass('active')
+            });
+            
+            console.log('%c🔍 DEBUG BEENDET - Alle Logs:', 'color: #8b5cf6; font-size: 14px; font-weight: bold;');
+            console.table(ButtonDebugger.logs);
+        }, 500);
+    };
+
     // 🔧 Sichere Debug-Funktionen für Billing-Step
     function safeDebugLog(message, type = 'info') {
         const timestamp = new Date().toLocaleTimeString();
@@ -205,20 +319,93 @@ try {
         }
     }
 
-    // Event-Handler für "Neue Adresse hinzufügen" (nutzt Standard Address Manager)
+    // 🔍 VOLLSTÄNDIG GETRACKTER EVENT-HANDLER
     $(document).on('click', '.add-new-address-card', function(e) {
+        ButtonDebugger.log('A', 'Click-Event ausgelöst');
+        
+        // Schritt B: Event-Objekt analysieren
+        ButtonDebugger.log('B', 'Event-Details', {
+            type: e.type,
+            target: e.target.tagName,
+            currentTarget: e.currentTarget.tagName,
+            defaultPrevented: e.isDefaultPrevented()
+        });
+        
+        // Schritt C: preventDefault sofort
         e.preventDefault();
-        console.log('🆕 Neue Adresse Button geklickt im Billing-Kontext');
+        e.stopPropagation();
+        ButtonDebugger.success('C', 'preventDefault() und stopPropagation() ausgeführt');
         
-        // Billing-Kontext setzen für nachfolgende Operationen
+        // Schritt D: Button-Element analysieren
+        const $button = $(this);
+        ButtonDebugger.log('D', 'Button-Element analysiert', {
+            tag: this.tagName,
+            classes: this.className,
+            text: $button.text().trim(),
+            parent: $button.parent()[0].tagName,
+            visible: $button.is(':visible')
+        });
+        
+        // Schritt E: Kontext setzen
         window.currentAddressContext = 'billing';
+        ButtonDebugger.success('E', 'Billing-Kontext gesetzt');
         
-        // Standard Address Manager Modal öffnen
-        if (typeof window.YPrintAddressManager !== 'undefined') {
-            window.YPrintAddressManager.openAddressModal();
-        } else {
-            console.error('❌ YPrintAddressManager nicht verfügbar');
+        // Schritt F: YPrintAddressManager prüfen
+        if (typeof window.YPrintAddressManager === 'undefined') {
+            ButtonDebugger.error('F', 'YPrintAddressManager ist undefined!');
+            alert('🚨 DEBUG: YPrintAddressManager nicht geladen!');
+            return false;
         }
+        ButtonDebugger.success('F', 'YPrintAddressManager verfügbar');
+        
+        // Schritt G: openAddressModal Methode prüfen
+        if (typeof window.YPrintAddressManager.openAddressModal !== 'function') {
+            ButtonDebugger.error('G', 'openAddressModal ist keine Funktion!');
+            alert('🚨 DEBUG: openAddressModal Methode fehlt!');
+            return false;
+        }
+        ButtonDebugger.success('G', 'openAddressModal Methode verfügbar');
+        
+        // Schritt H: Modal-Element vor Öffnung prüfen
+        const modalBefore = $('#new-address-modal');
+        ButtonDebugger.log('H', 'Modal vor Öffnung', {
+            exists: modalBefore.length > 0,
+            visible: modalBefore.is(':visible'),
+            display: modalBefore.css('display'),
+            position: modalBefore.css('position')
+        });
+        
+        // Schritt I: Modal öffnen
+        try {
+            ButtonDebugger.log('I', 'Rufe openAddressModal() auf...');
+            window.YPrintAddressManager.openAddressModal();
+            ButtonDebugger.success('I', 'openAddressModal() aufgerufen ohne Fehler');
+        } catch (error) {
+            ButtonDebugger.error('I', 'Fehler beim Aufruf von openAddressModal()', error);
+            alert(`🚨 DEBUG FEHLER: ${error.message}`);
+            return false;
+        }
+        
+        // Schritt J: Modal nach Öffnung prüfen (verzögert)
+        setTimeout(() => {
+            const modalAfter = $('#new-address-modal');
+            ButtonDebugger.log('J', 'Modal nach Öffnung', {
+                exists: modalAfter.length > 0,
+                visible: modalAfter.is(':visible'),
+                display: modalAfter.css('display'),
+                hasActiveClass: modalAfter.hasClass('active'),
+                zIndex: modalAfter.css('z-index')
+            });
+            
+            if (modalAfter.is(':visible') || modalAfter.css('display') === 'block') {
+                ButtonDebugger.success('J', '✅ MODAL ERFOLGREICH GEÖFFNET!');
+            } else {
+                ButtonDebugger.error('J', '❌ MODAL NICHT SICHTBAR!');
+            }
+        }, 200);
+        
+        ButtonDebugger.success('FINAL', 'Event-Handler vollständig durchlaufen');
+        return false;
     });
         // ADDRESS MANAGER INITIALISIEREN (wie im Address Step)
         function initializeBillingAddressManager() {
@@ -582,5 +769,17 @@ $(document).on('modal_opened', function(event, modalContext) {
         return document.readyState === 'complete' || document.readyState === 'interactive';
     }
 
+
+// 🎮 EINFACHE KONSOLEN-BEFEHLE
+console.log(`
+🔧 BUTTON DEBUG-BEFEHLE:
+- debugNewAddressButton() → Vollständiger Button-Test
+- $('.add-new-address-card').trigger('click') → Direkter Klick-Test
+- $('#new-address-modal').show() → Modal direkt anzeigen
+    `);
+
+
 })(jQuery);
+
+
 </script>
