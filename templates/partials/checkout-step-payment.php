@@ -1025,6 +1025,9 @@ jQuery(document).ready(function($) {
     };
 
     BillingDebug.init();
+    
+    // 🔓 Debug sofort global verfügbar machen
+    window.YPrintBillingDebug = BillingDebug;
 
     // 🔗 DOM-Referenzen
     const $addBtn = $('#add-billing-address-btn');
@@ -1055,62 +1058,91 @@ jQuery(document).ready(function($) {
         }, 200);
     });
 
-    // ➕ Add Billing Button
+    // 🔧 Sichere Debug-Funktion
+function safeDebugLog(message, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const styles = {
+        success: 'color: green;',
+        error: 'color: red;',
+        warning: 'color: orange;',
+        info: 'color: blue;'
+    };
+    
+    // Standard Console-Log
+    console.log(`%c[BILLING ${timestamp}] ${message}`, styles[type] || '');
+    
+    // Optional: BillingDebug wenn verfügbar
+    if (typeof window.YPrintBillingDebug !== 'undefined' && window.YPrintBillingDebug.log) {
+        window.YPrintBillingDebug.log(message, type);
+    } else if (typeof BillingDebug !== 'undefined' && BillingDebug.log) {
+        BillingDebug.log(message, type);
+    }
+}
+
+function safeDebugUpdate(id, value) {
+    if (typeof window.YPrintBillingDebug !== 'undefined' && window.YPrintBillingDebug.update) {
+        window.YPrintBillingDebug.update(id, value);
+    } else if (typeof BillingDebug !== 'undefined' && BillingDebug.update) {
+        BillingDebug.update(id, value);
+    }
+}
+
+// ➕ Add Billing Button
 $(document).on('click', '#add-billing-address-btn', function(e) {
     e.preventDefault();
     const $btn = $(this);
     const original = $btn.html();
     
-    BillingDebug.log('🎯 Klick auf Add Billing Button', 'success');
-    BillingDebug.log('⏰ Button-Klick Timestamp: ' + new Date().toLocaleTimeString(), 'info');
-    BillingDebug.update('button-state', 'Loading...');
+    safeDebugLog('🎯 Klick auf Add Billing Button', 'success');
+    safeDebugLog('⏰ Button-Klick Timestamp: ' + new Date().toLocaleTimeString(), 'info');
+    safeDebugUpdate('button-state', 'Loading...');
     $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
 
     // 🧭 Step anzeigen und initialisieren
 try {
-    BillingDebug.log('🔄 Starte Step-Wechsel zu Billing', 'info');
+    safeDebugLog('🔄 Starte Step-Wechsel zu Billing', 'info');
     
     jQuery('.checkout-step').removeClass('active').hide();
     $billingStep.addClass('active').show();
-    BillingDebug.log('✅ Billing Step DOM sichtbar gemacht', 'success');
+    safeDebugLog('✅ Billing Step DOM sichtbar gemacht', 'success');
     
     const newUrl = new URL(window.location);
     newUrl.searchParams.set('step', 'billing');
     history.pushState({step: 'billing'}, '', newUrl);
-    BillingDebug.log('✅ URL auf billing step aktualisiert', 'success');
+    safeDebugLog('✅ URL auf billing step aktualisiert', 'success');
     
     $(document).trigger('yprint_step_changed', {step: 'billing', from: 'payment'});
-    BillingDebug.log('✅ yprint_step_changed Event ausgelöst', 'success');
+    safeDebugLog('✅ yprint_step_changed Event ausgelöst', 'success');
     
     // Address Manager Verfügbarkeit prüfen vor Initialisierung
-    BillingDebug.log('🔍 Prüfe Address Manager Verfügbarkeit...', 'info');
-    BillingDebug.log('YPrintAddressManager available: ' + (typeof window.YPrintAddressManager !== 'undefined'), 'info');
-    BillingDebug.log('initializeBillingStep available: ' + (typeof window.initializeBillingStep === 'function'), 'info');
+    safeDebugLog('🔍 Prüfe Address Manager Verfügbarkeit...', 'info');
+    safeDebugLog('YPrintAddressManager available: ' + (typeof window.YPrintAddressManager !== 'undefined'), 'info');
+    safeDebugLog('initializeBillingStep available: ' + (typeof window.initializeBillingStep === 'function'), 'info');
     
     // Billing-Step initialisieren nach dem Anzeigen
     setTimeout(() => {
-        BillingDebug.log('⏳ Timeout erreicht - starte Billing Initialisierung', 'info');
+        safeDebugLog('⏳ Timeout erreicht - starte Billing Initialisierung', 'info');
         if (typeof window.initializeBillingStep === 'function') {
-            BillingDebug.log('✅ initializeBillingStep gefunden - rufe auf', 'success');
+            safeDebugLog('✅ initializeBillingStep gefunden - rufe auf', 'success');
             window.initializeBillingStep();
         } else {
-            BillingDebug.log('❌ initializeBillingStep nicht verfügbar', 'error');
+            safeDebugLog('❌ initializeBillingStep nicht verfügbar', 'error');
             // Fallback: Direkter Aufruf der Address Manager Funktion
             if (typeof window.YPrintAddressManager !== 'undefined' && 
                 typeof window.YPrintAddressManager.loadSavedAddresses === 'function') {
-                BillingDebug.log('🔄 Fallback: Direkter Address Manager Aufruf', 'warning');
+                safeDebugLog('🔄 Fallback: Direkter Address Manager Aufruf', 'warning');
                 window.currentAddressContext = 'billing';
                 window.YPrintAddressManager.loadSavedAddresses('billing');
             }
         }
     }, 100);
 
-    BillingDebug.log('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
-    BillingDebug.update('step-nav', 'OK');
+    safeDebugLog('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
+    safeDebugUpdate('step-nav', 'OK');
 } catch (err) {
-    BillingDebug.log('❌ Fehler bei Navigation: ' + err.message, 'error');
-    BillingDebug.log('❌ Stack Trace: ' + err.stack, 'error');
-    BillingDebug.update('step-nav', 'Fehler');
+    safeDebugLog('❌ Fehler bei Navigation: ' + err.message, 'error');
+    safeDebugLog('❌ Stack Trace: ' + err.stack, 'error');
+    safeDebugUpdate('step-nav', 'Fehler');
 }
 
         setTimeout(() => {
@@ -1222,8 +1254,5 @@ try {
         }
     }
 
-    // 🔓 Debug global machen
-    window.YPrintBillingDebug = BillingDebug;
-
-});
+    });
 </script>
