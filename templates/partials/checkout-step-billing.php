@@ -159,14 +159,43 @@ if (is_user_logged_in()) {
 (function($) {
     'use strict';
 
+    // 🔧 Sichere Debug-Funktionen für Billing-Step
+    function safeDebugLog(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const styles = {
+            success: 'color: green;',
+            error: 'color: red;',
+            warning: 'color: orange;',
+            info: 'color: blue;'
+        };
+        
+        // Standard Console-Log
+        console.log(`%c[BILLING ${timestamp}] ${message}`, styles[type] || '');
+        
+        // Optional: BillingDebug wenn verfügbar
+        if (typeof window.YPrintBillingDebug !== 'undefined' && window.YPrintBillingDebug.log) {
+            window.YPrintBillingDebug.log(message, type);
+        } else if (typeof BillingDebug !== 'undefined' && BillingDebug.log) {
+            BillingDebug.log(message, type);
+        }
+    }
+
+    function safeDebugUpdate(id, value) {
+        if (typeof window.YPrintBillingDebug !== 'undefined' && window.YPrintBillingDebug.update) {
+            window.YPrintBillingDebug.update(id, value);
+        } else if (typeof BillingDebug !== 'undefined' && BillingDebug.update) {
+            BillingDebug.update(id, value);
+        }
+    }
+
     // ➕ Add Billing Button
 $(document).on('click', '#add-billing-address-btn', function(e) {
     e.preventDefault();
     const $btn = $(this);
     const original = $btn.html();
     
-    BillingDebug.log('🎯 Klick auf Add Billing Button', 'success');
-    BillingDebug.update('button-state', 'Loading...');
+    safeDebugLog('🎯 Klick auf Add Billing Button', 'success');
+    safeDebugUpdate('button-state', 'Loading...');
     $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
 
     // 🧭 Step anzeigen und initialisieren
@@ -185,11 +214,11 @@ try {
         }
     }, 100);
 
-    BillingDebug.log('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
-    BillingDebug.update('step-nav', 'OK');
+    safeDebugLog('✅ Billing-Step sichtbar gemacht und wird initialisiert', 'success');
+    safeDebugUpdate('step-nav', 'OK');
 } catch (err) {
-    BillingDebug.log('❌ Fehler bei Navigation: ' + err.message, 'error');
-    BillingDebug.update('step-nav', 'Fehler');
+    safeDebugLog('❌ Fehler bei Navigation: ' + err.message, 'error');
+    safeDebugUpdate('step-nav', 'Fehler');
 }
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
 function initializeBillingAddressManager() {
