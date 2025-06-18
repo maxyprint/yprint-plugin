@@ -207,9 +207,18 @@ $(document).on('click', '.add-new-address-card', function(e) {
     e.preventDefault();
     window.currentAddressContext = 'billing';
     if (typeof window.YPrintAddressManager !== 'undefined') {
+        // Modal öffnen und Kontext setzen
         window.YPrintAddressManager.openAddressModal();
+        
+        // Formular anzeigen und Container verstecken
         window.YPrintAddressManager.showAddressForm(true);
         window.YPrintAddressManager.showSavedAddressesContainer(false);
+        
+        // Modal-Kontext setzen
+        $('#new-address-modal').attr('data-context', 'billing');
+        
+        // Event triggern für Modal-Öffnung
+        $(document).trigger('modal_opened', ['billing']);
     }
 });
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
