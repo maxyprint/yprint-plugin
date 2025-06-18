@@ -195,31 +195,20 @@ try {
         }
     }
 
-    // ➕ Add Billing Button - Nutzt nativen YPrintAddressManager Workflow
+    // ➕ Add Billing Button - Vereinfachter nativer Workflow
 $(document).on('click', '.add-new-address-content', function(e) {
     e.preventDefault();
     console.log('🎯 Billing: Neue Adresse Button geklickt');
     
-    // Kontext für Billing setzen
+    // Kontext setzen
     window.currentAddressContext = 'billing';
     
-    // Validierung des Address Managers
-    if (typeof window.YPrintAddressManager === 'undefined') {
-        console.error('❌ YPrintAddressManager nicht verfügbar');
-        return;
-    }
-    
-    if (typeof window.YPrintAddressManager.openAddressModal !== 'function') {
-        console.error('❌ openAddressModal Methode nicht verfügbar');
-        return;
-    }
-    
-    // Modal direkt über Address Manager öffnen (wie im Address Step)
-    try {
-        console.log('✅ Öffne Modal über YPrintAddressManager');
+    // Modal direkt öffnen (ohne komplexe Validierung)
+    if (typeof window.YPrintAddressManager !== 'undefined') {
         window.YPrintAddressManager.openAddressModal();
-    } catch (error) {
-        console.error('❌ Fehler beim Öffnen des Modals:', error);
+        console.log('✅ Modal über YPrintAddressManager geöffnet');
+    } else {
+        console.error('❌ YPrintAddressManager nicht verfügbar');
     }
 });
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
@@ -267,43 +256,66 @@ try {
 
 }
 
-        // Robuste Initialisierung mit Polling statt feste Verzögerung
-        let initAttempts = 0;
-        const maxAttempts = 20; // Maximal 4 Sekunden (20 * 200ms)
-        
-        function attemptInitialization() {
-            initAttempts++;
-            
-            if (initializeBillingAddressManager()) {
-                console.log(`✅ Address Manager initialized after ${initAttempts} attempts`);
-                return;
+        // Sofortige Initialisierung mit Event-basierter Nachladung
+$(document).ready(function() {
+    // Sofortige Initialisierung
+    if (typeof window.YPrintAddressManager !== 'undefined') {
+        window.currentAddressContext = 'billing';
+        window.YPrintAddressManager.loadSavedAddresses();
+        console.log('✅ Billing Address Manager sofort initialisiert');
+    } else {
+        console.log('⏳ Address Manager noch nicht verfügbar - warte auf Step-Wechsel');
+    }
+    
+    // Event-Listener für Step-Wechsel
+    $(document).on('yprint_step_changed', function(e, data) {
+        if (data.step === 'billing') {
+            console.log('🔄 Step-Wechsel zu Billing erkannt');
+            window.currentAddressContext = 'billing';
+            if (typeof window.YPrintAddressManager !== 'undefined') {
+                window.YPrintAddressManager.loadSavedAddresses();
+                console.log('✅ Address Manager nach Step-Wechsel initialisiert');
             }
-            
-            if (initAttempts >= maxAttempts) {
-                console.warn('❌ Address Manager initialization failed after maximum attempts');
-                return;
-            }
-            
-            // Kurze Verzögerung und erneut versuchen
-            setTimeout(attemptInitialization, 200);
         }
-        
-        // Start der robusten Initialisierung
-        attemptInitialization();
+    });
+});
 
         // ✅ 3. ADDRESS MANAGER EVENTS ABHÖREN (Wiederverwendung!)
         // Event-Integration mit standardisiertem YPrintAddressManager (wie Address Step)
 $(document).on('address_selected', function(event, addressId, addressData) {
     // Nur auf Billing-Kontext reagieren
     if (window.currentAddressContext === 'billing') {
-        handleBillingAddressSelected(event, addressId, addressData);
+        console.log('✅ Billing Adresse ausgewählt:', addressData);
+        
+        // UI aktualisieren - Formular ausblenden
+        $('#billing-address-form').hide();
+        $('.yprint-saved-addresses').show();
+        
+        // Original Handler aufrufen falls vorhanden
+        if (typeof handleBillingAddressSelected === 'function') {
+            handleBillingAddressSelected(event, addressId, addressData);
+        }
     }
 });
 
 $(document).on('address_saved', function(event, addressData) {
     // Nur auf Billing-Kontext reagieren
     if (window.currentAddressContext === 'billing') {
-        handleBillingAddressSaved(event, addressData);
+        console.log('💾 Billing Adresse gespeichert:', addressData);
+        
+        // UI aktualisieren
+        $('#billing-address-form').hide();
+        $('.yprint-saved-addresses').show();
+        
+        // Adressen neu laden
+        if (typeof window.YPrintAddressManager !== 'undefined') {
+            window.YPrintAddressManager.loadSavedAddresses();
+        }
+        
+        // Original Handler aufrufen falls vorhanden
+        if (typeof handleBillingAddressSaved === 'function') {
+            handleBillingAddressSaved(event, addressData);
+        }
     }
 });
 
