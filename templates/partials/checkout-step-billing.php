@@ -44,16 +44,23 @@ if (is_user_logged_in()) {
     </div>
 
     <?php
-    // Modal HTML bereitstellen (wiederverwendet das bestehende Modal des Address Managers)
-    try {
-        echo $address_manager->get_address_modal_html();
-    } catch (Exception $e) {
-        if (current_user_can('administrator')) {
-            echo '<div class="notice notice-error"><p>Address Modal Error: ' . esc_html($e->getMessage()) . '</p></div>';
-        }
-        error_log('YPrint Billing Address Modal Error: ' . $e->getMessage());
+// Modal HTML bereitstellen mit Billing-Kontext
+try {
+    $modal_html = $address_manager->get_address_modal_html();
+    // Füge Billing-Kontext zum Modal hinzu
+    $modal_html = str_replace(
+        'class="address-modal"', 
+        'class="address-modal" data-context="billing"', 
+        $modal_html
+    );
+    echo $modal_html;
+} catch (Exception $e) {
+    if (current_user_can('administrator')) {
+        echo '<div class="notice notice-error"><p>Address Modal Error: ' . esc_html($e->getMessage()) . '</p></div>';
     }
-    ?>
+    error_log('YPrint Billing Address Modal Error: ' . $e->getMessage());
+}
+?>
 <?php endif; ?>
 
 <?php if (current_user_can('administrator') && isset($_GET['debug'])) : ?>
@@ -188,31 +195,31 @@ if (is_user_logged_in()) {
         }
     }
 
-    // ➕ Add Billing Button
-$(document).on('click', '#add-billing-address-btn', function(e) {
+    // ➕ Add Billing Button - Nutzt nativen YPrintAddressManager Workflow
+$(document).on('click', '.add-new-address-content', function(e) {
     e.preventDefault();
-    const $btn = $(this);
-    const original = $btn.html();
+    console.log('🎯 Billing: Neue Adresse Button geklickt');
     
-    // Button in Ladezustand versetzen
-    $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
-    
-    // Kontext setzen
+    // Kontext für Billing setzen
     window.currentAddressContext = 'billing';
     
-    // Event für das Öffnen des Modals triggern
-    $(document).trigger('yprint_open_address_modal', ['billing']);
+    // Validierung des Address Managers
+    if (typeof window.YPrintAddressManager === 'undefined') {
+        console.error('❌ YPrintAddressManager nicht verfügbar');
+        return;
+    }
     
-    // Button zurücksetzen
-    setTimeout(() => {
-        $btn.prop('disabled', false).html(original);
-    }, 500);
-});
-
-// FÜGE HINZU (am Ende der Datei, vor dem schließenden }):
-$(document).on('yprint_open_address_modal', function(e, context) {
-    if (typeof window.YPrintAddressManager !== 'undefined') {
+    if (typeof window.YPrintAddressManager.openAddressModal !== 'function') {
+        console.error('❌ openAddressModal Methode nicht verfügbar');
+        return;
+    }
+    
+    // Modal direkt über Address Manager öffnen (wie im Address Step)
+    try {
+        console.log('✅ Öffne Modal über YPrintAddressManager');
         window.YPrintAddressManager.openAddressModal();
+    } catch (error) {
+        console.error('❌ Fehler beim Öffnen des Modals:', error);
     }
 });
         // ADDRESS MANAGER INITIALISIEREN (ROBUST)
@@ -248,17 +255,16 @@ function initializeBillingAddressManager() {
     console.log('✅ Target container gefunden:', targetContainer);
 
     console.log('🏗️ Loading billing addresses with Address Manager');
-    console.log('📞 Rufe window.YPrintAddressManager.loadSavedAddresses("billing") auf...');
-    
-    try {
-        window.YPrintAddressManager.loadSavedAddresses('billing');
-        console.log('✅ loadSavedAddresses() erfolgreich aufgerufen');
-    } catch (error) {
-        console.log('❌ Fehler beim Aufruf von loadSavedAddresses():', error);
-        return false;
-    }
-    
-    return true;
+
+try {
+    // Setze Kontext und lade Adressen (wie im Address Step)
+    window.currentAddressContext = 'billing';
+    window.YPrintAddressManager.loadSavedAddresses();
+    console.log('✅ loadSavedAddresses() erfolgreich aufgerufen');
+} catch (error) {
+    console.log('❌ Fehler beim Aufruf von loadSavedAddresses():', error);
+    return false;
+
 }
 
         // Robuste Initialisierung mit Polling statt feste Verzögerung
@@ -286,11 +292,34 @@ function initializeBillingAddressManager() {
         attemptInitialization();
 
         // ✅ 3. ADDRESS MANAGER EVENTS ABHÖREN (Wiederverwendung!)
-        // Diese Events werden vom YPrintAddressManager ausgelöst
-        $(document).on('address_selected', handleBillingAddressSelected);
-        $(document).on('address_saved', handleBillingAddressSaved);
-        $(document).on('address_deleted', handleBillingAddressDeleted);
-        $(document).on('modal_opened', handleBillingModalOpened);
+        // Event-Integration mit standardisiertem YPrintAddressManager (wie Address Step)
+$(document).on('address_selected', function(event, addressId, addressData) {
+    // Nur auf Billing-Kontext reagieren
+    if (window.currentAddressContext === 'billing') {
+        handleBillingAddressSelected(event, addressId, addressData);
+    }
+});
+
+$(document).on('address_saved', function(event, addressData) {
+    // Nur auf Billing-Kontext reagieren
+    if (window.currentAddressContext === 'billing') {
+        handleBillingAddressSaved(event, addressData);
+    }
+});
+
+$(document).on('address_deleted', function(event, addressId) {
+    // Nur auf Billing-Kontext reagieren
+    if (window.currentAddressContext === 'billing') {
+        handleBillingAddressDeleted(event, addressId);
+    }
+});
+
+$(document).on('modal_opened', function(event, modalContext) {
+    // Nur auf Billing-Kontext reagieren
+    if (modalContext === 'billing' || window.currentAddressContext === 'billing') {
+        handleBillingModalOpened(event, modalContext);
+    }
+});
 
         // ✅ 4. BILLING-SPEZIFISCHE NAVIGATION SETUP
         setupBillingNavigation();
