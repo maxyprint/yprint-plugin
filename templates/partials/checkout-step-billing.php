@@ -38,8 +38,8 @@ if (is_user_logged_in()) {
         </h3>
 
         <div class="address-cards-grid">
-    <!-- "Neue Adresse hinzufügen" Karte mit korrekter Address Manager Klasse -->
-    <div class="address-card add-new-address-card cursor-pointer">
+    <!-- Kontrollierter "Neue Adresse" Button - NUR dieser wird verwendet -->
+    <div id="billing-add-new-address" class="address-card cursor-pointer">
         <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
             <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
             <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
@@ -319,94 +319,34 @@ try {
         }
     }
 
-    // 🔍 VOLLSTÄNDIG GETRACKTER EVENT-HANDLER
-    $(document).on('click', '.add-new-address-card', function(e) {
-        ButtonDebugger.log('A', 'Click-Event ausgelöst');
-        
-        // Schritt B: Event-Objekt analysieren
-        ButtonDebugger.log('B', 'Event-Details', {
-            type: e.type,
-            target: e.target.tagName,
-            currentTarget: e.currentTarget.tagName,
-            defaultPrevented: e.isDefaultPrevented()
-        });
-        
-        // Schritt C: preventDefault sofort
-        e.preventDefault();
-        e.stopPropagation();
-        ButtonDebugger.success('C', 'preventDefault() und stopPropagation() ausgeführt');
-        
-        // Schritt D: Button-Element analysieren
-        const $button = $(this);
-        ButtonDebugger.log('D', 'Button-Element analysiert', {
-            tag: this.tagName,
-            classes: this.className,
-            text: $button.text().trim(),
-            parent: $button.parent()[0].tagName,
-            visible: $button.is(':visible')
-        });
-        
-        // Schritt E: Kontext setzen
-        window.currentAddressContext = 'billing';
-        ButtonDebugger.success('E', 'Billing-Kontext gesetzt');
-        
-        // Schritt F: YPrintAddressManager prüfen
-        if (typeof window.YPrintAddressManager === 'undefined') {
-            ButtonDebugger.error('F', 'YPrintAddressManager ist undefined!');
-            alert('🚨 DEBUG: YPrintAddressManager nicht geladen!');
-            return false;
-        }
-        ButtonDebugger.success('F', 'YPrintAddressManager verfügbar');
-        
-        // Schritt G: openAddressModal Methode prüfen
-        if (typeof window.YPrintAddressManager.openAddressModal !== 'function') {
-            ButtonDebugger.error('G', 'openAddressModal ist keine Funktion!');
-            alert('🚨 DEBUG: openAddressModal Methode fehlt!');
-            return false;
-        }
-        ButtonDebugger.success('G', 'openAddressModal Methode verfügbar');
-        
-        // Schritt H: Modal-Element vor Öffnung prüfen
-        const modalBefore = $('#new-address-modal');
-        ButtonDebugger.log('H', 'Modal vor Öffnung', {
-            exists: modalBefore.length > 0,
-            visible: modalBefore.is(':visible'),
-            display: modalBefore.css('display'),
-            position: modalBefore.css('position')
-        });
-        
-        // Schritt I: Modal öffnen
-        try {
-            ButtonDebugger.log('I', 'Rufe openAddressModal() auf...');
-            window.YPrintAddressManager.openAddressModal();
-            ButtonDebugger.success('I', 'openAddressModal() aufgerufen ohne Fehler');
-        } catch (error) {
-            ButtonDebugger.error('I', 'Fehler beim Aufruf von openAddressModal()', error);
-            alert(`🚨 DEBUG FEHLER: ${error.message}`);
-            return false;
-        }
-        
-        // Schritt J: Modal nach Öffnung prüfen (verzögert)
-        setTimeout(() => {
-            const modalAfter = $('#new-address-modal');
-            ButtonDebugger.log('J', 'Modal nach Öffnung', {
-                exists: modalAfter.length > 0,
-                visible: modalAfter.is(':visible'),
-                display: modalAfter.css('display'),
-                hasActiveClass: modalAfter.hasClass('active'),
-                zIndex: modalAfter.css('z-index')
-            });
-            
-            if (modalAfter.is(':visible') || modalAfter.css('display') === 'block') {
-                ButtonDebugger.success('J', '✅ MODAL ERFOLGREICH GEÖFFNET!');
-            } else {
-                ButtonDebugger.error('J', '❌ MODAL NICHT SICHTBAR!');
-            }
-        }, 200);
-        
-        ButtonDebugger.success('FINAL', 'Event-Handler vollständig durchlaufen');
+    // 🎯 KONTROLLIERTER BILLING ADDRESS BUTTON
+$(document).on('click', '#billing-add-new-address', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('🎯 Billing: Neue Adresse Button geklickt');
+    
+    // Sicherstellen, dass Address Manager verfügbar ist
+    if (typeof window.YPrintAddressManager === 'undefined') {
+        console.error('❌ YPrintAddressManager nicht verfügbar');
+        alert('Fehler: Address Manager nicht geladen');
         return false;
-    });
+    }
+    
+    // Billing-Kontext setzen
+    window.currentAddressContext = 'billing';
+    
+    // Modal öffnen
+    try {
+        window.YPrintAddressManager.openAddressModal();
+        console.log('✅ Modal erfolgreich geöffnet für Billing');
+    } catch (error) {
+        console.error('❌ Fehler beim Öffnen des Modals:', error);
+        alert('Fehler beim Öffnen des Adress-Modals: ' + error.message);
+    }
+    
+    return false;
+});
         // ADDRESS MANAGER INITIALISIEREN (wie im Address Step)
         function initializeBillingAddressManager() {
             console.log('🔧 Billing Address Manager wird initialisiert');

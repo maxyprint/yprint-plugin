@@ -705,17 +705,21 @@ self.loadSavedAddresses();
                 grid.append(card);
             });
             
-            // Zum Schluss "Neue Adresse" Kachel hinzufügen
-            const addNewCard = `
-                <div class="address-card add-new-address-card cursor-pointer">
-                    <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
-                        <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
-                        <h4 class="font-semibold text-gray-600">Neue Adresse hinzufügen</h4>
-                    </div>
-                </div>
-            `;
-            
-            grid.append(addNewCard);
+            // Nur "Neue Adresse" Button hinzufügen wenn NICHT im Billing-Kontext
+if (window.currentAddressContext !== 'billing' && !container.closest('#step-2-5').length) {
+    const addNewCard = `
+        <div class="address-card add-new-address-card cursor-pointer">
+            <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+                <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+                <h4 class="font-semibold text-gray-600">Neue Adresse hinzufügen</h4>
+            </div>
+        </div>
+    `;
+    grid.append(addNewCard);
+    console.log('✅ Standard "Neue Adresse" Button hinzugefügt');
+} else {
+    console.log('🚫 Billing-Kontext: Eigener Button wird NICHT erstellt');
+}
             
             // Container und Grid anzeigen
             container.show();
