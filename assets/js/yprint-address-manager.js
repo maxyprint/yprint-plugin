@@ -705,8 +705,8 @@ self.loadSavedAddresses();
                 grid.append(card);
             });
             
-            // Nur "Neue Adresse" Button hinzufügen wenn NICHT im Billing-Kontext
-if (window.currentAddressContext !== 'billing' && !container.closest('#step-2-5').length) {
+            // "Neue Adresse" Button nur für Address Step hinzufügen (nicht für Billing)
+if (!container.closest('#step-2-5').length) {
     const addNewCard = `
         <div class="address-card add-new-address-card cursor-pointer">
             <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
@@ -716,9 +716,9 @@ if (window.currentAddressContext !== 'billing' && !container.closest('#step-2-5'
         </div>
     `;
     grid.append(addNewCard);
-    console.log('✅ Standard "Neue Adresse" Button hinzugefügt');
+    console.log('✅ Address Step "Neue Adresse" Button hinzugefügt');
 } else {
-    console.log('🚫 Billing-Kontext: Eigener Button wird NICHT erstellt');
+    console.log('🚫 Billing Step: Verwendet eigenen Button');
 }
             
             // Container und Grid anzeigen
