@@ -38,8 +38,8 @@ if (is_user_logged_in()) {
         </h3>
 
         <div class="address-cards-grid">
-    <!-- Kontrollierter "Neue Adresse" Button - NUR dieser wird verwendet -->
-    <div id="billing-add-new-address" class="address-card cursor-pointer">
+    <!-- Billing "Neue Adresse" Button - Gleiche Struktur wie Address Step -->
+    <div id="billing-add-new-address-btn" class="address-card cursor-pointer">
         <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
             <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
             <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
@@ -319,33 +319,20 @@ try {
         }
     }
 
-    // 🎯 KONTROLLIERTER BILLING ADDRESS BUTTON
-$(document).on('click', '#billing-add-new-address', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
+// Event-Handler für Billing "Neue Adresse" Button (wie im Address Step)
+$('#billing-add-new-address-btn').off('click').on('click', function() {
     console.log('🎯 Billing: Neue Adresse Button geklickt');
-    
-    // Sicherstellen, dass Address Manager verfügbar ist
-    if (typeof window.YPrintAddressManager === 'undefined') {
-        console.error('❌ YPrintAddressManager nicht verfügbar');
-        alert('Fehler: Address Manager nicht geladen');
-        return false;
-    }
     
     // Billing-Kontext setzen
     window.currentAddressContext = 'billing';
     
-    // Modal öffnen
-    try {
+    // Address Manager Modal öffnen (wie im Address Step)
+    if (window.YPrintAddressManager && window.YPrintAddressManager.openAddressModal) {
         window.YPrintAddressManager.openAddressModal();
-        console.log('✅ Modal erfolgreich geöffnet für Billing');
-    } catch (error) {
-        console.error('❌ Fehler beim Öffnen des Modals:', error);
-        alert('Fehler beim Öffnen des Adress-Modals: ' + error.message);
+        console.log('✅ Address Manager Modal geöffnet für Billing');
+    } else {
+        console.error('❌ YPrintAddressManager nicht verfügbar');
     }
-    
-    return false;
 });
         // ADDRESS MANAGER INITIALISIEREN (wie im Address Step)
         function initializeBillingAddressManager() {
