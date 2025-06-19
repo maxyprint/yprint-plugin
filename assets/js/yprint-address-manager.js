@@ -363,19 +363,46 @@ saveAddressFromForm: function() {
     const saveButton = $('#save-address-button');
     const feedbackElement = $('#save-address-feedback');
 
+    // Erkenne den Kontext (Address oder Billing Step)
+    const isBillingContext = $('#billing_first_name').length > 0;
+    
+    // Definiere Feldmapping je nach Kontext
+    const fieldMapping = isBillingContext ? {
+        first_name: 'billing_first_name',
+        last_name: 'billing_last_name',
+        company: 'billing_company',
+        street: 'billing_street',
+        housenumber: 'billing_housenumber',
+        zip: 'billing_zip',
+        city: 'billing_city',
+        country: 'billing_country',
+        phone: 'billing_phone'
+    } : {
+        first_name: 'first_name',
+        last_name: 'last_name',
+        company: 'company',
+        street: 'street',
+        housenumber: 'housenumber',
+        zip: 'zip',
+        city: 'city',
+        country: 'country',
+        phone: 'phone'
+    };
+
     // Prüfe, ob die erforderlichen Felder vorhanden sind
     const requiredFields = ['first_name', 'last_name', 'street', 'housenumber', 'zip', 'city', 'country'];
     let isValid = true;
     let missingFields = [];
 
     requiredFields.forEach(field => {
-        const value = $('#' + field).val();
+        const fieldId = fieldMapping[field];
+        const value = $('#' + fieldId).val();
         if (!value || !value.trim()) {
             isValid = false;
             missingFields.push(field);
-            $('#' + field).addClass('border-yprint-error');
+            $('#' + fieldId).addClass('border-yprint-error');
         } else {
-            $('#' + field).removeClass('border-yprint-error');
+            $('#' + fieldId).removeClass('border-yprint-error');
         }
     });
 
@@ -387,36 +414,44 @@ saveAddressFromForm: function() {
     
     // Sammle die Daten aus den Formularfeldern
     const addressData = {
-        name: 'Adresse vom ' + new Date().toLocaleDateString('de-DE'),
-        first_name: $('#first_name').val(),
-        last_name: $('#last_name').val(),
-        company: $('#company').val() || '',
-        address_1: $('#street').val(),
-        address_2: $('#housenumber').val(),
-        postcode: $('#zip').val(),
-        city: $('#city').val(),
-        country: $('#country').val() || 'DE',
-        phone: $('#phone').val() || ''
+        name: (isBillingContext ? 'Rechnungsadresse vom ' : 'Adresse vom ') + new Date().toLocaleDateString('de-DE'),
+        first_name: $('#' + fieldMapping.first_name).val(),
+        last_name: $('#' + fieldMapping.last_name).val(),
+        company: $('#' + fieldMapping.company).val() || '',
+        address_1: $('#' + fieldMapping.street).val(),
+        address_2: $('#' + fieldMapping.housenumber).val(),
+        postcode: $('#' + fieldMapping.zip).val(),
+        city: $('#' + fieldMapping.city).val(),
+        country: $('#' + fieldMapping.country).val() || 'DE',
+        phone: $('#' + fieldMapping.phone).val() || ''
     };
     
     // Aktualisiere Button und zeige Feedback
     saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichern...');
     feedbackElement.removeClass('text-yprint-success text-yprint-error').addClass('text-yprint-text-secondary').html('Adresse wird gespeichert...').removeClass('hidden');
     
+    // Bestimme die AJAX-Action basierend auf dem Kontext
+    const ajaxAction = isBillingContext ? 'yprint_save_billing_session' : 'yprint_save_checkout_address';
+    const ajaxData = isBillingContext ? {
+        action: ajaxAction,
+        nonce: yprint_address_ajax.nonce,
+        billing_data: addressData
+    } : {
+        action: ajaxAction,
+        nonce: yprint_address_ajax.nonce,
+        address_data: addressData
+    };
+    
     // AJAX-Request zum Speichern
     $.ajax({
         url: yprint_address_ajax.ajax_url,
         type: 'POST',
-        data: {
-            action: 'yprint_save_checkout_address',
-            nonce: yprint_address_ajax.nonce,
-            address_data: addressData
-        },
+        data: ajaxData,
         success: function(response) {
             if (response.success) {
                 feedbackElement.removeClass('text-yprint-text-secondary').addClass('text-yprint-success').html('<i class="fas fa-check-circle mr-1"></i>' + (response.data.message || 'Adresse erfolgreich gespeichert.'));
                 
-                // Optional: Lade gespeicherte Adressen neu
+                // Lade gespeicherte Adressen neu
                 self.loadSavedAddresses();
             } else {
                 feedbackElement.removeClass('text-yprint-text-secondary').addClass('text-yprint-error').html('<i class="fas fa-exclamation-circle mr-1"></i>' + (response.data.message || 'Fehler beim Speichern der Adresse.'));
@@ -439,94 +474,7 @@ saveAddressFromForm: function() {
     });
 },
 
-/**
- * Speichert eine Rechnungsadresse aus dem Billing-Formular
- */
-saveBillingAddressFromForm: function() {
-    const self = this;
-    const saveButton = $('#save-billing-address-button');
-    const feedbackElement = $('#save-billing-address-feedback');
-
-    // Prüfe, ob die erforderlichen Felder vorhanden sind
-    const requiredFields = ['billing_first_name', 'billing_last_name', 'billing_street', 'billing_housenumber', 'billing_zip', 'billing_city', 'billing_country'];
-    let isValid = true;
-    let missingFields = [];
-
-    requiredFields.forEach(field => {
-        const value = $('#' + field).val();
-        if (!value || !value.trim()) {
-            isValid = false;
-            missingFields.push(field);
-            $('#' + field).addClass('border-red-500');
-        } else {
-            $('#' + field).removeClass('border-red-500');
-        }
-    });
-
-    if (!isValid) {
-        const errorMessage = 'Bitte füllen Sie alle Pflichtfelder aus: ' + missingFields.join(', ');
-        feedbackElement.removeClass('hidden text-green-500').addClass('text-red-500').html(errorMessage);
-        return;
-    }
-    
-    // Sammle die Daten aus den Formularfeldern
-    const billingData = {
-        name: 'Rechnungsadresse vom ' + new Date().toLocaleDateString('de-DE'),
-        first_name: $('#billing_first_name').val(),
-        last_name: $('#billing_last_name').val(),
-        company: $('#billing_company').val() || '',
-        address_1: $('#billing_street').val(),
-        address_2: $('#billing_housenumber').val(),
-        postcode: $('#billing_zip').val(),
-        city: $('#billing_city').val(),
-        country: $('#billing_country').val() || 'DE',
-        address_type: 'billing'
-    };
-    
-    // Aktualisiere Button und zeige Feedback
-    saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichern...');
-    feedbackElement.removeClass('text-green-500 text-red-500').addClass('text-gray-600').html('Rechnungsadresse wird gespeichert...').removeClass('hidden');
-    
-    // AJAX-Request zum Speichern
-    $.ajax({
-        url: yprint_address_ajax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'yprint_save_billing_address',
-            nonce: yprint_address_ajax.nonce,
-            address_data: billingData
-        },
-        success: function(response) {
-            if (response.success) {
-                feedbackElement.removeClass('text-gray-600').addClass('text-green-500').html('<i class="fas fa-check-circle mr-1"></i>' + (response.data.message || 'Rechnungsadresse erfolgreich gespeichert.'));
-                
-                // Lade gespeicherte Adressen für Billing-Kontext neu
-if (window.YPrintAddressManager.addressContainer.hasClass('yprint-saved-addresses[data-address-type="billing"]') || 
-window.YPrintAddressManager.addressContainer.data('address-type') === 'billing') {
-self.loadSavedAddresses('shipping');
-} else {
-self.loadSavedAddresses();
-}
-            } else {
-                feedbackElement.removeClass('text-gray-600').addClass('text-red-500').html('<i class="fas fa-exclamation-circle mr-1"></i>' + (response.data.message || 'Fehler beim Speichern der Rechnungsadresse.'));
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Error saving billing address:', error);
-            feedbackElement.removeClass('text-gray-600').addClass('text-red-500').html('<i class="fas fa-exclamation-circle mr-1"></i>Ein Fehler ist aufgetreten.');
-        },
-        complete: function() {
-            saveButton.prop('disabled', false).html('<i class="fas fa-save mr-2"></i>Rechnungsadresse speichern');
-            
-            // Blende das Feedback nach 5 Sekunden aus
-            setTimeout(function() {
-                feedbackElement.fadeOut(function() {
-                    $(this).addClass('hidden').css('display', '');
-                });
-            }, 5000);
-        }
-    });
-},
+// Funktion komplett entfernen - wird nicht mehr benötigt
         
         isUserLoggedIn: function() {
             // Prüfe ob User eingeloggt ist

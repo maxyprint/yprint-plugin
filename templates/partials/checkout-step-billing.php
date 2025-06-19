@@ -155,11 +155,11 @@ try {
 
     <?php if (is_user_logged_in()) : ?>
         <div class="yprint-save-address-actions mt-6">
-            <button type="button" id="save-billing-address-button" class="btn btn-secondary">
-                <i class="fas fa-save mr-2"></i><?php esc_html_e('Rechnungsadresse speichern', 'yprint-checkout'); ?>
-            </button>
-            <div id="save-billing-address-feedback" class="mt-2 text-sm hidden"></div>
-        </div>
+    <button type="button" id="save-address-button" class="btn btn-secondary">
+        <i class="fas fa-save mr-2"></i><?php esc_html_e('Adresse speichern', 'yprint-checkout'); ?>
+    </button>
+    <div id="save-address-feedback" class="mt-2 text-sm hidden"></div>
+</div>
     <?php endif; ?>
 
     <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -465,31 +465,7 @@ $(document).on('modal_opened', function(event, modalContext) {
         // Triggered by manual input or changes in the form fields
         $('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
 
-        // Event-Handler für den "Rechnungsadresse speichern" Button
-        $('#save-billing-address-button').on('click', function(e) {
-            e.preventDefault();
-            if (typeof window.YPrintAddressManager !== 'undefined') {
-                const addressData = {
-                    type: 'billing', // Wichtig: Typ setzen
-                    first_name: $('#billing_first_name').val().trim(),
-                    last_name: $('#billing_last_name').val().trim(),
-                    company: $('#billing_company').val().trim(),
-                    address_1: $('#billing_street').val().trim(),
-                    address_2: $('#billing_housenumber').val().trim(),
-                    postcode: $('#billing_zip').val().trim(),
-                    city: $('#billing_city').val().trim(),
-                    country: $('#billing_country').val() || 'DE'
-                };
-
-                // Validierung vor dem Speichern (optional, Address Manager sollte es auch tun)
-                if (validateBillingForm(true)) { // Pass true to check validation without UI update
-                    window.YPrintAddressManager.saveAddress(addressData);
-                } else {
-                    $('#save-billing-address-feedback').removeClass('hidden text-green-600').addClass('text-red-500').text('Bitte alle erforderlichen Felder ausfüllen.');
-                }
-            }
-        });
-    }); // End of document.ready
+        // Event-Handler entfernt - wird jetzt zentral über yprint-address-manager.js abgewickelt
 
     // 🎯 Event Handler für Adressauswahl (address_selected)
     function handleBillingAddressSelected(event, addressId, addressData) {
