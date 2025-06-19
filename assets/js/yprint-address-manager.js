@@ -181,11 +181,22 @@
             const self = this;
         
             // Neue Adresse hinzufügen
-            $(document).on('click', '.add-new-address-card', function() {
-                self.openAddressModal(); // Öffnet das Modal für eine neue Adresse
-                self.showAddressForm(true); // Zeigt das Adressformular
-                self.showSavedAddressesContainer(false); // Versteckt die gespeicherten Adressen
-            });
+$(document).on('click', '.add-new-address-card', function() {
+    // Erkenne den Kontext basierend auf dem übergeordneten Container
+    const isBillingContext = $(this).closest('[data-address-type="billing"]').length > 0;
+    
+    if (isBillingContext) {
+        window.currentAddressContext = 'billing';
+        console.log('🎯 Billing: Neue Adresse Button geklickt über zentralen Handler');
+    } else {
+        window.currentAddressContext = 'shipping';
+        console.log('🎯 Shipping: Neue Adresse Button geklickt über zentralen Handler');
+    }
+    
+    self.openAddressModal(); // Öffnet das Modal für eine neue Adresse
+    self.showAddressForm(true); // Zeigt das Adressformular
+    self.showSavedAddressesContainer(false); // Versteckt die gespeicherten Adressen
+});
         
             // Adresse auswählen
 $(document).on('click', '.btn-select-address', function(e) {

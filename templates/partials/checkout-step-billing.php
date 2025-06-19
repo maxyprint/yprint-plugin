@@ -39,12 +39,12 @@ if (is_user_logged_in()) {
 
         <div class="address-cards-grid">
     <!-- Billing "Neue Adresse" Button - Gleiche Struktur wie Address Step -->
-    <div id="billing-add-new-address-btn" class="address-card cursor-pointer">
-        <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
-            <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
-            <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
-        </div>
+    <div class="address-card add-new-address-card cursor-pointer">
+    <div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-yprint-blue">
+        <i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>
+        <h4 class="font-semibold text-gray-600"><?php esc_html_e('Neue Adresse hinzufügen', 'yprint-checkout'); ?></h4>
     </div>
+</div>
     
     <div class="loading-addresses text-center py-4">
         <i class="fas fa-spinner fa-spin text-yprint-blue text-2xl"></i>
@@ -319,21 +319,7 @@ try {
         }
     }
 
-// Event-Handler für Billing "Neue Adresse" Button (wie im Address Step)
-$('#billing-add-new-address-btn').off('click').on('click', function() {
-    console.log('🎯 Billing: Neue Adresse Button geklickt');
-    
-    // Billing-Kontext setzen
-    window.currentAddressContext = 'billing';
-    
-    // Address Manager Modal öffnen (wie im Address Step)
-    if (window.YPrintAddressManager && window.YPrintAddressManager.openAddressModal) {
-        window.YPrintAddressManager.openAddressModal();
-        console.log('✅ Address Manager Modal geöffnet für Billing');
-    } else {
-        console.error('❌ YPrintAddressManager nicht verfügbar');
-    }
-});
+// Event-Handler entfernt - wird jetzt zentral über yprint-address-manager.js mit .add-new-address-card abgewickelt
         // ADDRESS MANAGER INITIALISIEREN (wie im Address Step)
         function initializeBillingAddressManager() {
             console.log('🔧 Billing Address Manager wird initialisiert');
