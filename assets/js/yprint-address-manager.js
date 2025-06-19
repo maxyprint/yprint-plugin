@@ -1101,8 +1101,15 @@ setTimeout(function() {
             }
             
             // WICHTIG: Überschreibe den inline-display-Style explizit!
-            self.modal.css('display', 'block'); 
-            self.modal.addClass('active');
+self.modal.css('display', 'block').show(); 
+self.modal.addClass('active');
+
+// Debug: Prüfe ob Modal sichtbar ist
+console.log('Modal visibility check:', {
+    display: self.modal.css('display'),
+    visible: self.modal.is(':visible'),
+    hasActive: self.modal.hasClass('active')
+});
             
             $('body').css('overflow', 'hidden');
         },
