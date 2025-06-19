@@ -90,87 +90,31 @@ try {
     </div>
 <?php endif; ?>
 
-<form id="billing-address-form" class="space-y-6 mt-6" style="display: <?php echo $has_saved_addresses && is_user_logged_in() ? 'none' : 'block'; ?>;">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label for="billing_first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_first_name" name="billing_first_name"
-                   value="<?php echo esc_attr($session_billing_address['first_name'] ?? ''); ?>"
-                   class="form-input" required>
-        </div>
-        <div>
-            <label for="billing_last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_last_name" name="billing_last_name"
-                   value="<?php echo esc_attr($session_billing_address['last_name'] ?? ''); ?>"
-                   class="form-input" required>
-        </div>
+<!-- Einfacher Hinweis-Bereich -->
+<div class="mt-6 p-6 bg-gray-50 rounded-lg text-center">
+    <div class="mb-4">
+        <i class="fas fa-info-circle text-blue-500 text-2xl mb-2"></i>
+        <h3 class="text-lg font-semibold text-gray-800 mb-2">
+            <?php esc_html_e('Rechnungsadresse verwalten', 'yprint-checkout'); ?>
+        </h3>
+        <?php if (is_user_logged_in()) : ?>
+            <p class="text-gray-600 mb-4">
+                <?php esc_html_e('Wählen Sie eine gespeicherte Rechnungsadresse oder fügen Sie eine neue hinzu.', 'yprint-checkout'); ?>
+            </p>
+        <?php else : ?>
+            <p class="text-gray-600 mb-4">
+                <?php esc_html_e('Klicken Sie auf "Neue Adresse hinzufügen" um eine Rechnungsadresse zu erstellen.', 'yprint-checkout'); ?>
+            </p>
+        <?php endif; ?>
     </div>
-
-    <div>
-        <label for="billing_company" class="form-label"><?php esc_html_e('Firma (optional)', 'yprint-checkout'); ?></label>
-        <input type="text" id="billing_company" name="billing_company"
-               value="<?php echo esc_attr($session_billing_address['company'] ?? ''); ?>"
-               class="form-input">
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="md:col-span-2">
-            <label for="billing_street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_street" name="billing_street"
-                   value="<?php echo esc_attr($session_billing_address['address_1'] ?? ''); ?>"
-                   class="form-input" required>
-        </div>
-        <div>
-            <label for="billing_housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_housenumber" name="billing_housenumber"
-                   value="<?php echo esc_attr($session_billing_address['address_2'] ?? ''); ?>"
-                   class="form-input" required>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-            <label for="billing_zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_zip" name="billing_zip"
-                   value="<?php echo esc_attr($session_billing_address['postcode'] ?? ''); ?>"
-                   class="form-input" required>
-        </div>
-        <div>
-            <label for="billing_city" class="form-label"><?php esc_html_e('Stadt', 'yprint-checkout'); ?></label>
-            <input type="text" id="billing_city" name="billing_city"
-                   value="<?php echo esc_attr($session_billing_address['city'] ?? ''); ?>"
-                   class="form-input" required>
-        </div>
-    </div>
-
-    <div>
-        <label for="billing_country" class="form-label"><?php esc_html_e('Land', 'yprint-checkout'); ?></label>
-        <select id="billing_country" name="billing_country" class="form-select" required>
-            <option value="DE" <?php selected($session_billing_address['country'] ?? '', 'DE'); ?>><?php esc_html_e('Deutschland', 'yprint-checkout'); ?></option>
-            <option value="AT" <?php selected($session_billing_address['country'] ?? '', 'AT'); ?>><?php esc_html_e('Österreich', 'yprint-checkout'); ?></option>
-            <option value="CH" <?php selected($session_billing_address['country'] ?? '', 'CH'); ?>><?php esc_html_e('Schweiz', 'yprint-checkout'); ?></option>
-            <option value="NL" <?php selected($session_billing_address['country'] ?? '', 'NL'); ?>><?php esc_html_e('Niederlande', 'yprint-checkout'); ?></option>
-        </select>
-    </div>
-
-    <?php if (is_user_logged_in()) : ?>
-        <div class="yprint-save-address-actions mt-6">
-    <button type="button" id="save-address-button" class="btn btn-secondary">
-        <i class="fas fa-save mr-2"></i><?php esc_html_e('Adresse speichern', 'yprint-checkout'); ?>
-    </button>
-    <div id="save-address-feedback" class="mt-2 text-sm hidden"></div>
-</div>
-    <?php endif; ?>
-
-    <div class="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-        <button type="button" id="btn-back-to-payment" class="btn btn-secondary w-full md:w-auto order-2 md:order-1">
+    
+    <!-- Einfache Navigation zurück -->
+    <div class="pt-4 border-t border-gray-200">
+        <button type="button" id="btn-back-to-payment" class="btn btn-secondary">
             <i class="fas fa-arrow-left mr-2"></i> <?php esc_html_e('Zurück zur Zahlung', 'yprint-checkout'); ?>
         </button>
-        <button type="button" id="btn-billing-to-payment" class="btn btn-primary w-full md:w-auto order-1 md:order-2" disabled>
-            <?php esc_html_e('Weiter zur Zahlung', 'yprint-checkout'); ?> <i class="fas fa-arrow-right ml-2"></i>
-        </button>
     </div>
-</form>
+</div>
 
 <script>
 (function($) {
@@ -444,79 +388,22 @@ $(document).on('modal_opened', function(event, modalContext) {
     }
 });
 
-        // ✅ 4. BILLING-SPEZIFISCHE NAVIGATION SETUP
-        setupBillingNavigation();
-
-        // Event-Handler für Formular-Validierung
-        // Triggered by manual input or changes in the form fields
-        $('#billing-address-form input, #billing-address-form select').on('input change', validateBillingForm);
-
-        // Event-Handler entfernt - wird jetzt zentral über yprint-address-manager.js abgewickelt
-
-    // 🎯 Event Handler für Adressauswahl (address_selected)
-    function handleBillingAddressSelected(event, addressId, addressData) {
-        // Prüfe Kontext über data-address-type des übergeordneten Containers
-        // Oder über die globale Variable window.currentAddressContext
-        const addressType = $(event.target).closest('[data-address-type]').attr('data-address-type');
-
-        if (addressType === 'billing' || window.currentAddressContext === 'billing') {
-            console.log('🎯 Billing address selected via Address Manager:', addressData);
-
-            // Formular ausblenden und Adresskarten anzeigen, da eine Adresse ausgewählt wurde
-            $('#billing-address-form').hide();
-            $('.yprint-saved-addresses').show(); // Sicherstellen, dass der Container sichtbar ist
-
-            // Session speichern mit standardisierten Daten
-            saveBillingAddressToSession(addressData, () => {
-                console.log('✅ Billing address saved to session');
-                navigateToPaymentStep(); // Direkt weiter zum Payment Step nach Auswahl
-            });
-        }
-    }
-
-    // 💾 Event Handler für gespeicherte Adresse (address_saved)
-    function handleBillingAddressSaved(event, addressData) {
-        // Prüfe, ob es sich um eine Rechnungsadresse handelt
-        if (addressData.type === 'billing' || window.currentAddressContext === 'billing') {
-            console.log('✅ Billing address saved via Address Manager');
-            $('#save-billing-address-feedback').removeClass('hidden text-red-500').addClass('text-green-600').text('Adresse erfolgreich gespeichert!');
-
-            // UI aktualisieren - Adresskarten neu laden
-            setTimeout(() => {
-                if (window.YPrintAddressManager && window.YPrintAddressManager.loadSavedAddresses) {
-                    window.YPrintAddressManager.loadSavedAddresses('billing');
-                }
-                // Nach dem Speichern Formular ausblenden und Karten anzeigen
-                $('#billing-address-form').hide();
-                $('.yprint-saved-addresses').show();
-            }, 500);
-        }
-    }
-
-    // 🗑️ Event Handler für gelöschte Adresse (address_deleted)
-    function handleBillingAddressDeleted(event, addressId) {
-        // Die Bedingung addressId.includes('billing_') ist spezifisch für diese Implementierung
-        // Besser: Der Address Manager sollte den Typ im Event-Payload liefern.
-        // Falls nicht, auf window.currentAddressContext verlassen.
-        if (window.currentAddressContext === 'billing' && addressId.startsWith('billing_')) {
-            console.log('🗑️ Billing address deleted via Address Manager:', addressId);
-            // UI-Reset: Formular anzeigen, falls keine Adressen mehr gespeichert sind
-            // Oder wenn der Nutzer keine Adresse ausgewählt hat und das Formular benötigt wird
-            const addressCardsContainer = $('#billing-address-cards-container');
-            // Eine kleine Verzögerung geben, damit der DOM vom Address Manager aktualisiert wird
-            setTimeout(() => {
-                // Hier überprüfen wir, ob nach dem Löschen nur der "Neue Adresse" Button übrig ist.
-                // Das Element für "Neue Adresse" sollte ebenfalls eine Adresse sein, aber ohne id und mit der Klasse `add-new-address-card`
-                // Eine bessere Prüfung wäre: ob der Address Manager tatsächlich keine Adressen mehr rendert (außer dem "add-new" button)
-                const renderedAddressCards = addressCardsContainer.find('.address-card:not(.add-new-address-card)');
-                if (renderedAddressCards.length === 0) {
-                    $('#billing-address-form').show();
-                    $('.yprint-saved-addresses').hide();
-                    resetBillingForm(); // Felder leeren und Button disablen
-                }
-            }, 200);
-        }
-    }
+        // Einfache Navigation zurück zum Payment Step
+$(document).on('click', '#btn-back-to-payment', function(e) {
+    e.preventDefault();
+    
+    // Zurück zum Payment Step
+    $('.checkout-step').removeClass('active').hide();
+    $('#step-2').addClass('active').show();
+    
+    // URL aktualisieren
+    const newUrl = new URL(window.location);
+    newUrl.searchParams.set('step', 'payment');
+    history.pushState({step: 'payment'}, '', newUrl);
+    
+    // Event triggern
+    $(document).trigger('yprint_step_changed', {step: 'payment', from: 'billing'});
+});
 
     // 📝 Event Handler für Modal-Öffnung (modal_opened)
     function handleBillingModalOpened(event, modalContext) {
