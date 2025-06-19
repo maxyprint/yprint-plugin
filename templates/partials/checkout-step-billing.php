@@ -546,6 +546,94 @@ $(document).on('click', '#btn-back-to-payment', function(e) {
     }
 
 
+// CSS für das Address Modal hinzufügen
+if (!document.getElementById('yprint-modal-styles')) {
+    const modalStyles = `
+        <style id="yprint-modal-styles">
+        .address-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .address-modal.active {
+            display: block !important;
+        }
+        
+        .address-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1;
+        }
+        
+        .address-modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            padding: 0;
+            z-index: 2;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .address-modal-header {
+            padding: 20px 20px 0 20px;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+        
+        .address-modal-header h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+        
+        .address-modal-body {
+            padding: 0 20px;
+        }
+        
+        .address-modal-footer {
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+            z-index: 3;
+        }
+        
+        .btn-close-modal:hover {
+            color: #333;
+        }
+        </style>
+    `;
+    document.head.insertAdjacentHTML('beforeend', modalStyles);
+}
+
 // 🎮 EINFACHE KONSOLEN-BEFEHLE
 console.log(`
 🔧 BUTTON DEBUG-BEFEHLE:

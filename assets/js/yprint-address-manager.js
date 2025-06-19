@@ -1100,16 +1100,34 @@ setTimeout(function() {
                 console.log('openAddressModal (ID Handling): Opening modal for new address (no ID)');
             }
             
-            // WICHTIG: Überschreibe den inline-display-Style explizit!
-self.modal.css('display', 'block').show(); 
-self.modal.addClass('active');
+            // WICHTIG: CSS und Sichtbarkeit sicherstellen
+self.modal.css({
+    'display': 'block',
+    'visibility': 'visible',
+    'opacity': '1'
+}).show().addClass('active');
 
-// Debug: Prüfe ob Modal sichtbar ist
+// Body Scroll sperren
+$('body').css('overflow', 'hidden');
+
+// Debug: Erweiterte Sichtbarkeits-Prüfung
 console.log('Modal visibility check:', {
     display: self.modal.css('display'),
+    visibility: self.modal.css('visibility'),
+    opacity: self.modal.css('opacity'),
     visible: self.modal.is(':visible'),
-    hasActive: self.modal.hasClass('active')
+    hasActive: self.modal.hasClass('active'),
+    zIndex: self.modal.css('z-index'),
+    position: self.modal.css('position')
 });
+
+// Fallback: Modal direkt in den Viewport bringen
+setTimeout(() => {
+    if (!self.modal.is(':visible')) {
+        console.warn('Modal still not visible, applying fallback styles');
+        self.modal.attr('style', 'display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; background: rgba(0,0,0,0.5);');
+    }
+}, 100);
             
             $('body').css('overflow', 'hidden');
         },
