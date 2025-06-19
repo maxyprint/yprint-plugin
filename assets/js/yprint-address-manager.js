@@ -1123,9 +1123,29 @@ console.log('Modal visibility check:', {
 
 // Fallback: Modal direkt in den Viewport bringen
 setTimeout(() => {
+    // DOM-Diagnose erweitern
+    console.log('🔍 DOM-Diagnose:', {
+        modalExists: self.modal.length,
+        modalInDOM: document.contains(self.modal[0]),
+        modalHTML: self.modal[0] ? self.modal[0].outerHTML.substring(0, 200) + '...' : 'NICHT GEFUNDEN',
+        modalParent: self.modal.parent().length,
+        modalOffset: self.modal.offset(),
+        modalDimensions: {
+            width: self.modal.width(),
+            height: self.modal.height()
+        }
+    });
+    
     if (!self.modal.is(':visible')) {
         console.warn('Modal still not visible, applying fallback styles');
-        self.modal.attr('style', 'display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; background: rgba(0,0,0,0.5);');
+        
+        // Fallback: Modal direkt erstellen falls es nicht existiert
+        if (self.modal.length === 0) {
+            console.error('❌ Modal-Element nicht gefunden! Erstelle Fallback-Modal...');
+            self.createFallbackModal();
+        } else {
+            self.modal.attr('style', 'display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; background: rgba(0,0,0,0.5);');
+        }
     }
 }, 100);
             
@@ -1153,6 +1173,80 @@ setTimeout(() => {
             
             $('.btn-save-address').prop('disabled', !isValid);
             return isValid;
+        },
+
+        createFallbackModal: function() {
+            console.log('🛠️ Erstelle Fallback-Modal...');
+            
+            const fallbackModalHTML = `
+                <div id="new-address-modal" class="address-modal active" style="display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; background: rgba(0,0,0,0.5);">
+                    <div class="address-modal-overlay"></div>
+                    <div class="address-modal-content" style="position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: white !important; border-radius: 12px !important; padding: 20px !important; max-width: 500px !important; width: 90% !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;">
+                        <div class="address-modal-header">
+                            <h3>Neue Rechnungsadresse hinzufügen</h3>
+                            <button type="button" class="btn-close-modal" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999;">&times;</button>
+                        </div>
+                        <div class="address-modal-body">
+                            <form id="new-address-form" class="space-y-4">
+                                <div>
+                                    <label for="new_address_name" class="form-label">Name der Adresse</label>
+                                    <input type="text" id="new_address_name" name="name" class="form-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="new_address_first_name" class="form-label">Vorname</label>
+                                        <input type="text" id="new_address_first_name" name="first_name" class="form-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                    </div>
+                                    <div>
+                                        <label for="new_last_name" class="form-label">Nachname</label>
+                                        <input type="text" id="new_last_name" name="last_name" class="form-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="new_address_1" class="form-label">Straße und Hausnummer</label>
+                                    <input type="text" id="new_address_1" name="address_1" class="form-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                </div>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label for="new_postcode" class="form-label">PLZ</label>
+                                        <input type="text" id="new_postcode" name="postcode" class="form-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                    </div>
+                                    <div>
+                                        <label for="new_city" class="form-label">Stadt</label>
+                                        <input type="text" id="new_city" name="city" class="form-input" required style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="new_country" class="form-label">Land</label>
+                                    <select id="new_country" name="country" class="form-select" style="width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;">
+                                        <option value="DE">Deutschland</option>
+                                        <option value="AT">Österreich</option>
+                                        <option value="CH">Schweiz</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="address-modal-footer">
+                            <button type="button" class="btn btn-secondary btn-cancel-address" style="padding: 10px 20px; margin-right: 10px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 5px; cursor: pointer;">Abbrechen</button>
+                            <button type="button" class="btn btn-primary btn-save-address" style="padding: 10px 20px; background: #0079FF; color: white; border: none; border-radius: 5px; cursor: pointer;">Adresse speichern</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Entferne altes Modal falls vorhanden
+            $('#new-address-modal').remove();
+            
+            // Füge neues Modal zum Body hinzu
+            $('body').append(fallbackModalHTML);
+            
+            // Modal-Referenz aktualisieren
+            this.modal = $('#new-address-modal');
+            
+            // Body Scroll sperren
+            $('body').css('overflow', 'hidden');
+            
+            console.log('✅ Fallback-Modal erstellt und angezeigt');
         },
 
         // NEU: Funktion zum Anzeigen des "Neue Adresse hinzufügen"-Formulars
