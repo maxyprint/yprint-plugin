@@ -1139,13 +1139,34 @@ setTimeout(() => {
     if (!self.modal.is(':visible')) {
         console.warn('Modal still not visible, applying fallback styles');
         
-        // Fallback: Modal direkt erstellen falls es nicht existiert
-        if (self.modal.length === 0) {
-            console.error('❌ Modal-Element nicht gefunden! Erstelle Fallback-Modal...');
-            self.createFallbackModal();
-        } else {
-            self.modal.attr('style', 'display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; background: rgba(0,0,0,0.5);');
-        }
+        // Problem: Negative Dimensionen - fixe Modal-Content Styles
+        console.log('🛠️ Fixe Modal-Content Dimensionen...');
+        
+        // Modal Container forcieren
+        self.modal.attr('style', 'display: block !important; position: fixed !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; z-index: 99999 !important; background: rgba(0,0,0,0.5) !important;');
+        
+        // Modal Content forcieren
+        const modalContent = self.modal.find('.address-modal-content');
+        modalContent.attr('style', 'position: absolute !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; background: white !important; border-radius: 12px !important; padding: 20px !important; max-width: 500px !important; width: 400px !important; min-height: 300px !important; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important; z-index: 100000 !important;');
+        
+        // Modal Header forcieren
+        const modalHeader = self.modal.find('.address-modal-header');
+        modalHeader.attr('style', 'padding: 20px 20px 10px 20px !important; border-bottom: 1px solid #eee !important; margin-bottom: 15px !important;');
+        
+        // Modal Body forcieren
+        const modalBody = self.modal.find('.address-modal-body');
+        modalBody.attr('style', 'padding: 0 20px !important; max-height: 400px !important; overflow-y: auto !important;');
+        
+        // Modal Footer forcieren
+        const modalFooter = self.modal.find('.address-modal-footer');
+        modalFooter.attr('style', 'padding: 15px 20px 20px 20px !important; border-top: 1px solid #eee !important; display: flex !important; gap: 10px !important; justify-content: flex-end !important;');
+        
+        console.log('✅ Modal-Content Styles forciert, prüfe Dimensionen erneut:', {
+            modalWidth: self.modal.width(),
+            modalHeight: self.modal.height(),
+            contentWidth: modalContent.width(),
+            contentHeight: modalContent.height()
+        });
     }
 }, 100);
             
