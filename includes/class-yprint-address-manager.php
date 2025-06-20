@@ -803,6 +803,8 @@ public function apply_addresses_to_order($order, $data = null) {
     // ENHANCED DEBUG: Vollständige Ausführungsbestätigung
     error_log('🔍 YPRINT DEBUG: ========================================');
     error_log('🔍 YPRINT DEBUG: apply_addresses_to_order STARTED for Order #' . $order->get_id());
+    error_log('🔍 YPRINT DEBUG: Context: ' . (defined('DOING_AJAX') && DOING_AJAX ? 'AJAX' : 'STANDARD'));
+    error_log('🔍 YPRINT DEBUG: Source: ' . ($_POST['source'] ?? 'unknown'));
     error_log('🔍 YPRINT DEBUG: ========================================');
     
     // Debug Session-Status BEFORE processing
@@ -836,7 +838,12 @@ public function apply_addresses_to_order($order, $data = null) {
             'phone' => $selected_address['phone'] ?? ''
         );
         $order->set_shipping_address($shipping_data);
-        error_log('YPrint: Set shipping address from selected address');
+        
+        // CRITICAL: Zusätzliche Meta-Daten zur Verification
+        $order->update_meta_data('_yprint_original_shipping_address', $shipping_data);
+        
+        error_log('🔍 YPRINT DEBUG: Set shipping address from selected address');
+        error_log('🔍 YPRINT DEBUG: Shipping address_1: ' . $selected_address['address_1']);
     }
     
     // Setze Rechnungsadresse
@@ -892,14 +899,36 @@ public function apply_addresses_to_order_backup($order_id, $posted_data, $order)
         $shipping_addr = $order->get_shipping_address();
         $billing_addr = $order->get_billing_address();
         
-        // Wenn Shipping = Billing aber Session zeigt unterschiedliche Adressen
-        if ($shipping_addr['address_1'] === $billing_addr['address_1']) {
-            $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
-            
-            if ($has_different_billing) {
-                error_log('🔍 YPRINT DEBUG: BACKUP CORRECTION NEEDED - Shipping and Billing identical but should be different');
-                $this->apply_addresses_to_order($order);
-            }
+        // Session-Daten abrufen
+        $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+        $selected_address = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+        $billing_address = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+        
+        // Prüfe Meta-Daten auf YPrint-Originaldaten
+        $original_shipping = $order->get_meta('_yprint_original_shipping_address');
+        
+        // MEHRERE KORREKTUR-BEDINGUNGEN:
+        
+        // 1. Shipping = Billing aber sollte unterschiedlich sein
+        $addresses_identical = ($shipping_addr['address_1'] === $billing_addr['address_1']);
+        
+        // 2. Original YPrint-Daten wurden überschrieben
+        $yprint_data_overwritten = !empty($original_shipping) && 
+                                   $shipping_addr['address_1'] !== $original_shipping['address_1'];
+        
+        // 3. Session zeigt unterschiedliche Adressen
+        $session_indicates_different = $has_different_billing && !empty($billing_address) && !empty($selected_address);
+        
+        if ($addresses_identical && $session_indicates_different) {
+            error_log('🔍 YPRINT DEBUG: BACKUP CORRECTION NEEDED - Shipping and Billing identical but should be different');
+            $this->apply_addresses_to_order($order);
+            $order->save();
+        } elseif ($yprint_data_overwritten) {
+            error_log('🔍 YPRINT DEBUG: BACKUP CORRECTION NEEDED - YPrint data was overwritten');
+            $this->apply_addresses_to_order($order);
+            $order->save();
+        } else {
+            error_log('🔍 YPRINT DEBUG: BACKUP CHECK - No correction needed');
         }
     }
 }

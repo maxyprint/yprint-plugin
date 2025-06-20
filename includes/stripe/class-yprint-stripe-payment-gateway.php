@@ -234,8 +234,29 @@ public function process_payment($order_id) {
 if (class_exists('YPrint_Address_Manager')) {
     error_log('🔍 YPRINT DEBUG: Applying address corrections for Express Payment Order #' . $order->get_id());
     
-    $address_manager = YPrint_Address_Manager::get_instance();
-    $address_manager->apply_addresses_to_order($order);
+    // Session-Daten vor Überschreibung sichern
+    $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+    $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+    $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+    
+    error_log('🔍 YPRINT DEBUG: Express Payment - Session preserved data check:');
+    error_log('🔍 YPRINT DEBUG: - Selected Address empty: ' . (empty($yprint_selected) ? 'TRUE' : 'FALSE'));
+    error_log('🔍 YPRINT DEBUG: - Billing Different: ' . ($yprint_billing_different ? 'TRUE' : 'FALSE'));
+    
+    // Nur anwenden wenn YPrint Session-Daten vorhanden sind
+    if (!empty($yprint_selected) || ($yprint_billing_different && !empty($yprint_billing))) {
+        error_log('🔍 YPRINT DEBUG: YPrint session data found - applying YPrint address logic');
+        
+        $address_manager = YPrint_Address_Manager::get_instance();
+        $address_manager->apply_addresses_to_order($order);
+        
+        // Order nach YPrint Änderungen erneut speichern
+        $order->save();
+        
+        error_log('🔍 YPRINT DEBUG: YPrint addresses applied and order saved');
+    } else {
+        error_log('🔍 YPRINT DEBUG: No YPrint session data - using Stripe default addresses');
+    }
     
     YPrint_Address_Manager::debug_order_addresses($order, 'stripe_success_final');
 }
