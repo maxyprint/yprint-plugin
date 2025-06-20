@@ -67,6 +67,10 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_nopriv_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
+        
+        // Hooks für Bestellerstellung
+        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
+        add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
     }
 
 /**
@@ -113,6 +117,8 @@ public function ajax_save_checkout_address() {
         ));
     }
 }
+
+
 
     /**
      * Generiert den HTML-Code für das Adress-Modal zum Hinzufügen einer neuen Adresse.
@@ -720,6 +726,74 @@ public static function getFormattedBillingAddress() {
     
     return $formatted;
 }
+
+/**
+ * Wendet die korrekten Adressen auf WooCommerce-Bestellungen an
+ */
+public function apply_addresses_to_order($order, $data = null) {
+    if (!$order instanceof WC_Order) {
+        return;
+    }
+    
+    error_log('YPrint: Applying addresses to order #' . $order->get_id());
+    
+    // Lieferadresse aus gewählter Adresse
+    $selected_address = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+    
+    // Prüfe abweichende Rechnungsadresse
+    $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+    $billing_address = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+    
+    // Setze Lieferadresse
+    if (!empty($selected_address)) {
+        $shipping_data = array(
+            'first_name' => $selected_address['first_name'] ?? '',
+            'last_name' => $selected_address['last_name'] ?? '',
+            'company' => $selected_address['company'] ?? '',
+            'address_1' => $selected_address['address_1'] ?? '',
+            'address_2' => $selected_address['address_2'] ?? '',
+            'city' => $selected_address['city'] ?? '',
+            'postcode' => $selected_address['postcode'] ?? '',
+            'country' => $selected_address['country'] ?? 'DE',
+            'state' => '',
+            'phone' => $selected_address['phone'] ?? ''
+        );
+        $order->set_shipping_address($shipping_data);
+        error_log('YPrint: Set shipping address from selected address');
+    }
+    
+    // Setze Rechnungsadresse
+    if ($has_different_billing && !empty($billing_address)) {
+        // Verwende abweichende Rechnungsadresse
+        $billing_data = array(
+            'first_name' => $billing_address['first_name'] ?? '',
+            'last_name' => $billing_address['last_name'] ?? '',
+            'company' => $billing_address['company'] ?? '',
+            'address_1' => $billing_address['address_1'] ?? '',
+            'address_2' => $billing_address['address_2'] ?? '',
+            'city' => $billing_address['city'] ?? '',
+            'postcode' => $billing_address['postcode'] ?? '',
+            'country' => $billing_address['country'] ?? 'DE',
+            'state' => '',
+            'phone' => $billing_address['phone'] ?? '',
+            'email' => $billing_address['email'] ?? WC()->customer->get_email()
+        );
+        $order->set_billing_address($billing_data);
+        error_log('YPrint: Set different billing address');
+    } else {
+        // Verwende Lieferadresse als Rechnungsadresse
+        if (!empty($selected_address)) {
+            $billing_data = $shipping_data ?? array();
+            $billing_data['email'] = WC()->customer->get_email();
+            $order->set_billing_address($billing_data);
+            error_log('YPrint: Set billing address same as shipping');
+        }
+    }
+    
+    $order->save();
+}
+
+
 
 
     /**
