@@ -76,22 +76,87 @@ if (is_user_logged_in()) {
     </div>
 <?php endif; ?>
 
-<!-- Einfacher Hinweis-Bereich -->
-<div class="mt-6 p-6 bg-gray-50 rounded-lg text-center">
+<!-- Rechnungsadresse Eingabeformular (standardmäßig ausgeblendet) -->
+<form id="billing-address-form" class="space-y-6 mt-6" style="display: none;">
+    <div class="p-6 bg-white border border-gray-200 rounded-lg">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4">
+            <i class="fas fa-plus mr-2 text-yprint-blue"></i>
+            <?php esc_html_e('Neue Rechnungsadresse hinzufügen', 'yprint-checkout'); ?>
+        </h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="billing_first_name" class="form-label"><?php esc_html_e('Vorname', 'yprint-checkout'); ?></label>
+                <input type="text" id="billing_first_name" name="billing_first_name" class="form-input" required autocomplete="given-name">
+            </div>
+            <div>
+                <label for="billing_last_name" class="form-label"><?php esc_html_e('Nachname', 'yprint-checkout'); ?></label>
+                <input type="text" id="billing_last_name" name="billing_last_name" class="form-input" required autocomplete="family-name">
+            </div>
+        </div>
+        
+        <div>
+            <label for="billing_email" class="form-label"><?php esc_html_e('E-Mail-Adresse', 'yprint-checkout'); ?></label>
+            <input type="email" id="billing_email" name="billing_email" class="form-input" required autocomplete="email">
+            <p class="field-description text-sm text-gray-600 mt-1"><?php esc_html_e('Für die Rechnungsstellung', 'yprint-checkout'); ?></p>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="billing_street" class="form-label"><?php esc_html_e('Straße', 'yprint-checkout'); ?></label>
+                <input type="text" id="billing_street" name="billing_street" class="form-input" required autocomplete="billing street-address">
+            </div>
+            <div>
+                <label for="billing_housenumber" class="form-label"><?php esc_html_e('Hausnummer', 'yprint-checkout'); ?></label>
+                <input type="text" id="billing_housenumber" name="billing_housenumber" class="form-input" required autocomplete="billing address-line2">
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="billing_zip" class="form-label"><?php esc_html_e('PLZ', 'yprint-checkout'); ?></label>
+                <input type="text" id="billing_zip" name="billing_zip" class="form-input" required autocomplete="billing postal-code" inputmode="numeric">
+            </div>
+            <div>
+                <label for="billing_city" class="form-label"><?php esc_html_e('Ort', 'yprint-checkout'); ?></label>
+                <input type="text" id="billing_city" name="billing_city" class="form-input" required autocomplete="billing address-level2">
+            </div>
+        </div>
+        
+        <div>
+            <label for="billing_country" class="form-label"><?php esc_html_e('Land', 'yprint-checkout'); ?></label>
+            <select id="billing_country" name="billing_country" class="form-select" required autocomplete="billing country">
+                <option value="DE" selected><?php esc_html_e('Deutschland', 'yprint-checkout'); ?></option>
+                <option value="AT"><?php esc_html_e('Österreich', 'yprint-checkout'); ?></option>
+                <option value="CH"><?php esc_html_e('Schweiz', 'yprint-checkout'); ?></option>
+                <option value="NL"><?php esc_html_e('Niederlande', 'yprint-checkout'); ?></option>
+            </select>
+        </div>
+        
+        <div>
+            <label for="billing_phone" class="form-label"><?php esc_html_e('Telefonnummer', 'yprint-checkout'); ?> <span class="text-sm text-yprint-text-secondary">(<?php esc_html_e('optional', 'yprint-checkout'); ?>)</span></label>
+            <input type="tel" id="billing_phone" name="billing_phone" class="form-input" autocomplete="billing tel" inputmode="tel">
+        </div>
+        
+        <div class="yprint-save-address-actions mt-6">
+            <button type="button" id="save-billing-address-button" class="btn btn-primary">
+                <i class="fas fa-save mr-2"></i><?php esc_html_e('Rechnungsadresse speichern', 'yprint-checkout'); ?>
+            </button>
+            <div id="save-billing-address-feedback" class="mt-2 text-sm hidden"></div>
+        </div>
+    </div>
+</form>
+
+<!-- Einfacher Hinweis-Bereich (wird angezeigt wenn Adressen verfügbar sind) -->
+<div id="billing-info-section" class="mt-6 p-6 bg-gray-50 rounded-lg text-center" style="display: none;">
     <div class="mb-4">
         <i class="fas fa-info-circle text-blue-500 text-2xl mb-2"></i>
         <h3 class="text-lg font-semibold text-gray-800 mb-2">
             <?php esc_html_e('Rechnungsadresse verwalten', 'yprint-checkout'); ?>
         </h3>
-        <?php if (is_user_logged_in()) : ?>
-            <p class="text-gray-600 mb-4">
-                <?php esc_html_e('Wählen Sie eine gespeicherte Rechnungsadresse oder fügen Sie eine neue hinzu.', 'yprint-checkout'); ?>
-            </p>
-        <?php else : ?>
-            <p class="text-gray-600 mb-4">
-                <?php esc_html_e('Klicken Sie auf "Neue Adresse hinzufügen" um eine Rechnungsadresse zu erstellen.', 'yprint-checkout'); ?>
-            </p>
-        <?php endif; ?>
+        <p class="text-gray-600 mb-4">
+            <?php esc_html_e('Wählen Sie eine gespeicherte Rechnungsadresse oder fügen Sie eine neue hinzu.', 'yprint-checkout'); ?>
+        </p>
     </div>
     
     <!-- Einfache Navigation zurück -->
