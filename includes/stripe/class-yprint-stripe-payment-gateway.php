@@ -230,10 +230,15 @@ public function process_payment($order_id) {
             // Empty cart
             WC()->cart->empty_cart();
             
-            // YPRINT DEBUG: Final order status
-            if (class_exists('YPrint_Address_Manager')) {
-                YPrint_Address_Manager::debug_order_addresses($order, 'stripe_success_final');
-            }
+            // CRITICAL: Apply YPrint address corrections BEFORE final success
+if (class_exists('YPrint_Address_Manager')) {
+    error_log('🔍 YPRINT DEBUG: Applying address corrections for Express Payment Order #' . $order->get_id());
+    
+    $address_manager = YPrint_Address_Manager::get_instance();
+    $address_manager->apply_addresses_to_order($order);
+    
+    YPrint_Address_Manager::debug_order_addresses($order, 'stripe_success_final');
+}
             
             return array(
                 'result'   => 'success',
