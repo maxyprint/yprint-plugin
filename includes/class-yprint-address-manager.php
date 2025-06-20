@@ -68,9 +68,12 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
-        // CRITICAL: Hooks für Bestellerstellung
-        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
-        add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
+        // CRITICAL: Hooks für Bestellerstellung - ENHANCED with higher priority
+add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 5, 2);
+add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 5, 2);
+
+// ADDITIONAL: Backup-Hook für Express Payment scenarios
+add_action('woocommerce_checkout_order_processed', array($this, 'apply_addresses_to_order_backup'), 5, 3);
         
         // Debug-Hooks
         add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 10, 1);
@@ -793,10 +796,17 @@ public static function debug_order_addresses($order, $context = 'unknown') {
  */
 public function apply_addresses_to_order($order, $data = null) {
     if (!$order instanceof WC_Order) {
+        error_log('🔍 YPRINT DEBUG: apply_addresses_to_order called but order is not WC_Order instance');
         return;
     }
     
-    error_log('YPrint: Applying addresses to order #' . $order->get_id());
+    // ENHANCED DEBUG: Vollständige Ausführungsbestätigung
+    error_log('🔍 YPRINT DEBUG: ========================================');
+    error_log('🔍 YPRINT DEBUG: apply_addresses_to_order STARTED for Order #' . $order->get_id());
+    error_log('🔍 YPRINT DEBUG: ========================================');
+    
+    // Debug Session-Status BEFORE processing
+    self::debug_session_data('apply_addresses_BEFORE');
     
     // Lieferadresse aus gewählter Adresse
     $selected_address = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
@@ -804,6 +814,12 @@ public function apply_addresses_to_order($order, $data = null) {
     // Prüfe abweichende Rechnungsadresse
     $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
     $billing_address = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+    
+    // ENHANCED DEBUG: Session-Daten-Status protokollieren
+    error_log('🔍 YPRINT DEBUG: Session Analysis:');
+    error_log('🔍 YPRINT DEBUG: - selected_address empty: ' . (empty($selected_address) ? 'TRUE' : 'FALSE'));
+    error_log('🔍 YPRINT DEBUG: - has_different_billing: ' . ($has_different_billing ? 'TRUE' : 'FALSE'));
+    error_log('🔍 YPRINT DEBUG: - billing_address empty: ' . (empty($billing_address) ? 'TRUE' : 'FALSE'));
     
     // Setze Lieferadresse
     if (!empty($selected_address)) {
@@ -852,9 +868,40 @@ public function apply_addresses_to_order($order, $data = null) {
     }
     
     $order->save();
+
+// ENHANCED DEBUG: Session-Daten AFTER processing
+self::debug_session_data('apply_addresses_AFTER');
+
+// Debug nach dem Setzen der Adressen
+self::debug_order_addresses($order, 'apply_addresses_to_order');
+
+// FINAL CONFIRMATION
+error_log('🔍 YPRINT DEBUG: ========================================');
+error_log('🔍 YPRINT DEBUG: apply_addresses_to_order COMPLETED for Order #' . $order->get_id());
+error_log('🔍 YPRINT DEBUG: ========================================');
+}
+
+/**
+ * Backup-Methode für Express Payment Szenarien wo der Standard-Hook nicht greift
+ */
+public function apply_addresses_to_order_backup($order_id, $posted_data, $order) {
+    error_log('🔍 YPRINT DEBUG: Backup method called for Order #' . $order_id);
     
-    // Debug nach dem Setzen der Adressen
-    self::debug_order_addresses($order, 'apply_addresses_to_order');
+    if ($order instanceof WC_Order) {
+        // Prüfe ob Adressen bereits korrekt gesetzt sind
+        $shipping_addr = $order->get_shipping_address();
+        $billing_addr = $order->get_billing_address();
+        
+        // Wenn Shipping = Billing aber Session zeigt unterschiedliche Adressen
+        if ($shipping_addr['address_1'] === $billing_addr['address_1']) {
+            $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+            
+            if ($has_different_billing) {
+                error_log('🔍 YPRINT DEBUG: BACKUP CORRECTION NEEDED - Shipping and Billing identical but should be different');
+                $this->apply_addresses_to_order($order);
+            }
+        }
+    }
 }
 
 /**
@@ -1181,11 +1228,16 @@ public function ajax_set_checkout_address() {
         // WICHTIG: Speichere Adresse auch in Session für Express Payment
 if (WC()->session) {
     WC()->session->set('yprint_selected_address', $address_to_set);
-    error_log('=== ADDRESS MANAGER SESSION DEBUG ===');
-    error_log('Address Manager: Saved address to session for Express Payment: ' . print_r($address_to_set, true));
-    error_log('Session ID: ' . WC()->session->get_customer_id());
-    error_log('All session data: ' . print_r(WC()->session->get_session_data(), true));
-    error_log('=== ADDRESS MANAGER SESSION DEBUG END ===');
+    
+    // UNIFIED DEBUG FORMAT
+    error_log('🔍 YPRINT DEBUG: ========================================');
+    error_log('🔍 YPRINT DEBUG: Address saved to session for Express Payment');
+    error_log('🔍 YPRINT DEBUG: Session ID: ' . WC()->session->get_customer_id());
+    error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
+    
+    // Cross-check with debug_session_data for consistency
+    self::debug_session_data('ajax_set_checkout_address');
+    error_log('🔍 YPRINT DEBUG: ========================================');
 }
 
         wp_send_json_success(array(
