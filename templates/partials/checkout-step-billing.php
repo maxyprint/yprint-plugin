@@ -54,23 +54,9 @@ if (is_user_logged_in()) {
     </div>
 
     <?php
-// Modal HTML bereitstellen mit Billing-Kontext
-try {
-    $modal_html = $address_manager->get_address_modal_html();
-    // Füge Billing-Kontext zum Modal hinzu
-    $modal_html = str_replace(
-        'class="address-modal"', 
-        'class="address-modal" data-context="billing"', 
-        $modal_html
-    );
-    echo $modal_html;
-} catch (Exception $e) {
-    if (current_user_can('administrator')) {
-        echo '<div class="notice notice-error"><p>Address Modal Error: ' . esc_html($e->getMessage()) . '</p></div>';
-    }
-    error_log('YPrint Billing Address Modal Error: ' . $e->getMessage());
-}
-?>
+    // Modal wird jetzt zentral im Haupt-Checkout-Template bereitgestellt
+    // Kein separates Modal-HTML mehr hier erforderlich
+    ?>
 <?php endif; ?>
 
 <?php if (current_user_can('administrator') && isset($_GET['debug'])) : ?>

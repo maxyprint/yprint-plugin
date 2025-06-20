@@ -35,18 +35,8 @@ if ( ! defined( 'ABSPATH' ) ) {
             </div>
         </div>
         <?php
-        // Modal HTML bereitstellen
-        if (class_exists('YPrint_Address_Manager')) {
-            try {
-                $address_manager = YPrint_Address_Manager::get_instance();
-                echo $address_manager->get_address_modal_html();
-            } catch (Exception $e) {
-                if (current_user_can('administrator')) {
-                    echo '<div class="notice notice-error"><p>Address Modal Error: ' . esc_html($e->getMessage()) . '</p></div>';
-                }
-                error_log('YPrint Address Modal Error: ' . $e->getMessage());
-            }
-        }
+        // Modal wird jetzt zentral im Haupt-Checkout-Template bereitgestellt
+        // Kein Modal-HTML mehr hier erforderlich
         ?>
     <?php endif; ?>
     

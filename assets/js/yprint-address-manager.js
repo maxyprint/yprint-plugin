@@ -1026,6 +1026,20 @@ setTimeout(function() {
                 console.log('openAddressModal (ID Handling): Address data:', JSON.stringify(addressData));
             }
             
+            // Stelle sicher, dass das Modal im Body verfügbar ist
+            if (self.modal.length === 0) {
+                self.modal = $('#new-address-modal');
+                if (self.modal.length === 0) {
+                    console.error('Modal not found in DOM. Creating fallback modal.');
+                    self.createFallbackModal();
+                }
+            }
+            
+            // Setze Kontext basierend auf aktueller Situation
+            const currentContext = window.currentAddressContext || 'shipping';
+            self.modal.attr('data-context', currentContext);
+            console.log('Modal context set to:', currentContext);
+            
             // Modal-spezifische Event-Bindung als zusätzliche Sicherheit
             setTimeout(() => {
                 const modalSaveBtn = self.modal.find('.btn-save-address');

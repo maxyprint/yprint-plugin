@@ -527,6 +527,21 @@ wp_enqueue_style('font-awesome', 'https://cdnjs.cloudflare.com/ajax/libs/font-aw
         <p><?php esc_html_e('Verarbeitung läuft...', 'yprint-checkout'); ?></p>
     </div>
 
+    <?php
+    // Address Modal einmalig für den gesamten Checkout-Prozess bereitstellen
+    if (class_exists('YPrint_Address_Manager')) {
+        try {
+            $address_manager = YPrint_Address_Manager::get_instance();
+            echo $address_manager->get_address_modal_html();
+        } catch (Exception $e) {
+            if (current_user_can('administrator')) {
+                echo '<div class="notice notice-error"><p>Address Modal Error: ' . esc_html($e->getMessage()) . '</p></div>';
+            }
+            error_log('YPrint Address Modal Error: ' . $e->getMessage());
+        }
+    }
+    ?>
+
     <script>
     // Font Awesome Check und Fallback
     function ensureFontAwesome() {
