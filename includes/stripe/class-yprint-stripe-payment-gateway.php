@@ -126,6 +126,12 @@ public function process_payment($order_id) {
     $order = wc_get_order($order_id);
 
     error_log('Processing payment for order: ' . $order_id);
+    
+    // YPRINT DEBUG: Session-Daten vor Zahlungsverarbeitung
+    if (class_exists('YPrint_Address_Manager')) {
+        YPrint_Address_Manager::debug_session_data('stripe_process_payment_start');
+        YPrint_Address_Manager::debug_order_addresses($order, 'stripe_before_processing');
+    }
 
     try {
         // Check if we have a payment method ID directly
@@ -223,6 +229,11 @@ public function process_payment($order_id) {
             
             // Empty cart
             WC()->cart->empty_cart();
+            
+            // YPRINT DEBUG: Final order status
+            if (class_exists('YPrint_Address_Manager')) {
+                YPrint_Address_Manager::debug_order_addresses($order, 'stripe_success_final');
+            }
             
             return array(
                 'result'   => 'success',

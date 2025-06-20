@@ -68,6 +68,14 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
+        // CRITICAL: Hooks für Bestellerstellung
+        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
+        add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
+        
+        // Debug-Hooks
+        add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 10, 1);
+    
+        
         // Hooks für Bestellerstellung
         add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
         add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
@@ -728,6 +736,59 @@ public static function getFormattedBillingAddress() {
 }
 
 /**
+ * Debug-Methode für Session-Daten - immer mit gleichem Präfix
+ */
+public static function debug_session_data($step = 'unknown') {
+    $prefix = '🔍 YPRINT DEBUG';
+    error_log("$prefix ==========================================");
+    error_log("$prefix STEP: $step");
+    error_log("$prefix ==========================================");
+    
+    if (WC()->session) {
+        $selected = WC()->session->get('yprint_selected_address', array());
+        $billing = WC()->session->get('yprint_billing_address', array());
+        $billing_different = WC()->session->get('yprint_billing_address_different', false);
+        
+        error_log("$prefix Selected Address: " . print_r($selected, true));
+        error_log("$prefix Billing Address: " . print_r($billing, true));
+        error_log("$prefix Billing Different: " . ($billing_different ? 'TRUE' : 'FALSE'));
+        error_log("$prefix Session ID: " . WC()->session->get_customer_id());
+    } else {
+        error_log("$prefix ERROR: No WC Session available");
+    }
+    
+    error_log("$prefix ==========================================");
+}
+
+/**
+ * Debug-Methode für Bestellungsdaten
+ */
+public static function debug_order_addresses($order, $context = 'unknown') {
+    if (!$order instanceof WC_Order) {
+        return;
+    }
+    
+    $prefix = '🔍 YPRINT DEBUG';
+    error_log("$prefix ==========================================");
+    error_log("$prefix ORDER DEBUG - Context: $context");
+    error_log("$prefix Order ID: " . $order->get_id());
+    error_log("$prefix ==========================================");
+    
+    $billing = $order->get_billing_address();
+    $shipping = $order->get_shipping_address();
+    
+    error_log("$prefix Order Billing Address: " . print_r($billing, true));
+    error_log("$prefix Order Shipping Address: " . print_r($shipping, true));
+    
+    // Session-Vergleich
+    self::debug_session_data("ORDER_CONTEXT_$context");
+    
+    error_log("$prefix ==========================================");
+}
+
+
+
+/**
  * Wendet die korrekten Adressen auf WooCommerce-Bestellungen an
  */
 public function apply_addresses_to_order($order, $data = null) {
@@ -791,6 +852,19 @@ public function apply_addresses_to_order($order, $data = null) {
     }
     
     $order->save();
+    
+    // Debug nach dem Setzen der Adressen
+    self::debug_order_addresses($order, 'apply_addresses_to_order');
+}
+
+/**
+ * Debug-Handler für Bestellungsverarbeitung
+ */
+public function debug_order_after_processing($order_id) {
+    $order = wc_get_order($order_id);
+    if ($order) {
+        self::debug_order_addresses($order, 'order_processed');
+    }
 }
 
 
