@@ -992,7 +992,7 @@ setTimeout(function() {
             // Adressauswahl-Container verstecken nach Auswahl
             $('.yprint-saved-addresses').slideUp();
             
-            // "Andere Adresse wählen" Link anzeigen
+            // "Andere Adresse wählen" Link anzeigen!
             this.showChangeAddressLink();
         },
         
