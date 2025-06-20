@@ -2069,21 +2069,13 @@ if (WC()->cart->is_empty()) {
             }
         }
         
-        // Priorisiere Address Manager Adresse
+        // Nutze YPrint Address Manager für korrekte Adress-Zuordnung
 $selected_address = WC()->session->get('yprint_selected_address');
+$billing_address = WC()->session->get('yprint_billing_address');
+$has_different_billing = WC()->session->get('yprint_billing_address_different', false);
 
 if ($selected_address && !empty($selected_address)) {
-    // Verwende Address Manager Adresse
-    $order->set_billing_first_name($selected_address['first_name'] ?? '');
-    $order->set_billing_last_name($selected_address['last_name'] ?? '');
-    $order->set_billing_address_1($selected_address['address_1'] ?? '');
-    $order->set_billing_address_2($selected_address['address_2'] ?? '');
-    $order->set_billing_city($selected_address['city'] ?? '');
-    $order->set_billing_postcode($selected_address['postcode'] ?? '');
-    $order->set_billing_country($selected_address['country'] ?? 'DE');
-    $order->set_billing_phone($selected_address['phone'] ?? '');
-    
-    // Shipping gleich Billing setzen aus Address Manager
+    // Setze Lieferadresse (yprint_selected_address = Shipping)
     $order->set_shipping_first_name($selected_address['first_name'] ?? '');
     $order->set_shipping_last_name($selected_address['last_name'] ?? '');
     $order->set_shipping_address_1($selected_address['address_1'] ?? '');
@@ -2092,7 +2084,34 @@ if ($selected_address && !empty($selected_address)) {
     $order->set_shipping_postcode($selected_address['postcode'] ?? '');
     $order->set_shipping_country($selected_address['country'] ?? 'DE');
     
-    error_log('EXPRESS: Using Address Manager address for order');
+    // Prüfe ob abweichende Rechnungsadresse gewählt wurde
+    if ($has_different_billing && !empty($billing_address)) {
+        // Verwende separate Rechnungsadresse
+        $order->set_billing_first_name($billing_address['first_name'] ?? '');
+        $order->set_billing_last_name($billing_address['last_name'] ?? '');
+        $order->set_billing_address_1($billing_address['address_1'] ?? '');
+        $order->set_billing_address_2($billing_address['address_2'] ?? '');
+        $order->set_billing_city($billing_address['city'] ?? '');
+        $order->set_billing_postcode($billing_address['postcode'] ?? '');
+        $order->set_billing_country($billing_address['country'] ?? 'DE');
+        $order->set_billing_phone($billing_address['phone'] ?? '');
+        
+        error_log('EXPRESS: Using different billing address from YPrint session');
+    } else {
+        // Verwende Lieferadresse als Rechnungsadresse (Standard)
+        $order->set_billing_first_name($selected_address['first_name'] ?? '');
+        $order->set_billing_last_name($selected_address['last_name'] ?? '');
+        $order->set_billing_address_1($selected_address['address_1'] ?? '');
+        $order->set_billing_address_2($selected_address['address_2'] ?? '');
+        $order->set_billing_city($selected_address['city'] ?? '');
+        $order->set_billing_postcode($selected_address['postcode'] ?? '');
+        $order->set_billing_country($selected_address['country'] ?? 'DE');
+        $order->set_billing_phone($selected_address['phone'] ?? '');
+        
+        error_log('EXPRESS: Using shipping address as billing address');
+    }
+    
+    error_log('EXPRESS: Using YPrint Address Manager addresses for order');
 } else {
     // Fallback: Payment Method Adresse
     if (isset($payment_method['billing_details']['address'])) {
