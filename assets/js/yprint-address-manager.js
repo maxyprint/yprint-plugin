@@ -27,22 +27,47 @@
             const saveButton = $('.btn-save-address');
             const originalText = saveButton.html();
         
-            console.log('YPrint Debug: triggerSaveNewAddress() wurde aufgerufen.');
+            console.log('🚀 triggerSaveNewAddress: Speichervorgang gestartet');
+            console.log('🔍 triggerSaveNewAddress: Modal-Status:', {
+                modalExists: this.modal.length > 0,
+                modalVisible: this.modal.is(':visible'),
+                formExists: form.length > 0,
+                buttonExists: saveButton.length > 0
+            });
         
             // Deaktiviere den Button und zeige einen Ladezustand
             saveButton.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-2"></i>Speichere...');
-            console.log('YPrint Debug: Speichern-Button deaktiviert und Ladeanzeige aktiviert.');
+            console.log('🔄 triggerSaveNewAddress: Button deaktiviert, Ladezustand aktiviert');
         
-            // Formularvalidierung
-            console.log('YPrint Debug: Starte Formularvalidierung.');
-            if (!this.validateForm()) {
-                console.log('YPrint Debug: Formularvalidierung fehlgeschlagen.');
-                this.showFormError('Bitte füllen Sie alle Pflichtfelder aus.');
+            // Debug: Alle Formularfelder ausgeben
+            console.log('📝 triggerSaveNewAddress: Aktuelle Formularwerte:');
+            form.find('input, select').each(function() {
+                const $field = $(this);
+                console.log(`  ${$field.attr('id') || $field.attr('name')}: "${$field.val()}"`);
+            });
+        
+            // Formularvalidierung mit erweiterten Debug-Infos
+            console.log('🔍 triggerSaveNewAddress: Starte erweiterte Formularvalidierung');
+            const isValid = this.validateForm();
+            
+            if (!isValid) {
+                console.error('❌ triggerSaveNewAddress: Validierung fehlgeschlagen');
+                // Zusätzliche Diagnose: Prüfe ob Felder wirklich leer sind
+                const requiredFields = form.find('input[required], select[required]');
+                console.log('🔬 triggerSaveNewAddress: Detailanalyse der Required-Felder:');
+                requiredFields.each(function() {
+                    const $field = $(this);
+                    const value = $field.val();
+                    const isEmpty = !value || !value.trim();
+                    console.log(`  ${$field.attr('id')}: Value="${value}", isEmpty=${isEmpty}, visible=${$field.is(':visible')}`);
+                });
+                
                 saveButton.prop('disabled', false).html(originalText);
-                console.log('YPrint Debug: Speichern-Button wieder aktiviert.');
+                console.log('🔄 triggerSaveNewAddress: Button wieder aktiviert nach Validierungsfehler');
                 return;
             }
-            console.log('YPrint Debug: Formularvalidierung erfolgreich.');
+            
+            console.log('✅ triggerSaveNewAddress: Validierung erfolgreich, fahre mit Speichern fort');
         
             // Prüfen, ob wir im Bearbeitungs-Modus sind (Vorhandensein einer Adress-ID im Modal-Data-Attribut oder im versteckten Feld)
             let addressId = self.modal.data('editing-address-id') || $('#new_address_edit_id').val();
@@ -1195,16 +1220,43 @@ setTimeout(() => {
         },
         
         validateForm: function() {
+            console.log('🔍 validateForm: Starte Validierung');
             const form = $('#new-address-form');
+            
+            if (form.length === 0) {
+                console.error('❌ validateForm: Formular #new-address-form nicht gefunden!');
+                return false;
+            }
+            
             const requiredFields = form.find('input[required], select[required]');
+            console.log('🔍 validateForm: Gefundene Required-Felder:', requiredFields.length);
+            
             let isValid = true;
+            let invalidFields = [];
             
             requiredFields.each(function() {
-                if (!$(this).val().trim()) {
+                const $field = $(this);
+                const value = $field.val() ? $field.val().trim() : '';
+                const fieldId = $field.attr('id') || $field.attr('name') || 'unbekannt';
+                
+                console.log(`🔍 validateForm: Prüfe Feld ${fieldId}: "${value}"`);
+                
+                if (!value) {
                     isValid = false;
-                    return false;
+                    invalidFields.push(fieldId);
+                    $field.addClass('border-red-500'); // Visuelles Feedback
+                } else {
+                    $field.removeClass('border-red-500');
                 }
             });
+            
+            if (!isValid) {
+                console.warn('❌ validateForm: Ungültige Felder:', invalidFields);
+                this.showFormError(`Bitte füllen Sie folgende Pflichtfelder aus: ${invalidFields.join(', ')}`);
+            } else {
+                console.log('✅ validateForm: Alle Felder gültig');
+                $('.address-form-errors').hide();
+            }
             
             $('.btn-save-address').prop('disabled', !isValid);
             return isValid;
@@ -1625,10 +1677,63 @@ saveBillingAddressFromForm: function() {
             // Link einfügen
             $('#step-1 .space-y-6').prepend(link);
         },
+
+        // Debug-Funktion für manuelle Validierungstests
+debugValidation: function() {
+    console.log('🔬 === VALIDIERUNGS-DEBUG ===');
+    
+    const form = $('#new-address-form');
+    console.log('Form gefunden:', form.length > 0);
+    
+    if (form.length === 0) {
+        console.error('❌ Formular nicht gefunden!');
+        return;
+    }
+    
+    console.log('📋 Alle Formularfelder:');
+    form.find('input, select, textarea').each(function(index) {
+        const $field = $(this);
+        console.log(`${index + 1}. ${$field.attr('id') || $field.attr('name') || 'unbekannt'}:`, {
+            value: $field.val(),
+            required: $field.attr('required') !== undefined,
+            visible: $field.is(':visible'),
+            type: $field.attr('type') || $field.prop('tagName')
+        });
+    });
+    
+    console.log('🎯 Required Felder:');
+    const requiredFields = form.find('input[required], select[required]');
+    console.log('Anzahl Required Felder:', requiredFields.length);
+    
+    let validationResult = this.validateForm();
+    console.log('🔍 Validierungsergebnis:', validationResult);
+    
+    console.log('🔬 === ENDE VALIDIERUNGS-DEBUG ===');
+    return validationResult;
+},
         
         showFormError: function(message) {
-            const errorEl = $('.address-form-errors');
-            errorEl.html(`<ul><li>${message}</li></ul>`).show();
+            console.log('🚨 showFormError: Zeige Fehler an:', message);
+            let errorEl = $('.address-form-errors');
+            
+            // Falls Error-Element nicht existiert, erstelle es
+            if (errorEl.length === 0) {
+                console.log('🔧 showFormError: Error-Element nicht gefunden, erstelle neues');
+                errorEl = $('<div class="address-form-errors bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4"></div>');
+                $('#new-address-form').prepend(errorEl);
+            }
+            
+            errorEl.html(`
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-circle mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `).show();
+            
+            // Auto-hide nach 8 Sekunden
+            setTimeout(() => {
+                errorEl.fadeOut();
+            }, 8000);
         }
     };
 
