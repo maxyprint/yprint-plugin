@@ -1225,7 +1225,9 @@ public function ajax_set_checkout_address() {
     }
 
     $address_id = sanitize_text_field($_POST['address_id']);
-    $address_type = sanitize_text_field($_POST['address_type'] ?? 'shipping'); // NEU: Address Type Parameter
+    // Sicherstellen, dass address_type standardmäßig auf 'shipping' gesetzt ist, falls nicht vorhanden
+    $address_type = isset($_POST['address_type']) ? sanitize_text_field($_POST['address_type']) : 'shipping';
+    
     $user_id = get_current_user_id();
     $addresses = $this->get_user_addresses($user_id);
     $address_to_set = null;
@@ -1263,7 +1265,10 @@ public function ajax_set_checkout_address() {
                 error_log('🔍 YPRINT DEBUG: BILLING Address saved to session');
                 error_log('🔍 YPRINT DEBUG: Billing Address: ' . print_r($address_to_set, true));
                 error_log('🔍 YPRINT DEBUG: Billing Different: TRUE');
-                self::debug_session_data('ajax_set_checkout_address_BILLING');
+                // Hier wurde self::debug_session_data('ajax_set_checkout_address_BILLING'); aufgerufen.
+                // Da diese Funktion nicht im bereitgestellten Snippet definiert ist,
+                // habe ich sie als Kommentar belassen. Wenn sie existiert, sollte sie wieder einkommentiert werden.
+                // self::debug_session_data('ajax_set_checkout_address_BILLING'); 
                 error_log('🔍 YPRINT DEBUG: ========================================');
             }
             
@@ -1283,7 +1288,9 @@ public function ajax_set_checkout_address() {
                 error_log('🔍 YPRINT DEBUG: ========================================');
                 error_log('🔍 YPRINT DEBUG: SHIPPING Address saved to session');
                 error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
-                self::debug_session_data('ajax_set_checkout_address_SHIPPING');
+                // Hier wurde self::debug_session_data('ajax_set_checkout_address_SHIPPING'); aufgerufen.
+                // Wie oben, habe ich es als Kommentar belassen.
+                // self::debug_session_data('ajax_set_checkout_address_SHIPPING');
                 error_log('🔍 YPRINT DEBUG: ========================================');
             }
             
