@@ -928,45 +928,76 @@ addWooCommerceDefaultAddress: function(grid) {
             const originalBtnText = btnSelectAddress.html();
             btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
             
-            // Adresse für Checkout setzen und Formular füllen
-            $.ajax({
-                url: yprint_address_ajax.ajax_url,
-                type: 'POST',
-                data: {
-                    action: 'yprint_set_checkout_address',
-                    nonce: yprint_address_ajax.nonce,
-                    address_id: addressId
-                },
-                success: function(response) {
-                    if (response.success) {
-                        self.fillAddressForm(response.data.address_data);
-                        
-                        console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
-                        
-                        // Aktualisiere Express Payment mit neuer Adresse
-                        if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
-                            console.log('Address Manager: Calling Express Payment updateAddress...');
-                            window.YPrintExpressCheckout.updateAddress(response.data.address_data);
-                        } else {
-                            console.warn('Address Manager: YPrintExpressCheckout not available for address update');
-                        }
-                        
-                        self.showMessage('Adresse ausgewählt und für Checkout gesetzt.', 'success');
+            // Erkenne den aktuellen Kontext basierend auf der URL oder dem Container
+let addressType = 'shipping'; // Default
+
+// Methode 1: URL-basierte Erkennung
+if (window.location.href.includes('step=billing')) {
+    addressType = 'billing';
+}
+
+// Methode 2: Container-basierte Erkennung (Fallback) 
+if ($(`.address-card[data-address-id="${addressId}"]`).closest('#step-billing, .billing-step, [data-step="billing"]').length > 0) {
+    addressType = 'billing';
+}
+
+// Methode 3: Globaler Kontext (Fallback)
+if (window.currentAddressContext === 'billing') {
+    addressType = 'billing';
+}
+
+console.log('🎯 Address Manager Context erkannt:', addressType);
+
+// Adresse für Checkout setzen und Formular füllen
+$.ajax({
+    url: yprint_address_ajax.ajax_url,
+    type: 'POST',
+    data: {
+        action: 'yprint_set_checkout_address',
+        nonce: yprint_address_ajax.nonce,
+        address_id: addressId,
+        address_type: addressType // WICHTIG: Kontext mitschicken
+    },
+    success: function(response) {
+        if (response.success) {
+            console.log('✅ Address erfolgreich gesetzt als:', response.data.address_type || addressType);
+            
+            self.fillAddressForm(response.data.address_data);
+            
+            console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
+            
+            // Aktualisiere Express Payment mit neuer Adresse
+            if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
+                console.log('Address Manager: Calling Express Payment updateAddress...');
+                window.YPrintExpressCheckout.updateAddress(response.data.address_data);
+            } else {
+                console.warn('Address Manager: YPrintExpressCheckout not available for address update');
+            }
+            
+            self.showMessage('Adresse ausgewählt und für Checkout gesetzt.');
+            
+            // Kontext-spezifisches Event triggern
+            if (addressType === 'billing') {
+                $(document).trigger('billing_address_selected', [addressId, response.data.address_data]);
+            } else {
+                $(document).trigger('address_selected', [addressId, response.data.address_data]);
+            }
+
                         self.closeAddressSelectionView();
                         
                         // Wichtige Änderung: Wir simulieren einen Klick auf den "Weiter zur Zahlung"-Button
-// nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
-setTimeout(function() {
-    // Prüfen ob Formular gültig ist und Button nicht deaktiviert
-    const toPaymentBtn = $('#btn-to-payment');
-    console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
+                        // nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
+                        setTimeout(function() {
+                        // Prüfen ob Formular gültig ist und Button nicht deaktiviert
+                        const toPaymentBtn = $('#btn-to-payment');
+                    console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
     
-    if (toPaymentBtn.length > 0) {
-        // Aktiviere den Button falls er deaktiviert ist
-        if (toPaymentBtn.prop('disabled')) {
-            console.log('Button war deaktiviert, wird aktiviert');
-            toPaymentBtn.prop('disabled', false);
-        }
+                        if (toPaymentBtn.length > 0) {
+                    // Aktiviere den Button falls er deaktiviert ist
+                        if (toPaymentBtn.prop('disabled')) {
+                        console.log('Button war deaktiviert, wird aktiviert');
+                    toPaymentBtn.prop('disabled', false);
+                }
         
         console.log('Klicke auf "Weiter zur Zahlung"-Button');
         toPaymentBtn.trigger('click');

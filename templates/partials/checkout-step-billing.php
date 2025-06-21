@@ -369,22 +369,41 @@ if (is_user_logged_in()) {
 }
 
         // Initialisierung beim Step-Wechsel
-        $(document).on('yprint_step_changed', function(e, data) {
-            if (data.step === 'billing') {
-                console.log('🔄 Step-Wechsel zu Billing erkannt');
-                window.currentAddressContext = 'billing';
-                
-                setTimeout(() => {
-                    initializeBillingAddressManager();
-                }, 100);
-            }
-        });
+$(document).on('yprint_step_changed', function(e, data) {
+    if (data.step === 'billing') {
+        console.log('🔄 Step-Wechsel zu Billing erkannt');
+        window.currentAddressContext = 'billing';
         
-        // Sofort-Initialisierung falls bereits im Billing Step
-        if ($('#step-2-5').hasClass('active')) {
-            window.currentAddressContext = 'billing';
+        // WICHTIG: Debug ausgabe für Context-Setzung
+        console.log('🎯 Address Context gesetzt auf:', window.currentAddressContext);
+        
+        setTimeout(() => {
             initializeBillingAddressManager();
+        }, 100);
+    } else {
+        // Reset context wenn nicht billing
+        if (data.step === 'address' || data.step === 'shipping') {
+            window.currentAddressContext = 'shipping';
+            console.log('🎯 Address Context zurückgesetzt auf:', window.currentAddressContext);
         }
+    }
+});
+
+// Sofort-Initialisierung falls bereits im Billing Step
+if ($('#step-2-5').hasClass('active')) {
+    window.currentAddressContext = 'billing';
+    console.log('🎯 Address Context initial gesetzt auf:', window.currentAddressContext);
+    initializeBillingAddressManager();
+}
+
+// ZUSÄTZLICH: Sicherstellen dass Context auch bei direkter URL-Navigation korrekt ist
+$(document).ready(function() {
+    // Prüfe aktuelle URL und setze Context entsprechend
+    if (window.location.href.includes('step=billing')) {
+        window.currentAddressContext = 'billing';
+        console.log('🎯 Address Context via URL-Check gesetzt auf:', window.currentAddressContext);
+    }
+});
 
         // ✅ 3. ADDRESS MANAGER EVENTS ABHÖREN (Wiederverwendung!)
         // Event-Integration mit standardisiertem YPrintAddressManager (wie Address Step)
@@ -393,9 +412,39 @@ $(document).on('address_selected', function(event, addressId, addressData) {
     if (window.currentAddressContext === 'billing') {
         console.log('✅ Billing Adresse ausgewählt:', addressData);
         
-        // UI aktualisieren - Formular ausblenden
-        $('#billing-address-form').hide();
-        $('.yprint-saved-addresses').show();
+        // WICHTIG: Sende Billing-spezifische AJAX-Request
+        $.ajax({
+            url: yprint_address_ajax.ajaxurl || yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_set_checkout_address',
+                nonce: yprint_address_ajax.nonce,
+                address_id: addressId,
+                address_type: 'billing' // NEU: Billing Type Parameter
+            },
+            success: function(response) {
+                if (response.success) {
+                    console.log('✅ Billing Address erfolgreich gesetzt:', response.data);
+                    
+                    // UI aktualisieren - Formular ausblenden
+                    $('#billing-address-form').hide();
+                    $('.yprint-saved-addresses').show();
+                    
+                    // Event für andere Handler triggern
+                    $(document).trigger('yprint_billing_address_selected', {
+                        addressId: addressId,
+                        addressData: addressData
+                    });
+                } else {
+                    console.error('❌ Fehler beim Setzen der Billing Address:', response.data.message);
+                    alert('Fehler: ' + response.data.message);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('❌ AJAX-Fehler beim Setzen der Billing Address:', error);
+                alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
+            }
+        });
         
         // Original Handler aufrufen falls vorhanden
         if (typeof handleBillingAddressSelected === 'function') {
