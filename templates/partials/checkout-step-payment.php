@@ -1095,22 +1095,35 @@ $(document).on('click', '#add-billing-address-btn', function(e) {
     
     safeDebugLog('🎯 Klick auf Add Billing Button', 'success');
     
-    // WICHTIG: Sofort das Billing Flag aktivieren
-    $.ajax({
-        url: yprint_address_ajax.ajax_url,
-        type: 'POST',
-        data: {
-            action: 'yprint_save_billing_session',
-            nonce: yprint_address_ajax.nonce,
-            billing_data: { activation: 'true' } // Dummy data um Flag zu aktivieren
-        },
-        success: function(response) {
-            safeDebugLog('✅ Billing Flag aktiviert', 'success');
-        },
-        error: function() {
-            safeDebugLog('⚠️ Billing Flag Fehler - fahre trotzdem fort', 'warning');
-        }
-    });
+    // 🚀 Flag für separate Billing aktivieren - Direkt das Flag setzen
+jQuery.ajax({
+    url: yprint_address_ajax.ajax_url,
+    type: 'POST',
+    data: {
+        action: 'yprint_clear_billing_session', // Erst löschen um sauber zu starten
+        nonce: yprint_address_ajax.nonce
+    },
+    success: function() {
+        // Dann das Flag aktivieren ohne Adressdaten
+        jQuery.ajax({
+            url: yprint_address_ajax.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'yprint_activate_billing_different',
+                nonce: yprint_address_ajax.nonce
+            },
+            success: function(response) {
+                safeDebugLog('✅ Billing Different Flag aktiviert', 'success');
+            },
+            error: function() {
+                safeDebugLog('⚠️ Billing Flag Fehler - fahre trotzdem fort', 'warning');
+            }
+        });
+    },
+    error: function() {
+        safeDebugLog('⚠️ Billing Clear Fehler - fahre trotzdem fort', 'warning');
+    }
+});
     safeDebugLog('⏰ Button-Klick Timestamp: ' + new Date().toLocaleTimeString(), 'info');
     safeDebugUpdate('button-state', 'Loading...');
     $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');

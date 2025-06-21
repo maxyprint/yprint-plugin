@@ -82,7 +82,31 @@ add_action('woocommerce_checkout_order_processed', array($this, 'apply_addresses
         // Hooks für Bestellerstellung
         add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
         add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
+
+        // AJAX-Handler für Billing Different Flag
+add_action('wp_ajax_yprint_activate_billing_different', array($this, 'ajax_activate_billing_different'));
+add_action('wp_ajax_nopriv_yprint_activate_billing_different', array($this, 'ajax_activate_billing_different'));
     }
+
+/**
+ * AJAX-Handler zum Aktivieren des Billing Different Flags ohne Adressdaten
+ */
+public function ajax_activate_billing_different() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    if (WC()->session) {
+        WC()->session->set('yprint_billing_address_different', true);
+        WC()->session->set('yprint_billing_address', array()); // Leeres Array für den Start
+        
+        error_log('🔍 YPRINT DEBUG: Billing Different Flag aktiviert ohne Adressdaten');
+        self::debug_session_data('activate_billing_different');
+    }
+    
+    wp_send_json_success(array(
+        'message' => __('Separate Rechnungsadresse aktiviert.', 'yprint-plugin'),
+        'billing_different' => true
+    ));
+}
 
 /**
  * AJAX-Handler zum Speichern einer Adresse während des Checkouts
@@ -1278,9 +1302,16 @@ public function ajax_set_checkout_address() {
                 'address_type' => 'billing'
             ));
         } else {
-            // SHIPPING: Standard-Verhalten (wie bisher)
+            // SHIPPING: Nur Lieferadresse setzen, Rechnungsadresse nicht überschreiben
             $this->update_woocommerce_customer_data($address_to_set, 'shipping');
-            $this->update_woocommerce_customer_data($address_to_set, 'billing');
+            
+            // Prüfe ob bereits eine separate Rechnungsadresse existiert
+            $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+            
+            if (!$has_different_billing) {
+                // Nur wenn KEINE separate Rechnungsadresse gewählt wurde, setze diese auch als Rechnungsadresse
+                $this->update_woocommerce_customer_data($address_to_set, 'billing');
+            }
             
             if (WC()->session) {
                 WC()->session->set('yprint_selected_address', $address_to_set);
@@ -1288,9 +1319,8 @@ public function ajax_set_checkout_address() {
                 error_log('🔍 YPRINT DEBUG: ========================================');
                 error_log('🔍 YPRINT DEBUG: SHIPPING Address saved to session');
                 error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
-                // Hier wurde self::debug_session_data('ajax_set_checkout_address_SHIPPING'); aufgerufen.
-                // Wie oben, habe ich es als Kommentar belassen.
-                // self::debug_session_data('ajax_set_checkout_address_SHIPPING');
+                error_log('🔍 YPRINT DEBUG: Has Different Billing: ' . ($has_different_billing ? 'TRUE' : 'FALSE'));
+                self::debug_session_data('ajax_set_checkout_address_SHIPPING');
                 error_log('🔍 YPRINT DEBUG: ========================================');
             }
             
