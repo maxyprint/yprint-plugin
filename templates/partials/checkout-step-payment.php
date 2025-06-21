@@ -1094,6 +1094,23 @@ $(document).on('click', '#add-billing-address-btn', function(e) {
     const original = $btn.html();
     
     safeDebugLog('🎯 Klick auf Add Billing Button', 'success');
+    
+    // WICHTIG: Sofort das Billing Flag aktivieren
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_save_billing_session',
+            nonce: yprint_address_ajax.nonce,
+            billing_data: { activation: 'true' } // Dummy data um Flag zu aktivieren
+        },
+        success: function(response) {
+            safeDebugLog('✅ Billing Flag aktiviert', 'success');
+        },
+        error: function() {
+            safeDebugLog('⚠️ Billing Flag Fehler - fahre trotzdem fort', 'warning');
+        }
+    });
     safeDebugLog('⏰ Button-Klick Timestamp: ' + new Date().toLocaleTimeString(), 'info');
     safeDebugUpdate('button-state', 'Loading...');
     $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Lade...');
