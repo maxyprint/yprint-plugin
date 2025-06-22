@@ -1262,99 +1262,92 @@ public function ajax_set_default_address() {
 public function ajax_set_checkout_address() {
     check_ajax_referer('yprint_save_address_action', 'nonce');
 
-    if (!is_user_logged_in()) {
-        wp_send_json_error(array('message' => 'Nicht eingeloggt'));
-        return;
-    }
-
     $address_id = sanitize_text_field($_POST['address_id']);
-    // Sicherstellen, dass address_type standardmäßig auf 'shipping' gesetzt ist, falls nicht vorhanden
-    $address_type = isset($_POST['address_type']) ? sanitize_text_field($_POST['address_type']) : 'shipping';
-    
-    $user_id = get_current_user_id();
-    $addresses = $this->get_user_addresses($user_id);
-    $address_to_set = null;
+    $address_data = isset($_POST['address_data']) ? $_POST['address_data'] : array();
+    $address_type = sanitize_text_field($_POST['address_type'] ?? 'shipping'); // NEU: Address Type Parameter
 
-    if ($address_id === 'wc_default') {
-        if (function_exists('WC') && WC()->customer) {
-            $address_to_set = array(
-                'first_name' => WC()->customer->get_shipping_first_name(),
-                'last_name'  => WC()->customer->get_shipping_last_name(),
-                'company'    => WC()->customer->get_shipping_company(),
-                'address_1'  => WC()->customer->get_shipping_address_1(),
-                'address_2'  => WC()->customer->get_shipping_address_2(),
-                'postcode'   => WC()->customer->get_shipping_postcode(),
-                'city'       => WC()->customer->get_shipping_city(),
-                'country'    => WC()->customer->get_shipping_country(),
-                'phone'      => WC()->customer->get_billing_phone(),
-            );
-        }
-    } elseif (isset($addresses[$address_id])) {
-        $address_to_set = $addresses[$address_id];
-    } else {
-        wp_send_json_error(array('message' => 'Ausgewählte Adresse nicht gefunden.'));
+    if (empty($address_id) && empty($address_data)) {
+        wp_send_json_error(array('message' => __('Keine Adress-ID oder Adressdaten übermittelt.', 'yprint-plugin')));
         return;
     }
 
-    if ($address_to_set) {
-        // Prüfe Address Type und setze entsprechend
-        if ($address_type === 'billing') {
-            // BILLING: Setze in separate Billing Session
-            if (WC()->session) {
-                WC()->session->set('yprint_billing_address', $address_to_set);
-                WC()->session->set('yprint_billing_address_different', true);
-                
-                // CRITICAL: WooCommerce Billing Felder auch aktualisieren
-                $this->update_woocommerce_customer_data($address_to_set, 'billing');
-                
-                error_log('🔍 YPRINT DEBUG: ========================================');
-                error_log('🔍 YPRINT DEBUG: BILLING Address saved to session');
-                error_log('🔍 YPRINT DEBUG: Billing Address: ' . print_r($address_to_set, true));
-                error_log('🔍 YPRINT DEBUG: Billing Different: TRUE');
-                self::debug_session_data('ajax_set_checkout_address_BILLING');
-                error_log('🔍 YPRINT DEBUG: ========================================');
-            }
-            
-            wp_send_json_success(array(
-                'message' => 'Rechnungsadresse erfolgreich für den Checkout gesetzt.',
-                'address_data' => $address_to_set,
-                'address_type' => 'billing',
-                'billing_different' => true
-            ));
+    // Hole Adressdaten wenn nur ID übermittelt wurde
+    if (!empty($address_id) && empty($address_data)) {
+        $user_addresses = $this->get_user_addresses(get_current_user_id());
+        if (isset($user_addresses[$address_id])) {
+            $address_data = $user_addresses[$address_id];
         } else {
+            wp_send_json_error(array('message' => __('Adresse nicht gefunden.', 'yprint-plugin')));
+            return;
+        }
+    }
+
+    // In WooCommerce Session speichern - BASIEREND AUF ADDRESS TYPE
+    if (WC()->session) {
+        if ($address_type === 'billing') {
+            // BILLING: Speichere in separater Session und aktiviere Flag
+            WC()->session->set('yprint_billing_address', $address_data);
+            WC()->session->set('yprint_billing_address_different', true);
+
+            error_log('🔍 YPRINT DEBUG: Billing address set in session: ' . $address_data['address_1']);
+        } else {
+            // SHIPPING: Standard-Verhalten beibehalten
+            WC()->session->set('yprint_selected_address', $address_data);
+
+            error_log('🔍 YPRINT DEBUG: Shipping address set in session: ' . $address_data['address_1']);
+        }
+
+        // Now, update WooCommerce customer data based on the address type
+        $address_to_set = $address_data; // Using $address_data as the source for the update
+
+        if ($address_type === 'billing') {
+            $this->update_woocommerce_customer_data($address_to_set, 'billing');
+            // If billing address is set separately, we might also want to ensure shipping is set if it's not already different
+            $has_different_shipping = WC()->session->get('yprint_selected_address', false);
+            if (!$has_different_shipping) {
+                $this->update_woocommerce_customer_data($address_to_set, 'shipping');
+            }
+
+            error_log('🔍 YPRINT DEBUG: ========================================');
+            error_log('🔍 YPRINT DEBUG: BILLING Address saved to session');
+            error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
+            self::debug_session_data('ajax_set_checkout_address_BILLING');
+            error_log('🔍 YPRINT DEBUG: ========================================');
+
+        } else { // shipping
             // SHIPPING: Nur Lieferadresse setzen, Rechnungsadresse nicht überschreiben
             $this->update_woocommerce_customer_data($address_to_set, 'shipping');
-            
+
             // Prüfe ob bereits eine separate Rechnungsadresse existiert
             $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
-            
+
             if (!$has_different_billing) {
                 // Nur wenn KEINE separate Rechnungsadresse gewählt wurde, setze diese auch als Rechnungsadresse
                 $this->update_woocommerce_customer_data($address_to_set, 'billing');
             }
-            
-            if (WC()->session) {
-                WC()->session->set('yprint_selected_address', $address_to_set);
-                
-                error_log('🔍 YPRINT DEBUG: ========================================');
-                error_log('🔍 YPRINT DEBUG: SHIPPING Address saved to session');
-                error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
-                error_log('🔍 YPRINT DEBUG: Has Different Billing: ' . ($has_different_billing ? 'TRUE' : 'FALSE'));
-                self::debug_session_data('ajax_set_checkout_address_SHIPPING');
-                error_log('🔍 YPRINT DEBUG: ========================================');
-            }
-            
-            wp_send_json_success(array(
-                'message' => 'Lieferadresse erfolgreich für den Checkout gesetzt.',
-                'address_data' => $address_to_set,
-                'address_type' => 'shipping'
-            ));
+
+            error_log('🔍 YPRINT DEBUG: ========================================');
+            error_log('🔍 YPRINT DEBUG: SHIPPING Address saved to session');
+            error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
+            error_log('🔍 YPRINT DEBUG: Has Different Billing: ' . ($has_different_billing ? 'TRUE' : 'FALSE'));
+            self::debug_session_data('ajax_set_checkout_address_SHIPPING');
+            error_log('🔍 YPRINT DEBUG: ========================================');
         }
     } else {
-        wp_send_json_error(array('message' => 'Fehler beim Setzen der Checkout-Adresse.'));
+        wp_send_json_error(array('message' => 'Fehler beim Setzen der Checkout-Adresse. WooCommerce Session ist nicht verfügbar.'));
+        return; // Add return to stop execution
     }
-}
 
+    // Final success response, assuming everything above ran without an error and WooCommerce session was available
+    wp_send_json_success(array(
+        'message' => $address_type === 'billing'
+            ? __('Rechnungsadresse erfolgreich für den Checkout gesetzt.', 'yprint-plugin')
+            : __('Lieferadresse erfolgreich für den Checkout gesetzt.', 'yprint-plugin'),
+        'address_data' => $address_data,
+        'address_type' => $address_type,
+        'billing_different' => $address_type === 'billing' ? true : (WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false)
+    ));
+}
 // **DIESE FUNKTION WIRD ENTFERNT, DA SIE NUR ZU DEBUGGING-ZWECKEN DIENTE**
 // public function create_test_addresses($user_id) {
 //     if (!current_user_can('administrator')) {
