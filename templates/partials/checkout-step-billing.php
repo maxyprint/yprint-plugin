@@ -412,8 +412,13 @@ $(document).on('address_selected', function(event, addressId, addressData) {
     if (window.currentAddressContext === 'billing') {
         console.log('✅ Billing Adresse ausgewählt:', addressData);
         
-        // CRITICAL: Verhindere Address Manager AJAX-Call durch Stop Propagation
+        // CRITICAL: Verstärkte Event-Blockierung - verhindere alle weiteren Handler
+        event.stopPropagation();
         event.stopImmediatePropagation();
+        event.preventDefault();
+        
+        // EXTRA SCHUTZ: Markiere Event als behandelt
+        event.handled = true;
         
         // WICHTIG: Sende Billing-spezifische AJAX-Request
         $.ajax({
