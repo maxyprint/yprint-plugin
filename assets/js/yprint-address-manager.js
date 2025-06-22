@@ -1004,15 +1004,20 @@ debug_context: {
             
             self.fillAddressForm(response.data.address_data);
             
-            console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
-            
-            // Aktualisiere Express Payment mit neuer Adresse
-            if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
-                console.log('Address Manager: Calling Express Payment updateAddress...');
-                window.YPrintExpressCheckout.updateAddress(response.data.address_data);
-            } else {
-                console.warn('Address Manager: YPrintExpressCheckout not available for address update');
-            }
+            // KRITISCHER FIX: Express Payment nur bei shipping addresses updaten
+if (addressType === 'shipping') {
+    console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
+    
+    // Aktualisiere Express Payment mit neuer Adresse
+    if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
+        console.log('Address Manager: Calling Express Payment updateAddress...');
+        window.YPrintExpressCheckout.updateAddress(response.data.address_data);
+    } else {
+        console.warn('Address Manager: YPrintExpressCheckout not available for address update');
+    }
+} else {
+    console.log('Address Manager: Billing address selected - SKIPPING Express Payment update');
+}
             
             self.showMessage('Adresse ausgewählt und für Checkout gesetzt.');
             
