@@ -849,34 +849,7 @@ if (class_exists('YPrint_Stripe_Checkout')) {
                 </p>
             </div>
             
-            <!-- Nach Auswahl: Anzeige der gewählten Rechnungsadresse -->
-            <div id="selected-billing-display" class="hidden">
-                <div class="p-4 bg-white rounded-lg border-2 border-green-200">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="flex items-center mb-2">
-                                <i class="fas fa-check-circle text-green-600 mr-2"></i>
-                                <span class="font-semibold text-green-800">
-                                    <?php esc_html_e('Abweichende Rechnungsadresse festgelegt', 'yprint-checkout'); ?>
-                                </span>
-                            </div>
-                            <div id="billing-address-content" class="text-sm text-gray-700">
-                                <!-- Wird via JavaScript gefüllt -->
-                            </div>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <button type="button" id="change-billing-address" class="btn btn-sm btn-secondary">
-                                <i class="fas fa-edit mr-1"></i>
-                                <?php esc_html_e('Ändern', 'yprint-checkout'); ?>
-                            </button>
-                            <button type="button" id="remove-billing-address" class="btn btn-sm btn-danger">
-                                <i class="fas fa-trash mr-1"></i>
-                                <?php esc_html_e('Entfernen', 'yprint-checkout'); ?>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Redundanter Bereich entfernt - korrekte Rechnungsadresse-Sektion folgt weiter unten -->
             <!-- Rechnungsadresse-Sektion -->
     <div class="mt-6">
         <h3 class="form-label mb-3 flex items-center">
