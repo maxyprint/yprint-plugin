@@ -649,7 +649,7 @@ saveAddressFromForm: function() {
                 const addressDataJson = encodeURIComponent(JSON.stringify(address));
                 
                 const card = $(`
-                    <div class="address-card" data-address-id="${addressId}" data-address-data="${addressDataJson}">
+                    <div class="address-card" data-address-id="${addressId}" data-address-data="${addressDataJson}" data-address-type="${addressType}">
                         <div class="address-card-header">
                             <div class="address-card-title">
                                 ${address.name || 'Gespeicherte Adresse'}
