@@ -1301,12 +1301,11 @@ public function ajax_set_checkout_address() {
         $address_to_set = $address_data; // Using $address_data as the source for the update
 
         if ($address_type === 'billing') {
+            // Nur Billing-Felder in WooCommerce aktualisieren
             $this->update_woocommerce_customer_data($address_to_set, 'billing');
-            // If billing address is set separately, we might also want to ensure shipping is set if it's not already different
-            $has_different_shipping = WC()->session->get('yprint_selected_address', false);
-            if (!$has_different_shipping) {
-                $this->update_woocommerce_customer_data($address_to_set, 'shipping');
-            }
+            
+            // ENTFERNT: Die problematische Shipping-Überschreibung
+            // Das Setzen der Shipping-Adresse soll hier NICHT passieren
 
             error_log('🔍 YPRINT DEBUG: ========================================');
             error_log('🔍 YPRINT DEBUG: BILLING Address saved to session');
