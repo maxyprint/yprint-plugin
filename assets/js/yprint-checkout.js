@@ -3042,14 +3042,78 @@ function populateAddressFields(addressData, type = 'shipping') {
 if (window.YPrintAddressManager) {
     // Event-Integration mit Address Manager (standardisiert)
     jQuery(document).on('address_selected', function(event, addressId, addressData) {
-        console.log('Adresse vom Address Manager ausgewählt:', addressData);
+        console.log('📨 [DEBUG-CHECKOUT] ========================================');
+        console.log('📨 [DEBUG-CHECKOUT] address_selected Event empfangen:', {
+            addressId: addressId,
+            addressData: addressData,
+            eventTarget: event.target,
+            timestamp: new Date().toISOString(),
+            callStack: new Error().stack.split('\n').slice(1, 3)
+        });
         
         // Prüfe Kontext (Shipping vs Billing)
         const addressType = $(event.target).closest('[data-address-type]').attr('data-address-type');
-        if (addressType === 'shipping' || window.currentAddressContext === 'shipping' || !addressType) {
+        const currentContext = window.currentAddressContext;
+        const currentUrl = window.location.href;
+        
+        console.log('📨 [DEBUG-CHECKOUT] Kontext-Analyse:', {
+            domAddressType: addressType,
+            windowCurrentAddressContext: currentContext,
+            currentUrl: currentUrl,
+            isBillingUrl: currentUrl.includes('step=billing')
+        });
+        
+        const isShippingContext = addressType === 'shipping' || currentContext === 'shipping' || !addressType;
+        const isBillingContext = addressType === 'billing' || currentContext === 'billing' || currentUrl.includes('step=billing');
+        
+        console.log('📨 [DEBUG-CHECKOUT] Kontext-Entscheidung:', {
+            isShippingContext: isShippingContext,
+            isBillingContext: isBillingContext,
+            willExecutePopulateFields: isShippingContext && !isBillingContext
+        });
+        
+        if (isShippingContext && !isBillingContext) {
+            console.log('📨 [DEBUG-CHECKOUT] ✅ Shipping-Kontext - populateCheckoutFields wird ausgeführt');
+            
+            // Session State VOR populateCheckoutFields (wenn verfügbar)
+            if (typeof yprint_address_ajax !== 'undefined') {
+                $.ajax({
+                    url: yprint_address_ajax.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'yprint_debug_session_state',
+                        nonce: yprint_address_ajax.nonce
+                    },
+                    success: function(debugResponse) {
+                        console.log('🔍 [DEBUG-CHECKOUT] Session VOR populateCheckoutFields:', debugResponse.data);
+                    }
+                });
+            }
+            
             // Für Shipping-Kontext: Formular ausfüllen
             populateCheckoutFields(addressData);
             validateAddressForm(); // Button-Status aktualisieren
+            
+            // Session State NACH populateCheckoutFields (nach 100ms)
+            setTimeout(() => {
+                if (typeof yprint_address_ajax !== 'undefined') {
+                    $.ajax({
+                        url: yprint_address_ajax.ajax_url,
+                        type: 'POST',
+                        data: {
+                            action: 'yprint_debug_session_state',
+                            nonce: yprint_address_ajax.nonce
+                        },
+                        success: function(debugResponse) {
+                            console.log('🔍 [DEBUG-CHECKOUT] Session NACH populateCheckoutFields:', debugResponse.data);
+                        }
+                    });
+                }
+            }, 100);
+            
+        } else {
+            console.log('📨 [DEBUG-CHECKOUT] ❌ Shipping-Kontext abgelehnt - KEINE populateCheckoutFields');
+            console.log('📨 [DEBUG-CHECKOUT] Grund: isBillingContext =', isBillingContext);
         }
     });
     

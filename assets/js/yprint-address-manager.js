@@ -947,6 +947,14 @@ if (window.currentAddressContext === 'billing') {
 }
 
 console.log('🎯 Address Manager Context erkannt:', addressType);
+console.log('🔍 [DEBUG-AM] ========================================');
+console.log('🔍 [DEBUG-AM] selectAddress() called with:', {
+    addressId: addressId,
+    addressType: addressType,
+    timestamp: new Date().toISOString(),
+    url: window.location.href,
+    callStack: new Error().stack.split('\n').slice(1, 4)
+});
 
 // Adresse für Checkout setzen und Formular füllen
 $.ajax({
@@ -958,9 +966,36 @@ $.ajax({
         address_id: addressId,
         address_type: addressType // WICHTIG: Kontext mitschicken
     },
+    beforeSend: function(xhr, settings) {
+        console.log('🚀 [DEBUG-AM] AJAX Request wird gesendet:', {
+            action: 'yprint_set_checkout_address',
+            address_id: addressId,
+            address_type: addressType,
+            timestamp: new Date().toISOString()
+        });
+    },
     success: function(response) {
+        console.log('🚀 [DEBUG-AM] AJAX Response erhalten:', response);
+        
         if (response.success) {
             console.log('✅ Address erfolgreich gesetzt als:', response.data.address_type || addressType);
+            
+            // Session State Check nach 100ms
+            setTimeout(() => {
+                if (typeof yprint_address_ajax !== 'undefined') {
+                    $.ajax({
+                        url: yprint_address_ajax.ajax_url,
+                        type: 'POST',
+                        data: {
+                            action: 'yprint_debug_session_state',
+                            nonce: yprint_address_ajax.nonce
+                        },
+                        success: function(debugResponse) {
+                            console.log('🔍 [DEBUG-AM] Session nach Address Manager AJAX:', debugResponse.data);
+                        }
+                    });
+                }
+            }, 100);
             
             self.fillAddressForm(response.data.address_data);
             

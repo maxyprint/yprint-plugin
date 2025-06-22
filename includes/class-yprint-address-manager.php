@@ -86,6 +86,10 @@ add_action('woocommerce_checkout_order_processed', array($this, 'apply_addresses
         // AJAX-Handler für Billing Different Flag
 add_action('wp_ajax_yprint_activate_billing_different', array($this, 'ajax_activate_billing_different'));
 add_action('wp_ajax_nopriv_yprint_activate_billing_different', array($this, 'ajax_activate_billing_different'));
+
+// Debug Handler registrieren
+add_action('wp_ajax_yprint_debug_session_state', array($this, 'ajax_debug_session_state'));
+add_action('wp_ajax_nopriv_yprint_debug_session_state', array($this, 'ajax_debug_session_state'));
     }
 
 /**
@@ -1402,6 +1406,8 @@ public function ajax_set_checkout_address() {
         }
     }
     
+    
+    
     error_log('🚀 AJAX DEBUG: ajax_set_checkout_address COMPLETED ========================================');
 
     // Final success response, assuming everything above ran without an error and WooCommerce session was available
@@ -1413,6 +1419,44 @@ public function ajax_set_checkout_address() {
         'address_type' => $address_type,
         'billing_different' => WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false
     ));
+}
+
+/**
+ * AJAX-Handler zum Debuggen des Session-States
+ */
+public function ajax_debug_session_state() {
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    
+    $timestamp = date('Y-m-d H:i:s.u');
+    
+    if (WC()->session) {
+        $session_data = array(
+            'yprint_selected_address' => WC()->session->get('yprint_selected_address', null),
+            'yprint_billing_address' => WC()->session->get('yprint_billing_address', null),
+            'yprint_billing_address_different' => WC()->session->get('yprint_billing_address_different', false),
+            'timestamp' => $timestamp
+        );
+        
+        // Error Log Debug
+        error_log('🔍 [SESSION-DEBUG] ' . $timestamp . ' - Session State requested from JS');
+        if (isset($session_data['yprint_selected_address']['address_1'])) {
+            error_log('🔍 [SESSION-DEBUG] - yprint_selected_address: ' . $session_data['yprint_selected_address']['address_1']);
+        } else {
+            error_log('🔍 [SESSION-DEBUG] - yprint_selected_address: EMPTY');
+        }
+        if (isset($session_data['yprint_billing_address']['address_1'])) {
+            error_log('🔍 [SESSION-DEBUG] - yprint_billing_address: ' . $session_data['yprint_billing_address']['address_1']);
+        } else {
+            error_log('🔍 [SESSION-DEBUG] - yprint_billing_address: EMPTY');
+        }
+        error_log('🔍 [SESSION-DEBUG] - yprint_billing_address_different: ' . ($session_data['yprint_billing_address_different'] ? 'TRUE' : 'FALSE'));
+        
+    } else {
+        $session_data = array('error' => 'WooCommerce Session nicht verfügbar');
+        error_log('🔍 [SESSION-DEBUG] ' . $timestamp . ' - WooCommerce Session NICHT verfügbar');
+    }
+    
+    wp_send_json_success($session_data);
 }
 // **DIESE FUNKTION WIRD ENTFERNT, DA SIE NUR ZU DEBUGGING-ZWECKEN DIENTE**
 // public function create_test_addresses($user_id) {
