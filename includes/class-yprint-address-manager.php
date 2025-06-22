@@ -548,22 +548,22 @@ public function save_new_user_address($address_data) {
         $html .= '<div class="address-cards-grid">';
 
         // WooCommerce Standard-Adresse als erste Option
-        $wc_address = array(
-            'address_1' => WC()->customer->get_shipping_address_1(),
-            'address_2' => WC()->customer->get_shipping_address_2(),
-            'postcode' => WC()->customer->get_shipping_postcode(),
-            'city' => WC()->customer->get_shipping_city(),
-            'country' => WC()->customer->get_shipping_country(),
-            'first_name' => WC()->customer->get_shipping_first_name(),
-            'last_name' => WC()->customer->get_shipping_last_name(),
-            'company' => WC()->customer->get_shipping_company()
-        );
+$wc_address = array(
+    'address_1' => WC()->customer->get_shipping_address_1(),
+    'address_2' => WC()->customer->get_shipping_address_2(),
+    'postcode' => WC()->customer->get_shipping_postcode(),
+    'city' => WC()->customer->get_shipping_city(),
+    'country' => WC()->customer->get_shipping_country(),
+    'first_name' => WC()->customer->get_shipping_first_name(),
+    'last_name' => WC()->customer->get_shipping_last_name(),
+    'company' => WC()->customer->get_shipping_company()
+);
 
-        // Nur anzeigen wenn WC-Adresse existiert
-        if (!empty($wc_address['address_1']) || !empty($wc_address['city'])) {
-            $html .= '<div class="address-card">';
-            $html .= '<label class="cursor-pointer">';
-            $html .= '<input type="radio" name="selected_address" value="wc_default" data-address-type="wc_default" data-address-data="' . esc_attr(json_encode($wc_address)) . '" class="sr-only">';
+// Nur anzeigen wenn WC-Adresse existiert
+if (!empty($wc_address['address_1']) || !empty($wc_address['city'])) {
+    $html .= '<div class="address-card">';
+    $html .= '<label class="cursor-pointer">';
+    $html .= '<input type="radio" name="selected_address" value="wc_default" data-address-type="' . esc_attr($type) . '" data-address-data="' . esc_attr(json_encode($wc_address)) . '" class="sr-only">';
             $html .= '<div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">';
             $html .= '<div class="flex items-center justify-between mb-2">';
             $html .= '<h4 class="font-semibold">' . __('Standard-Adresse', 'yprint-plugin') . '</h4>';
@@ -588,10 +588,10 @@ public function save_new_user_address($address_data) {
         }
 
         // Gespeicherte Adressen
-        foreach ($addresses as $address_id => $address) {
-            $html .= '<div class="address-card">';
-            $html .= '<label class="cursor-pointer">';
-            $html .= '<input type="radio" name="selected_address" value="' . esc_attr($address_id) . '" data-address-type="saved" data-address-data="' . esc_attr(json_encode($address)) . '" class="sr-only">';
+foreach ($addresses as $address_id => $address) {
+    $html .= '<div class="address-card">';
+    $html .= '<label class="cursor-pointer">';
+    $html .= '<input type="radio" name="selected_address" value="' . esc_attr($address_id) . '" data-address-type="' . esc_attr($type) . '" data-address-data="' . esc_attr(json_encode($address)) . '" class="sr-only">';
             $html .= '<div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">';
             $html .= '<div class="flex items-center justify-between mb-2">';
             $html .= '<h4 class="font-semibold">' . esc_html($address['name'] ?? __('Gespeicherte Adresse', 'yprint-plugin')) . '</h4>';
