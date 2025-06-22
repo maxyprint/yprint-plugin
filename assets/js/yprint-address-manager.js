@@ -513,13 +513,13 @@ saveAddressFromForm: function() {
         
         loadSavedAddresses: function(addressType = 'shipping') {
             const self = this;
-            
+        
             console.log('=== Loading Saved Addresses ===');
             console.log('Address Type:', addressType);
-            
+        
             // Bestimme den richtigen Container basierend auf dem Adresstyp
             let targetContainer, targetLoadingIndicator;
-            
+        
             if (addressType === 'billing') {
                 targetContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
                 targetLoadingIndicator = targetContainer.find('.loading-addresses');
@@ -527,51 +527,51 @@ saveAddressFromForm: function() {
                 targetContainer = this.addressContainer;
                 targetLoadingIndicator = this.loadingIndicator;
             }
-            
+        
             // Container-Status vor AJAX-Call
             targetLoadingIndicator.show();
             targetContainer.find('.address-cards-grid').hide();
             targetContainer.show();
-            
+        
             const ajaxData = {
                 action: 'yprint_get_saved_addresses',
                 nonce: yprint_address_ajax.nonce,
                 address_type: addressType
             };
-            
+        
             $.ajax({
                 url: yprint_address_ajax.ajax_url,
                 type: 'POST',
                 data: ajaxData,
                 success: function(response) {
-                    if (response && response.success) {
-                        const addresses = response.data.addresses || {};
-                        const addressCount = Object.keys(addresses).length;
+                    // Beginn der integrierten Erfolgslogik
+                    if (response && response.success && response.data && response.data.addresses) {
+                        const addresses = response.data.addresses;
+                        const addressCount = Object.keys(addresses).length; // Hier hinzugefügt für Konsistenz
+        
                         console.log('Success: Address data received, count:', addressCount);
-                        
-                        // Adressen rendern
-                        self.renderAddresses(addresses);
-                        
-                        if (addressCount === 0) {
-                            // Keine gespeicherten Adressen - zeige nur das Formular
-                            console.log('No addresses found - hiding container, showing form');
-                            self.showSavedAddressesContainer(false);
-                            self.showAddressForm(true);
-                        } else {
-                            // Gespeicherte Adressen vorhanden - zeige diese ZUERST
-                            console.log('Addresses found - showing addresses first, hiding form');
-                            self.showSavedAddressesContainer(true);
-                            self.showAddressForm(false);
-                            // NICHT den "Andere Adresse wählen" Link anzeigen, da die Adressen bereits sichtbar sind
-                        }
+        
+                        // CRITICAL FIX: addressType parameter korrekt weiterleiten
+                        self.renderAddresses(addresses, addressType); // addressType hier übergeben
+        
+                        // Zeigt den Container für gespeicherte Adressen an und blendet das Formular aus
+                        self.showSavedAddressesContainer(true);
+                        self.showAddressForm(false);
+        
+                        // Der Kommentar "NICHT den "Andere Adresse wählen" Link anzeigen, da die Adressen bereits sichtbar sind"
+                        // wird hier nicht direkt als Code umgesetzt, da showSavedAddressesContainer(true) dies implizieren sollte.
+                        // Wenn du spezifische UI-Elemente ausblenden musst, die nur bei der ersten Logik ausgeblendet wurden,
+                        // müsstest du diese hier explizit hinzufügen.
+        
                     } else {
-                        // Fehler beim Laden
+                        // Diese Logik wird beibehalten, falls response.success oder response.data.addresses fehlen
                         const errorMsg = (response && response.data && response.data.message) || 'Fehler beim Laden der Adressen.';
                         console.error('Error loading addresses:', errorMsg);
                         self.showMessage(errorMsg, 'error');
                         self.showSavedAddressesContainer(false);
                         self.showAddressForm(true);
                     }
+                    // Ende der integrierten Erfolgslogik
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error:', status, error);
@@ -816,9 +816,10 @@ handleShadowDOMBinding: function(shadowRoot) {
             }
             
             const formattedAddress = this.formatAddressDisplay(address);
-            
-            return $(`
-                <div class="address-card" data-address-id="${address.id}">
+    
+    return $(`
+        <div class="address-card" data-address-id="${address.id}" data-address-type="${addressType}">
+
                     <div class="address-card-header">
                         <div class="address-card-title">
                             ${address.name}
@@ -928,22 +929,35 @@ addWooCommerceDefaultAddress: function(grid) {
             const originalBtnText = btnSelectAddress.html();
             btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
             
-            // Erkenne den aktuellen Kontext basierend auf der URL oder dem Container
+            // ENHANCED: Verstärkte Context-Erkennung mit absoluter Priorität für Billing
 let addressType = 'shipping'; // Default
 
-// Methode 1: URL-basierte Erkennung
+// Methode 1: URL-basierte Erkennung (höchste Priorität)
 if (window.location.href.includes('step=billing')) {
     addressType = 'billing';
 }
 
-// Methode 2: Container-basierte Erkennung (Fallback) 
+// Methode 2: Globaler Kontext (hohe Priorität)
+if (window.currentAddressContext === 'billing') {
+    addressType = 'billing';
+}
+
+// Methode 3: Container-basierte Erkennung (Fallback) 
 if ($(`.address-card[data-address-id="${addressId}"]`).closest('#step-billing, .billing-step, [data-step="billing"]').length > 0) {
     addressType = 'billing';
 }
 
-// Methode 3: Globaler Kontext (Fallback)
-if (window.currentAddressContext === 'billing') {
+// Methode 4: DOM-Kontext der Address Cards Container
+const cardContainer = $(`.address-card[data-address-id="${addressId}"]`).closest('.yprint-saved-addresses[data-address-type="billing"]');
+if (cardContainer.length > 0) {
     addressType = 'billing';
+}
+
+// CRITICAL: Final Override - Billing Context hat absolute Priorität
+const billingStepActive = $('#step-2-5').hasClass('active') || $('.checkout-step[data-step="billing"]').hasClass('active');
+if (billingStepActive) {
+    addressType = 'billing';
+    console.log('🎯 OVERRIDE: Billing Step aktiv - force billing context');
 }
 
 console.log('🎯 Address Manager Context erkannt:', addressType);

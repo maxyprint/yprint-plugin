@@ -331,16 +331,16 @@ if (is_user_logged_in()) {
                 return true;
             }
             
-            // Standard Address Manager laden (wie im Address Step)
-            try {
-                window.YPrintAddressManager.loadSavedAddresses();
-                console.log('✅ Address Manager erfolgreich geladen');
-                return true;
-            } catch (error) {
-                console.error('❌ Fehler beim Laden:', error);
-                $('.loading-addresses').hide();
-                return false;
-            }
+            // CRITICAL FIX: Billing Address Manager mit korrektem Context laden
+try {
+    window.YPrintAddressManager.loadSavedAddresses('billing');
+    console.log('✅ Billing Address Manager erfolgreich geladen');
+    return true;
+} catch (error) {
+    console.error('❌ Fehler beim Laden:', error);
+    $('.loading-addresses').hide();
+    return false;
+}
         }
     
     if (typeof window.YPrintAddressManager.loadSavedAddresses !== 'function') {
