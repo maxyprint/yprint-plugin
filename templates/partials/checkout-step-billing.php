@@ -412,6 +412,9 @@ $(document).on('address_selected', function(event, addressId, addressData) {
     if (window.currentAddressContext === 'billing') {
         console.log('✅ Billing Adresse ausgewählt:', addressData);
         
+        // CRITICAL: Verhindere Address Manager AJAX-Call durch Stop Propagation
+        event.stopImmediatePropagation();
+        
         // WICHTIG: Sende Billing-spezifische AJAX-Request
         $.ajax({
             url: yprint_address_ajax.ajaxurl || yprint_address_ajax.ajax_url,
