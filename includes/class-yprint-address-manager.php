@@ -1282,35 +1282,36 @@ public function ajax_set_checkout_address() {
         }
     }
 
-    // CRITICAL FIX: Komplett getrennte Session-Behandlung ohne Überschreibungen
-    if (WC()->session) {
-        if ($address_type === 'billing') {
-            // CRITICAL: Prüfe ob bereits eine shipping address existiert - falls ja, NIE überschreiben
-            $existing_shipping = WC()->session->get('yprint_selected_address', array());
-            
-            // BILLING: Nur separate Billing-Session setzen
-            WC()->session->set('yprint_billing_address', $address_data);
-            WC()->session->set('yprint_billing_address_different', true);
-            
-            // CRITICAL: yprint_selected_address wird hier NIE berührt!
-            error_log('🔍 YPRINT DEBUG: Billing address set in separate session: ' . $address_data['address_1']);
-            error_log('🔍 YPRINT DEBUG: Existing shipping address preserved: ' . (!empty($existing_shipping) ? $existing_shipping['address_1'] : 'NONE'));
-            
-            // Nur WooCommerce Billing-Felder aktualisieren, KEINE Session-Überschreibung
-            $this->update_woocommerce_customer_data($address_data, 'billing');
-            
-            // EXTRA SCHUTZ: Stelle sicher, dass shipping address unverändert bleibt
-            if (!empty($existing_shipping)) {
-                WC()->session->set('yprint_selected_address', $existing_shipping);
-                error_log('🔍 YPRINT DEBUG: PROTECTED: Shipping address restored after billing set');
-            }
-            
-            error_log('🔍 YPRINT DEBUG: ========================================');
-            error_log('🔍 YPRINT DEBUG: BILLING Address ONLY saved to yprint_billing_address');
-            error_log('🔍 YPRINT DEBUG: Billing Address: ' . print_r($address_data, true));
-            error_log('🔍 YPRINT DEBUG: yprint_selected_address bleibt GARANTIERT unverändert');
-            self::debug_session_data('ajax_set_checkout_address_BILLING');
-            error_log('🔍 YPRINT DEBUG: ========================================');
+    // CRITICAL FIX: Absolute Trennung - yprint_selected_address NIE für billing berühren
+if (WC()->session) {
+    if ($address_type === 'billing') {
+        // ABSOLUTER SCHUTZ: yprint_selected_address darf NIEMALS überschrieben werden bei billing
+        $existing_shipping = WC()->session->get('yprint_selected_address', array());
+        
+        // BILLING: Ausschließlich separate Billing-Session setzen
+        WC()->session->set('yprint_billing_address', $address_data);
+        WC()->session->set('yprint_billing_address_different', true);
+        
+        // KRITISCH: WooCommerce Billing-Felder OHNE Session-Überschreibung
+        // Entferne den update_woocommerce_customer_data Call für billing!
+        // $this->update_woocommerce_customer_data($address_data, 'billing'); // ENTFERNT!
+        
+        // NUR WooCommerce Customer Billing-Daten direkt setzen
+        if (WC()->customer) {
+            WC()->customer->set_billing_first_name($address_data['first_name'] ?? '');
+            WC()->customer->set_billing_last_name($address_data['last_name'] ?? '');
+            WC()->customer->set_billing_company($address_data['company'] ?? '');
+            WC()->customer->set_billing_address_1($address_data['address_1'] ?? '');
+            WC()->customer->set_billing_address_2($address_data['address_2'] ?? '');
+            WC()->customer->set_billing_postcode($address_data['postcode'] ?? '');
+            WC()->customer->set_billing_city($address_data['city'] ?? '');
+            WC()->customer->set_billing_country($address_data['country'] ?? 'DE');
+        }
+        
+        error_log('🔍 YPRINT DEBUG: ========================================');
+        error_log('🔍 YPRINT DEBUG: BILLING Address ONLY saved to yprint_billing_address');
+        error_log('🔍 YPRINT DEBUG: yprint_selected_address STATUS: UNBERÜHRT');
+        error_log('🔍 YPRINT DEBUG: ========================================');
 
         } else {
             // SHIPPING: Nur Shipping-Session setzen
