@@ -964,7 +964,12 @@ $.ajax({
         action: 'yprint_set_checkout_address',
         nonce: yprint_address_ajax.nonce,
         address_id: addressId,
-        address_type: addressType // WICHTIG: Kontext mitschicken
+        address_type: addressType, // WICHTIG: Kontext mitschicken
+debug_context: {
+    url: window.location.href,
+    referrer: document.referrer,
+    timestamp: new Date().toISOString()
+}
     },
     beforeSend: function(xhr, settings) {
         console.log('🚀 [DEBUG-AM] AJAX Request wird gesendet:', {

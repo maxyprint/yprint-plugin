@@ -1353,6 +1353,30 @@ public function ajax_set_checkout_address() {
         } else { // Dies ist der Shipping-Fall
             error_log('🚀 AJAX DEBUG: *** SHIPPING BRANCH ENTERED ***');
             
+            // KRITISCHER SCHUTZ: Prüfe ob es sich um einen fehlerhaften billing-Call handelt
+            $referer = $_SERVER['HTTP_REFERER'] ?? '';
+            $billing_context_detected = (
+                strpos($referer, 'step=billing') !== false ||
+                strpos($_SERVER['REQUEST_URI'] ?? '', 'step=billing') !== false
+            );
+            
+            if ($billing_context_detected) {
+                error_log('🚨 CRITICAL ERROR: Billing context detected but address_type is not billing!');
+                error_log('🚨 REFERER: ' . $referer);
+                error_log('🚨 REQUEST_URI: ' . ($_SERVER['REQUEST_URI'] ?? 'unknown'));
+                error_log('🚨 This indicates a frontend bug - billing addresses should never reach shipping branch!');
+                
+                wp_send_json_error(array(
+                    'message' => 'Billing address incorrectly routed to shipping handler',
+                    'debug' => array(
+                        'address_type' => $address_type,
+                        'referer' => $referer,
+                        'billing_context' => true
+                    )
+                ));
+                return;
+            }
+            
             // SHIPPING: Nur Shipping-Session setzen
             WC()->session->set('yprint_selected_address', $address_data);
             
