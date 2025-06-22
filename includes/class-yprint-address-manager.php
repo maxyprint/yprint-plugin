@@ -1282,38 +1282,30 @@ public function ajax_set_checkout_address() {
         }
     }
 
-    // CRITICAL FIX: Absolute Trennung - yprint_selected_address NIE für billing berühren
-if (WC()->session) {
-    if ($address_type === 'billing') {
-        // ABSOLUTER SCHUTZ: yprint_selected_address darf NIEMALS überschrieben werden bei billing
-        $existing_shipping = WC()->session->get('yprint_selected_address', array());
-        
-        // BILLING: Ausschließlich separate Billing-Session setzen
-        WC()->session->set('yprint_billing_address', $address_data);
-        WC()->session->set('yprint_billing_address_different', true);
-        
-        // KRITISCH: WooCommerce Billing-Felder OHNE Session-Überschreibung
-        // Entferne den update_woocommerce_customer_data Call für billing!
-        // $this->update_woocommerce_customer_data($address_data, 'billing'); // ENTFERNT!
-        
-        // NUR WooCommerce Customer Billing-Daten direkt setzen
-        if (WC()->customer) {
-            WC()->customer->set_billing_first_name($address_data['first_name'] ?? '');
-            WC()->customer->set_billing_last_name($address_data['last_name'] ?? '');
-            WC()->customer->set_billing_company($address_data['company'] ?? '');
-            WC()->customer->set_billing_address_1($address_data['address_1'] ?? '');
-            WC()->customer->set_billing_address_2($address_data['address_2'] ?? '');
-            WC()->customer->set_billing_postcode($address_data['postcode'] ?? '');
-            WC()->customer->set_billing_city($address_data['city'] ?? '');
-            WC()->customer->set_billing_country($address_data['country'] ?? 'DE');
-        }
-        
-        error_log('🔍 YPRINT DEBUG: ========================================');
-        error_log('🔍 YPRINT DEBUG: BILLING Address ONLY saved to yprint_billing_address');
-        error_log('🔍 YPRINT DEBUG: yprint_selected_address STATUS: UNBERÜHRT');
-        error_log('🔍 YPRINT DEBUG: ========================================');
+    if (WC()->session) {
+        if ($address_type === 'billing') {
+            // CRITICAL: Absolut keine Berührung von yprint_selected_address bei billing
+            WC()->session->set('yprint_billing_address', $address_data);
+            WC()->session->set('yprint_billing_address_different', true);
+            
+            // WooCommerce Customer Billing-Daten direkt setzen (ohne Session-Update)
+            if (WC()->customer) {
+                WC()->customer->set_billing_first_name($address_data['first_name'] ?? '');
+                WC()->customer->set_billing_last_name($address_data['last_name'] ?? '');
+                WC()->customer->set_billing_company($address_data['company'] ?? '');
+                WC()->customer->set_billing_address_1($address_data['address_1'] ?? '');
+                WC()->customer->set_billing_address_2($address_data['address_2'] ?? '');
+                WC()->customer->set_billing_postcode($address_data['postcode'] ?? '');
+                WC()->customer->set_billing_city($address_data['city'] ?? '');
+                WC()->customer->set_billing_country($address_data['country'] ?? 'DE');
+            }
+            
+            error_log('🔍 YPRINT DEBUG: ========================================');
+            error_log('🔍 YPRINT DEBUG: BILLING Address ONLY saved to yprint_billing_address');
+            error_log('🔍 YPRINT DEBUG: yprint_selected_address STATUS: UNBERÜHRT');
+            error_log('🔍 YPRINT DEBUG: ========================================');
 
-        } else {
+        } else { // Dies ist der Shipping-Fall
             // SHIPPING: Nur Shipping-Session setzen
             WC()->session->set('yprint_selected_address', $address_data);
             
@@ -1324,7 +1316,7 @@ if (WC()->session) {
                 WC()->session->set('yprint_billing_address', $address_data);
             }
             
-            error_log('🔍 YPRINT DEBUG: Shipping address set in session: ' . $address_data['address_1']);
+            error_log('🔍 YPRINT DEBUG: Shipping address set in session: ' . ($address_data['address_1'] ?? 'N/A'));
             
             // WooCommerce Customer Data aktualisieren
             $this->update_woocommerce_customer_data($address_data, 'shipping');
