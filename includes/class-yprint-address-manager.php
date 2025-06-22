@@ -1282,36 +1282,45 @@ public function ajax_set_checkout_address() {
         }
     }
 
-    // In WooCommerce Session speichern - BASIEREND AUF ADDRESS TYPE
-    if (WC()->session) {
-        if ($address_type === 'billing') {
-            // BILLING: Speichere in separater Session und aktiviere Flag
+    // In WooCommerce Session speichern - STRIKT GETRENNT NACH ADDRESS TYPE
+if (WC()->session) {
+    if ($address_type === 'billing') {
+        // BILLING: Nur separate Billing-Session setzen
+        WC()->session->set('yprint_billing_address', $address_data);
+        WC()->session->set('yprint_billing_address_different', true);
+        
+        // CRITICAL: yprint_selected_address NICHT überschreiben!
+        error_log('🔍 YPRINT DEBUG: Billing address set in separate session: ' . $address_data['address_1']);
+    } else {
+        // SHIPPING: Nur Shipping-Session setzen
+        WC()->session->set('yprint_selected_address', $address_data);
+        
+        // Prüfe ob bereits eine separate Rechnungsadresse existiert
+        $has_different_billing = WC()->session->get('yprint_billing_address_different', false);
+        if (!$has_different_billing) {
+            // Fallback: Setze auch als Billing wenn keine separate Billing-Adresse gewählt
             WC()->session->set('yprint_billing_address', $address_data);
-            WC()->session->set('yprint_billing_address_different', true);
-
-            error_log('🔍 YPRINT DEBUG: Billing address set in session: ' . $address_data['address_1']);
-        } else {
-            // SHIPPING: Standard-Verhalten beibehalten
-            WC()->session->set('yprint_selected_address', $address_data);
-
-            error_log('🔍 YPRINT DEBUG: Shipping address set in session: ' . $address_data['address_1']);
         }
+        
+        error_log('🔍 YPRINT DEBUG: Shipping address set in session: ' . $address_data['address_1']);
+    }
 
         // Now, update WooCommerce customer data based on the address type
         $address_to_set = $address_data; // Using $address_data as the source for the update
 
         if ($address_type === 'billing') {
-            // Nur Billing-Felder in WooCommerce aktualisieren
+            // BILLING: Nur Billing-Felder in WooCommerce aktualisieren
             $this->update_woocommerce_customer_data($address_to_set, 'billing');
             
-            // ENTFERNT: Die problematische Shipping-Überschreibung
-            // Das Setzen der Shipping-Adresse soll hier NICHT passieren
+            // CRITICAL: Shipping-Adresse hier NIEMALS überschreiben
+            // Die yprint_selected_address bleibt unberührt
 
             error_log('🔍 YPRINT DEBUG: ========================================');
-            error_log('🔍 YPRINT DEBUG: BILLING Address saved to session');
-            error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_to_set, true));
-            self::debug_session_data('ajax_set_checkout_address_BILLING');
-            error_log('🔍 YPRINT DEBUG: ========================================');
+error_log('🔍 YPRINT DEBUG: BILLING Address saved to SEPARATE session');
+error_log('🔍 YPRINT DEBUG: Billing Address: ' . print_r($address_to_set, true));
+error_log('🔍 YPRINT DEBUG: yprint_selected_address bleibt unverändert');
+self::debug_session_data('ajax_set_checkout_address_BILLING');
+error_log('🔍 YPRINT DEBUG: ========================================');
 
         } else { // shipping
             // SHIPPING: Nur Lieferadresse setzen, Rechnungsadresse nicht überschreiben
