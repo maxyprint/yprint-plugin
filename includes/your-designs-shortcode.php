@@ -63,7 +63,7 @@ class YPrint_Your_Designs {
             z-index: 10;
             background: rgba(255, 0, 0, 0.1) !important; /* Temporary red background for debugging */
         }
-        
+
         .yprint-your-designs {
     font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
     background-color: #ffffff;
@@ -605,7 +605,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
+            z-index: 9999; /* Higher z-index */
             opacity: 0;
             visibility: hidden;
             transform: translateY(-10px);
@@ -613,6 +613,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             padding: 12px;
             margin-top: 4px;
             min-width: 180px;
+            max-width: 250px; /* Prevent overflow */
         }
 
         .yprint-size-dropdown.show {
@@ -914,9 +915,11 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 // Show dropdown with animation
                 setTimeout(() => {
                     dropdown.classList.add('show');
-                }, 10);
+                    console.log('YPrint Debug: Added show class to dropdown');
+                }, 50); // Increased delay for better visibility
                 
                 // Load sizes via AJAX
+                console.log('YPrint Debug: Starting AJAX request...');
                 jQuery.ajax({
                     url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                     type: 'POST',
@@ -927,16 +930,21 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                     }
                 })
                 .done(function(response) {
+                    console.log('YPrint Debug: AJAX response received:', response);
                     const content = dropdown.querySelector('.yprint-size-dropdown-content');
                     if (response.success && response.data.sizes) {
+                        console.log('YPrint Debug: Sizes found:', response.data.sizes);
                         renderSizeOptions(response.data.sizes, dropdown);
                     } else {
+                        console.log('YPrint Debug: No sizes or error in response');
                         content.innerHTML = '<div class="yprint-size-error">Keine Größen verfügbar.</div>';
                     }
                 })
-                .fail(function() {
+                .fail(function(xhr, status, error) {
+                    console.log('YPrint Debug: AJAX failed:', status, error);
+                    console.log('YPrint Debug: XHR:', xhr);
                     const content = dropdown.querySelector('.yprint-size-dropdown-content');
-                    content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen.</div>';
+                    content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen: ' + error + '</div>';
                 });
             }
 
@@ -1305,6 +1313,8 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
         return $count > 0;
     }
 
+
+    
     /**
      * Handle reorder design AJAX request
      */
