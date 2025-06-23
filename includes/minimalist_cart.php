@@ -990,30 +990,50 @@ function yprint_refresh_cart_content_callback() {
                     </div>
                     <div class="yprint-mini-cart-item-details">
                         <?php
-// Prüfe, ob es ein Design-Produkt ist und verwende Designtitel
-if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
-    $display_name = $cart_item['print_design']['name'];
-    
-    // Füge Design-Farbe und Größe hinzu, falls vorhanden
-    $details = [];
-    // Priorisiere design_color, fallback auf variation_name
-    if (!empty($cart_item['print_design']['design_color'])) {
-        $details[] = $cart_item['print_design']['design_color'];
-    } elseif (!empty($cart_item['print_design']['variation_name']) && $cart_item['print_design']['variation_name'] !== 'Standard') {
-        $details[] = $cart_item['print_design']['variation_name'];
-    }
-    if (!empty($cart_item['print_design']['size_name'])) {
-        $details[] = $cart_item['print_design']['size_name'];
-    }
-    
-    if (!empty($details)) {
-        $display_name .= ' (' . implode(', ', $details) . ')';
-    }
-} else {
-    $display_name = $product_name;
-}
-?>
-<h4 class="yprint-mini-cart-item-title"><?php echo esc_html($display_name); ?></h4>
+                            // Prüfe, ob es ein Design-Produkt ist und verwende Designtitel
+                            if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
+                                $display_name = $cart_item['print_design']['name'];
+
+                                // === DEBUG SCHRITT: Mini-Cart Design-Daten ===
+                                error_log('=== YPRINT DEBUG: Mini-Cart HTML Generation ===');
+                                error_log('YPRINT DEBUG MINI: Cart Item Key: ' . $cart_item_key);
+                                error_log('YPRINT DEBUG MINI: Design-Daten Keys: ' . implode(', ', array_keys($cart_item['print_design'])));
+                                error_log('YPRINT DEBUG MINI: design_color Wert: ' . ($cart_item['print_design']['design_color'] ?? 'NICHT GESETZT'));
+                                error_log('YPRINT DEBUG MINI: variation_name Wert: ' . ($cart_item['print_design']['variation_name'] ?? 'NICHT GESETZT'));
+                                error_log('YPRINT DEBUG MINI: size_name Wert: ' . ($cart_item['print_design']['size_name'] ?? 'NICHT GESETZT'));
+
+                                // Füge Design-Farbe und Größe hinzu, falls vorhanden
+                                $details = [];
+
+                                // Priorisiere design_color, fallback auf variation_name
+                                if (!empty($cart_item['print_design']['design_color'])) {
+                                    $details[] = $cart_item['print_design']['design_color'];
+                                    error_log('YPRINT DEBUG MINI: design_color zu Details hinzugefügt: ' . $cart_item['print_design']['design_color']);
+                                } elseif (!empty($cart_item['print_design']['variation_name']) && $cart_item['print_design']['variation_name'] !== 'Standard') {
+                                    $details[] = $cart_item['print_design']['variation_name'];
+                                    error_log('YPRINT DEBUG MINI: variation_name als Fallback verwendet: ' . $cart_item['print_design']['variation_name']);
+                                } else {
+                                    error_log('YPRINT DEBUG MINI: WARNUNG - Keine Farbe für Anzeige verfügbar');
+                                }
+
+                                if (!empty($cart_item['print_design']['size_name'])) {
+                                    $details[] = $cart_item['print_design']['size_name'];
+                                    error_log('YPRINT DEBUG MINI: Größe hinzugefügt: ' . $cart_item['print_design']['size_name']);
+                                }
+
+                                if (!empty($details)) {
+                                    $display_name .= ' (' . implode(', ', $details) . ')';
+                                    error_log('YPRINT DEBUG MINI: Finale Details im Titel: ' . implode(', ', $details));
+                                } else {
+                                    error_log('YPRINT DEBUG MINI: WARNUNG - Keine Details für Anzeige verfügbar');
+                                }
+
+                                error_log('YPRINT DEBUG MINI: Finaler Display Name: ' . $display_name);
+                            } else {
+                                $display_name = $product_name;
+                            }
+                        ?>
+                        <h4 class="yprint-mini-cart-item-title"><?php echo esc_html($display_name); ?></h4>
                         <div class="yprint-mini-cart-item-price"><?php echo $item_total_price_html; ?></div>
                         <div class="yprint-mini-cart-item-quantity-control">
                             <button class="qty-btn qty-minus" data-action="minus">−</button>
@@ -1530,11 +1550,11 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
     // Debug: Prüfe ob überhaupt Design-Daten vorhanden sind
     error_log('YPRINT: enhance_cart_item_design_data called for product ' . $product_id);
     error_log('YPRINT: cart_item_data keys: ' . implode(', ', array_keys($cart_item_data)));
-    
+
     // Nur wenn bereits print_design Daten vorhanden sind
     if (isset($cart_item_data['print_design'])) {
         $design_data = $cart_item_data['print_design'];
-        
+
         // Erweiterte WooCommerce-Daten ergänzen mit debugging
         $product = wc_get_product($product_id);
         error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
@@ -1542,17 +1562,17 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         // === DEBUG SCHRITT 1: Auslesen der yprint_zusatzdaten['Design-Standardfarbe'] ===
         error_log('=== YPRINT DEBUG: Design-Farbe Datenfluss START ===');
         error_log('YPRINT DEBUG 1.1: Produkt ID: ' . $product_id);
-        
+
         // Hole yprint_zusatzdaten und suche nach Design-Standardfarbe
         $yprint_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
         error_log('YPRINT DEBUG 1.2: yprint_zusatzdaten gefunden: ' . (is_array($yprint_zusatzdaten) ? 'JA' : 'NEIN'));
-        
+
         if (is_array($yprint_zusatzdaten)) {
             error_log('YPRINT DEBUG 1.3: yprint_zusatzdaten Keys: ' . implode(', ', array_keys($yprint_zusatzdaten)));
         }
-        
+
         $product_design_color = '';
-        
+
         // Prüfe verschiedene mögliche Schlüssel für Design-Standardfarbe
         $possible_keys = ['Design-Standardfarbe', 'design_standardfarbe', 'design-standardfarbe', 'Design_Standardfarbe'];
         foreach ($possible_keys as $key) {
@@ -1562,7 +1582,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 break;
             }
         }
-        
+
         // Fallback: Prüfe auch das alte _design_color Meta-Feld
         if (empty($product_design_color)) {
             $product_design_color = get_post_meta($product_id, '_design_color', true);
@@ -1570,33 +1590,33 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 error_log('YPRINT DEBUG 1.5: Fallback _design_color verwendet: ' . $product_design_color);
             }
         }
-        
+
         error_log('YPRINT DEBUG 1.6: Finale Design-Farbe für Verarbeitung: ' . ($product_design_color ?: 'LEER'));
-        
+
         // === DEBUG SCHRITT 2: Übertragung in Cart-Daten ===
         if (!empty($product_design_color)) {
             $design_data['design_color'] = $product_design_color;
             $design_data['product_design_color'] = $product_design_color; // Für Kompatibilität
-            
+
             // Setze auch variation_name für Rückwärtskompatibilität, falls kein anderer Wert vorhanden
             if (!isset($design_data['variation_name']) || empty($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
                 $design_data['variation_name'] = $product_design_color;
                 error_log('YPRINT DEBUG 2.1: variation_name auf Design-Farbe gesetzt: ' . $product_design_color);
             }
-            
+
             error_log('YPRINT DEBUG 2.2: design_color in Cart-Daten hinzugefügt: ' . $design_data['design_color']);
             error_log('YPRINT DEBUG 2.3: Aktuelle design_data Keys: ' . implode(', ', array_keys($design_data)));
         } else {
             error_log('YPRINT DEBUG 2.4: WARNUNG - Keine Design-Farbe gefunden für Produkt ' . $product_id);
         }
-        
+
         // Variation-Daten extrahieren - erweiterte Fallback-Logik
         if ($variation_id && !isset($design_data['variation_name'])) {
             $variation = wc_get_product($variation_id);
             if ($variation) {
                 $attributes = $variation->get_attributes();
                 error_log('YPRINT: Variation attributes: ' . print_r($attributes, true));
-                
+
                 // Methode 1: Direkte Attribute
                 if (isset($attributes['pa_color'])) {
                     $term = get_term_by('slug', $attributes['pa_color'], 'pa_color');
@@ -1606,7 +1626,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 } elseif (isset($attributes['attribute_pa_color'])) {
                     $design_data['variation_name'] = $attributes['attribute_pa_color'];
                 }
-                
+
                 // Methode 2: Größe extrahieren
                 if (isset($attributes['pa_size'])) {
                     $term = get_term_by('slug', $attributes['pa_size'], 'pa_size');
@@ -1616,7 +1636,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 } elseif (isset($attributes['attribute_pa_size'])) {
                     $design_data['size_name'] = $attributes['attribute_pa_size'];
                 }
-                
+
                 // Methode 3: Aus Variation Name extrahieren
                 if (!isset($design_data['variation_name']) && $variation->get_name()) {
                     $variation_name = str_replace($product->get_name() . ' - ', '', $variation->get_name());
@@ -1629,7 +1649,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                         $design_data['size_name'] = trim($name_parts[1]);
                     }
                 }
-                
+
                 // Methode 4: Aus WooCommerce Meta-Daten
                 if (!isset($design_data['variation_name'])) {
                     $variation_meta = get_post_meta($variation_id);
@@ -1645,7 +1665,8 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 }
             }
         }
-        
+
+
         // Verbesserte Variation/Size-Extraktion aus echten Design-Tool-Daten
         if (!isset($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
             // Prüfe zuerst Design-Standardfarbe aus WooCommerce
@@ -1655,7 +1676,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 $design_data['variation_name'] = $design_data['variation_color'];
             } else if (isset($design_data['template_variations']) && !empty($design_data['template_variations'])) {
                 // Extrahiere aus Template-Daten
-                $template_variations = is_string($design_data['template_variations']) ? 
+                $template_variations = is_string($design_data['template_variations']) ?
                     json_decode($design_data['template_variations'], true) : $design_data['template_variations'];
                 if (is_array($template_variations) && !empty($template_variations)) {
                     $first_variation = reset($template_variations);
@@ -1666,7 +1687,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
             } else if ($variation_id && $variation = wc_get_product($variation_id)) {
                 // WooCommerce Variation-Daten verarbeiten
                 $attributes = $variation->get_attributes();
-                
+
                 foreach ($attributes as $attr_key => $attr_value) {
                     if (strpos($attr_key, 'color') !== false || strpos($attr_key, 'farbe') !== false) {
                         $term = get_term_by('slug', $attr_value, 'pa_' . str_replace('attribute_pa_', '', $attr_key));
@@ -1674,7 +1695,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                         break;
                     }
                 }
-                
+
                 // Fallback: Variation Name parsen
                 if (!isset($design_data['variation_name']) && $variation->get_name()) {
                     $variation_name = str_replace($product->get_name() . ' - ', '', $variation->get_name());
@@ -1684,7 +1705,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     }
                 }
             }
-            
+
             // Prüfe ob selected_size verfügbar ist und verwende diese
             if (isset($design_data['selected_size']) && !empty($design_data['selected_size'])) {
                 $design_data['size_name'] = $design_data['selected_size'];
@@ -1695,11 +1716,11 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 $design_data['size_name'] = 'Standard';
             }
         }
-        
+
         if (!isset($design_data['size_name']) || $design_data['size_name'] === 'One Size') {
-            // Prüfe zuerst echte Design-Tool-Daten  
+            // Prüfe zuerst echte Design-Tool-Daten
             if (isset($design_data['template_sizes']) && !empty($design_data['template_sizes'])) {
-                $template_sizes = is_string($design_data['template_sizes']) ? 
+                $template_sizes = is_string($design_data['template_sizes']) ?
                     json_decode($design_data['template_sizes'], true) : $design_data['template_sizes'];
                 if (is_array($template_sizes) && !empty($template_sizes)) {
                     $first_size = reset($template_sizes);
@@ -1710,7 +1731,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
             } else if ($variation_id && $variation = wc_get_product($variation_id)) {
                 // WooCommerce Variation-Größe extrahieren
                 $attributes = $variation->get_attributes();
-                
+
                 foreach ($attributes as $attr_key => $attr_value) {
                     if (strpos($attr_key, 'size') !== false || strpos($attr_key, 'größe') !== false || strpos($attr_key, 'grosse') !== false) {
                         $term = get_term_by('slug', $attr_value, 'pa_' . str_replace('attribute_pa_', '', $attr_key));
@@ -1718,7 +1739,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                         break;
                     }
                 }
-                
+
                 // Fallback: Variation Name parsen
                 if (!isset($design_data['size_name']) && $variation->get_name()) {
                     $variation_name = str_replace($product->get_name() . ' - ', '', $variation->get_name());
@@ -1728,17 +1749,17 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     }
                 }
             }
-            
+
             // Final fallback nur wenn wirklich keine Daten verfügbar
             if (!isset($design_data['size_name']) || empty($design_data['size_name'])) {
                 $design_data['size_name'] = 'One Size';
             }
         }
-        
+
         error_log('YPRINT: Final variation_name: ' . ($design_data['variation_name'] ?? 'NOT SET'));
         error_log('YPRINT: Final size_name: ' . ($design_data['size_name'] ?? 'NOT SET'));
-             
-        
+
+
         // Dimensionen aus Produkt-Meta oder Standard-Werten setzen
         if (!isset($design_data['width_cm'])) {
             $design_data['width_cm'] = get_post_meta($product_id, '_design_width_cm', true) ?: '25.4';
@@ -1746,25 +1767,25 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         if (!isset($design_data['height_cm'])) {
             $design_data['height_cm'] = get_post_meta($product_id, '_design_height_cm', true) ?: '30.2';
         }
-        
+
         // Verbesserte Original-Datei URL-Generierung aus echten Design-Daten
         if (!isset($design_data['design_image_url']) || empty($design_data['design_image_url'])) {
             $original_url = '';
-            
+
             // Prüfe ob echte Design-Daten vorhanden sind (aus dem Design-Tool)
             if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
-                $design_images_data = is_string($design_data['design_images']) ? 
+                $design_images_data = is_string($design_data['design_images']) ?
                     json_decode($design_data['design_images'], true) : $design_data['design_images'];
-                
+
                 if (is_array($design_images_data) && !empty($design_images_data[0]['url'])) {
                     $original_url = $design_images_data[0]['url'];
                 }
             }
-            
+
             // Fallback: Konvertierung von preview_url zu original_url
             if (empty($original_url) && isset($design_data['preview_url'])) {
                 $preview_url = $design_data['preview_url'];
-                
+
                 // Multiple Konvertierungsstrategien
                 $original_url = str_replace('/preview_', '/original_', $preview_url);
                 $original_url = str_replace('-1.png', '.png', $original_url);
@@ -1772,33 +1793,33 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 $original_url = str_replace('/previews/', '/originals/', $original_url);
                 $original_url = str_replace('_preview', '', $original_url);
                 $original_url = str_replace('-preview', '', $original_url);
-                
+
                 // Weitere Patterns für YPrint URLs
                 $original_url = preg_replace('/preview_(\d+)-(\d+)\.png/', 'original_$1.png', $original_url);
                 $original_url = preg_replace('/preview_(\d+)-(\d+)\.jpg/', 'original_$1.jpg', $original_url);
             }
-            
+
             $design_data['design_image_url'] = $original_url;
         }
-        
+
         // Back Design URLs ableiten falls vorhanden
         if (!isset($design_data['back_design_image_url']) && isset($design_data['back_preview_url'])) {
             $back_preview_url = $design_data['back_preview_url'];
-            
+
             $back_original_url = str_replace('/preview_', '/original_', $back_preview_url);
             $back_original_url = str_replace('-1.png', '.png', $back_original_url);
             $back_original_url = str_replace('-1.jpg', '.jpg', $back_original_url);
             $back_original_url = str_replace('/previews/', '/originals/', $back_original_url);
             $back_original_url = str_replace('_preview', '', $back_original_url);
             $back_original_url = str_replace('-preview', '', $back_original_url);
-            
+
             $design_data['back_design_image_url'] = $back_original_url;
         }
-        
+
         // Verbesserte Multi-View JSON-Strukturen erstellen
         if (!isset($design_data['product_images'])) {
             $product_images = array();
-            
+
             // Front View (Standard)
             if (!empty($design_data['preview_url'])) {
                 $product_images[] = array(
@@ -1809,7 +1830,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     'height_cm' => $design_data['height_cm'] ?? '30.2'
                 );
             }
-            
+
             // Back View (falls vorhanden)
             if (!empty($design_data['back_preview_url'])) {
                 $product_images[] = array(
@@ -1820,7 +1841,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     'height_cm' => $design_data['height_cm'] ?? '30.2'
                 );
             }
-            
+
             // Fallback falls keine Preview URLs vorhanden
             if (empty($product_images) && !empty($design_data['design_image_url'])) {
                 $product_images[] = array(
@@ -1831,13 +1852,13 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     'height_cm' => $design_data['height_cm'] ?? '30.2'
                 );
             }
-            
+
             $design_data['product_images'] = wp_json_encode($product_images);
         }
-        
+
         if (!isset($design_data['design_images']) || empty($design_data['design_images'])) {
             $design_images = array();
-            
+
             // Prüfe ob bereits strukturierte Design-Images vom Design-Tool kommen
             if (isset($design_data['variationImages']) || isset($design_data['design_data'])) {
                 // Verarbeite echte Design-Tool-Daten falls verfügbar
@@ -1845,17 +1866,17 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 if (is_string($variation_images)) {
                     $variation_images = json_decode($variation_images, true);
                 }
-                
+
                 if (is_array($variation_images)) {
                     foreach ($variation_images as $view_key => $view_images) {
                         // Extract view information from key (format: variationId_viewId)
                         $key_parts = explode('_', $view_key);
                         $view_id = isset($key_parts[1]) ? $key_parts[1] : 'front';
                         $view_name = ucfirst($view_id);
-                        
+
                         // Handle both single image and array of images
                         $images_array = is_array($view_images) ? $view_images : [$view_images];
-                        
+
                         foreach ($images_array as $img_data) {
                             if (isset($img_data['url']) && !empty($img_data['url'])) {
                                 $design_images[] = array(
@@ -1876,7 +1897,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     }
                 }
             }
-            
+
             // Fallback: Verwende design_image_url wenn verfügbar
             if (empty($design_images) && !empty($design_data['design_image_url'])) {
                 $design_images[] = array(
@@ -1893,7 +1914,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     'file_type' => pathinfo($design_data['design_image_url'], PATHINFO_EXTENSION)
                 );
             }
-            
+
             // Back Design (falls vorhanden)
             if (!empty($design_data['back_design_image_url'])) {
                 $design_images[] = array(
@@ -1910,13 +1931,13 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     'file_type' => pathinfo($design_data['back_design_image_url'], PATHINFO_EXTENSION)
                 );
             }
-            
+
             // Final fallback: Falls nur preview_url vorhanden ist
             if (empty($design_images) && !empty($design_data['preview_url'])) {
                 // Versuche original URL zu generieren
                 $original_url = str_replace('/preview_', '/original_', $design_data['preview_url']);
                 $original_url = preg_replace('/preview_(\d+)-(\d+)\.png/', 'original_$1.png', $original_url);
-                
+
                 $design_images[] = array(
                     'url' => $original_url,
                     'view_name' => 'Front',
@@ -1931,30 +1952,43 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                     'file_type' => pathinfo($original_url, PATHINFO_EXTENSION)
                 );
             }
-            
+
             $design_data['design_images'] = wp_json_encode($design_images);
         }
-        
+
+
         // Multiple Images Flag basierend auf tatsächlicher Anzahl setzen
-        $product_images_array = is_string($design_data['product_images']) ? 
+        $product_images_array = is_string($design_data['product_images']) ?
             json_decode($design_data['product_images'], true) : [];
-        $design_images_array = is_string($design_data['design_images']) ? 
+        $design_images_array = is_string($design_data['design_images']) ?
             json_decode($design_data['design_images'], true) : [];
-            
+
         $design_data['has_multiple_images'] = (count($product_images_array) > 1 || count($design_images_array) > 1);
-        
+
         // Stelle sicher, dass has_multiple_images korrekt als String gespeichert wird für Checkout
         $design_data['has_multiple_images_flag'] = $design_data['has_multiple_images'] ? 'yes' : 'no';
-        
+
         // Erweiterte Design-Daten zurück in cart_item_data speichern
         $cart_item_data['print_design'] = $design_data;
-        
+
         // Debug-Ausgabe
         error_log('YPRINT: Enhanced design data for product ' . $product_id . ': ' . print_r($design_data, true));
+
+        // === FINALER DEBUG: Überprüfe die kompletten Cart-Item-Daten ===
+        error_log('YPRINT DEBUG FINAL: Cart-Item-Daten nach Enhancement:');
+        error_log('YPRINT DEBUG FINAL: print_design Keys: ' . implode(', ', array_keys($design_data)));
+        error_log('YPRINT DEBUG FINAL: design_color Endwert: ' . ($design_data['design_color'] ?? 'NICHT GESETZT'));
+        error_log('YPRINT DEBUG FINAL: variation_name Endwert: ' . ($design_data['variation_name'] ?? 'NICHT GESETZT'));
+        error_log('=== YPRINT DEBUG: Design-Farbe Datenfluss END ===');
+
+        // Update cart_item_data with enhanced design_data (this line is redundant as it's already done above)
+        // $cart_item_data['print_design'] = $design_data;
     }
-    
-     return $cart_item_data;
+
+    return $cart_item_data;
 }
+
+
 
 /**
  * Debug AJAX-Handler für Cart-Audit (vereinfacht)
