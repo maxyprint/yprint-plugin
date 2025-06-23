@@ -1673,24 +1673,30 @@ document.addEventListener('click', function(e) {
             }
             
             // Template-Informationen laden für Variation/Size Details
-            $variation_name = 'Standard';
-            $variation_color = '#000000';
-            $size_name = 'One Size';
-            
-            if ($design->template_id && !empty($default_variation) && !empty($default_size)) {
-                $template_variations = get_post_meta($design->template_id, 'template_variations', true);
-                if (is_array($template_variations)) {
-                    if (isset($template_variations[$default_variation])) {
-                        $var_data = $template_variations[$default_variation];
-                        $variation_name = $var_data['name'] ?? 'Standard';
-                        $variation_color = $var_data['color_code'] ?? '#000000';
-                        
-                        if (isset($var_data['sizes'][$default_size])) {
-                            $size_name = $var_data['sizes'][$default_size]['name'] ?? 'One Size';
-                        }
-                    }
-                }
-            }
+$variation_name = 'Standard';
+$variation_color = '#000000';
+$size_name = 'One Size';
+
+// Zuerst die Fallback-Werte aus dem Template laden
+if ($design->template_id && !empty($default_variation)) {
+    $template_variations = get_post_meta($design->template_id, 'template_variations', true);
+    if (is_array($template_variations) && isset($template_variations[$default_variation])) {
+        $var_data = $template_variations[$default_variation];
+        $variation_name = $var_data['name'] ?? 'Standard';
+        $variation_color = $var_data['color_code'] ?? '#000000';
+        
+        if (isset($var_data['sizes'][$default_size])) {
+            $size_name = $var_data['sizes'][$default_size]['name'] ?? 'One Size';
+        }
+    }
+}
+
+// NEUE LOGIK: Überschreibe den Farbnamen mit dem Wert aus yprint_zusatzdaten, falls vorhanden.
+// Dies hat Priorität.
+$yprint_zusatzdaten = get_post_meta($base_product_id, 'yprint_zusatzdaten', true);
+if (is_array($yprint_zusatzdaten) && !empty($yprint_zusatzdaten['Design-Standardfarbe'])) {
+    $variation_name = $yprint_zusatzdaten['Design-Standardfarbe'];
+}
 
             // Get selected size from AJAX request
 $selected_size = isset($_POST['selected_size']) ? sanitize_text_field($_POST['selected_size']) : '';
@@ -1712,7 +1718,7 @@ $cart_item_data = array(
     'size_id' => $default_size,
     'size_name' => $final_size_name,
     'preview_url' => $preview_url,
-    'product_design_color' => get_post_meta($product_id, '_design_color', true),
+    'product_design_color' => $variation_name,
     // Dimensionen für Print Provider
     'design_width_cm' => $design_width_cm,
     'design_height_cm' => $design_height_cm,
