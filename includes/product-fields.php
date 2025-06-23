@@ -166,9 +166,161 @@ public static function init() {
                     'description' => __('Informationen zum Material des Produkts.', 'yprint')
                 ));
                 ?>
-            </div>
-        </div>
-        <?php
+                
+                <!-- Product Sizes Repeater Section -->
+                <div class="yprint-sizes-section">
+                    <h4><?php echo __('Verfügbare Größen', 'yprint'); ?></h4>
+                    <div id="yprint-sizes-container">
+                        <?php
+                        $existing_sizes = get_post_meta(get_the_ID(), '_yprint_product_sizes', true);
+                        $sizes_data = !empty($existing_sizes) ? json_decode($existing_sizes, true) : array();
+                        
+                        if (empty($sizes_data)) {
+                            $sizes_data = array(array('size' => '', 'out_of_stock' => false));
+                        }
+                        
+                        foreach ($sizes_data as $index => $size_data) {
+                            ?>
+                            <div class="yprint-size-row" data-index="<?php echo $index; ?>">
+                                <input type="text" 
+                                       name="yprint_sizes[<?php echo $index; ?>][size]" 
+                                       value="<?php echo esc_attr($size_data['size'] ?? ''); ?>" 
+                                       placeholder="z.B. M, L, XL" 
+                                       class="yprint-size-input" />
+                                
+                                <label>
+                                    <input type="checkbox" 
+                                           name="yprint_sizes[<?php echo $index; ?>][out_of_stock]" 
+                                           value="1" 
+                                           <?php checked(!empty($size_data['out_of_stock'])); ?> />
+                                    <?php echo __('Out of Stock', 'yprint'); ?>
+                                </label>
+                                
+                                <button type="button" class="button yprint-remove-size" 
+                                        <?php echo ($index === 0 && count($sizes_data) === 1) ? 'style="display:none;"' : ''; ?>>
+                                    <?php echo __('Entfernen', 'yprint'); ?>
+                                </button>
+                            </div>
+                            <?php
+                        }
+                        ?>
+                    </div>
+                    
+                    <button type="button" id="yprint-add-size" class="button button-secondary">
+                        <?php echo __('+ Weitere Größe hinzufügen', 'yprint'); ?>
+                    </button>
+                    
+                    <p class="description">
+                        <?php echo __('Verwalten Sie die verfügbaren Größen für dieses Produkt. Leere Größenfelder werden ignoriert.', 'yprint'); ?>
+                    </p>
+                </div>
+
+                <style>
+                .yprint-sizes-section {
+                    margin-top: 20px;
+                    padding: 15px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    background: #f9f9f9;
+                }
+
+                .yprint-size-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin-bottom: 10px;
+                    padding: 8px;
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                }
+
+                .yprint-size-input {
+                    width: 120px;
+                    padding: 5px 8px;
+                }
+
+                .yprint-size-row label {
+                    display: flex;
+                    align-items: center;
+                    gap: 5px;
+                    margin: 0;
+                    white-space: nowrap;
+                }
+
+                .yprint-remove-size {
+                    margin-left: auto;
+                    background: #dc3232;
+                    color: white;
+                    border-color: #dc3232;
+                }
+
+                .yprint-remove-size:hover {
+                    background: #aa2525;
+                    border-color: #aa2525;
+                }
+
+                #yprint-add-size {
+                    margin-top: 10px;
+                }
+                </style>
+
+                <script type="text/javascript">
+                jQuery(document).ready(function($) {
+                    let sizeIndex = <?php echo count($sizes_data); ?>;
+
+                    // Add new size row
+                    $('#yprint-add-size').on('click', function(e) {
+                        e.preventDefault();
+                        
+                        const newRow = `
+                            <div class="yprint-size-row" data-index="${sizeIndex}">
+                                <input type="text" 
+                                       name="yprint_sizes[${sizeIndex}][size]" 
+                                       value="" 
+                                       placeholder="z.B. M, L, XL" 
+                                       class="yprint-size-input" />
+                                
+                                <label>
+                                    <input type="checkbox" 
+                                           name="yprint_sizes[${sizeIndex}][out_of_stock]" 
+                                           value="1" />
+                                    <?php echo __('Out of Stock', 'yprint'); ?>
+                                </label>
+                                
+                                <button type="button" class="button yprint-remove-size">
+                                    <?php echo __('Entfernen', 'yprint'); ?>
+                                </button>
+                            </div>
+                        `;
+                        
+                        $('#yprint-sizes-container').append(newRow);
+                        sizeIndex++;
+                        updateRemoveButtons();
+                    });
+
+                    // Remove size row
+                    $(document).on('click', '.yprint-remove-size', function(e) {
+                        e.preventDefault();
+                        $(this).closest('.yprint-size-row').remove();
+                        updateRemoveButtons();
+                    });
+
+                    function updateRemoveButtons() {
+                        const rows = $('.yprint-size-row');
+                        if (rows.length === 1) {
+                            rows.find('.yprint-remove-size').hide();
+                        } else {
+                            rows.find('.yprint-remove-size').show();
+                        }
+                    }
+
+                    // Initial state
+                    updateRemoveButtons();
+                });
+                </script>
+                
+                <?php
     }
     
     /**
@@ -191,6 +343,33 @@ public static function init() {
             if (isset($_POST[$field])) {
                 update_post_meta($post_id, $field, sanitize_textarea_field($_POST[$field]));
             }
+        }
+        
+        // Save Product Sizes
+        if (isset($_POST['yprint_sizes']) && is_array($_POST['yprint_sizes'])) {
+            $sizes_data = array();
+            
+            foreach ($_POST['yprint_sizes'] as $size_item) {
+                $size_name = sanitize_text_field($size_item['size'] ?? '');
+                $out_of_stock = !empty($size_item['out_of_stock']);
+                
+                // Ignore empty size names
+                if (!empty(trim($size_name))) {
+                    $sizes_data[] = array(
+                        'size' => $size_name,
+                        'out_of_stock' => $out_of_stock
+                    );
+                }
+            }
+            
+            // Save as JSON
+            if (!empty($sizes_data)) {
+                update_post_meta($post_id, '_yprint_product_sizes', wp_json_encode($sizes_data));
+            } else {
+                delete_post_meta($post_id, '_yprint_product_sizes');
+            }
+        } else {
+            delete_post_meta($post_id, '_yprint_product_sizes');
         }
     }
     
@@ -231,6 +410,9 @@ public static function init() {
         foreach ($custom_fields as $field) {
             add_shortcode('yprint_' . $field, array(__CLASS__, 'custom_field_shortcode'));
         }
+        
+        // Product Sizes Shortcode
+        add_shortcode('yprint_product_sizes', array(__CLASS__, 'product_sizes_shortcode'));
     }
     
 /**
@@ -528,6 +710,86 @@ public static function add_sticky_scroll_effect() {
         }
         $output .= wpautop($field_value);
         $output .= '</' . esc_attr($atts['tag']) . '>';
+        
+        return $output;
+    }
+
+/**
+     * Shortcode: Product Sizes
+     * Usage: [yprint_product_sizes] or [yprint_product_sizes format="list"]
+     */
+    public static function product_sizes_shortcode($atts) {
+        $product = self::get_current_product();
+        if (!$product) return '';
+        
+        $atts = shortcode_atts(array(
+            'class' => 'yprint-product-sizes',
+            'format' => 'grid', // 'grid' or 'list'
+            'show_out_of_stock' => 'false'
+        ), $atts);
+        
+        $sizes_json = get_post_meta($product->get_id(), '_yprint_product_sizes', true);
+        if (empty($sizes_json)) return '';
+        
+        $sizes_data = json_decode($sizes_json, true);
+        if (!is_array($sizes_data) || empty($sizes_data)) return '';
+        
+        $show_out_of_stock = $atts['show_out_of_stock'] === 'true';
+        
+        $output = '<div class="' . esc_attr($atts['class']) . ' format-' . esc_attr($atts['format']) . '">';
+        
+        foreach ($sizes_data as $size) {
+            $size_name = esc_html($size['size']);
+            $is_out_of_stock = !empty($size['out_of_stock']);
+            
+            if ($is_out_of_stock && !$show_out_of_stock) {
+                continue; // Skip out of stock sizes if not showing them
+            }
+            
+            $size_class = $is_out_of_stock ? 'size-out-of-stock' : 'size-available';
+            
+            if ($atts['format'] === 'list') {
+                $output .= '<span class="size-item ' . $size_class . '">' . $size_name;
+                if ($is_out_of_stock) {
+                    $output .= ' <small>(nicht verfügbar)</small>';
+                }
+                $output .= '</span>';
+            } else {
+                $output .= '<div class="size-box ' . $size_class . '">' . $size_name . '</div>';
+            }
+        }
+        
+        $output .= '</div>';
+        
+        // Add basic CSS for styling
+        $output .= '<style>
+            .yprint-product-sizes.format-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin: 10px 0;
+            }
+            .yprint-product-sizes .size-box {
+                padding: 8px 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                background: white;
+                text-align: center;
+                min-width: 40px;
+            }
+            .yprint-product-sizes .size-box.size-out-of-stock {
+                background: #f5f5f5;
+                color: #999;
+                text-decoration: line-through;
+            }
+            .yprint-product-sizes.format-list .size-item {
+                margin-right: 10px;
+            }
+            .yprint-product-sizes.format-list .size-item.size-out-of-stock {
+                color: #999;
+                text-decoration: line-through;
+            }
+        </style>';
         
         return $output;
     }
