@@ -317,7 +317,7 @@ if (is_user_logged_in()) {
 // Event-Handler entfernt - wird jetzt zentral über yprint-address-manager.js mit .add-new-address-card abgewickelt
         // ADDRESS MANAGER INITIALISIEREN (wie im Address Step)
         function initializeBillingAddressManager() {
-            console.log('🔧 Billing Address Manager wird initialisiert');
+            console.log('🏗️ Loading billing addresses with Address Manager - BILLING CONTEXT');
             
             if (typeof window.YPrintAddressManager === 'undefined') {
                 console.log('❌ Address Manager noch nicht verfügbar');
@@ -332,14 +332,18 @@ if (is_user_logged_in()) {
             }
             
             // CRITICAL FIX: Billing Address Manager mit korrektem Context laden
-try {
-    window.YPrintAddressManager.loadSavedAddresses('billing');
-    console.log('✅ Billing Address Manager erfolgreich geladen');
-    return true;
-} catch (error) {
-    console.error('❌ Fehler beim Laden:', error);
-    $('.loading-addresses').hide();
-    return false;
+            try {
+        // CRITICAL: Force billing context BEFORE loading addresses
+        window.currentAddressContext = 'billing';
+        console.log('🎯 FORCED Address Context auf: billing');
+        
+        // Load addresses with billing context explicitly set
+        window.YPrintAddressManager.loadSavedAddresses('billing');
+        console.log('✅ loadSavedAddresses(billing) erfolgreich aufgerufen');
+    } catch (error) {
+        console.log('❌ Fehler beim Aufruf von loadSavedAddresses():', error);
+        return false;
+    }
 }
         }
     
