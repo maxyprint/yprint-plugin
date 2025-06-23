@@ -1338,9 +1338,18 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
     if (isset($cart_item['print_design'])) {
         $design = $cart_item['print_design'];
         
+        // === DEBUG SCHRITT 3: Analyse der verfügbaren Design-Daten ===
+        error_log('=== YPRINT DEBUG: Cart Item Name Modifikation ===');
+        error_log('YPRINT DEBUG 3.1: Cart Item Key: ' . $cart_item_key);
+        error_log('YPRINT DEBUG 3.2: Design-Daten Keys: ' . implode(', ', array_keys($design)));
+        error_log('YPRINT DEBUG 3.3: design_color Wert: ' . ($design['design_color'] ?? 'NICHT GESETZT'));
+        error_log('YPRINT DEBUG 3.4: variation_name Wert: ' . ($design['variation_name'] ?? 'NICHT GESETZT'));
+        error_log('YPRINT DEBUG 3.5: size_name Wert: ' . ($design['size_name'] ?? 'NICHT GESETZT'));
+        
         // Bei Design-Produkten: Designtitel statt Produkttitel verwenden
         if (!empty($design['name'])) {
             $name = '<span class="design-name">' . esc_html($design['name']) . '</span>';
+            error_log('YPRINT DEBUG 3.6: Design-Name verwendet: ' . $design['name']);
         }
         
         // Design-Farbe und Größe hinzufügen, falls vorhanden
@@ -1348,16 +1357,27 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
         // Priorisiere design_color, fallback auf variation_name
         if (!empty($design['design_color'])) {
             $details[] = esc_html($design['design_color']);
+            error_log('YPRINT DEBUG 3.7: design_color zu Details hinzugefügt: ' . $design['design_color']);
         } elseif (!empty($design['variation_name']) && $design['variation_name'] !== 'Standard') {
             $details[] = esc_html($design['variation_name']);
+            error_log('YPRINT DEBUG 3.8: variation_name als Fallback verwendet: ' . $design['variation_name']);
+        } else {
+            error_log('YPRINT DEBUG 3.9: WARNUNG - Keine Farbe für Anzeige verfügbar');
         }
+        
         if (!empty($design['size_name'])) {
             $details[] = esc_html($design['size_name']);
+            error_log('YPRINT DEBUG 3.10: Größe hinzugefügt: ' . $design['size_name']);
         }
         
         if (!empty($details)) {
             $name .= ' <span class="design-details">(' . implode(', ', $details) . ')</span>';
+            error_log('YPRINT DEBUG 3.11: Finale Details im Titel: ' . implode(', ', $details));
+        } else {
+            error_log('YPRINT DEBUG 3.12: WARNUNG - Keine Details für Anzeige verfügbar');
         }
+        
+        error_log('YPRINT DEBUG 3.13: Finaler Produkttitel: ' . strip_tags($name));
     }
     
     return $name;
@@ -1381,6 +1401,52 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
 
 // Shortcode registrieren
 add_shortcode('yprint_minimalist_cart', 'yprint_minimalist_cart_shortcode');
+
+/**
+ * Debug-Funktion für Checkout-Persistierung von Design-Daten
+ */
+add_action('woocommerce_checkout_create_order_line_item', 'yprint_debug_checkout_design_data', 5, 4);
+function yprint_debug_checkout_design_data($item, $cart_item_key, $values, $order) {
+    if (isset($values['print_design'])) {
+        $design = $values['print_design'];
+        
+        // === DEBUG SCHRITT 4: Checkout-Persistierung ===
+        error_log('=== YPRINT DEBUG: Checkout Design-Daten Persistierung ===');
+        error_log('YPRINT DEBUG 4.1: Cart Item Key: ' . $cart_item_key);
+        error_log('YPRINT DEBUG 4.2: Order ID: ' . $order->get_id());
+        error_log('YPRINT DEBUG 4.3: Design-Farbe im Checkout: ' . ($design['design_color'] ?? 'NICHT GESETZT'));
+        error_log('YPRINT DEBUG 4.4: Alle Design-Daten: ' . wp_json_encode($design));
+        
+        // Prüfe ob design_color korrekt als Meta-Daten gespeichert wird
+        if (isset($design['design_color'])) {
+            error_log('YPRINT DEBUG 4.5: design_color wird als _design_color Meta-Daten gespeichert');
+        } else {
+            error_log('YPRINT DEBUG 4.6: FEHLER - design_color nicht in Design-Daten vorhanden');
+        }
+    } else {
+        error_log('YPRINT DEBUG 4.7: Kein Design-Produkt - keine Design-Daten zu debuggen');
+    }
+}
+
+/**
+ * Debug-Funktion für Cart-Item-Daten beim Laden der Cart-Seite
+ */
+add_action('woocommerce_before_cart', 'yprint_debug_cart_design_data');
+function yprint_debug_cart_design_data() {
+    if (!WC()->cart || WC()->cart->is_empty()) {
+        return;
+    }
+    
+    error_log('=== YPRINT DEBUG: Cart-Seite Design-Daten Analyse ===');
+    
+    foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        if (isset($cart_item['print_design'])) {
+            $design = $cart_item['print_design'];
+            error_log('YPRINT DEBUG CART: Item ' . $cart_item_key . ' - design_color: ' . ($design['design_color'] ?? 'NICHT GESETZT'));
+            error_log('YPRINT DEBUG CART: Item ' . $cart_item_key . ' - variation_name: ' . ($design['variation_name'] ?? 'NICHT GESETZT'));
+        }
+    }
+}
 
 /**
  * Wird aufgerufen, nachdem ein Produkt zum Warenkorb hinzugefügt wurde
@@ -1470,20 +1536,59 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         $design_data = $cart_item_data['print_design'];
         
         // Erweiterte WooCommerce-Daten ergänzen mit debugging
-$product = wc_get_product($product_id);
-error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
+        $product = wc_get_product($product_id);
+        error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
 
-// Produkt-spezifische Design-Farbe aus Metabox abrufen
-$product_design_color = get_post_meta($product_id, '_design_color', true);
-if (!empty($product_design_color)) {
-    $design_data['design_color'] = $product_design_color;
-    $design_data['product_design_color'] = $product_design_color; // Für Kompatibilität
-    // Setze auch variation_name für Rückwärtskompatibilität, falls kein anderer Wert vorhanden
-    if (!isset($design_data['variation_name']) || empty($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
-        $design_data['variation_name'] = $product_design_color;
-    }
-    error_log('YPRINT: Added design_color: ' . $product_design_color);
-}
+        // === DEBUG SCHRITT 1: Auslesen der yprint_zusatzdaten['Design-Standardfarbe'] ===
+        error_log('=== YPRINT DEBUG: Design-Farbe Datenfluss START ===');
+        error_log('YPRINT DEBUG 1.1: Produkt ID: ' . $product_id);
+        
+        // Hole yprint_zusatzdaten und suche nach Design-Standardfarbe
+        $yprint_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
+        error_log('YPRINT DEBUG 1.2: yprint_zusatzdaten gefunden: ' . (is_array($yprint_zusatzdaten) ? 'JA' : 'NEIN'));
+        
+        if (is_array($yprint_zusatzdaten)) {
+            error_log('YPRINT DEBUG 1.3: yprint_zusatzdaten Keys: ' . implode(', ', array_keys($yprint_zusatzdaten)));
+        }
+        
+        $product_design_color = '';
+        
+        // Prüfe verschiedene mögliche Schlüssel für Design-Standardfarbe
+        $possible_keys = ['Design-Standardfarbe', 'design_standardfarbe', 'design-standardfarbe', 'Design_Standardfarbe'];
+        foreach ($possible_keys as $key) {
+            if (is_array($yprint_zusatzdaten) && isset($yprint_zusatzdaten[$key]) && !empty($yprint_zusatzdaten[$key])) {
+                $product_design_color = $yprint_zusatzdaten[$key];
+                error_log('YPRINT DEBUG 1.4: Design-Standardfarbe gefunden mit Key "' . $key . '": ' . $product_design_color);
+                break;
+            }
+        }
+        
+        // Fallback: Prüfe auch das alte _design_color Meta-Feld
+        if (empty($product_design_color)) {
+            $product_design_color = get_post_meta($product_id, '_design_color', true);
+            if (!empty($product_design_color)) {
+                error_log('YPRINT DEBUG 1.5: Fallback _design_color verwendet: ' . $product_design_color);
+            }
+        }
+        
+        error_log('YPRINT DEBUG 1.6: Finale Design-Farbe für Verarbeitung: ' . ($product_design_color ?: 'LEER'));
+        
+        // === DEBUG SCHRITT 2: Übertragung in Cart-Daten ===
+        if (!empty($product_design_color)) {
+            $design_data['design_color'] = $product_design_color;
+            $design_data['product_design_color'] = $product_design_color; // Für Kompatibilität
+            
+            // Setze auch variation_name für Rückwärtskompatibilität, falls kein anderer Wert vorhanden
+            if (!isset($design_data['variation_name']) || empty($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
+                $design_data['variation_name'] = $product_design_color;
+                error_log('YPRINT DEBUG 2.1: variation_name auf Design-Farbe gesetzt: ' . $product_design_color);
+            }
+            
+            error_log('YPRINT DEBUG 2.2: design_color in Cart-Daten hinzugefügt: ' . $design_data['design_color']);
+            error_log('YPRINT DEBUG 2.3: Aktuelle design_data Keys: ' . implode(', ', array_keys($design_data)));
+        } else {
+            error_log('YPRINT DEBUG 2.4: WARNUNG - Keine Design-Farbe gefunden für Produkt ' . $product_id);
+        }
         
         // Variation-Daten extrahieren - erweiterte Fallback-Logik
         if ($variation_id && !isset($design_data['variation_name'])) {
@@ -1542,13 +1647,13 @@ if (!empty($product_design_color)) {
         }
         
         // Verbesserte Variation/Size-Extraktion aus echten Design-Tool-Daten
-if (!isset($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
-    // Prüfe zuerst Design-Standardfarbe aus WooCommerce
-    if (isset($design_data['product_design_color']) && !empty($design_data['product_design_color'])) {
-        $design_data['variation_name'] = $design_data['product_design_color'];
-    } else if (isset($design_data['variation_color']) && !empty($design_data['variation_color'])) {
-        $design_data['variation_name'] = $design_data['variation_color'];
-    } else if (isset($design_data['template_variations']) && !empty($design_data['template_variations'])) {
+        if (!isset($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
+            // Prüfe zuerst Design-Standardfarbe aus WooCommerce
+            if (isset($design_data['product_design_color']) && !empty($design_data['product_design_color'])) {
+                $design_data['variation_name'] = $design_data['product_design_color'];
+            } else if (isset($design_data['variation_color']) && !empty($design_data['variation_color'])) {
+                $design_data['variation_name'] = $design_data['variation_color'];
+            } else if (isset($design_data['template_variations']) && !empty($design_data['template_variations'])) {
                 // Extrahiere aus Template-Daten
                 $template_variations = is_string($design_data['template_variations']) ? 
                     json_decode($design_data['template_variations'], true) : $design_data['template_variations'];
@@ -1581,14 +1686,14 @@ if (!isset($design_data['variation_name']) || $design_data['variation_name'] ===
             }
             
             // Prüfe ob selected_size verfügbar ist und verwende diese
-if (isset($design_data['selected_size']) && !empty($design_data['selected_size'])) {
-    $design_data['size_name'] = $design_data['selected_size'];
-}
+            if (isset($design_data['selected_size']) && !empty($design_data['selected_size'])) {
+                $design_data['size_name'] = $design_data['selected_size'];
+            }
 
-// Final fallback nur wenn wirklich keine Daten verfügbar
-if (!isset($design_data['size_name']) || empty($design_data['size_name'])) {
-    $design_data['size_name'] = 'Standard';
-}
+            // Final fallback nur wenn wirklich keine Daten verfügbar
+            if (!isset($design_data['size_name']) || empty($design_data['size_name'])) {
+                $design_data['size_name'] = 'Standard';
+            }
         }
         
         if (!isset($design_data['size_name']) || $design_data['size_name'] === 'One Size') {
