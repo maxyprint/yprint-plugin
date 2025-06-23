@@ -440,10 +440,10 @@ function yprint_minimalist_cart_shortcode() {
 if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
     $display_name = $cart_item['print_design']['name'];
     
-    // Füge Variation und Größe hinzu, falls vorhanden
+    // Füge Design-Farbe und Größe hinzu, falls vorhanden
     $details = [];
-    if (!empty($cart_item['print_design']['variation_name'])) {
-        $details[] = $cart_item['print_design']['variation_name'];
+    if (!empty($cart_item['print_design']['design_color'])) {
+        $details[] = $cart_item['print_design']['design_color'];
     }
     if (!empty($cart_item['print_design']['size_name'])) {
         $details[] = $cart_item['print_design']['size_name'];
@@ -990,10 +990,10 @@ function yprint_refresh_cart_content_callback() {
 if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
     $display_name = $cart_item['print_design']['name'];
     
-    // Füge Variation und Größe hinzu, falls vorhanden
+    // Füge Design-Farbe und Größe hinzu, falls vorhanden
     $details = [];
-    if (!empty($cart_item['print_design']['variation_name'])) {
-        $details[] = $cart_item['print_design']['variation_name'];
+    if (!empty($cart_item['print_design']['design_color'])) {
+        $details[] = $cart_item['print_design']['design_color'];
     }
     if (!empty($cart_item['print_design']['size_name'])) {
         $details[] = $cart_item['print_design']['size_name'];
@@ -1334,10 +1334,10 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
             $name = '<span class="design-name">' . esc_html($design['name']) . '</span>';
         }
         
-        // Variation und Größe hinzufügen, falls vorhanden
+        // Design-Farbe und Größe hinzufügen, falls vorhanden
         $details = [];
-        if (!empty($design['variation_name'])) {
-            $details[] = esc_html($design['variation_name']);
+        if (!empty($design['design_color'])) {
+            $details[] = esc_html($design['design_color']);
         }
         if (!empty($design['size_name'])) {
             $details[] = esc_html($design['size_name']);
@@ -1462,15 +1462,12 @@ $product = wc_get_product($product_id);
 error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
 
 // Produkt-spezifische Design-Farbe aus Metabox abrufen
-if (!isset($design_data['product_design_color'])) {
+if (!isset($design_data['design_color'])) {
     $product_design_color = get_post_meta($product_id, '_design_color', true);
     if (!empty($product_design_color)) {
-        $design_data['product_design_color'] = $product_design_color;
-        // Verwende Design-Standardfarbe als variation_name wenn keine andere Farbe gesetzt ist
-        if (!isset($design_data['variation_name']) || empty($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
-            $design_data['variation_name'] = $product_design_color;
-        }
-        error_log('YPRINT: Added product_design_color: ' . $product_design_color);
+        $design_data['design_color'] = $product_design_color;
+        $design_data['product_design_color'] = $product_design_color; // Für Kompatibilität
+        error_log('YPRINT: Added design_color: ' . $product_design_color);
     }
 }
         
