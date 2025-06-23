@@ -602,10 +602,10 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             left: 0;
             right: 0;
             background: white;
-            border: 1px solid #e5e7eb;
+            border: 3px solid red; /* DEBUG: Make it super visible */
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 9999; /* Higher z-index */
+            z-index: 9999;
             opacity: 0;
             visibility: hidden;
             transform: translateY(-10px);
@@ -613,7 +613,14 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             padding: 12px;
             margin-top: 4px;
             min-width: 180px;
-            max-width: 250px; /* Prevent overflow */
+            max-width: 250px;
+        }
+
+        .yprint-size-dropdown.show {
+            opacity: 1 !important;
+            visibility: visible !important;
+            transform: translateY(0) !important;
+            background: yellow !important; /* DEBUG: Make it super obvious */
         }
 
         .yprint-size-dropdown.show {
@@ -1058,8 +1065,14 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
             };
 
             function renderSizeOptions(sizes, dropdown) {
+                console.log('YPrint Debug: renderSizeOptions called with sizes:', sizes);
+                console.log('YPrint Debug: dropdown element:', dropdown);
+                
                 const content = dropdown.querySelector('.yprint-size-dropdown-content');
                 const confirmBtn = dropdown.querySelector('.confirm');
+                
+                console.log('YPrint Debug: content element:', content);
+                console.log('YPrint Debug: confirm button:', confirmBtn);
                 
                 if (!sizes || sizes.length === 0) {
                     content.innerHTML = '<div class="yprint-size-error">Keine Größen verfügbar.</div>';
@@ -1081,10 +1094,15 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
                 });
                 
                 html += '</div>';
+                console.log('YPrint Debug: Generated HTML:', html);
                 content.innerHTML = html;
+                console.log('YPrint Debug: Content innerHTML set to:', content.innerHTML);
                 
                 // Add click listeners to size options
-                content.querySelectorAll('.yprint-size-option:not(.disabled)').forEach(option => {
+                const sizeOptions = content.querySelectorAll('.yprint-size-option:not(.disabled)');
+                console.log('YPrint Debug: Found size options:', sizeOptions.length);
+                
+                sizeOptions.forEach(option => {
                     option.onclick = function(e) {
                         e.stopPropagation();
                         selectSize(this, confirmBtn);
@@ -1121,6 +1139,29 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
                     closeDropdown(dropdown);
                 });
             }
+
+            // DEBUG: Check dropdown visibility
+            window.checkDropdownVisibility = function() {
+                const dropdowns = document.querySelectorAll('.yprint-size-dropdown');
+                console.log('Found dropdowns:', dropdowns.length);
+                dropdowns.forEach((dropdown, index) => {
+                    const rect = dropdown.getBoundingClientRect();
+                    const styles = window.getComputedStyle(dropdown);
+                    console.log(`Dropdown ${index}:`, {
+                        element: dropdown,
+                        visible: dropdown.classList.contains('show'),
+                        opacity: styles.opacity,
+                        visibility: styles.visibility,
+                        display: styles.display,
+                        position: styles.position,
+                        top: styles.top,
+                        left: styles.left,
+                        width: rect.width,
+                        height: rect.height,
+                        boundingRect: rect
+                    });
+                });
+            };
 
             // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
