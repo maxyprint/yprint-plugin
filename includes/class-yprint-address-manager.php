@@ -535,7 +535,17 @@ public function save_new_user_address($address_data) {
      * @param string $type 'shipping' oder 'billing' (bestimmt den Kontext der Adressauswahl).
      * @return string HTML-Ausgabe für die Adressauswahl.
      */
-    public function render_address_selection($type = 'shipping') {
+    public function render_address_selection($type = null) {
+    // CRITICAL: Auto-detect context if not provided
+    if ($type === null) {
+        $type = $this->detect_current_context();
+        error_log('🎯 YPRINT: Auto-detected address context: ' . $type);
+    }
+    
+    // Ensure type is valid
+    if (!in_array($type, ['shipping', 'billing'])) {
+        $type = 'shipping';
+    }
         if (!is_user_logged_in()) {
             return '';
         }
@@ -1353,24 +1363,29 @@ public function ajax_set_checkout_address() {
         } else { // Dies ist der Shipping-Fall
             error_log('🚀 AJAX DEBUG: *** SHIPPING BRANCH ENTERED ***');
             
-            // ENHANCED PROTECTION: Auto-korrigiere address_type basierend auf Context
-$referer = $_SERVER['HTTP_REFERER'] ?? '';
-$billing_context_detected = (
-    strpos($referer, 'step=billing') !== false ||
-    strpos($_SERVER['REQUEST_URI'] ?? '', 'step=billing') !== false
-);
-
-if ($billing_context_detected) {
-    error_log('🔧 AUTO-FIX: Billing context detected - correcting address_type to billing');
-    error_log('🔧 Original address_type: ' . $address_type);
-    error_log('🔧 REFERER: ' . $referer);
-    
-    // AUTO-CORRECTION: Force billing context
-    $address_type = 'billing';
-    error_log('🔧 Corrected address_type: ' . $address_type);
-    
-    // Continue with billing logic instead of error
-}
+            // CRITICAL: Strict Context Validation - keine Auto-Correction mehr
+            $referer = $_SERVER['HTTP_REFERER'] ?? '';
+            $billing_context_detected = (
+                strpos($referer, 'step=billing') !== false ||
+                strpos($_SERVER['REQUEST_URI'] ?? '', 'step=billing') !== false
+            );
+        
+            if ($billing_context_detected) {
+                error_log('🚨 CRITICAL ERROR: Billing context detected but address_type is shipping');
+                error_log('🚨 This should NOT happen - Frontend context detection failed');
+                error_log('🚨 REFERER: ' . $referer);
+                error_log('🚨 address_type: ' . $address_type);
+                
+                wp_send_json_error(array(
+                    'message' => 'Context mismatch: Billing context detected but shipping address_type received',
+                    'debug' => array(
+                        'referer' => $referer,
+                        'address_type' => $address_type,
+                        'context' => 'billing_detected'
+                    )
+                ));
+                return;
+            }
             
             // SHIPPING: Nur Shipping-Session setzen
             WC()->session->set('yprint_selected_address', $address_data);
@@ -1476,6 +1491,28 @@ public function ajax_debug_session_state() {
     }
     
     wp_send_json_success($session_data);
+}
+
+/**
+ * Erkennt den aktuellen Checkout-Context basierend auf URL/Referrer
+ * 
+ * @return string 'billing' oder 'shipping'
+ */
+private function detect_current_context() {
+    // Prüfe aktuelle URL
+    $current_url = $_SERVER['REQUEST_URI'] ?? '';
+    if (strpos($current_url, 'step=billing') !== false) {
+        return 'billing';
+    }
+    
+    // Prüfe Referrer
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    if (strpos($referer, 'step=billing') !== false) {
+        return 'billing';
+    }
+    
+    // Fallback
+    return 'shipping';
 }
 // **DIESE FUNKTION WIRD ENTFERNT, DA SIE NUR ZU DEBUGGING-ZWECKEN DIENTE**
 // public function create_test_addresses($user_id) {
