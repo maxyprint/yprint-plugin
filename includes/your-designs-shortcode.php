@@ -1712,8 +1712,7 @@ $cart_item_data = array(
     'size_id' => $default_size,
     'size_name' => $final_size_name,
     'preview_url' => $preview_url,
-    // === DEBUG: Design-Standardfarbe Vergleich ===
-get_post_meta($product_id, '_design_color', true),
+    'product_design_color' => get_post_meta($product_id, '_design_color', true),
     // Dimensionen für Print Provider
     'design_width_cm' => $design_width_cm,
     'design_height_cm' => $design_height_cm,
@@ -1771,11 +1770,24 @@ $debug_info = array(
     'yprint_zusatzdaten_keys' => is_array($yprint_zusatzdaten) ? array_keys($yprint_zusatzdaten) : 'KEINE'
 );
 
+// Debug: Design-Farbe-Analyse
+$debug_old_color = get_post_meta($product_id, '_design_color', true);
+$debug_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
+$debug_new_color = '';
+if (is_array($debug_zusatzdaten) && isset($debug_zusatzdaten['Design-Standardfarbe'])) {
+    $debug_new_color = $debug_zusatzdaten['Design-Standardfarbe'];
+}
+
 wp_send_json_success(array(
     'message' => 'Design wurde zum Warenkorb hinzugefügt',
     'cart_item_key' => $cart_item_key,
     'open_cart' => true,
-    'debug_design_color' => $debug_info  // Debug-Informationen in JSON-Response
+    'debug_design_color' => array(
+        'product_id' => $product_id,
+        'old_method' => $debug_old_color ?: 'LEER',
+        'new_method' => $debug_new_color ?: 'LEER',
+        'zusatzdaten_keys' => is_array($debug_zusatzdaten) ? array_keys($debug_zusatzdaten) : 'KEINE'
+    )
 ));
 
             wp_send_json_success(array(
