@@ -1465,8 +1465,17 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         $design_data = $cart_item_data['print_design'];
         
         // Erweiterte WooCommerce-Daten ergänzen mit debugging
-        $product = wc_get_product($product_id);
-        error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
+$product = wc_get_product($product_id);
+error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
+
+// Produkt-spezifische Design-Farbe aus Metabox abrufen
+if (!isset($design_data['product_design_color'])) {
+    $product_design_color = get_post_meta($product_id, '_design_color', true);
+    if (!empty($product_design_color)) {
+        $design_data['product_design_color'] = $product_design_color;
+        error_log('YPRINT: Added product_design_color: ' . $product_design_color);
+    }
+}
         
         // Variation-Daten extrahieren - erweiterte Fallback-Logik
         if ($variation_id && !isset($design_data['variation_name'])) {
