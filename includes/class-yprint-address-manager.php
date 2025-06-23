@@ -1143,15 +1143,10 @@ public function ajax_get_saved_addresses() {
 
     // Nonce-Prüfung
     $nonce = $_POST['nonce'] ?? '';
-    $nonce_check = wp_verify_nonce($nonce, 'yprint_save_address_action');
-    error_log('YPrint Debug: Nonce check result: ' . ($nonce_check ? 'Valid' : 'Invalid'));
-    error_log('YPrint Debug: Provided nonce: ' . $nonce);
-
-    if (!$nonce_check) {
-        error_log('YPrint Debug: FAILED - Nonce verification failed');
-        wp_send_json_error(array('message' => 'Sicherheitsprüfung fehlgeschlagen', 'debug' => 'nonce_failed'));
-        return;
-    }
+    // check_ajax_referer wird hier verwendet, um die Nonce zu überprüfen und bei Fehlern automatisch eine JSON-Fehlerantwort zu senden und den Skriptabbruch zu veranlassen.
+    // Dies ersetzt die manuelle Überprüfung und den if (!$nonce_check) Block.
+    check_ajax_referer('yprint_save_address_action', 'nonce');
+    error_log('YPrint Debug: Nonce check successful.'); // Dieser Log wird nur erreicht, wenn die Nonce gültig ist.
 
     if (!is_user_logged_in()) {
         error_log('YPrint Debug: FAILED - User not logged in');
@@ -1159,35 +1154,41 @@ public function ajax_get_saved_addresses() {
         return;
     }
 
+    // CRITICAL FIX: Extrahiere address_type Parameter für korrektes Rendering
+    $address_type = isset($_POST['address_type']) ? sanitize_text_field($_POST['address_type']) : 'shipping';
+
+    // Validiere address_type
+    if (!in_array($address_type, ['shipping', 'billing'])) {
+        $address_type = 'shipping'; // Setze auf Standardwert, wenn ungültig
+        error_log('YPrint Debug: Invalid address_type received, defaulting to shipping.');
+    }
+
     $user_id = get_current_user_id();
     error_log('YPrint Debug: Getting addresses for user ID: ' . $user_id);
 
-    // Raw user meta abrufen für Debugging
+    // Raw user meta abrufen für Debugging (optional, da get_user_addresses die Hauptquelle ist)
     $raw_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
-    error_log('YPrint Debug: Raw user meta: ' . print_r($raw_addresses, true));
-    error_log('YPrint Debug: Raw meta type: ' . gettype($raw_addresses));
-
-    // **HIER WURDE DER TEMPORÄRE TESTDATEN-BLOCK ENTFERNT**
-    if (empty($raw_addresses) || !is_array($raw_addresses)) {
-        $raw_addresses = []; // Sicherstellen, dass es ein leeres Array ist, wenn keine Adressen gefunden wurden
-        error_log('YPrint Debug: No addresses found for user: ' . $user_id);
-    }
+    error_log('YPrint Debug: Raw user meta (for reference): ' . print_r($raw_addresses, true));
+    error_log('YPrint Debug: Raw meta type (for reference): ' . gettype($raw_addresses));
 
     // Über unsere Methode abrufen
     $addresses = $this->get_user_addresses($user_id);
     error_log('YPrint Debug: Processed addresses: ' . print_r($addresses, true));
     error_log('YPrint Debug: Number of addresses: ' . count($addresses));
     error_log('YPrint Debug: Addresses type: ' . gettype($addresses));
+    error_log('YPrint Debug: ajax_get_saved_addresses called with address_type: ' . $address_type); // Debug-Log für Kontext-Erkennung
 
     // Erfolgreiche Antwort senden
     wp_send_json_success(array(
         'addresses' => $addresses,
         'user_id' => $user_id,
+        'address_type' => $address_type, // Für Frontend-Verwendung
         'debug_info' => array(
             'timestamp' => current_time('mysql'),
             'addresses_count' => count($addresses),
             'raw_meta_count' => is_array($raw_addresses) ? count($raw_addresses) : 0,
-            'raw_meta_type' => gettype($raw_addresses)
+            'raw_meta_type' => gettype($raw_addresses),
+            'context' => $address_type // Für Frontend-Verwendung
         )
     ));
 
