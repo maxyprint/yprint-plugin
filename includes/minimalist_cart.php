@@ -944,34 +944,44 @@ add_action('woocommerce_cart_loaded_from_session', 'yprint_cart_loaded_from_sess
  */
 function yprint_refresh_cart_content_callback() {
     ob_start();
+    $debug_messages = []; // Array zum Sammeln der Debug-Nachrichten
+
+    // Hilfsfunktion zum Hinzufügen von Debug-Nachrichten
+    $add_debug_message = function($message, $data = null) use (&$debug_messages) {
+        $log_entry = 'YPRINT DEBUG: ' . $message;
+        if ($data !== null) {
+            $log_entry .= ' - ' . print_r($data, true); // print_r für komplexe Daten
+        }
+        $debug_messages[] = $log_entry;
+    };
 
     // Stelle sicher, dass der Warenkorb initialisiert ist
      if (is_null(WC()->cart)) {
-        error_log('YPRINT DEBUG: WooCommerce Warenkorb ist nicht initialisiert.');
+        $add_debug_message('WooCommerce Warenkorb ist nicht initialisiert.');
         wp_send_json_error('WooCommerce cart is not initialized.');
         wp_die();
      }
 
     // Warenkorb optimieren VOR dem Generieren des HTML
     // Dies stellt sicher, dass das generierte HTML den konsolidierten Zustand widerspiegelt
-    error_log('YPRINT DEBUG: yprint_consolidate_cart_items() wird aufgerufen.');
+    $add_debug_message('yprint_consolidate_cart_items() wird aufgerufen.');
     yprint_consolidate_cart_items();
 
     // Warenkorb-Einträge nach der Konsolidierung abrufen
     $cart_items = WC()->cart->get_cart();
-    error_log('YPRINT DEBUG: ' . count($cart_items) . ' Artikel im Warenkorb gefunden.');
+    $add_debug_message(count($cart_items) . ' Artikel im Warenkorb gefunden.');
 
     if (empty($cart_items)) {
         echo '<div class="yprint-mini-cart-empty">Dein Warenkorb ist leer.</div>';
-        error_log('YPRINT DEBUG: Warenkorb ist leer, leere Nachricht wird angezeigt.');
+        $add_debug_message('Warenkorb ist leer, leere Nachricht wird angezeigt.');
     } else {
         foreach ($cart_items as $cart_item_key => $cart_item) {
-            error_log('=== YPRINT DEBUG: Verarbeite Warenkorb-Artikel mit Schlüssel: ' . $cart_item_key . ' ===');
+            $add_debug_message('=== Verarbeite Warenkorb-Artikel mit Schlüssel: ' . $cart_item_key . ' ===');
 
             $_product = apply_filters('woocommerce_cart_item_product', $cart_item['data'], $cart_item, $cart_item_key);
             $product_id = apply_filters('woocommerce_cart_item_product_id', $cart_item['product_id'], $cart_item, $cart_item_key);
 
-            error_log('YPRINT DEBUG: Produkt-ID: ' . $product_id . ', Produkttyp: ' . ($_product ? $_product->get_type() : 'N/A'));
+            $add_debug_message('Produkt-ID: ' . $product_id . ', Produkttyp: ' . ($_product ? $_product->get_type() : 'N/A'));
 
              // Sicherstellen, dass das Produkt gültig ist und die Menge > 0
             if ($_product && $_product->exists() && $cart_item['quantity'] > 0) {
@@ -980,7 +990,7 @@ function yprint_refresh_cart_content_callback() {
                 $item_total_price_html = apply_filters( 'woocommerce_cart_item_subtotal', WC()->cart->get_product_subtotal( $_product, $cart_item['quantity'] ), $cart_item, $cart_item_key );
                 $product_quantity = $cart_item['quantity'];
 
-                error_log('YPRINT DEBUG: Artikel "' . $product_name . '" (Menge: ' . $product_quantity . ') ist gültig.');
+                $add_debug_message('Artikel "' . $product_name . '" (Menge: ' . $product_quantity . ') ist gültig.');
                 ?>
                 <div class="yprint-mini-cart-item" data-item-key="<?php echo esc_attr($cart_item_key); ?>">
                     <div class="yprint-mini-cart-item-image">
@@ -991,13 +1001,13 @@ function yprint_refresh_cart_content_callback() {
                             // Prüfe, ob es ein Design-Produkt ist und verwende Designtitel
                             if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name'])) {
                                 $display_name = $cart_item['print_design']['name'];
-                                error_log('YPRINT DEBUG: Design-Produkt erkannt. Anzeigename basiert auf Design: "' . $display_name . '"');
+                                $add_debug_message('Design-Produkt erkannt. Anzeigename basiert auf Design: "' . $display_name . '"');
 
                                 // --- Debug für Design-Details ---
-                                error_log('YPRINT DEBUG: Design-Daten für Artikel: ' . print_r($cart_item['print_design'], true));
-                                error_log('YPRINT DEBUG: design_color im Warenkorb-Artikel: ' . (isset($cart_item['print_design']['design_color']) ? $cart_item['print_design']['design_color'] : 'Nicht gesetzt'));
-                                error_log('YPRINT DEBUG: variation_name im Warenkorb-Artikel: ' . (isset($cart_item['print_design']['variation_name']) ? $cart_item['print_design']['variation_name'] : 'Nicht gesetzt'));
-                                error_log('YPRINT DEBUG: size_name im Warenkorb-Artikel: ' . (isset($cart_item['print_design']['size_name']) ? $cart_item['print_design']['size_name'] : 'Nicht gesetzt'));
+                                $add_debug_message('Design-Daten für Artikel:', $cart_item['print_design']);
+                                $add_debug_message('design_color im Warenkorb-Artikel: ' . (isset($cart_item['print_design']['design_color']) ? $cart_item['print_design']['design_color'] : 'Nicht gesetzt'));
+                                $add_debug_message('variation_name im Warenkorb-Artikel: ' . (isset($cart_item['print_design']['variation_name']) ? $cart_item['print_design']['variation_name'] : 'Nicht gesetzt'));
+                                $add_debug_message('size_name im Warenkorb-Artikel: ' . (isset($cart_item['print_design']['size_name']) ? $cart_item['print_design']['size_name'] : 'Nicht gesetzt'));
                                 // --- Ende Debug für Design-Details ---
 
                                 // Füge Design-Farbe und Größe hinzu, falls vorhanden
@@ -1006,33 +1016,33 @@ function yprint_refresh_cart_content_callback() {
                                 // Priorisiere design_color, fallback auf variation_name
                                 if (!empty($cart_item['print_design']['design_color'])) {
                                     $details[] = $cart_item['print_design']['design_color'];
-                                    error_log('YPRINT DEBUG: design_color "' . $cart_item['print_design']['design_color'] . '" zu Details hinzugefügt (Priorität).');
+                                    $add_debug_message('design_color "' . $cart_item['print_design']['design_color'] . '" zu Details hinzugefügt (Priorität).');
                                 } elseif (!empty($cart_item['print_design']['variation_name']) && $cart_item['print_design']['variation_name'] !== 'Standard') {
                                     // Fügt die Variation nur hinzu, wenn sie nicht "Standard" ist
                                     $details[] = $cart_item['print_design']['variation_name'];
-                                    error_log('YPRINT DEBUG: design_color war leer, variation_name "' . $cart_item['print_design']['variation_name'] . '" als Fallback hinzugefügt.');
+                                    $add_debug_message('design_color war leer, variation_name "' . $cart_item['print_design']['variation_name'] . '" als Fallback hinzugefügt.');
                                 } else {
                                     if (!empty($cart_item['print_design']['variation_name']) && $cart_item['print_design']['variation_name'] === 'Standard') {
-                                        error_log('YPRINT DEBUG: variation_name ist "Standard" und wird übersprungen.');
+                                        $add_debug_message('variation_name ist "Standard" und wird übersprungen.');
                                     } else {
-                                        error_log('YPRINT DEBUG: Keine design_color oder verwertbare variation_name gefunden.');
+                                        $add_debug_message('Keine design_color oder verwertbare variation_name gefunden.');
                                     }
                                 }
 
                                 if (!empty($cart_item['print_design']['size_name'])) {
                                     $details[] = $cart_item['print_design']['size_name'];
-                                    error_log('YPRINT DEBUG: size_name "' . $cart_item['print_design']['size_name'] . '" zu Details hinzugefügt.');
+                                    $add_debug_message('size_name "' . $cart_item['print_design']['size_name'] . '" zu Details hinzugefügt.');
                                 }
 
                                 if (!empty($details)) {
                                     $display_name .= ' (' . implode(', ', $details) . ')';
-                                    error_log('YPRINT DEBUG: Finaler Anzeigename mit Details: "' . $display_name . '"');
+                                    $add_debug_message('Finaler Anzeigename mit Details: "' . $display_name . '"');
                                 } else {
-                                    error_log('YPRINT DEBUG: Keine zusätzlichen Details (Farbe/Größe) für den Anzeigenamen gefunden.');
+                                    $add_debug_message('Keine zusätzlichen Details (Farbe/Größe) für den Anzeigenamen gefunden.');
                                 }
                             } else {
                                 $display_name = $product_name;
-                                error_log('YPRINT DEBUG: Kein Design-Produkt. Anzeigename ist Produktname: "' . $display_name . '"');
+                                $add_debug_message('Kein Design-Produkt. Anzeigename ist Produktname: "' . $display_name . '"');
                             }
                         ?>
                         <h4 class="yprint-mini-cart-item-title"><?php echo esc_html($display_name); ?></h4>
@@ -1048,32 +1058,30 @@ function yprint_refresh_cart_content_callback() {
                 </div>
                 <?php
             } else {
-                error_log('YPRINT DEBUG: Artikel mit Schlüssel ' . $cart_item_key . ' ist nicht gültig (Produkt existiert nicht oder Menge ist 0). Überspringe.');
+                $add_debug_message('Artikel mit Schlüssel ' . $cart_item_key . ' ist nicht gültig (Produkt existiert nicht oder Menge ist 0). Überspringe.');
             }
         }
     }
 
     $cart_items_html = ob_get_clean();
 
-    // Nach dem Rendern des HTML, aktualisierte Warenkorb-Daten abrufen
-    // WC()->cart->calculate_totals(); // Should already be current
-
     $cart_count = WC()->cart->get_cart_contents_count();
     $cart_subtotal = WC()->cart->get_cart_subtotal();
 
-    error_log('YPRINT DEBUG: Abschließende Warenkorb-Daten - Anzahl: ' . $cart_count . ', Zwischensumme: ' . $cart_subtotal);
+    $add_debug_message('Abschließende Warenkorb-Daten - Anzahl: ' . $cart_count . ', Zwischensumme: ' . $cart_subtotal);
 
+    // Sende die Debug-Nachrichten zusammen mit den anderen Daten
     wp_send_json_success(array(
         'cart_items_html' => $cart_items_html,
         'cart_count' => $cart_count,
-        'cart_subtotal' => $cart_subtotal
+        'cart_subtotal' => $cart_subtotal,
+        'debug_messages' => $debug_messages // Füge die Debug-Nachrichten hinzu
     ));
 
     wp_die();
 }
 add_action('wp_ajax_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
 add_action('wp_ajax_nopriv_yprint_refresh_cart_content', 'yprint_refresh_cart_content_callback');
-
 /**
  * Stellt sicher, dass die print_design-Daten während des Checkouts erhalten bleiben
  */
