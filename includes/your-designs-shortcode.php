@@ -597,30 +597,40 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         }
 
         .yprint-size-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background: white;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 99999; /* Even higher z-index */
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-            padding: 12px;
-            margin-top: 4px;
-            min-width: 180px;
-            max-width: 250px;
-            white-space: nowrap; /* Prevent text wrapping */
-        }
+    position: fixed; /* Changed to fixed to avoid parent influence */
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 999999; /* Higher z-index */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease; /* Specific transitions only */
+    padding: 12px;
+    min-width: 180px;
+    max-width: 250px;
+    white-space: nowrap;
+    pointer-events: none; /* Prevent interference when hidden */
+}
 
-        .yprint-size-dropdown.show {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
+.yprint-size-dropdown.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+    pointer-events: auto; /* Enable interactions when visible */
+}
+
+/* Prevent parent button hover effects when dropdown is open */
+.yprint-design-action.reorder.dropdown-open {
+    background-color: rgba(0, 0, 0, 0.05) !important;
+    color: #111827 !important;
+}
+
+.yprint-design-action.reorder.dropdown-open:hover {
+    background-color: rgba(0, 0, 0, 0.05) !important; /* Lock hover state */
+    color: #111827 !important;
+}
 
         .yprint-size-dropdown.show {
             opacity: 1 !important;
@@ -909,81 +919,101 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 showSizeSelectionModal(designId, button);
             }
 
-            function showSizeSelectionModal(designId, button) {
-                console.log('YPrint Debug: showSizeSelectionModal called');
-                console.log('YPrint Debug: Design ID:', designId);
-                console.log('YPrint Debug: Button:', button);
-                console.log('YPrint Debug: Button parent:', button.parentElement);
-                
-                // Close any existing dropdowns
-                closeAllSizeDropdowns();
-                
-                // Create dropdown element
-                const dropdown = createSizeDropdown(designId, button);
-                console.log('YPrint Debug: Created dropdown:', dropdown);
-                
-                button.parentElement.appendChild(dropdown);
-                console.log('YPrint Debug: Dropdown appended to parent');
-                
-                // Show dropdown with animation
-                setTimeout(() => {
-                    dropdown.classList.add('show');
-                    console.log('YPrint Debug: Added show class to dropdown');
-                }, 50); // Increased delay for better visibility
-                
-                // Load sizes via AJAX
-                console.log('YPrint Debug: Starting AJAX request...');
-                console.log('YPrint Debug: AJAX data:', {
-                    action: 'yprint_get_product_sizes',
-                    design_id: designId,
-                    nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-                });
-                
-                jQuery.ajax({
-                    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-                    type: 'POST',
-                    dataType: 'json',
-                    timeout: 10000,
-                    data: {
-                        action: 'yprint_get_product_sizes',
-                        design_id: designId,
-                        nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-                    }
-                })
-                .done(function(response) {
-                    console.log('YPrint Debug: AJAX response received:', response);
-                    console.log('YPrint Debug: Response type:', typeof response);
-                    console.log('YPrint Debug: Response success:', response?.success);
-                    
-                    const content = dropdown.querySelector('.yprint-size-dropdown-content');
-                    if (!content) {
-                        console.error('YPrint Debug: Content element not found!');
-                        return;
-                    }
-                    
-                    if (response && response.success && response.data && response.data.sizes) {
-                        console.log('YPrint Debug: Sizes found:', response.data.sizes);
-                        renderSizeOptions(response.data.sizes, dropdown);
-                    } else {
-                        console.log('YPrint Debug: No sizes or error in response:', response);
-                        const errorMsg = response?.data || 'Keine Größen verfügbar';
-                        content.innerHTML = '<div class="yprint-size-error">' + errorMsg + '</div>';
-                    }
-                })
-                .fail(function(xhr, status, error) {
-                    console.log('YPrint Debug: AJAX failed:', status, error);
-                    console.log('YPrint Debug: XHR status:', xhr.status);
-                    console.log('YPrint Debug: XHR response:', xhr.responseText);
-                    
-                    const content = dropdown.querySelector('.yprint-size-dropdown-content');
-                    if (content) {
-                        content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen: ' + error + '</div>';
-                    }
-                })
-                .always(function() {
-                    console.log('YPrint Debug: AJAX request completed');
-                });
+            /**
+ * Zeigt das Größenauswahl-Dropdown an und lädt die Daten per AJAX.
+ * @param {number} designId - Die ID des Designs.
+ * @param {HTMLElement} button - Das geklickte Button-Element.
+ */
+function showSizeSelectionModal(designId, button) {
+    console.log('YPrint Debug: showSizeSelectionModal called');
+    console.log('YPrint Debug: Design ID:', designId);
+    console.log('YPrint Debug: Button:', button);
+    
+    // Schließt alle anderen geöffneten Dropdowns
+    closeAllSizeDropdowns();
+    
+    // Erstellt das Dropdown-Element und hängt es an den Body,
+    // um Positionierungsprobleme zu vermeiden.
+    const dropdown = createSizeDropdown(designId, button);
+    console.log('YPrint Debug: Created dropdown:', dropdown);
+    
+    document.body.appendChild(dropdown);
+    console.log('YPrint Debug: Dropdown appended to body');
+    
+    // Zeigt das Dropdown mit einer leichten Verzögerung für die Animation an
+    // requestAnimationFrame wird für eine flüssigere Animation empfohlen
+    requestAnimationFrame(() => {
+        dropdown.classList.add('show');
+        console.log('YPrint Debug: Added show class to dropdown');
+    });
+    
+    // Startet den AJAX-Aufruf, um die Produktgrößen zu laden
+    console.log('YPrint Debug: Starting AJAX request...');
+    
+    // Stellt sicher, dass jQuery verfügbar ist
+    if (typeof jQuery === 'undefined') {
+        console.error('YPrint Error: jQuery is not loaded.');
+        const content = dropdown.querySelector('.yprint-size-dropdown-content');
+        if (content) {
+            content.innerHTML = '<div class="yprint-size-error">Ein Fehler ist aufgetreten (jQuery nicht gefunden).</div>';
+        }
+        return;
+    }
+
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        dataType: 'json',
+        timeout: 10000, // Timeout von 10 Sekunden
+        data: {
+            action: 'yprint_get_product_sizes',
+            design_id: designId,
+            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+        }
+    })
+    .done(function(response) {
+        // Wird ausgeführt, wenn die Anfrage erfolgreich war (HTTP 200)
+        console.log('YPrint Debug: AJAX response received:', response);
+        
+        const content = dropdown.querySelector('.yprint-size-dropdown-content');
+        if (!content) {
+            console.error('YPrint Debug: Content element not found!');
+            return;
+        }
+        
+        // Überprüft, ob die Antwort erfolgreich war und Daten enthält
+        if (response && response.success && response.data && Array.isArray(response.data.sizes)) {
+            console.log('YPrint Debug: Sizes found:', response.data.sizes);
+            if (response.data.sizes.length > 0) {
+                 renderSizeOptions(response.data.sizes, dropdown);
+            } else {
+                content.innerHTML = '<div class="yprint-size-info">Keine Größen für dieses Produkt verfügbar.</div>';
             }
+        } else {
+            // Behandelt Fehler, die vom Server als "success: false" gesendet wurden
+            console.log('YPrint Debug: No sizes or error in response:', response);
+            const errorMsg = response && response.data ? response.data[0]?.message || 'Keine Größen verfügbar' : 'Keine Größen verfügbar';
+            content.innerHTML = '<div class="yprint-size-error">' + errorMsg + '</div>';
+        }
+    })
+    .fail(function(xhr, status, error) {
+        // Wird bei einem Netzwerkfehler oder HTTP-Fehlerstatus ausgeführt
+        console.error('YPrint Debug: AJAX failed:', status, error);
+        console.error('YPrint Debug: XHR status:', xhr.status);
+        console.error('YPrint Debug: XHR response:', xhr.responseText);
+        
+        const content = dropdown.querySelector('.yprint-size-dropdown-content');
+        if (content) {
+            content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen: ' + error + '</div>';
+        }
+    })
+    .always(function() {
+        // Wird immer ausgeführt, egal ob erfolgreich oder nicht
+        console.log('YPrint Debug: AJAX request completed');
+        // Hier könnte z.B. ein Lade-Spinner entfernt werden
+    });
+}
+
 
 // DEBUG: Test if jQuery is available
 console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
@@ -1132,13 +1162,20 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
             }
 
             function closeDropdown(dropdown) {
-                dropdown.classList.remove('show');
-                setTimeout(() => {
-                    if (dropdown.parentElement) {
-                        dropdown.parentElement.removeChild(dropdown);
-                    }
-                }, 300);
-            }
+    // Remove locked state from button
+    const designId = dropdown.getAttribute('data-design-id');
+    const button = document.querySelector(`[data-design-id="${designId}"].reorder`);
+    if (button) {
+        button.classList.remove('dropdown-open');
+    }
+    
+    dropdown.classList.remove('show');
+    setTimeout(() => {
+        if (dropdown.parentElement) {
+            dropdown.parentElement.removeChild(dropdown);
+        }
+    }, 200); // Reduced timeout
+}
 
             function closeAllSizeDropdowns() {
                 document.querySelectorAll('.yprint-size-dropdown').forEach(dropdown => {
@@ -1170,19 +1207,30 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
             };
 
             function createSizeDropdown(designId, button) {
-                const dropdown = document.createElement('div');
-                dropdown.className = 'yprint-size-dropdown';
-                dropdown.setAttribute('data-design-id', designId);
-                
-                // Get button position for absolute positioning
-                const buttonRect = button.getBoundingClientRect();
-                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-                
-                dropdown.style.position = 'fixed';
-                dropdown.style.top = (buttonRect.bottom + 4) + 'px';
-                dropdown.style.left = buttonRect.left + 'px';
-                dropdown.style.zIndex = '99999';
+    const dropdown = document.createElement('div');
+    dropdown.className = 'yprint-size-dropdown';
+    dropdown.setAttribute('data-design-id', designId);
+    
+    // Get button position for fixed positioning
+    const buttonRect = button.getBoundingClientRect();
+    
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = (buttonRect.bottom + 4) + 'px';
+    dropdown.style.left = buttonRect.left + 'px';
+    dropdown.style.zIndex = '999999';
+    
+    // Prevent event bubbling from dropdown
+    dropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    
+    dropdown.addEventListener('mouseenter', function(e) {
+        e.stopPropagation();
+    });
+    
+    dropdown.addEventListener('mouseleave', function(e) {
+        e.stopPropagation();
+    });
                 
                 dropdown.innerHTML = `
                     <div class="yprint-size-dropdown-header">
@@ -1226,12 +1274,15 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
                 return dropdown;
             }
 
-            // Close dropdown when clicking outside
-            document.addEventListener('click', function(e) {
-                if (!e.target.closest('.yprint-size-dropdown') && !e.target.closest('.reorder')) {
-                    closeAllSizeDropdowns();
-                }
-            });
+            // Close dropdown when clicking outside - with better event handling
+document.addEventListener('click', function(e) {
+    const dropdown = e.target.closest('.yprint-size-dropdown');
+    const reorderButton = e.target.closest('.reorder');
+    
+    if (!dropdown && !reorderButton) {
+        closeAllSizeDropdowns();
+    }
+}, true); // Use capture phase for better control
 
             function proceedWithReorder(designId, button, selectedSize) {
                 const originalContent = button.innerHTML;
