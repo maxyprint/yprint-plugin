@@ -287,3 +287,19 @@ function yprint_plugin_deactivation() {
     wp_clear_scheduled_hook('yprint_cleanup_recovery_tokens');
 }
 
+/**
+ * Custom AJAX Endpoint to Debug WooCommerce Cart Data
+ * Add this to your theme's functions.php or a custom plugin.
+ */
+
+ add_action('wp_ajax_yprint_debug_cart', 'yprint_handle_debug_cart_ajax');
+ add_action('wp_ajax_nopriv_yprint_debug_cart', 'yprint_handle_debug_cart_ajax');
+ 
+ function yprint_handle_debug_cart_ajax() {
+     if (!function_exists('WC') || !WC()->cart) {
+         wp_send_json_error('WooCommerce Warenkorb nicht verfügbar.');
+     }
+     $cart_contents = WC()->cart->get_cart();
+     wp_send_json_success($cart_contents);
+ }
+
