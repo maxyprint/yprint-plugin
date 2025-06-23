@@ -25,6 +25,8 @@ class YPrint_Your_Designs {
         add_action('wp_ajax_nopriv_yprint_reorder_design', array(__CLASS__, 'handle_reorder_design'));
         add_action('wp_ajax_yprint_delete_design', array(__CLASS__, 'handle_delete_design'));
         add_action('wp_ajax_nopriv_yprint_delete_design', array(__CLASS__, 'handle_delete_design'));
+        add_action('wp_ajax_yprint_get_product_sizes', array(__CLASS__, 'handle_get_product_sizes'));
+        add_action('wp_ajax_nopriv_yprint_get_product_sizes', array(__CLASS__, 'handle_get_product_sizes'));
     }
 
     /**
@@ -580,6 +582,143 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 font-size: 11px;
             }
         }
+
+        /* Size Selection Dropdown Styles */
+        .yprint-size-dropdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .yprint-size-dropdown-modal {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .yprint-size-dropdown-header {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .yprint-size-dropdown-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 5px 0;
+            color: #111827;
+        }
+
+        .yprint-size-dropdown-subtitle {
+            font-size: 14px;
+            color: #6B7280;
+            margin: 0;
+        }
+
+        .yprint-size-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .yprint-size-option {
+            padding: 12px 8px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: white;
+            font-weight: 500;
+        }
+
+        .yprint-size-option:hover:not(.disabled) {
+            border-color: #0079FF;
+            background: #f3f9ff;
+        }
+
+        .yprint-size-option.selected {
+            border-color: #0079FF;
+            background: #0079FF;
+            color: white;
+        }
+
+        .yprint-size-option.disabled {
+            background: #f5f5f5;
+            color: #9ca3af;
+            border-color: #e5e7eb;
+            cursor: not-allowed;
+            text-decoration: line-through;
+        }
+
+        .yprint-size-unavailable-text {
+            font-size: 10px;
+            color: #dc2626;
+            margin-top: 2px;
+        }
+
+        .yprint-size-dropdown-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .yprint-size-dropdown-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .yprint-size-dropdown-btn.cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .yprint-size-dropdown-btn.cancel:hover {
+            background: #e5e7eb;
+        }
+
+        .yprint-size-dropdown-btn.confirm {
+            background: #0079FF;
+            color: white;
+        }
+
+        .yprint-size-dropdown-btn.confirm:hover {
+            background: #0056b3;
+        }
+
+        .yprint-size-dropdown-btn:disabled {
+            background: #e5e7eb;
+            color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .yprint-size-loading {
+            text-align: center;
+            padding: 20px;
+            color: #6B7280;
+        }
+
+        .yprint-size-error {
+            text-align: center;
+            padding: 20px;
+            color: #dc2626;
+        }
         </style>
 
         <div id="<?php echo esc_attr($unique_id); ?>" class="<?php echo esc_attr($css_class); ?>">
@@ -672,6 +811,26 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             <?php endif; ?>
         </div>
 
+        <!-- Size Selection Modal -->
+        <div id="yprint-size-dropdown-overlay" class="yprint-size-dropdown-overlay">
+            <div class="yprint-size-dropdown-modal">
+                <div class="yprint-size-dropdown-header">
+                    <h3 class="yprint-size-dropdown-title">Größe auswählen</h3>
+                    <p class="yprint-size-dropdown-subtitle" id="yprint-size-design-name"></p>
+                </div>
+                <div id="yprint-size-dropdown-content">
+                    <div class="yprint-size-loading">
+                        <div class="yprint-spinner"></div>
+                        Größen werden geladen...
+                    </div>
+                </div>
+                <div class="yprint-size-dropdown-actions">
+                    <button class="yprint-size-dropdown-btn cancel" id="yprint-size-cancel">Abbrechen</button>
+                    <button class="yprint-size-dropdown-btn confirm" id="yprint-size-confirm" disabled>Bestellen</button>
+                </div>
+            </div>
+        </div>
+
         <script type="text/javascript">
         document.addEventListener('DOMContentLoaded', function() {
             const container = document.getElementById('<?php echo esc_js($unique_id); ?>');
@@ -708,6 +867,117 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             });
 
             function handleReorder(designId, button) {
+                // First, load product sizes and show selection modal
+                showSizeSelectionModal(designId, button);
+            }
+
+            function showSizeSelectionModal(designId, button) {
+                const modal = document.getElementById('yprint-size-dropdown-overlay');
+                const content = document.getElementById('yprint-size-dropdown-content');
+                const designNameEl = document.getElementById('yprint-size-design-name');
+                const confirmBtn = document.getElementById('yprint-size-confirm');
+                
+                // Get design name from card
+                const designCard = button.closest('.yprint-design-card');
+                const designName = designCard ? designCard.querySelector('.yprint-design-name').textContent : 'Design';
+                designNameEl.textContent = designName;
+                
+                // Show modal
+                modal.style.display = 'flex';
+                
+                // Reset state
+                confirmBtn.disabled = true;
+                confirmBtn.removeAttribute('data-selected-size');
+                
+                // Load sizes via AJAX
+                jQuery.ajax({
+                    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+                    type: 'POST',
+                    data: {
+                        action: 'yprint_get_product_sizes',
+                        design_id: designId,
+                        nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+                    }
+                })
+                .done(function(response) {
+                    if (response.success && response.data.sizes) {
+                        renderSizeOptions(response.data.sizes, confirmBtn);
+                    } else {
+                        content.innerHTML = '<div class="yprint-size-error">Keine Größen verfügbar oder Fehler beim Laden.</div>';
+                    }
+                })
+                .fail(function() {
+                    content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen.</div>';
+                });
+                
+                // Handle confirm button
+                confirmBtn.onclick = function() {
+                    const selectedSize = this.getAttribute('data-selected-size');
+                    if (selectedSize) {
+                        modal.style.display = 'none';
+                        proceedWithReorder(designId, button, selectedSize);
+                    }
+                };
+                
+                // Handle cancel button
+                document.getElementById('yprint-size-cancel').onclick = function() {
+                    modal.style.display = 'none';
+                };
+                
+                // Handle overlay click to close
+                modal.onclick = function(e) {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                };
+            }
+
+            function renderSizeOptions(sizes, confirmBtn) {
+                const content = document.getElementById('yprint-size-dropdown-content');
+                
+                if (!sizes || sizes.length === 0) {
+                    content.innerHTML = '<div class="yprint-size-error">Keine Größen für dieses Produkt verfügbar.</div>';
+                    return;
+                }
+                
+                let html = '<div class="yprint-size-options">';
+                
+                sizes.forEach(function(size) {
+                    const isDisabled = size.out_of_stock;
+                    const disabledClass = isDisabled ? ' disabled' : '';
+                    const unavailableText = isDisabled ? '<div class="yprint-size-unavailable-text">Nicht verfügbar</div>' : '';
+                    
+                    html += `
+                        <div class="yprint-size-option${disabledClass}" 
+                             data-size="${size.size}" 
+                             ${isDisabled ? '' : 'onclick="selectSize(this)"'}>
+                            ${size.size}
+                            ${unavailableText}
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                content.innerHTML = html;
+                
+                // Define selectSize function globally
+                window.selectSize = function(element) {
+                    // Remove previous selection
+                    document.querySelectorAll('.yprint-size-option.selected').forEach(el => {
+                        el.classList.remove('selected');
+                    });
+                    
+                    // Select current
+                    element.classList.add('selected');
+                    
+                    // Enable confirm button
+                    const selectedSize = element.getAttribute('data-size');
+                    confirmBtn.disabled = false;
+                    confirmBtn.setAttribute('data-selected-size', selectedSize);
+                };
+            }
+
+            function proceedWithReorder(designId, button, selectedSize) {
                 const originalContent = button.innerHTML;
                 button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><div class="yprint-design-action-label">Lädt...</div>';
                 button.style.pointerEvents = 'none';
@@ -718,6 +988,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                     data: {
                         action: 'yprint_reorder_design',
                         design_id: designId,
+                        selected_size: selectedSize,
                         nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
                     }
                 })
@@ -1111,9 +1382,13 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 }
             }
 
+            // Get selected size from AJAX request
+            $selected_size = isset($_POST['selected_size']) ? sanitize_text_field($_POST['selected_size']) : '';
+            
             // Add to cart with vollständigen design metadata für Print Provider System
             $cart_item_data = array(
                 '_design_id' => $design_id,
+                '_selected_size' => $selected_size,
                 'print_design' => array(
                     'design_id' => $design_id,
                     'name' => $design->name ?? 'Custom Design',
@@ -1136,7 +1411,9 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                     'design_scaleX' => 1,
                     'design_scaleY' => 1,
                     // Pricing
-                    'calculated_price' => $product->get_price()
+                    'calculated_price' => $product->get_price(),
+                    // Selected size information
+                    'selected_size' => $selected_size
                 ),
                 '_design_template_id' => $design->template_id ?? '',
                 '_design_variation_id' => $default_variation,
@@ -1214,6 +1491,78 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             'message' => 'Design wurde erfolgreich gelöscht',
             'design_id' => $design_id
         ));
+    }
+
+    /**
+     * Handle get product sizes AJAX request
+     */
+    public static function handle_get_product_sizes() {
+        check_ajax_referer('yprint_design_actions_nonce', 'nonce');
+
+        $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+        
+        if (!$design_id) {
+            wp_send_json_error('Ungültige Design-ID');
+            return;
+        }
+
+        $current_user_id = get_current_user_id();
+        if (!$current_user_id) {
+            wp_send_json_error('Du musst angemeldet sein');
+            return;
+        }
+
+        try {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'octo_user_designs';
+            
+            // Get design from database
+            $design = $wpdb->get_row($wpdb->prepare(
+                "SELECT template_id FROM {$table_name} WHERE id = %d AND user_id = %d",
+                $design_id,
+                $current_user_id
+            ));
+            
+            if (!$design || !$design->template_id) {
+                wp_send_json_error('Design oder Template nicht gefunden');
+                return;
+            }
+
+            // Get base product ID from Octo Print Designer settings
+            $base_product_id = null;
+            if (class_exists('Octo_Print_Designer_Settings')) {
+                $base_product_id = Octo_Print_Designer_Settings::get_base_product_id();
+            }
+            
+            if (!$base_product_id) {
+                wp_send_json_error('Base Product nicht konfiguriert');
+                return;
+            }
+
+            // Get product sizes from WooCommerce product meta
+            $sizes_json = get_post_meta($base_product_id, '_yprint_product_sizes', true);
+            
+            if (empty($sizes_json)) {
+                wp_send_json_success(array('sizes' => array()));
+                return;
+            }
+            
+            $sizes_data = json_decode($sizes_json, true);
+            
+            if (!is_array($sizes_data)) {
+                wp_send_json_success(array('sizes' => array()));
+                return;
+            }
+
+            wp_send_json_success(array(
+                'sizes' => $sizes_data,
+                'design_id' => $design_id,
+                'product_id' => $base_product_id
+            ));
+
+        } catch (Exception $e) {
+            wp_send_json_error('Fehler beim Laden der Größen: ' . $e->getMessage());
+        }
     }
 
     // Füge diese Funktion nach der get_template_id_for_design() Funktion hinzu:
