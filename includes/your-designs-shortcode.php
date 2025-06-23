@@ -56,6 +56,14 @@ class YPrint_Your_Designs {
         ?>
 
         <style>
+
+            /* DEBUG: Ensure buttons are clickable */
+        .yprint-design-action.reorder {
+            pointer-events: auto !important;
+            z-index: 10;
+            background: rgba(255, 0, 0, 0.1) !important; /* Temporary red background for debugging */
+        }
+        
         .yprint-your-designs {
     font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
     background-color: #ffffff;
@@ -846,13 +854,23 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
 
             console.log('YPrint Designs: Initializing...', container);
 
+            // DEBUG: Log container and buttons
+            console.log('YPrint Debug: Container found:', container);
+            
             // Handle reorder buttons
             const reorderButtons = container.querySelectorAll('.reorder');
-            reorderButtons.forEach(button => {
+            console.log('YPrint Debug: Found reorder buttons:', reorderButtons.length);
+            
+            reorderButtons.forEach((button, index) => {
+                console.log(`YPrint Debug: Processing button ${index}:`, button);
+                console.log(`YPrint Debug: Button dataset:`, button.dataset);
+                
                 button.addEventListener('click', function(e) {
+                    console.log('YPrint Debug: Reorder button clicked!', this);
                     e.preventDefault();
                     e.stopPropagation();
                     const designId = this.dataset.designId;
+                    console.log('YPrint Debug: Design ID:', designId);
                     handleReorder(designId, this);
                 });
             });
@@ -872,17 +890,26 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             });
 
             function handleReorder(designId, button) {
+                console.log('YPrint Debug: handleReorder called with:', designId, button);
                 // First, load product sizes and show selection modal
                 showSizeSelectionModal(designId, button);
             }
 
             function showSizeSelectionModal(designId, button) {
+                console.log('YPrint Debug: showSizeSelectionModal called');
+                console.log('YPrint Debug: Design ID:', designId);
+                console.log('YPrint Debug: Button:', button);
+                console.log('YPrint Debug: Button parent:', button.parentElement);
+                
                 // Close any existing dropdowns
                 closeAllSizeDropdowns();
                 
                 // Create dropdown element
                 const dropdown = createSizeDropdown(designId, button);
+                console.log('YPrint Debug: Created dropdown:', dropdown);
+                
                 button.parentElement.appendChild(dropdown);
+                console.log('YPrint Debug: Dropdown appended to parent');
                 
                 // Show dropdown with animation
                 setTimeout(() => {
@@ -912,6 +939,24 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                     content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen.</div>';
                 });
             }
+
+// DEBUG: Test if jQuery is available
+console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
+            console.log('YPrint Debug: AJAX URL:', '<?php echo esc_url(admin_url('admin-ajax.php')); ?>');
+            console.log('YPrint Debug: Nonce:', '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>');
+            
+            // DEBUG: Test manual button click
+            window.testReorderClick = function() {
+                const firstButton = container.querySelector('.reorder');
+                if (firstButton) {
+                    console.log('YPrint Debug: Testing first reorder button click');
+                    firstButton.click();
+                } else {
+                    console.log('YPrint Debug: No reorder button found for testing');
+                }
+            };
+            
+            console.log('YPrint Debug: Initialization complete. Test with: testReorderClick()');
 
             function createSizeDropdown(designId, button) {
                 const dropdown = document.createElement('div');
@@ -1146,6 +1191,8 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         return ob_get_clean();
     }
 
+
+    
     /**
      * Get user designs from database
      *
