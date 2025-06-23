@@ -1061,16 +1061,9 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         // Setze die Hauptinformationen für die einfache Anzeige in der Bestellansicht
         $item->add_meta_data('_design_id', $design['design_id'] ?? '');
         $item->add_meta_data('_design_name', $design['name'] ?? '');
-        // Intelligente Fallback-Logik für Design-Farbe
-$design_color = '';
-if (!empty($design['variation_name'])) {
-    $design_color = $design['variation_name'];
-} elseif (!empty($design['product_design_color'])) {
-    $design_color = $design['product_design_color'];
-} elseif (!empty($design['variation_color'])) {
-    $design_color = $design['variation_color'];
-}
-$item->add_meta_data('_design_color', $design_color);
+        // Intelligente Fallback-Logik für Design-Farbe: Priorisiere product_design_color
+        $design_color = $design['product_design_color'] ?? $design['variation_name'] ?? '';
+        $item->add_meta_data('_design_color', $design_color);
         $item->add_meta_data('_design_size', $design['size_name'] ?? '');
         $item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
 
@@ -1473,6 +1466,10 @@ if (!isset($design_data['product_design_color'])) {
     $product_design_color = get_post_meta($product_id, '_design_color', true);
     if (!empty($product_design_color)) {
         $design_data['product_design_color'] = $product_design_color;
+        // Verwende Design-Standardfarbe als variation_name wenn keine andere Farbe gesetzt ist
+        if (!isset($design_data['variation_name']) || empty($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
+            $design_data['variation_name'] = $product_design_color;
+        }
         error_log('YPRINT: Added product_design_color: ' . $product_design_color);
     }
 }
@@ -1534,11 +1531,13 @@ if (!isset($design_data['product_design_color'])) {
         }
         
         // Verbesserte Variation/Size-Extraktion aus echten Design-Tool-Daten
-        if (!isset($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
-            // Prüfe zuerst echte Design-Tool-Daten
-            if (isset($design_data['variation_color']) && !empty($design_data['variation_color'])) {
-                $design_data['variation_name'] = $design_data['variation_color'];
-            } else if (isset($design_data['template_variations']) && !empty($design_data['template_variations'])) {
+if (!isset($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
+    // Prüfe zuerst Design-Standardfarbe aus WooCommerce
+    if (isset($design_data['product_design_color']) && !empty($design_data['product_design_color'])) {
+        $design_data['variation_name'] = $design_data['product_design_color'];
+    } else if (isset($design_data['variation_color']) && !empty($design_data['variation_color'])) {
+        $design_data['variation_name'] = $design_data['variation_color'];
+    } else if (isset($design_data['template_variations']) && !empty($design_data['template_variations'])) {
                 // Extrahiere aus Template-Daten
                 $template_variations = is_string($design_data['template_variations']) ? 
                     json_decode($design_data['template_variations'], true) : $design_data['template_variations'];
