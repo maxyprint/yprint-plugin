@@ -920,9 +920,17 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 
                 // Load sizes via AJAX
                 console.log('YPrint Debug: Starting AJAX request...');
+                console.log('YPrint Debug: AJAX data:', {
+                    action: 'yprint_get_product_sizes',
+                    design_id: designId,
+                    nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+                });
+                
                 jQuery.ajax({
                     url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
                     type: 'POST',
+                    dataType: 'json',
+                    timeout: 10000,
                     data: {
                         action: 'yprint_get_product_sizes',
                         design_id: designId,
@@ -931,20 +939,36 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
                 })
                 .done(function(response) {
                     console.log('YPrint Debug: AJAX response received:', response);
+                    console.log('YPrint Debug: Response type:', typeof response);
+                    console.log('YPrint Debug: Response success:', response?.success);
+                    
                     const content = dropdown.querySelector('.yprint-size-dropdown-content');
-                    if (response.success && response.data.sizes) {
+                    if (!content) {
+                        console.error('YPrint Debug: Content element not found!');
+                        return;
+                    }
+                    
+                    if (response && response.success && response.data && response.data.sizes) {
                         console.log('YPrint Debug: Sizes found:', response.data.sizes);
                         renderSizeOptions(response.data.sizes, dropdown);
                     } else {
-                        console.log('YPrint Debug: No sizes or error in response');
-                        content.innerHTML = '<div class="yprint-size-error">Keine Größen verfügbar.</div>';
+                        console.log('YPrint Debug: No sizes or error in response:', response);
+                        const errorMsg = response?.data || 'Keine Größen verfügbar';
+                        content.innerHTML = '<div class="yprint-size-error">' + errorMsg + '</div>';
                     }
                 })
                 .fail(function(xhr, status, error) {
                     console.log('YPrint Debug: AJAX failed:', status, error);
-                    console.log('YPrint Debug: XHR:', xhr);
+                    console.log('YPrint Debug: XHR status:', xhr.status);
+                    console.log('YPrint Debug: XHR response:', xhr.responseText);
+                    
                     const content = dropdown.querySelector('.yprint-size-dropdown-content');
-                    content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen: ' + error + '</div>';
+                    if (content) {
+                        content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen: ' + error + '</div>';
+                    }
+                })
+                .always(function() {
+                    console.log('YPrint Debug: AJAX request completed');
                 });
             }
 
@@ -987,6 +1011,8 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
                     </div>
                 `;
                 
+                console.log('YPrint Debug: Dropdown HTML set:', dropdown.innerHTML);
+                
                 // Event listeners
                 const cancelBtn = dropdown.querySelector('.cancel');
                 const confirmBtn = dropdown.querySelector('.confirm');
@@ -1007,6 +1033,29 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
                 
                 return dropdown;
             }
+
+            // DEBUG: Test with fake sizes
+            window.testSizesDisplay = function() {
+                const firstButton = container.querySelector('.reorder');
+                if (firstButton) {
+                    const testDropdown = createSizeDropdown('999', firstButton);
+                    firstButton.parentElement.appendChild(testDropdown);
+                    
+                    setTimeout(() => {
+                        testDropdown.classList.add('show');
+                        
+                        // Fake sizes data
+                        const fakeSizes = [
+                            {size: 'S', out_of_stock: false},
+                            {size: 'M', out_of_stock: false},
+                            {size: 'L', out_of_stock: true},
+                            {size: 'XL', out_of_stock: false}
+                        ];
+                        
+                        renderSizeOptions(fakeSizes, testDropdown);
+                    }, 100);
+                }
+            };
 
             function renderSizeOptions(sizes, dropdown) {
                 const content = dropdown.querySelector('.yprint-size-dropdown-content');
