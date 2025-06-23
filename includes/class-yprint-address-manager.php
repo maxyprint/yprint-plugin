@@ -530,125 +530,158 @@ public function save_new_user_address($address_data) {
 }
 
     /**
-     * Rendert HTML für die Auswahl bestehender Adressen des Benutzers im Checkout.
-     *
-     * @param string $type 'shipping' oder 'billing' (bestimmt den Kontext der Adressauswahl).
-     * @return string HTML-Ausgabe für die Adressauswahl.
-     */
-    public function render_address_selection($type = null) {
+ * Rendert HTML für die Auswahl bestehender Adressen des Benutzers im Checkout.
+ *
+ * @param string $type 'shipping' oder 'billing' (bestimmt den Kontext der Adressauswahl).
+ * @return string HTML-Ausgabe für die Adressauswahl.
+ */
+public function render_address_selection($type = null) {
     // CRITICAL: Auto-detect context if not provided
     if ($type === null) {
         $type = $this->detect_current_context();
         error_log('🎯 YPRINT: Auto-detected address context: ' . $type);
     }
-    
+
     // Ensure type is valid
     if (!in_array($type, ['shipping', 'billing'])) {
-        $type = 'shipping';
+        $type = 'shipping'; // Fallback to 'shipping' if invalid type is provided
     }
-        if (!is_user_logged_in()) {
-            return '';
-        }
 
-        $user_id = get_current_user_id();
-        $addresses = $this->get_user_addresses($user_id);
+    if (!is_user_logged_in()) {
+        return '';
+    }
 
-        $html = '<div class="yprint-saved-addresses mt-6">';
-        $html .= '<h3 class="saved-addresses-title"><i class="fas fa-map-marker-alt mr-2"></i>' . __('Gespeicherte Adressen', 'yprint-plugin') . '</h3>';
-        $html .= '<div class="address-cards-grid">';
+    $user_id = get_current_user_id();
+    $addresses = $this->get_user_addresses($user_id);
 
-        // WooCommerce Standard-Adresse als erste Option
-$wc_address = array(
-    'address_1' => WC()->customer->get_shipping_address_1(),
-    'address_2' => WC()->customer->get_shipping_address_2(),
-    'postcode' => WC()->customer->get_shipping_postcode(),
-    'city' => WC()->customer->get_shipping_city(),
-    'country' => WC()->customer->get_shipping_country(),
-    'first_name' => WC()->customer->get_shipping_first_name(),
-    'last_name' => WC()->customer->get_shipping_last_name(),
-    'company' => WC()->customer->get_shipping_company()
-);
+    $html = '<div class="yprint-saved-addresses mt-6">';
+    $html .= '<h3 class="saved-addresses-title"><i class="fas fa-map-marker-alt mr-2"></i>' . __('Gespeicherte Adressen', 'yprint-plugin') . '</h3>';
+    $html .= '<div class="address-cards-grid">';
 
-// Nur anzeigen wenn WC-Adresse existiert
-if (!empty($wc_address['address_1']) || !empty($wc_address['city'])) {
-    $html .= '<div class="address-card">';
-    $html .= '<label class="cursor-pointer">';
-    $html .= '<input type="radio" name="selected_address" value="wc_default" data-address-type="' . esc_attr($type) . '" data-address-data="' . esc_attr(json_encode($wc_address)) . '" class="sr-only">';
-            $html .= '<div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">';
-            $html .= '<div class="flex items-center justify-between mb-2">';
-            $html .= '<h4 class="font-semibold">' . __('Standard-Adresse', 'yprint-plugin') . '</h4>';
-            $html .= '<i class="fas fa-check text-blue-500 opacity-0 address-selected-icon"></i>';
-            $html .= '</div>';
-            $html .= '<div class="text-sm text-gray-600">';
-            if (!empty($wc_address['company'])) {
-                $html .= '<strong>' . esc_html($wc_address['company']) . '</strong><br>';
-            }
-            $html .= esc_html($wc_address['first_name'] . ' ' . $wc_address['last_name']) . '<br>';
-            $html .= esc_html($wc_address['address_1']);
-            if (!empty($wc_address['address_2'])) {
-                $html .= ' ' . esc_html($wc_address['address_2']);
-            }
-            $html .= '<br>';
-            $html .= esc_html($wc_address['postcode'] . ' ' . $wc_address['city']) . '<br>';
-            $html .= esc_html($wc_address['country']);
-            $html .= '</div>';
-            $html .= '</div>';
-            $html .= '</label>';
-            $html .= '</div>';
-        }
+    // WooCommerce Standard-Adresse als erste Option
+    // Die WooCommerce-Kundenadresse kann je nach Kontext 'shipping' oder 'billing' sein.
+    // Hier verwenden wir $type, um die korrekten Adressdaten abzurufen.
+    $wc_address_data_prefix = ($type === 'billing') ? 'billing' : 'shipping';
 
-        // Gespeicherte Adressen
-foreach ($addresses as $address_id => $address) {
-    $html .= '<div class="address-card">';
-    $html .= '<label class="cursor-pointer">';
-    $html .= '<input type="radio" name="selected_address" value="' . esc_attr($address_id) . '" data-address-type="' . esc_attr($type) . '" data-address-data="' . esc_attr(json_encode($address)) . '" class="sr-only">';
-            $html .= '<div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">';
-            $html .= '<div class="flex items-center justify-between mb-2">';
-            $html .= '<h4 class="font-semibold">' . esc_html($address['name'] ?? __('Gespeicherte Adresse', 'yprint-plugin')) . '</h4>';
-            $html .= '<div class="flex items-center gap-2">';
-            if (isset($address['is_default']) && $address['is_default']) {
-                $html .= '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">' . __('Standard', 'yprint-plugin') . '</span>';
-            }
-            $html .= '<i class="fas fa-check text-blue-500 opacity-0 address-selected-icon"></i>';
-            $html .= '</div>';
-            $html .= '</div>';
-            $html .= '<div class="text-sm text-gray-600">';
-            if (!empty($address['company'])) {
-                $html .= '<strong>' . esc_html($address['company']) . '</strong><br>';
-            }
-            $html .= esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')) . '<br>';
-            $html .= esc_html($address['address_1']);
-            if (!empty($address['address_2'])) {
-                $html .= ' ' . esc_html($address['address_2']);
-            }
-            $html .= '<br>';
-            $html .= esc_html($address['postcode'] . ' ' . $address['city']) . '<br>';
-            $html .= esc_html($address['country']);
-            $html .= '</div>';
-            $html .= '</div>';
-            $html .= '</label>';
-            $html .= '</div>';
-        }
+    $wc_address = array(
+        'address_1' => WC()->customer->{"get_{$wc_address_data_prefix}_address_1"}(),
+        'address_2' => WC()->customer->{"get_{$wc_address_data_prefix}_address_2"}(),
+        'postcode' => WC()->customer->{"get_{$wc_address_data_prefix}_postcode"}(),
+        'city' => WC()->customer->{"get_{$wc_address_data_prefix}_city"}(),
+        'country' => WC()->customer->{"get_{$wc_address_data_prefix}_country"}(),
+        'first_name' => WC()->customer->{"get_{$wc_address_data_prefix}_first_name"}(),
+        'last_name' => WC()->customer->{"get_{$wc_address_data_prefix}_last_name"}(),
+        'company' => WC()->customer->{"get_{$wc_address_data_prefix}_company"}()
+    );
 
-        // "Neue Adresse" Karte
-        $html .= '<div class="address-card add-new-address-card">'; // 'add-new-address-card' Klasse hinzugefügt
+    // Nur anzeigen wenn WC-Adresse existiert
+    if (!empty($wc_address['address_1']) || !empty($wc_address['city'])) {
+        $html .= '<div class="address-card">';
         $html .= '<label class="cursor-pointer">';
-        $html .= '<input type="radio" name="selected_address" value="new_address" data-address-type="new" class="sr-only">';
-        $html .= '<div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-blue-500">';
-        $html .= '<i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>';
-        $html .= '<h4 class="font-semibold text-gray-600">' . __('Neue Adresse hinzufügen', 'yprint-plugin') . '</h4>';
+        // Verwende $type im data-address-type Attribut
+        $html .= '<input type="radio" name="selected_address" value="wc_default" data-address-type="' . esc_attr($type) . '" data-address-data="' . esc_attr(json_encode($wc_address)) . '" class="sr-only">';
+        $html .= '<div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">';
+        $html .= '<div class="flex items-center justify-between mb-2">';
+        $html .= '<h4 class="font-semibold">' . __('Standard-Adresse', 'yprint-plugin') . '</h4>';
+        $html .= '<i class="fas fa-check text-blue-500 opacity-0 address-selected-icon"></i>';
+        $html .= '</div>';
+        $html .= '<div class="text-sm text-gray-600">';
+        if (!empty($wc_address['company'])) {
+            $html .= '<strong>' . esc_html($wc_address['company']) . '</strong><br>';
+        }
+        $html .= esc_html($wc_address['first_name'] . ' ' . $wc_address['last_name']) . '<br>';
+        $html .= esc_html($wc_address['address_1']);
+        if (!empty($wc_address['address_2'])) {
+            $html .= ' ' . esc_html($wc_address['address_2']);
+        }
+        $html .= '<br>';
+        $html .= esc_html($wc_address['postcode'] . ' ' . $wc_address['city']) . '<br>';
+        $html .= esc_html($wc_address['country']);
+        $html .= '</div>';
         $html .= '</div>';
         $html .= '</label>';
         $html .= '</div>';
-
-        $html .= '</div>';
-        $html .= '</div>';
-
-        // Modal HTML hinzufügen
-        $html .= $this->get_address_modal_html();
-
-        return $html;
     }
+
+    // Gespeicherte Adressen
+    foreach ($addresses as $address_id => $address) {
+        $html .= '<div class="address-card">';
+        $html .= '<label class="cursor-pointer">';
+        // Verwende $type im data-address-type Attribut
+        $html .= '<input type="radio" name="selected_address" value="' . esc_attr($address_id) . '" data-address-type="' . esc_attr($type) . '" data-address-data="' . esc_attr(json_encode($address)) . '" class="sr-only">';
+        $html .= '<div class="address-card-content border-2 border-gray-200 rounded-lg p-4 transition-colors hover:border-blue-500">';
+        $html .= '<div class="flex items-center justify-between mb-2">';
+        $html .= '<h4 class="font-semibold">' . esc_html($address['name'] ?? __('Gespeicherte Adresse', 'yprint-plugin')) . '</h4>';
+        $html .= '<div class="flex items-center gap-2">';
+        if (isset($address['is_default']) && $address['is_default']) {
+            $html .= '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">' . __('Standard', 'yprint-plugin') . '</span>';
+        }
+        $html .= '<i class="fas fa-check text-blue-500 opacity-0 address-selected-icon"></i>';
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '<div class="text-sm text-gray-600">';
+        if (!empty($address['company'])) {
+            $html .= '<strong>' . esc_html($address['company']) . '</strong><br>';
+        }
+        $html .= esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')) . '<br>';
+        $html .= esc_html($address['address_1']);
+        if (!empty($address['address_2'])) {
+            $html .= ' ' . esc_html($address['address_2']);
+        }
+        $html .= '<br>';
+        $html .= esc_html($address['postcode'] . ' ' . $address['city']) . '<br>';
+        $html .= esc_html($address['country']);
+        $html .= '</div>';
+        $html .= '</div>';
+        $html .= '</label>';
+        $html .= '</div>';
+    }
+
+    // "Neue Adresse" Karte
+    $html .= '<div class="address-card add-new-address-card">';
+    $html .= '<label class="cursor-pointer">';
+    $html .= '<input type="radio" name="selected_address" value="new_address" data-address-type="new" class="sr-only">';
+    $html .= '<div class="address-card-content border-2 border-dashed border-gray-300 rounded-lg p-4 text-center transition-colors hover:border-blue-500">';
+    $html .= '<i class="fas fa-plus text-3xl text-gray-400 mb-2"></i>';
+    $html .= '<h4 class="font-semibold text-gray-600">' . __('Neue Adresse hinzufügen', 'yprint-plugin') . '</h4>';
+    $html .= '</div>';
+    $html .= '</label>';
+    $html .= '</div>';
+
+    $html .= '</div>';
+    $html .= '</div>';
+
+    // Modal HTML hinzufügen
+    $html .= $this->get_address_modal_html();
+
+    return $html;
+}
+
+/**
+ * Erkennt den aktuellen Checkout-Kontext basierend auf URL und anderen Faktoren.
+ *
+ * @return string 'shipping' oder 'billing'.
+ */
+private function detect_current_context() {
+    // URL-basierte Erkennung
+    if (isset($_GET['step']) && $_GET['step'] === 'billing') {
+        return 'billing';
+    }
+
+    // Referer-basierte Erkennung
+    // Vorsicht bei Referer-Prüfung, da diese nicht immer zuverlässig ist und vom Browser abhängt.
+    if (isset($_SERVER['HTTP_REFERER']) && strpos($_SERVER['HTTP_REFERER'], 'step=billing') !== false) {
+        return 'billing';
+    }
+
+    // Session-basierte Erkennung (WooCommerce Session)
+    // Dies ist oft der zuverlässigste Weg im Checkout.
+    if (WC()->session && WC()->session->get('yprint_current_step') === 'billing') {
+        return 'billing';
+    }
+
+    return 'shipping'; // Standardwert, wenn kein 'billing' Kontext erkannt wird
+}
 
     /**
  * AJAX-Handler zum Speichern einer Rechnungsadresse
@@ -1501,27 +1534,7 @@ public function ajax_debug_session_state() {
     wp_send_json_success($session_data);
 }
 
-/**
- * Erkennt den aktuellen Checkout-Context basierend auf URL/Referrer
- * 
- * @return string 'billing' oder 'shipping'
- */
-private function detect_current_context() {
-    // Prüfe aktuelle URL
-    $current_url = $_SERVER['REQUEST_URI'] ?? '';
-    if (strpos($current_url, 'step=billing') !== false) {
-        return 'billing';
-    }
-    
-    // Prüfe Referrer
-    $referer = $_SERVER['HTTP_REFERER'] ?? '';
-    if (strpos($referer, 'step=billing') !== false) {
-        return 'billing';
-    }
-    
-    // Fallback
-    return 'shipping';
-}
+
 // **DIESE FUNKTION WIRD ENTFERNT, DA SIE NUR ZU DEBUGGING-ZWECKEN DIENTE**
 // public function create_test_addresses($user_id) {
 //     if (!current_user_can('administrator')) {
