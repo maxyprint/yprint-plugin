@@ -224,7 +224,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
 
         .yprint-designs-container {
             overflow-x: auto;
-            overflow-y: hidden;
+            overflow-y: visible; /* Allow dropdowns to show */
             padding-bottom: 0.5rem;
         }
 
@@ -600,12 +600,11 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             position: absolute;
             top: 100%;
             left: 0;
-            right: 0;
             background: white;
-            border: 3px solid red; /* DEBUG: Make it super visible */
+            border: 1px solid #e5e7eb;
             border-radius: 8px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 9999;
+            z-index: 99999; /* Even higher z-index */
             opacity: 0;
             visibility: hidden;
             transform: translateY(-10px);
@@ -614,6 +613,13 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             margin-top: 4px;
             min-width: 180px;
             max-width: 250px;
+            white-space: nowrap; /* Prevent text wrapping */
+        }
+
+        .yprint-size-dropdown.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
         }
 
         .yprint-size-dropdown.show {
@@ -1162,6 +1168,63 @@ console.log('YPrint Debug: jQuery available:', typeof jQuery !== 'undefined');
                     });
                 });
             };
+
+            function createSizeDropdown(designId, button) {
+                const dropdown = document.createElement('div');
+                dropdown.className = 'yprint-size-dropdown';
+                dropdown.setAttribute('data-design-id', designId);
+                
+                // Get button position for absolute positioning
+                const buttonRect = button.getBoundingClientRect();
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+                
+                dropdown.style.position = 'fixed';
+                dropdown.style.top = (buttonRect.bottom + 4) + 'px';
+                dropdown.style.left = buttonRect.left + 'px';
+                dropdown.style.zIndex = '99999';
+                
+                dropdown.innerHTML = `
+                    <div class="yprint-size-dropdown-header">
+                        <div class="yprint-size-dropdown-title">Größe wählen</div>
+                    </div>
+                    <div class="yprint-size-dropdown-content">
+                        <div class="yprint-size-loading">
+                            <div class="yprint-spinner"></div>
+                            Lade Größen...
+                        </div>
+                    </div>
+                    <div class="yprint-size-dropdown-actions">
+                        <button class="yprint-size-dropdown-btn cancel">Abbrechen</button>
+                        <button class="yprint-size-dropdown-btn confirm" disabled>Bestellen</button>
+                    </div>
+                `;
+                
+                console.log('YPrint Debug: Dropdown HTML set:', dropdown.innerHTML);
+                
+                // Event listeners
+                const cancelBtn = dropdown.querySelector('.cancel');
+                const confirmBtn = dropdown.querySelector('.confirm');
+                
+                cancelBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    closeDropdown(dropdown);
+                };
+                
+                confirmBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    const selectedSize = this.getAttribute('data-selected-size');
+                    if (selectedSize) {
+                        closeDropdown(dropdown);
+                        proceedWithReorder(designId, button, selectedSize);
+                    }
+                };
+                
+                // Append to body instead of button parent
+                document.body.appendChild(dropdown);
+                
+                return dropdown;
+            }
 
             // Close dropdown when clicking outside
             document.addEventListener('click', function(e) {
