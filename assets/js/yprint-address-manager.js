@@ -587,10 +587,10 @@ saveAddressFromForm: function() {
         
         renderAddresses: function(addresses, addressType = 'shipping') {
             const self = this;
-            
+        
             // Referenz zum Container und Grid - nutze den aktuell aktiven Container
             let container = this.addressContainer;
-            
+        
             // Falls der Container über data-address-type spezifiziert ist, nutze diesen
             if (addressType === 'billing') {
                 const billingContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
@@ -598,14 +598,14 @@ saveAddressFromForm: function() {
                     container = billingContainer;
                 }
             }
-            
+        
             if (container.length === 0) return;
-            
+        
             const grid = container.find('.address-cards-grid');
-            
+        
             // Grid komplett leeren
             grid.empty();
-            
+        
             // Wenn keine Adressen vorhanden sind, nur "Neue Adresse" Kachel anzeigen
             if (Object.keys(addresses).length === 0) {
                 const addNewCard = `
@@ -622,67 +622,32 @@ saveAddressFromForm: function() {
                 grid.show();
                 return;
             }
-            
+        
             // Sortiere Adressen: Standard-Adresse zuerst, dann alphabetisch nach Name
             const sortedAddresses = Object.entries(addresses).sort(([idA, addrA], [idB, addrB]) => {
                 // Standard-Adresse hat Priorität
                 if (addrA.is_default && !addrB.is_default) return -1;
                 if (!addrA.is_default && addrB.is_default) return 1;
-                
+        
                 // Alphabetisch nach Name sortieren
                 const nameA = (addrA.name || 'Gespeicherte Adresse').toLowerCase();
                 const nameB = (addrB.name || 'Gespeicherte Adresse').toLowerCase();
                 return nameA.localeCompare(nameB);
             });
-            
+        
             // Zuerst alle gespeicherten Adressen hinzufügen
             sortedAddresses.forEach(([addressId, address]) => {
-                const isDefault = address.is_default || false;
-                
-                // Aktualisierter Standard-Badge mit Icon
-                const defaultBadge = isDefault ? 
-                    `<span class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded ml-2">
-                        <i class="fas fa-star mr-1"></i>Standard
-                    </span>` : '';
-                
-                // Adressdaten als JSON für die Bearbeitung
+                // CRITICAL FIX: Verwende createAddressCard Funktion mit korrekt übergebenem addressType
+                const card = self.createAddressCard(address, addressType);
+                card.attr('data-address-id', addressId);
+        
+                // Adressdaten als JSON für Debug-Zwecke hinzufügen
                 const addressDataJson = encodeURIComponent(JSON.stringify(address));
-                
-                const card = $(`
-                    <div class="address-card" data-address-id="${addressId}" data-address-data="${addressDataJson}" data-address-type="${addressType}">
-                        <div class="address-card-header">
-                            <div class="address-card-title">
-                                ${address.name || 'Gespeicherte Adresse'}
-                                ${defaultBadge}
-                            </div>
-                            <div class="address-card-actions">
-                                ${!isDefault ? 
-                                    `<button type="button" class="btn-address-action btn-set-default" title="Als Standard setzen">
-                                        <i class="fas fa-star"></i>
-                                    </button>` : ''}
-                                <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                <button type="button" class="btn-address-action btn-delete-address" title="Adresse löschen">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="address-card-content">
-                            ${self.formatAddressDisplay(address)}
-                        </div>
-                        <div class="address-card-footer">
-                            <button type="button" class="btn btn-primary btn-select-address">
-                                <i class="fas fa-check mr-2"></i>
-                                Diese Adresse verwenden
-                            </button>
-                        </div>
-                    </div>
-                `);
-                
+                card.attr('data-address-data', addressDataJson);
+        
                 grid.append(card);
             });
-            
+        
             // Zum Schluss "Neue Adresse" Kachel hinzufügen
             const addNewCard = `
                 <div class="address-card add-new-address-card cursor-pointer">
@@ -692,13 +657,13 @@ saveAddressFromForm: function() {
                     </div>
                 </div>
             `;
-            
+        
             grid.append(addNewCard);
-            
+        
             // Container und Grid anzeigen
             container.show();
             grid.show();
-            
+        
             console.log('Rendered addresses:', Object.keys(addresses).length, 'Container visible:', container.is(':visible'));
         },
 
@@ -782,43 +747,46 @@ handleShadowDOMBinding: function(shadowRoot) {
     });
 },
         
-        createAddressCard: function(address) {
-            const isDefault = address.is_default;
-            const canDelete = !['billing_default', 'shipping_default'].includes(address.id);
-            
-            let actions = '';
-            if (canDelete) {
-                actions = `
-                    <div class="address-card-actions">
-                        <button type="button" class="btn-address-action btn-set-default" 
-                                title="${yprint_address_ajax.messages.set_as_default || 'Als Standard setzen'}">
-                            <i class="fas fa-star"></i>
-                        </button>
-                        <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button type="button" class="btn-address-action btn-delete-address" 
-                                title="${yprint_address_ajax.messages.delete_address || 'Adresse löschen'}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </div>
-                `;
-            }
-            
-            let defaultBadge = '';
-            if (isDefault) {
-                defaultBadge = `
-                    <span class="default-badge">
-                        <i class="fas fa-star"></i>
-                        Standard
-                    </span>
-                `;
-            }
-            
-            const formattedAddress = this.formatAddressDisplay(address);
+createAddressCard: function(address, addressType) {
+    // CRITICAL FIX: addressType als Parameter hinzugefügt mit Fallback
+    addressType = addressType || 'shipping';
     
-    return $(`
-        <div class="address-card" data-address-id="${address.id}" data-address-type="${addressType}">
+    const isDefault = address.is_default;
+    const canDelete = !['billing_default', 'shipping_default'].includes(address.id);
+    
+    let actions = '';
+    if (canDelete) {
+        actions = `
+            <div class="address-card-actions">
+                <button type="button" class="btn-address-action btn-set-default" 
+                        title="${yprint_address_ajax.messages.set_as_default || 'Als Standard setzen'}">
+                    <i class="fas fa-star"></i>
+                </button>
+                <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button type="button" class="btn-address-action btn-delete-address" 
+                        title="${yprint_address_ajax.messages.delete_address || 'Adresse löschen'}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    let defaultBadge = '';
+    if (isDefault) {
+        defaultBadge = `
+            <span class="default-badge">
+                <i class="fas fa-star"></i>
+                Standard
+            </span>
+        `;
+    }
+    
+    const formattedAddress = this.formatAddressDisplay(address);
+
+return $(`
+    <div class="address-card" data-address-id="${address.id}" data-address-type="${addressType}">
 
                     <div class="address-card-header">
                         <div class="address-card-title">
