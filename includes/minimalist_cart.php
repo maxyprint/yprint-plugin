@@ -1552,10 +1552,15 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
                 }
             }
             
-            // Final fallback nur wenn wirklich keine Daten verfügbar
-            if (!isset($design_data['variation_name']) || empty($design_data['variation_name'])) {
-                $design_data['variation_name'] = 'Standard';
-            }
+            // Prüfe ob selected_size verfügbar ist und verwende diese
+if (isset($design_data['selected_size']) && !empty($design_data['selected_size'])) {
+    $design_data['size_name'] = $design_data['selected_size'];
+}
+
+// Final fallback nur wenn wirklich keine Daten verfügbar
+if (!isset($design_data['size_name']) || empty($design_data['size_name'])) {
+    $design_data['size_name'] = 'Standard';
+}
         }
         
         if (!isset($design_data['size_name']) || $design_data['size_name'] === 'One Size') {
@@ -1942,10 +1947,14 @@ function yprint_enhance_design_data_for_existing_cart_item($design_data, $produc
             }
         }
         
-        // Final fallback
-        if (!isset($design_data['variation_name'])) {
-            $design_data['variation_name'] = 'Standard';
-        }
+        // Check for selected_size first, then fallback
+if (!isset($design_data['size_name'])) {
+    if (isset($design_data['selected_size']) && !empty($design_data['selected_size'])) {
+        $design_data['size_name'] = $design_data['selected_size'];
+    } else {
+        $design_data['size_name'] = 'Standard';
+    }
+}
     }
     
     if (!isset($design_data['size_name'])) {
@@ -1963,10 +1972,14 @@ function yprint_enhance_design_data_for_existing_cart_item($design_data, $produc
             }
         }
         
-        // Final fallback
-        if (!isset($design_data['size_name'])) {
-            $design_data['size_name'] = 'One Size';
-        }
+        // Check for selected_size first, then fallback
+if (!isset($design_data['size_name'])) {
+    if (isset($design_data['selected_size']) && !empty($design_data['selected_size'])) {
+        $design_data['size_name'] = $design_data['selected_size'];
+    } else {
+        $design_data['size_name'] = 'Standard';
+    }
+}
     }
     
     error_log('YPRINT: Final variation_name: ' . ($design_data['variation_name'] ?? 'NOT SET'));

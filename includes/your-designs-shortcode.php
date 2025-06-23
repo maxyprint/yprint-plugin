@@ -601,7 +601,6 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
     background: white;
     border: 1px solid #e5e7eb;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 999999; /* Higher z-index */
     opacity: 0;
     visibility: hidden;
@@ -720,7 +719,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         }
 
         .yprint-size-dropdown-btn.cancel:hover {
-            background: #e5e7eb;
+            background: #ffffff;
         }
 
         .yprint-size-dropdown-btn.confirm {
@@ -733,7 +732,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
         }
 
         .yprint-size-dropdown-btn:disabled {
-            background: #e5e7eb;
+            background: #ffffff;
             color: #9ca3af;
             cursor: not-allowed;
         }
@@ -1694,22 +1693,25 @@ document.addEventListener('click', function(e) {
             }
 
             // Get selected size from AJAX request
-            $selected_size = isset($_POST['selected_size']) ? sanitize_text_field($_POST['selected_size']) : '';
-            
-            // Add to cart with vollständigen design metadata für Print Provider System
-            $cart_item_data = array(
-                '_design_id' => $design_id,
-                '_selected_size' => $selected_size,
-                'print_design' => array(
-                    'design_id' => $design_id,
-                    'name' => $design->name ?? 'Custom Design',
-                    'template_id' => $design->template_id ?? '',
-                    'variation_id' => $default_variation,
-                    'variation_name' => $variation_name,
-                    'variation_color' => $variation_color,
-                    'size_id' => $default_size,
-                    'size_name' => $size_name,
-                    'preview_url' => $preview_url,
+$selected_size = isset($_POST['selected_size']) ? sanitize_text_field($_POST['selected_size']) : '';
+
+// Use selected size as size_name if provided, otherwise fallback to default
+$final_size_name = !empty($selected_size) ? $selected_size : $size_name;
+
+// Add to cart with vollständigen design metadata für Print Provider System
+$cart_item_data = array(
+    '_design_id' => $design_id,
+    '_selected_size' => $selected_size,
+    'print_design' => array(
+        'design_id' => $design_id,
+        'name' => $design->name ?? 'Custom Design',
+        'template_id' => $design->template_id ?? '',
+        'variation_id' => $default_variation,
+        'variation_name' => $variation_name,
+        'variation_color' => $variation_color,
+        'size_id' => $default_size,
+        'size_name' => $final_size_name,
+        'preview_url' => $preview_url,
                     // Dimensionen für Print Provider
                     'design_width_cm' => $design_width_cm,
                     'design_height_cm' => $design_height_cm,
