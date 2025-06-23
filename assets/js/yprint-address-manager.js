@@ -637,16 +637,16 @@ saveAddressFromForm: function() {
                 return nameA.localeCompare(nameB);
             });
         
-            // Zuerst alle gespeicherten Adressen hinzufügen
             sortedAddresses.forEach(([addressId, address]) => {
                 // CRITICAL FIX: Verwende createAddressCard Funktion mit korrekt übergebenem addressType
                 const card = self.createAddressCard(address, addressType);
                 card.attr('data-address-id', addressId);
-        
+                card.attr('data-address-type', addressType);
+            
                 // Adressdaten als JSON für Debug-Zwecke hinzufügen
                 const addressDataJson = encodeURIComponent(JSON.stringify(address));
                 card.attr('data-address-data', addressDataJson);
-        
+            
                 grid.append(card);
             });
         
