@@ -885,161 +885,152 @@ addWooCommerceDefaultAddress: function(grid) {
         
         selectAddress: function(addressId) {
             const self = this;
-            
+        
             // Visuelle Auswahl aktualisieren
             $('.address-card').removeClass('selected');
             $(`.address-card[data-address-id="${addressId}"]`).addClass('selected');
-            
+        
             this.selectedAddressId = addressId;
-            
-            // Loading-Anzeige, optional
+        
+            // Loading-Anzeige
             const btnSelectAddress = $(`.address-card[data-address-id="${addressId}"] .btn-select-address`);
             const originalBtnText = btnSelectAddress.html();
             btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
-            
-            // ENHANCED: Verstärkte Context-Erkennung mit absoluter Priorität für Billing
-let addressType = 'shipping'; // Default
-
-// Methode 1: URL-basierte Erkennung (höchste Priorität)
-if (window.location.href.includes('step=billing')) {
-    addressType = 'billing';
-}
-
-// Methode 2: Globaler Kontext (hohe Priorität)
-if (window.currentAddressContext === 'billing') {
-    addressType = 'billing';
-}
-
-// Methode 3: Container-basierte Erkennung (Fallback) 
-if ($(`.address-card[data-address-id="${addressId}"]`).closest('#step-billing, .billing-step, [data-step="billing"]').length > 0) {
-    addressType = 'billing';
-}
-
-// Methode 4: DOM-Kontext der Address Cards Container
-const cardContainer = $(`.address-card[data-address-id="${addressId}"]`).closest('.yprint-saved-addresses[data-address-type="billing"]');
-if (cardContainer.length > 0) {
-    addressType = 'billing';
-}
-
-// CRITICAL: Final Override - Billing Context hat absolute Priorität
-const billingStepActive = $('#step-2-5').hasClass('active') || $('.checkout-step[data-step="billing"]').hasClass('active');
-if (billingStepActive) {
-    addressType = 'billing';
-    console.log('🎯 OVERRIDE: Billing Step aktiv - force billing context');
-}
-
-console.log('🎯 Address Manager Context erkannt:', addressType);
-console.log('🔍 [DEBUG-AM] ========================================');
-console.log('🔍 [DEBUG-AM] selectAddress() called with:', {
-    addressId: addressId,
-    addressType: addressType,
-    timestamp: new Date().toISOString(),
-    url: window.location.href,
-    callStack: new Error().stack.split('\n').slice(1, 4)
-});
-
-// Adresse für Checkout setzen und Formular füllen
-$.ajax({
-    url: yprint_address_ajax.ajax_url,
-    type: 'POST',
-    data: {
-        action: 'yprint_set_checkout_address',
-        nonce: yprint_address_ajax.nonce,
-        address_id: addressId,
-        address_type: addressType, // WICHTIG: Kontext mitschicken
-debug_context: {
-    url: window.location.href,
-    referrer: document.referrer,
-    timestamp: new Date().toISOString()
-}
-    },
-    beforeSend: function(xhr, settings) {
-        console.log('🚀 [DEBUG-AM] AJAX Request wird gesendet:', {
-            action: 'yprint_set_checkout_address',
-            address_id: addressId,
-            address_type: addressType,
-            timestamp: new Date().toISOString()
-        });
-    },
-    success: function(response) {
-        console.log('🚀 [DEBUG-AM] AJAX Response erhalten:', response);
         
-        if (response.success) {
-            console.log('✅ Address erfolgreich gesetzt als:', response.data.address_type || addressType);
-            
-            // Session State Check nach 100ms
-            setTimeout(() => {
-                if (typeof yprint_address_ajax !== 'undefined') {
-                    $.ajax({
-                        url: yprint_address_ajax.ajax_url,
-                        type: 'POST',
-                        data: {
-                            action: 'yprint_debug_session_state',
-                            nonce: yprint_address_ajax.nonce
-                        },
-                        success: function(debugResponse) {
-                            console.log('🔍 [DEBUG-AM] Session nach Address Manager AJAX:', debugResponse.data);
-                        }
-                    });
-                }
-            }, 100);
-            
-            self.fillAddressForm(response.data.address_data);
-            
-            // KRITISCHER FIX: Express Payment nur bei shipping addresses updaten
-if (addressType === 'shipping') {
-    console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
-    
-    // Aktualisiere Express Payment mit neuer Adresse
-    if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
-        console.log('Address Manager: Calling Express Payment updateAddress...');
-        window.YPrintExpressCheckout.updateAddress(response.data.address_data);
-    } else {
-        console.warn('Address Manager: YPrintExpressCheckout not available for address update');
-    }
-} else {
-    console.log('Address Manager: Billing address selected - SKIPPING Express Payment update');
-}
-            
-            self.showMessage('Adresse ausgewählt und für Checkout gesetzt.');
-            
-            // Kontext-spezifisches Event triggern
-            if (addressType === 'billing') {
-                $(document).trigger('billing_address_selected', [addressId, response.data.address_data]);
-            } else {
-                $(document).trigger('address_selected', [addressId, response.data.address_data]);
+            // CRITICAL: Absolute Priorität für Billing Context - nur Context-basierte Erkennung
+            let addressType = 'shipping'; // Standardwert
+        
+            // Methode 1: URL-basierte Erkennung (höchste Priorität)
+            if (window.location.href.includes('step=billing')) {
+                addressType = 'billing';
             }
-
+        
+            // Methode 2: DOM-basierte Step-Erkennung (hohe Priorität)
+            const billingStepActive = $('#step-2-5').hasClass('active') || $('.checkout-step[data-step="billing"]').hasClass('active');
+            if (billingStepActive) {
+                addressType = 'billing';
+            }
+        
+            // Methode 3: Globaler Kontext (mittlere Priorität)
+            if (window.currentAddressContext === 'billing') {
+                addressType = 'billing';
+            }
+        
+            // OVERRIDE: Ignoriere DOM data-address-type komplett, nutze nur den ermittelten Context
+            // Dies löst das Problem mit falsch gesetzten data-address-type Attributen
+        
+            console.log('🎯 Address Manager Context erkannt:', addressType);
+            console.log('🔍 [DEBUG-AM] ========================================');
+            console.log('🔍 [DEBUG-AM] selectAddress() called with:', {
+                addressId: addressId,
+                addressType: addressType,
+                timestamp: new Date().toISOString(),
+                url: window.location.href,
+                callStack: new Error().stack.split('\n').slice(1, 4)
+            });
+        
+            // Adresse für Checkout setzen und Formular füllen
+            $.ajax({
+                url: yprint_address_ajax.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'yprint_set_checkout_address',
+                    nonce: yprint_address_ajax.nonce,
+                    address_id: addressId,
+                    address_type: addressType, // WICHTIG: Kontext mitschicken
+                    debug_context: {
+                        url: window.location.href,
+                        referrer: document.referrer,
+                        timestamp: new Date().toISOString()
+                    }
+                },
+                beforeSend: function(xhr, settings) {
+                    console.log('🚀 [DEBUG-AM] AJAX Request wird gesendet:', {
+                        action: 'yprint_set_checkout_address',
+                        address_id: addressId,
+                        address_type: addressType,
+                        timestamp: new Date().toISOString()
+                    });
+                },
+                success: function(response) {
+                    console.log('🚀 [DEBUG-AM] AJAX Response erhalten:', response);
+        
+                    if (response.success) {
+                        console.log('✅ Address erfolgreich gesetzt als:', response.data.address_type || addressType);
+        
+                        // Session State Check nach 100ms
+                        setTimeout(() => {
+                            if (typeof yprint_address_ajax !== 'undefined') {
+                                $.ajax({
+                                    url: yprint_address_ajax.ajax_url,
+                                    type: 'POST',
+                                    data: {
+                                        action: 'yprint_debug_session_state',
+                                        nonce: yprint_address_ajax.nonce
+                                    },
+                                    success: function(debugResponse) {
+                                        console.log('🔍 [DEBUG-AM] Session nach Address Manager AJAX:', debugResponse.data);
+                                    }
+                                });
+                            }
+                        }, 100);
+        
+                        self.fillAddressForm(response.data.address_data);
+        
+                        // KRITISCHER FIX: Express Payment nur bei shipping addresses updaten
+                        if (addressType === 'shipping') {
+                            console.log('Address Manager: Address data for Express Payment:', response.data.address_data);
+        
+                            // Aktualisiere Express Payment mit neuer Adresse
+                            if (window.YPrintExpressCheckout && window.YPrintExpressCheckout.updateAddress) {
+                                console.log('Address Manager: Calling Express Payment updateAddress...');
+                                window.YPrintExpressCheckout.updateAddress(response.data.address_data);
+                            } else {
+                                console.warn('Address Manager: YPrintExpressCheckout not available for address update');
+                            }
+                        } else {
+                            console.log('Address Manager: Billing address selected - SKIPPING Express Payment update');
+                        }
+        
+                        self.showMessage('Adresse ausgewählt und für Checkout gesetzt.');
+        
+                        // Kontext-spezifisches Event triggern
+                        if (addressType === 'billing') {
+                            $(document).trigger('billing_address_selected', [addressId, response.data.address_data]);
+                        } else {
+                            $(document).trigger('address_selected', [addressId, response.data.address_data]);
+                        }
+        
                         self.closeAddressSelectionView();
-                        
+        
                         // Wichtige Änderung: Wir simulieren einen Klick auf den "Weiter zur Zahlung"-Button
                         // nach kurzer Verzögerung, damit der Benutzer die Erfolgsmeldung noch sehen kann
                         setTimeout(function() {
-                        // Prüfen ob Formular gültig ist und Button nicht deaktiviert
-                        const toPaymentBtn = $('#btn-to-payment');
-                    console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
-    
-                        if (toPaymentBtn.length > 0) {
-                    // Aktiviere den Button falls er deaktiviert ist
-                        if (toPaymentBtn.prop('disabled')) {
-                        console.log('Button war deaktiviert, wird aktiviert');
-                    toPaymentBtn.prop('disabled', false);
-                }
+                            // Prüfen ob Formular gültig ist und Button nicht deaktiviert
+                            const toPaymentBtn = $('#btn-to-payment');
+                            console.log('Suche nach btn-to-payment:', toPaymentBtn.length, 'gefunden');
         
-        console.log('Klicke auf "Weiter zur Zahlung"-Button');
-        toPaymentBtn.trigger('click');
-    } else {
-        // Alternativer Ansatz: Direkt zum nächsten Schritt springen
-        console.log('Button nicht gefunden, versuche direkten Schrittwechsel');
-        if (window.showStep && typeof window.showStep === 'function') {
-            window.showStep(2); // Direkt zu Schritt 2 (Zahlung) wechseln
-        } else if (typeof showStep === 'function') {
-            showStep(2);
-        } else {
-            console.error('Weder Button noch showStep-Funktion gefunden');
-        }
-    }
-}, 1000); // 1 Sekunde Verzögerung
+                            if (toPaymentBtn.length > 0) {
+                                // Aktiviere den Button falls er deaktiviert ist
+                                if (toPaymentBtn.prop('disabled')) {
+                                    console.log('Button war deaktiviert, wird aktiviert');
+                                    toPaymentBtn.prop('disabled', false);
+                                }
+        
+                                console.log('Klicke auf "Weiter zur Zahlung"-Button');
+                                toPaymentBtn.trigger('click');
+                            } else {
+                                // Alternativer Ansatz: Direkt zum nächsten Schritt springen
+                                console.log('Button nicht gefunden, versuche direkten Schrittwechsel');
+                                if (window.showStep && typeof window.showStep === 'function') {
+                                    window.showStep(2); // Direkt zu Schritt 2 (Zahlung) wechseln
+                                } else if (typeof showStep === 'function') {
+                                    showStep(2);
+                                } else {
+                                    console.error('Weder Button noch showStep-Funktion gefunden');
+                                }
+                            }
+                        }, 1000); // 1 Sekunde Verzögerung
                     } else {
                         self.showMessage(response.data.message || 'Fehler beim Setzen der Adresse', 'error');
                         btnSelectAddress.html(originalBtnText);
@@ -1047,6 +1038,10 @@ if (addressType === 'shipping') {
                 },
                 error: function() {
                     self.showMessage('Fehler beim Setzen der Adresse für Checkout', 'error');
+                    btnSelectAddress.html(originalBtnText);
+                },
+                complete: function() {
+                    // Loading-Anzeige zurücksetzen (kann auch in success/error, aber hier für alle Fälle)
                     btnSelectAddress.html(originalBtnText);
                 }
             });
