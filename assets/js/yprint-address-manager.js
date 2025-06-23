@@ -515,7 +515,15 @@ saveAddressFromForm: function() {
             const self = this;
         
             console.log('=== Loading Saved Addresses ===');
-            console.log('Address Type:', addressType);
+            console.log('Initial Address Type:', addressType);
+        
+            // CRITICAL FIX: Optionaler Context-Override für korrekte address_type Setzung
+            // Wenn ein expliziter contextType übergeben wird, überschreibt er den addressType
+            // Dies ist nützlich, wenn die Funktion von außerhalb mit einem spezifischen Kontext aufgerufen wird.
+            if (typeof arguments[0] === 'string' && (arguments[0] === 'billing' || arguments[0] === 'shipping')) {
+                addressType = arguments[0];
+                console.log('🎯 loadSavedAddresses: Address Type overridden to', addressType);
+            }
         
             // Bestimme den richtigen Container basierend auf dem Adresstyp
             let targetContainer, targetLoadingIndicator;
@@ -524,6 +532,7 @@ saveAddressFromForm: function() {
                 targetContainer = $('.yprint-saved-addresses[data-address-type="billing"]');
                 targetLoadingIndicator = targetContainer.find('.loading-addresses');
             } else {
+                // Falls addressType nicht 'billing' ist, verwenden wir die Standard-Container für 'shipping'
                 targetContainer = this.addressContainer;
                 targetLoadingIndicator = this.loadingIndicator;
             }
@@ -536,7 +545,7 @@ saveAddressFromForm: function() {
             const ajaxData = {
                 action: 'yprint_get_saved_addresses',
                 nonce: yprint_address_ajax.nonce,
-                address_type: addressType
+                address_type: addressType // Hier wird der (potenziell überschriebene) addressType verwendet
             };
         
             $.ajax({
@@ -547,7 +556,7 @@ saveAddressFromForm: function() {
                     // Beginn der integrierten Erfolgslogik
                     if (response && response.success && response.data && response.data.addresses) {
                         const addresses = response.data.addresses;
-                        const addressCount = Object.keys(addresses).length; // Hier hinzugefügt für Konsistenz
+                        const addressCount = Object.keys(addresses).length;
         
                         console.log('Success: Address data received, count:', addressCount);
         
@@ -558,20 +567,13 @@ saveAddressFromForm: function() {
                         self.showSavedAddressesContainer(true);
                         self.showAddressForm(false);
         
-                        // Der Kommentar "NICHT den "Andere Adresse wählen" Link anzeigen, da die Adressen bereits sichtbar sind"
-                        // wird hier nicht direkt als Code umgesetzt, da showSavedAddressesContainer(true) dies implizieren sollte.
-                        // Wenn du spezifische UI-Elemente ausblenden musst, die nur bei der ersten Logik ausgeblendet wurden,
-                        // müsstest du diese hier explizit hinzufügen.
-        
                     } else {
-                        // Diese Logik wird beibehalten, falls response.success oder response.data.addresses fehlen
                         const errorMsg = (response && response.data && response.data.message) || 'Fehler beim Laden der Adressen.';
                         console.error('Error loading addresses:', errorMsg);
                         self.showMessage(errorMsg, 'error');
                         self.showSavedAddressesContainer(false);
                         self.showAddressForm(true);
                     }
-                    // Ende der integrierten Erfolgslogik
                 },
                 error: function(xhr, status, error) {
                     console.error('AJAX Error:', status, error);
