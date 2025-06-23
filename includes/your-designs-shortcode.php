@@ -1713,40 +1713,7 @@ $cart_item_data = array(
     'size_name' => $final_size_name,
     'preview_url' => $preview_url,
     // === DEBUG: Design-Standardfarbe Vergleich ===
-'product_design_color' => (function($product_id) {
-    // Alte Methode (aktuell verwendet)
-    $old_design_color = get_post_meta($product_id, '_design_color', true);
-    
-    // Neue Methode (aus yprint_zusatzdaten)
-    $yprint_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
-    $new_design_color = '';
-    
-    $possible_keys = ['Design-Standardfarbe', 'design_standardfarbe', 'design-standardfarbe', 'Design_Standardfarbe'];
-    foreach ($possible_keys as $key) {
-        if (is_array($yprint_zusatzdaten) && isset($yprint_zusatzdaten[$key]) && !empty($yprint_zusatzdaten[$key])) {
-            $new_design_color = $yprint_zusatzdaten[$key];
-            break;
-        }
-    }
-    
-    // Debug-Ausgaben
-    echo "<script>console.log('=== YPRINT ORDER BUTTON DEBUG ===');</script>";
-    echo "<script>console.log('Produkt ID: " . $product_id . "');</script>";
-    echo "<script>console.log('Alte Methode (_design_color): " . ($old_design_color ?: 'LEER') . "');</script>";
-    echo "<script>console.log('Neue Methode (yprint_zusatzdaten): " . ($new_design_color ?: 'LEER') . "');</script>";
-    echo "<script>console.log('yprint_zusatzdaten vorhanden: " . (is_array($yprint_zusatzdaten) ? 'JA' : 'NEIN') . "');</script>";
-    
-    if (is_array($yprint_zusatzdaten)) {
-        echo "<script>console.log('yprint_zusatzdaten Keys: " . implode(', ', array_keys($yprint_zusatzdaten)) . "');</script>";
-    }
-    
-    // Verwende neue Methode mit Fallback auf alte
-    $final_color = !empty($new_design_color) ? $new_design_color : $old_design_color;
-    echo "<script>console.log('Finale verwendete Farbe: " . ($final_color ?: 'LEER') . "');</script>";
-    echo "<script>console.log('=== ENDE YPRINT ORDER BUTTON DEBUG ===');</script>";
-    
-    return $final_color;
-})($product_id),
+get_post_meta($product_id, '_design_color', true),
     // Dimensionen für Print Provider
     'design_width_cm' => $design_width_cm,
     'design_height_cm' => $design_height_cm,
@@ -1782,6 +1749,34 @@ $cart_item_data = array(
                 wp_send_json_error('Design konnte nicht zum Warenkorb hinzugefügt werden');
                 return;
             }
+
+// === DEBUG: Design-Standardfarbe Analyse ===
+$old_design_color = get_post_meta($product_id, '_design_color', true);
+$yprint_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
+$new_design_color = '';
+
+$possible_keys = ['Design-Standardfarbe', 'design_standardfarbe', 'design-standardfarbe', 'Design_Standardfarbe'];
+foreach ($possible_keys as $key) {
+    if (is_array($yprint_zusatzdaten) && isset($yprint_zusatzdaten[$key]) && !empty($yprint_zusatzdaten[$key])) {
+        $new_design_color = $yprint_zusatzdaten[$key];
+        break;
+    }
+}
+
+$debug_info = array(
+    'product_id' => $product_id,
+    'old_method_design_color' => $old_design_color ?: 'LEER',
+    'new_method_design_color' => $new_design_color ?: 'LEER',
+    'yprint_zusatzdaten_exists' => is_array($yprint_zusatzdaten),
+    'yprint_zusatzdaten_keys' => is_array($yprint_zusatzdaten) ? array_keys($yprint_zusatzdaten) : 'KEINE'
+);
+
+wp_send_json_success(array(
+    'message' => 'Design wurde zum Warenkorb hinzugefügt',
+    'cart_item_key' => $cart_item_key,
+    'open_cart' => true,
+    'debug_design_color' => $debug_info  // Debug-Informationen in JSON-Response
+));
 
             wp_send_json_success(array(
                 'message' => 'Design wurde zum Warenkorb hinzugefügt',
