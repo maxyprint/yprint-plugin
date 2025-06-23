@@ -442,8 +442,11 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name
     
     // Füge Design-Farbe und Größe hinzu, falls vorhanden
     $details = [];
+    // Priorisiere design_color, fallback auf variation_name
     if (!empty($cart_item['print_design']['design_color'])) {
         $details[] = $cart_item['print_design']['design_color'];
+    } elseif (!empty($cart_item['print_design']['variation_name']) && $cart_item['print_design']['variation_name'] !== 'Standard') {
+        $details[] = $cart_item['print_design']['variation_name'];
     }
     if (!empty($cart_item['print_design']['size_name'])) {
         $details[] = $cart_item['print_design']['size_name'];
@@ -452,6 +455,7 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name
     if (!empty($details)) {
         $display_name .= ' (' . implode(', ', $details) . ')';
     }
+
 } else {
     $display_name = $product_name;
 }
@@ -992,8 +996,11 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design']['name
     
     // Füge Design-Farbe und Größe hinzu, falls vorhanden
     $details = [];
+    // Priorisiere design_color, fallback auf variation_name
     if (!empty($cart_item['print_design']['design_color'])) {
         $details[] = $cart_item['print_design']['design_color'];
+    } elseif (!empty($cart_item['print_design']['variation_name']) && $cart_item['print_design']['variation_name'] !== 'Standard') {
+        $details[] = $cart_item['print_design']['variation_name'];
     }
     if (!empty($cart_item['print_design']['size_name'])) {
         $details[] = $cart_item['print_design']['size_name'];
@@ -1059,24 +1066,26 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         }
         
         // Setze die Hauptinformationen für die einfache Anzeige in der Bestellansicht
-        $item->add_meta_data('_design_id', $design['design_id'] ?? '');
-        $item->add_meta_data('_design_name', $design['name'] ?? '');
-        // Intelligente Fallback-Logik für Design-Farbe: Priorisiere product_design_color
-        $design_color = $design['product_design_color'] ?? $design['variation_name'] ?? '';
-        $item->add_meta_data('_design_color', $design_color);
-        $item->add_meta_data('_design_size', $design['size_name'] ?? '');
-        $item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
+$item->add_meta_data('_design_id', $design['design_id'] ?? '');
+$item->add_meta_data('_design_name', $design['name'] ?? '');
 
-        // Erweiterte erforderliche Meta-Daten hinzufügen
-        $item->add_meta_data('_design_width_cm', $design['width_cm'] ?? '25.4');
-        $item->add_meta_data('_design_height_cm', $design['height_cm'] ?? '30.2');
-        $item->add_meta_data('_design_image_url', $design['design_image_url'] ?? '');
-        $item->add_meta_data('_design_product_images', $design['product_images'] ?? '');
-        $item->add_meta_data('_design_images', $design['design_images'] ?? '');
-        
-        // Back Design URLs falls vorhanden
-        $item->add_meta_data('_design_back_preview_url', $design['back_preview_url'] ?? '');
-        $item->add_meta_data('_design_back_image_url', $design['back_design_image_url'] ?? '');
+// Intelligente Fallback-Logik für Design-Farbe: Priorisiere product_design_color, dann design_color, dann variation_name
+$design_color = $design['product_design_color'] ?? $design['design_color'] ?? $design['variation_name'] ?? '';
+$item->add_meta_data('_design_color', $design_color);
+
+$item->add_meta_data('_design_size', $design['size_name'] ?? '');
+$item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
+
+// Erweiterte erforderliche Meta-Daten hinzufügen
+$item->add_meta_data('_design_width_cm', $design['width_cm'] ?? '25.4');
+$item->add_meta_data('_design_height_cm', $design['height_cm'] ?? '30.2');
+$item->add_meta_data('_design_image_url', $design['design_image_url'] ?? '');
+$item->add_meta_data('_design_product_images', $design['product_images'] ?? '');
+$item->add_meta_data('_design_images', $design['design_images'] ?? '');
+
+// Back Design URLs falls vorhanden
+$item->add_meta_data('_design_back_preview_url', $design['back_preview_url'] ?? '');
+$item->add_meta_data('_design_back_image_url', $design['back_design_image_url'] ?? '');
         
         // Erweiterte Multiple Images Flag Berechnung
         $product_images_count = 0;
@@ -1336,8 +1345,11 @@ function yprint_modify_cart_item_name($name, $cart_item, $cart_item_key) {
         
         // Design-Farbe und Größe hinzufügen, falls vorhanden
         $details = [];
+        // Priorisiere design_color, fallback auf variation_name
         if (!empty($design['design_color'])) {
             $details[] = esc_html($design['design_color']);
+        } elseif (!empty($design['variation_name']) && $design['variation_name'] !== 'Standard') {
+            $details[] = esc_html($design['variation_name']);
         }
         if (!empty($design['size_name'])) {
             $details[] = esc_html($design['size_name']);
@@ -1462,13 +1474,15 @@ $product = wc_get_product($product_id);
 error_log('YPRINT: Processing product ' . $product_id . ', variation: ' . ($variation_id ?: 'none'));
 
 // Produkt-spezifische Design-Farbe aus Metabox abrufen
-if (!isset($design_data['design_color'])) {
-    $product_design_color = get_post_meta($product_id, '_design_color', true);
-    if (!empty($product_design_color)) {
-        $design_data['design_color'] = $product_design_color;
-        $design_data['product_design_color'] = $product_design_color; // Für Kompatibilität
-        error_log('YPRINT: Added design_color: ' . $product_design_color);
+$product_design_color = get_post_meta($product_id, '_design_color', true);
+if (!empty($product_design_color)) {
+    $design_data['design_color'] = $product_design_color;
+    $design_data['product_design_color'] = $product_design_color; // Für Kompatibilität
+    // Setze auch variation_name für Rückwärtskompatibilität, falls kein anderer Wert vorhanden
+    if (!isset($design_data['variation_name']) || empty($design_data['variation_name']) || $design_data['variation_name'] === 'Standard') {
+        $design_data['variation_name'] = $product_design_color;
     }
+    error_log('YPRINT: Added design_color: ' . $product_design_color);
 }
         
         // Variation-Daten extrahieren - erweiterte Fallback-Logik
