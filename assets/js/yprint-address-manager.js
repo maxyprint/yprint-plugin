@@ -900,6 +900,7 @@ addWooCommerceDefaultAddress: function(grid) {
             btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
         
             // CRITICAL: Absolute Priorität für Billing Context - nur Context-basierte Erkennung
+            // Hier wird der 'addressType' kontextbasiert ermittelt.
             let addressType = 'shipping'; // Standardwert
         
             // Methode 1: URL-basierte Erkennung (höchste Priorität)
