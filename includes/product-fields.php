@@ -158,13 +158,22 @@ public static function init() {
                 ));
 
                 // Fabric
-                woocommerce_wp_textarea_input(array(
-                    'id'          => '_yprint_fabric',
-                    'label'       => __('Material/Stoff', 'yprint'),
-                    'placeholder' => 'z.B. 100% Bio-Baumwolle',
-                    'desc_tip'    => 'true',
-                    'description' => __('Informationen zum Material des Produkts.', 'yprint')
-                ));
+woocommerce_wp_textarea_input(array(
+    'id'          => '_yprint_fabric',
+    'label'       => __('Material/Stoff', 'yprint'),
+    'placeholder' => 'z.B. 100% Bio-Baumwolle',
+    'desc_tip'    => 'true',
+    'description' => __('Informationen zum Material des Produkts.', 'yprint')
+));
+
+// Design Color
+woocommerce_wp_text_input(array(
+    'id'          => '_design_color',
+    'label'       => __('Design-Standardfarbe', 'yprint'),
+    'placeholder' => 'z.B. Schwarz, Weiß, Navy',
+    'desc_tip'    => 'true',
+    'description' => __('Die Standardfarbe für dieses Design-Produkt. Wird verwendet, wenn keine spezifische Variation ausgewählt wird.', 'yprint')
+));
                 ?>
                 
                 <!-- Product Sizes Repeater Section -->
@@ -336,7 +345,8 @@ public static function init() {
             '_yprint_features',
             '_yprint_care',
             '_yprint_customizations',
-            '_yprint_fabric'
+            '_yprint_fabric',
+            '_design_color'
         );
 
         foreach ($fields as $field) {

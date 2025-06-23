@@ -1061,7 +1061,16 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         // Setze die Hauptinformationen für die einfache Anzeige in der Bestellansicht
         $item->add_meta_data('_design_id', $design['design_id'] ?? '');
         $item->add_meta_data('_design_name', $design['name'] ?? '');
-        $item->add_meta_data('_design_color', $design['variation_name'] ?? '');
+        // Intelligente Fallback-Logik für Design-Farbe
+$design_color = '';
+if (!empty($design['variation_name'])) {
+    $design_color = $design['variation_name'];
+} elseif (!empty($design['product_design_color'])) {
+    $design_color = $design['product_design_color'];
+} elseif (!empty($design['variation_color'])) {
+    $design_color = $design['variation_color'];
+}
+$item->add_meta_data('_design_color', $design_color);
         $item->add_meta_data('_design_size', $design['size_name'] ?? '');
         $item->add_meta_data('_design_preview_url', $design['preview_url'] ?? '');
 
