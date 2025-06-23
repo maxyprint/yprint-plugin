@@ -1092,7 +1092,7 @@ function yprint_add_design_data_to_order_item($item, $cart_item_key, $values, $o
         $design = $values['print_design'];
         
         // Debugging: Protokolliere die Design-Daten
-        error_log("Verarbeite Design-Daten für Bestellung: " . print_r($design, true));
+        echo "<script>console.log('Verarbeite Design-Daten für Bestellung: " . json_encode($design) . "');</script>";
         
         // Design-Metadaten zum Bestelleintrag hinzufügen
         foreach ($design as $meta_key => $meta_value) {
@@ -1595,7 +1595,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         foreach ($possible_keys as $key) {
             if (is_array($yprint_zusatzdaten) && isset($yprint_zusatzdaten[$key]) && !empty($yprint_zusatzdaten[$key])) {
                 $product_design_color = $yprint_zusatzdaten[$key];
-                error_log('YPRINT DEBUG 1.4: Design-Standardfarbe gefunden mit Key "' . $key . '": ' . $product_design_color);
+                echo "<script>console.log('YPRINT DEBUG 1.4: Design-Standardfarbe gefunden mit Key \"" . $key . "\": " . $product_design_color . "');</script>";
                 break;
             }
         }
@@ -1604,7 +1604,7 @@ function yprint_enhance_cart_item_design_data($cart_item_data, $product_id, $var
         if (empty($product_design_color)) {
             $product_design_color = get_post_meta($product_id, '_design_color', true);
             if (!empty($product_design_color)) {
-                error_log('YPRINT DEBUG 1.5: Fallback _design_color verwendet: ' . $product_design_color);
+                echo "<script>console.log('YPRINT DEBUG 1.5: Fallback _design_color verwendet: " . $product_design_color . "');</script>";
             }
         }
 
