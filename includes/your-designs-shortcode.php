@@ -61,7 +61,7 @@ class YPrint_Your_Designs {
         .yprint-design-action.reorder {
             pointer-events: auto !important;
             z-index: 10;
-            background: rgba(255, 0, 0, 0.1) !important; /* Temporary red background for debugging */
+            background: #F9FAFB; /* Temporary red background for debugging */
         }
 
         .yprint-your-designs {
@@ -197,7 +197,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             'new_title' => $new_title
         ));
     }
-}
+
 
         .yprint-your-designs-header {
             display: flex;
@@ -636,7 +636,7 @@ if (!$design_id || empty($new_title) || strlen($new_title) > 255) {
             opacity: 1 !important;
             visibility: visible !important;
             transform: translateY(0) !important;
-            background: yellow !important; /* DEBUG: Make it super obvious */
+            background: #e5e7eb
         }
 
         .yprint-size-dropdown.show {
