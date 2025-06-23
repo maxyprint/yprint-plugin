@@ -1279,13 +1279,15 @@ public function ajax_set_checkout_address() {
     $address_id = sanitize_text_field($_POST['address_id'] ?? '');
     $address_data = isset($_POST['address_data']) && is_array($_POST['address_data']) ? 
         $_POST['address_data'] : array();
-    $address_type = sanitize_text_field($_POST['address_type'] ?? 'shipping'); // NEU: Address Type Parameter
+    $address_type = sanitize_text_field($_POST['address_type'] ?? 'shipping');
 
     // ERWEITERTE DEBUG-FUNKTIONEN für Session-Tracking
     error_log('🚀 AJAX DEBUG: ========================================');
     error_log('🚀 AJAX DEBUG: ajax_set_checkout_address CALLED');
     error_log('🚀 AJAX DEBUG: POST address_id: ' . $address_id);
-    error_log('🚀 AJAX DEBUG: POST address_type: ' . $address_type);
+    error_log('🚀 AJAX DEBUG: POST address_type (initial): ' . $address_type); // Log initial value
+    error_log('🚀 AJAX DEBUG: RAW POST address_type: ' . ($_POST['address_type'] ?? 'NOT_SET'));
+    error_log('🚀 AJAX DEBUG: POST keys: ' . implode(', ', array_keys($_POST)));
     error_log('🚀 AJAX DEBUG: POST data: ' . print_r($_POST, true));
     error_log('🚀 AJAX DEBUG: URL: ' . $_SERVER['REQUEST_URI'] ?? 'unknown');
     error_log('🚀 AJAX DEBUG: Referer: ' . $_SERVER['HTTP_REFERER'] ?? 'unknown');
@@ -1317,14 +1319,24 @@ public function ajax_set_checkout_address() {
     }
 
     if (WC()->session) {
-        error_log('🚀 AJAX DEBUG: Entering session logic with address_type: ' . $address_type);
+        // FALLBACK: Context-Erkennung wenn address_type fehlt oder falsch ist
+        // Dies ist eine sehr wichtige Fallback-Logik, die bestehen bleiben sollte.
+        if (($address_type === 'shipping' || empty($address_type)) && isset($_SERVER['HTTP_REFERER'])) {
+            $referer = $_SERVER['HTTP_REFERER'];
+            if (strpos($referer, 'step=billing') !== false) {
+                $address_type = 'billing';
+                error_log('🚀 AJAX DEBUG: FALLBACK - Context auf billing gesetzt (Referer-basiert)');
+            }
+        }
+        
+        error_log('🚀 AJAX DEBUG: Entering session logic with resolved address_type: ' . $address_type); // Log resolved value
         
         if ($address_type === 'billing') {
             error_log('🚀 AJAX DEBUG: *** BILLING BRANCH ENTERED ***');
             
             // ABSOLUTER SCHUTZ: yprint_selected_address darf NIEMALS überschrieben werden bei billing
             $existing_shipping = WC()->session->get('yprint_selected_address', array());
-            error_log('🚀 AJAX DEBUG: Existing shipping address preserved: ' . (!empty($existing_shipping) ? $existing_shipping['address_1'] ?? 'no address_1' : 'EMPTY'));
+            error_log('🚀 AJAX DEBUG: Existing shipping address preserved: ' . (!empty($existing_shipping) ? ($existing_shipping['address_1'] ?? 'no address_1') : 'EMPTY'));
             
             // BILLING: Ausschließlich separate Billing-Session setzen
             error_log('🚀 AJAX DEBUG: Setting yprint_billing_address...');
@@ -1339,9 +1351,9 @@ public function ajax_set_checkout_address() {
             $verification_shipping = WC()->session->get('yprint_selected_address', 'SHOULD_BE_UNCHANGED');
             
             error_log('🚀 AJAX DEBUG: VERIFICATION after setting:');
-            error_log('🚀 AJAX DEBUG: - yprint_billing_address: ' . (is_array($verification_billing) ? $verification_billing['address_1'] ?? 'no address_1' : $verification_billing));
-            error_log('🚀 AJAX DEBUG: - yprint_billing_address_different: ' . $verification_different);
-            error_log('🚀 AJAX DEBUG: - yprint_selected_address (should be unchanged): ' . (is_array($verification_shipping) ? $verification_shipping['address_1'] ?? 'no address_1' : $verification_shipping));
+            error_log('🚀 AJAX DEBUG: - yprint_billing_address: ' . (is_array($verification_billing) ? ($verification_billing['address_1'] ?? 'no address_1') : $verification_billing));
+            error_log('🚀 AJAX DEBUG: - yprint_billing_address_different: ' . ($verification_different ? 'TRUE' : 'FALSE')); // Corrected for boolean output
+            error_log('🚀 AJAX DEBUG: - yprint_selected_address (should be unchanged): ' . (is_array($verification_shipping) ? ($verification_shipping['address_1'] ?? 'no address_1') : $verification_shipping));
             
             // WooCommerce Customer Billing-Daten direkt setzen (ohne Session-Update)
             if (WC()->customer) {
@@ -1361,33 +1373,21 @@ public function ajax_set_checkout_address() {
             error_log('🔍 YPRINT DEBUG: ========================================');
 
         } else { // Dies ist der Shipping-Fall
+            // SHIPPING BRANCH mit zusätzlicher Validierung
             error_log('🚀 AJAX DEBUG: *** SHIPPING BRANCH ENTERED ***');
-            
-            // CRITICAL: Strict Context Validation - keine Auto-Correction mehr
+            error_log('🚀 AJAX DEBUG: Final address_type verification: ' . $address_type);
+                        
+            // SICHERHEITS-CHECK: Ist das wirklich ein shipping context?
             $referer = $_SERVER['HTTP_REFERER'] ?? '';
-            $billing_context_detected = (
-                strpos($referer, 'step=billing') !== false ||
-                strpos($_SERVER['REQUEST_URI'] ?? '', 'step=billing') !== false
-            );
-        
-            if ($billing_context_detected) {
-                error_log('🚨 CRITICAL ERROR: Billing context detected but address_type is shipping');
-                error_log('🚨 This should NOT happen - Frontend context detection failed');
-                error_log('🚨 REFERER: ' . $referer);
-                error_log('🚨 address_type: ' . $address_type);
-                
-                wp_send_json_error(array(
-                    'message' => 'Context mismatch: Billing context detected but shipping address_type received',
-                    'debug' => array(
-                        'referer' => $referer,
-                        'address_type' => $address_type,
-                        'context' => 'billing_detected'
-                    )
-                ));
+            if (strpos($referer, 'step=billing') !== false) {
+                error_log('🚨 CRITICAL ERROR: Billing context detected but shipping branch executed!');
+                error_log('🚨 CRITICAL ERROR: Referer: ' . $referer);
+                error_log('🚨 CRITICAL ERROR: address_type: ' . $address_type);
+                wp_send_json_error(array('message' => __('Kontext-Fehler erkannt: Rechnungsadresse kann nicht als Versandadresse gesetzt werden.', 'yprint-plugin')));
                 return;
             }
             
-            // SHIPPING: Nur Shipping-Session setzen
+            // Normale Shipping-Logik nur wenn wirklich Shipping-Context
             WC()->session->set('yprint_selected_address', $address_data);
             
             // Prüfe ob bereits eine separate Rechnungsadresse existiert
@@ -1415,7 +1415,7 @@ public function ajax_set_checkout_address() {
             error_log('🔍 YPRINT DEBUG: ========================================');
         }
     } else {
-        wp_send_json_error(array('message' => 'Fehler beim Setzen der Checkout-Adresse. WooCommerce Session ist nicht verfügbar.'));
+        wp_send_json_error(array('message' => __('Fehler beim Setzen der Checkout-Adresse. WooCommerce Session ist nicht verfügbar.', 'yprint-plugin')));
         return;
     }
 
@@ -1429,18 +1429,25 @@ public function ajax_set_checkout_address() {
         error_log('🚀 AJAX DEBUG: SESSION AFTER: ' . print_r($session_after, true));
         
         // KRITISCHE PRÜFUNG: Wurde yprint_selected_address unerlaubt überschrieben?
-        if ($address_type === 'billing' && !empty($session_after['yprint_selected_address'])) {
-            $selected_addr_1 = is_array($session_after['yprint_selected_address']) ? $session_after['yprint_selected_address']['address_1'] ?? '' : '';
-            $billing_addr_1 = is_array($session_after['yprint_billing_address']) ? $session_after['yprint_billing_address']['address_1'] ?? '' : '';
+        // Diese Prüfung ist nur sinnvoll, wenn wir SICHER sind, dass wir im Billing-Kontext waren
+        // und yprint_selected_address vor dem Aufruf einen Wert hatte, der nicht überschrieben werden sollte.
+        // Der Absoluter Schutz im Billing-Branch sollte dies bereits verhindern.
+        if ($address_type === 'billing') { // Nur prüfen, wenn wir im Billing-Pfad waren
+            $selected_addr_1 = is_array($session_after['yprint_selected_address']) ? ($session_after['yprint_selected_address']['address_1'] ?? '') : '';
+            $billing_addr_1 = is_array($session_after['yprint_billing_address']) ? ($session_after['yprint_billing_address']['address_1'] ?? '') : '';
             
+            // Wenn yprint_selected_address jetzt die gleiche Adresse wie die *neu gesetzte* Billing-Adresse ist,
+            // UND sie vorher anders war, dann gab es ein Problem.
+            // Diese Prüfung ist komplex, da sie den Zustand *vor* der Operation kennen müsste.
+            // Der "Absoluter Schutz" im Billing-Branch ist die primäre Verteidigung.
+            // Diese hier ist eher eine nachgelagerte Anomalie-Erkennung.
+            // Ich lasse sie drin, aber die primäre Logik ist wichtiger.
             if ($selected_addr_1 === $billing_addr_1 && $selected_addr_1 === ($address_data['address_1'] ?? '')) {
-                error_log('🚨 AJAX ERROR: CRITICAL - yprint_selected_address was ILLEGALLY OVERWRITTEN during billing operation!');
-                error_log('🚨 AJAX ERROR: This should NEVER happen! Bug detected in session management.');
+                error_log('🚨 AJAX ERROR: CRITICAL - yprint_selected_address might have been ILLEGALLY OVERWRITTEN during billing operation!');
+                error_log('🚨 AJAX ERROR: This should NEVER happen if prior logic is correct! Possible bug detected in session management.');
             }
         }
     }
-    
-    
     
     error_log('🚀 AJAX DEBUG: ajax_set_checkout_address COMPLETED ========================================');
 
