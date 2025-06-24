@@ -1677,6 +1677,9 @@ private function send_confirmation_email_if_needed($order, $payment_intent_id = 
 /**
  * AJAX handler for processing payment methods (FINAL CORRECTED VERSION)
  */
+/**
+ * AJAX handler for processing payment methods (FINAL CORRECTED VERSION)
+ */
 public function ajax_process_payment_method() {
     error_log('=== YPRINT EXPRESS PAYMENT METHOD PROCESSING START ===');
     
@@ -2127,10 +2130,10 @@ public function ajax_process_payment_method() {
             'currency' => strtolower($order->get_currency()),
             'payment_method' => $payment_method['id'],
             'confirmation_method' => 'manual',
-            'confirm' => true,
+            'confirm' => (bool) true,  // Explicit Boolean conversion
             'description' => sprintf('Order #%s from %s', $order->get_order_number(), get_bloginfo('name')),
             'metadata' => array(
-                'order_id' => $order->get_id(),
+                'order_id' => (string) $order->get_id(),  // Ensure string for metadata
                 'site_url' => get_site_url(),
             ),
             'receipt_email' => $order->get_billing_email(),
