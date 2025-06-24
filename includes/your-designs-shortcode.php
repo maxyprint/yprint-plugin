@@ -1719,6 +1719,7 @@ $cart_item_data = array(
     'size_name' => $final_size_name,
     'preview_url' => $preview_url,
     'product_design_color' => $variation_name,
+    'design_color' => $variation_name, // <- HINZUGEFÜGT: Primäres Feld für Cart-Anzeige
     // Dimensionen für Print Provider
     'design_width_cm' => $design_width_cm,
     'design_height_cm' => $design_height_cm,
@@ -1755,51 +1756,16 @@ $cart_item_data = array(
                 return;
             }
 
-// === DEBUG: Design-Standardfarbe Analyse ===
-$old_design_color = get_post_meta($product_id, '_design_color', true);
-$yprint_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
-$new_design_color = '';
-
-$possible_keys = ['Design-Standardfarbe', 'design_standardfarbe', 'design-standardfarbe', 'Design_Standardfarbe'];
-foreach ($possible_keys as $key) {
-    if (is_array($yprint_zusatzdaten) && isset($yprint_zusatzdaten[$key]) && !empty($yprint_zusatzdaten[$key])) {
-        $new_design_color = $yprint_zusatzdaten[$key];
-        break;
-    }
-}
-
-$debug_info = array(
-    'product_id' => $product_id,
-    'old_method_design_color' => $old_design_color ?: 'LEER',
-    'new_method_design_color' => $new_design_color ?: 'LEER',
-    'yprint_zusatzdaten_exists' => is_array($yprint_zusatzdaten),
-    'yprint_zusatzdaten_keys' => is_array($yprint_zusatzdaten) ? array_keys($yprint_zusatzdaten) : 'KEINE'
-);
-
-// Debug: Design-Farbe-Analyse
-$debug_old_color = get_post_meta($product_id, '_design_color', true);
-$debug_zusatzdaten = get_post_meta($product_id, 'yprint_zusatzdaten', true);
-$debug_new_color = '';
-if (is_array($debug_zusatzdaten) && isset($debug_zusatzdaten['Design-Standardfarbe'])) {
-    $debug_new_color = $debug_zusatzdaten['Design-Standardfarbe'];
-}
-
-wp_send_json_success(array(
-    'message' => 'Design wurde zum Warenkorb hinzugefügt',
-    'cart_item_key' => $cart_item_key,
-    'open_cart' => true,
-    'debug_design_color' => array(
-        'product_id' => $product_id,
-        'old_method' => $debug_old_color ?: 'LEER',
-        'new_method' => $debug_new_color ?: 'LEER',
-        'zusatzdaten_keys' => is_array($debug_zusatzdaten) ? array_keys($debug_zusatzdaten) : 'KEINE'
-    )
-));
-
             wp_send_json_success(array(
                 'message' => 'Design wurde zum Warenkorb hinzugefügt',
                 'cart_item_key' => $cart_item_key,
-                'open_cart' => true
+                'open_cart' => true,
+                'debug_design_color' => array(
+                    'base_product_id' => $base_product_id,
+                    'variation_name_used' => $variation_name,
+                    'design_color_set' => $variation_name,
+                    'yprint_zusatzdaten_keys' => is_array($yprint_zusatzdaten) ? array_keys($yprint_zusatzdaten) : 'KEINE'
+                )
             ));
 
         } catch (Exception $e) {
