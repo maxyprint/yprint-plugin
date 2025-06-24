@@ -1635,7 +1635,7 @@ $is_test_order = YPrint_Stripe_API::is_testmode() || strpos($order->get_payment_
             error_log('YPrint CHECKOUT DEBUG: Test-Bestellung erkannt - E-Mail wird trotzdem gesendet');
         }
 
-        // Prüfe E-Mail-Funktion Verfügbarkeit
+        // Prüfe E-Mail-Funktion Verfügbarkeit!
         $function_exists = function_exists('yprint_send_order_confirmation_email');
         error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion verfügbar: ' . ($function_exists ? 'JA' : 'NEIN'));
         
