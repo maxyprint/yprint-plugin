@@ -2165,6 +2165,20 @@ public function ajax_process_payment_method() {
                 'site_url' => get_site_url(),
             ),
             'receipt_email' => $order->get_billing_email(),
+            // CRITICAL: Add return_url as required by Stripe for redirect-based payment methods
+            'return_url' => add_query_arg(
+                array(
+                    'order_id' => $order->get_id(),
+                    'payment_intent' => '{PAYMENT_INTENT_ID}',
+                    'payment_status' => 'completed'
+                ),
+                home_url('/checkout/?step=confirmation')
+            ),
+            // Configure automatic payment methods to limit redirects
+            'automatic_payment_methods' => array(
+                'enabled' => true,
+                'allow_redirects' => 'never'
+            )
         );
         
         // Add save payment method if requested
