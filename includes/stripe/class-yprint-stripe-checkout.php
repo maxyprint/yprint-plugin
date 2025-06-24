@@ -1623,7 +1623,7 @@ public function ajax_get_cart_data() {
         error_log('YPrint CHECKOUT DEBUG: Transaktions-ID: ' . ($order->get_transaction_id() ?: 'KEINE'));
         
         // Für Test-Bestellungen: Sende E-Mail auch wenn nicht als "bezahlt" markiert
-        $is_test_order = strpos($order->get_payment_method_title(), '(Test)') !== false;
+$is_test_order = YPrint_Stripe_API::is_testmode() || strpos($order->get_payment_method_title(), '(Test)') !== false;
         error_log('YPrint CHECKOUT DEBUG: Ist Test-Bestellung: ' . ($is_test_order ? 'JA' : 'NEIN'));
         
         if (!$is_paid && !$is_test_order) {
@@ -2367,18 +2367,18 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
         error_log('=== YPRINT PAYMENT DEBUG: Pending order Prüfung beendet ===');
 
         // Return success with step change instead of redirect
-        wp_send_json_success(array(
-            'message' => 'Express order created successfully with design data',
-            'payment_method_id' => $payment_method['id'],
-            'order_id' => $order_id,
-            'order_data' => $order_data,
-            'next_step' => 'confirmation',
-            'design_transfers' => array(
-                'success' => $design_transfers_success,
-                'failed' => $design_transfers_failed
-            ),
-            'test_mode' => true
-        ));
+wp_send_json_success(array(
+    'message' => 'Express order created successfully with design data',
+    'payment_method_id' => $payment_method['id'],
+    'order_id' => $order_id,
+    'order_data' => $order_data,
+    'next_step' => 'confirmation',
+    'design_transfers' => array(
+        'success' => $design_transfers_success,
+        'failed' => $design_transfers_failed
+    ),
+    'test_mode' => YPrint_Stripe_API::is_testmode()
+));
         
     } catch (Exception $e) {
         error_log('Payment processing error: ' . $e->getMessage());
@@ -2541,8 +2541,9 @@ function yprint_create_test_order_for_email($order_data) {
         }
         
         // Setze Zahlungsmethode
-        $order->set_payment_method('yprint_stripe');
-        $order->set_payment_method_title('Stripe (Test)');
+$order->set_payment_method('yprint_stripe');
+$title = YPrint_Stripe_API::is_testmode() ? 'Stripe (Test)' : 'Stripe';
+$order->set_payment_method_title($title);
         
         // Setze Transaktions-ID wenn vorhanden
         if (isset($order_data['payment_method_id'])) {
