@@ -2684,84 +2684,63 @@ async function validateStripeSepaElement() {
             return false;
         }
         
-        // Hole die aktuellen Billing/Shipping Daten
-        let billingData = null;
-        let shippingData = null;
+        // Vereinfachte Validierung: Prüfe nur ob das Element bereit ist, ohne createPaymentMethod
+        console.log('DEBUG: SEPA element is mounted and available');
         
-        // Versuche Billing-Session zu laden
-        try {
-            const billingResponse = await fetch(yprint_checkout_params.ajax_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'yprint_get_billing_session',
-                    nonce: yprint_checkout_params.nonce
-                })
-            });
-            const billingResult = await billingResponse.json();
-            if (billingResult.success && billingResult.data) {
-                billingData = billingResult.data;
-            }
-        } catch (e) {
-            console.log('Could not load billing session:', e);
+        // Hole Name und Email aus den verfügbaren Datenquellen
+        let customerName = '';
+        let customerEmail = '';
+        
+        // Versuche Email-Feld zu finden
+        const emailField = document.getElementById('email') || document.querySelector('input[type="email"]');
+        if (emailField && emailField.value) {
+            customerEmail = emailField.value;
         }
         
-        // Versuche Shipping-Session zu laden
-        try {
-            const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'yprint_get_shipping_session',
-                    nonce: yprint_checkout_params.nonce
-                })
-            });
-            const shippingResult = await shippingResponse.json();
-            if (shippingResult.success && shippingResult.data) {
-                shippingData = shippingResult.data;
-            }
-        } catch (e) {
-            console.log('Could not load shipping session:', e);
+        // Versuche Namen aus Shipping-Daten zu holen
+        if (typeof formData !== 'undefined' && formData.shipping) {
+            customerName = `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim();
         }
         
-        // Erstelle minimale aber gültige Billing Details für SEPA
-        const useData = billingData || shippingData || {};
-        const billingDetails = {
-            name: `${useData.first_name || 'Max'} ${useData.last_name || 'Mustermann'}`.trim(),
-            email: useData.email || document.getElementById('email')?.value || 'test@example.com'
-        };
-        
-        // Für SEPA ist nur Name und Email erforderlich - keine Adresse nötig
-        console.log('DEBUG: Using billing details for SEPA validation:', billingDetails);
-        
-        const {paymentMethod, error} = await stripe.createPaymentMethod({
-            type: 'sepa_debit',
-            sepa_debit: window.YPrintStripeCheckout.sepaElement,
-            billing_details: billingDetails
-        });
-        
-        if (error) {
-            console.log('SEPA validation error:', error.message);
-            const errorElement = document.getElementById('stripe-sepa-errors');
-            if (errorElement) {
-                errorElement.textContent = error.message;
-                errorElement.style.display = 'block';
+        // Fallback: Prüfe Session-Daten wenn formData nicht verfügbar
+        if (!customerName || !customerEmail) {
+            try {
+                // Versuche Shipping-Session zu laden
+                const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        action: 'yprint_get_shipping_session',
+                        nonce: yprint_checkout_params.nonce
+                    })
+                });
+                const shippingResult = await shippingResponse.json();
+                if (shippingResult.success && shippingResult.data) {
+                    const data = shippingResult.data;
+                    if (!customerName) {
+                        customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+                    }
+                    if (!customerEmail) {
+                        customerEmail = data.email || '';
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load shipping session for validation:', e);
             }
+        }
+        
+        // Minimale Validierung: Name und Email müssen vorhanden sein für SEPA
+        if (!customerName && !customerEmail) {
+            console.log('SEPA validation failed: No customer name or email available');
             return false;
         }
         
-        console.log('SEPA validation successful:', paymentMethod.id);
-        
-        // Verstecke Fehlermeldungen bei Erfolg
-        const errorElement = document.getElementById('stripe-sepa-errors');
-        if (errorElement) {
-            errorElement.style.display = 'none';
-        }
-        
-        // Speichere gültige Payment Method für späteren Gebrauch
-        window.validatedPaymentMethod = paymentMethod;
+        console.log('DEBUG: SEPA validation passed - customer data available');
+        console.log('DEBUG: Customer name:', customerName || 'Not set');
+        console.log('DEBUG: Customer email:', customerEmail || 'Not set');
         
         return true;
+        
     } catch (e) {
         console.log('SEPA validation exception:', e);
         return false;
