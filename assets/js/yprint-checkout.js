@@ -2691,8 +2691,10 @@ async function validateStripeSepaElement() {
         let customerName = '';
         let customerEmail = '';
         
-        // Versuche Email-Feld zu finden
-        const emailField = document.getElementById('email') || document.querySelector('input[type="email"]');
+        // Versuche Email-Feld zu finden - erweiterte Suche für Billing und Address Steps
+const emailField = document.getElementById('email') || 
+document.getElementById('billing_email') ||
+document.querySelector('input[type="email"]');
         if (emailField && emailField.value) {
             customerEmail = emailField.value;
         }
@@ -2703,31 +2705,53 @@ async function validateStripeSepaElement() {
         }
         
         // Fallback: Prüfe Session-Daten wenn formData nicht verfügbar
-        if (!customerName || !customerEmail) {
-            try {
-                // Versuche Shipping-Session zu laden
-                const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        action: 'yprint_get_shipping_session',
-                        nonce: yprint_checkout_params.nonce
-                    })
-                });
-                const shippingResult = await shippingResponse.json();
-                if (shippingResult.success && shippingResult.data) {
-                    const data = shippingResult.data;
-                    if (!customerName) {
-                        customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-                    }
-                    if (!customerEmail) {
-                        customerEmail = data.email || '';
-                    }
-                }
-            } catch (e) {
-                console.log('Could not load shipping session for validation:', e);
+if (!customerName || !customerEmail) {
+    try {
+        // Zuerst Billing-Session versuchen (falls im Billing-Kontext)
+        const billingResponse = await fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                action: 'yprint_get_billing_session',
+                nonce: yprint_checkout_params.nonce
+            })
+        });
+        const billingResult = await billingResponse.json();
+        if (billingResult.success && billingResult.data) {
+            const data = billingResult.data;
+            if (!customerName) {
+                customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+            }
+            if (!customerEmail) {
+                customerEmail = data.email || '';
             }
         }
+        
+        // Wenn Billing-Session keine Daten lieferte, Shipping-Session versuchen
+        if (!customerName || !customerEmail) {
+            const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'yprint_get_shipping_session',
+                    nonce: yprint_checkout_params.nonce
+                })
+            });
+            const shippingResult = await shippingResponse.json();
+            if (shippingResult.success && shippingResult.data) {
+                const data = shippingResult.data;
+                if (!customerName) {
+                    customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+                }
+                if (!customerEmail) {
+                    customerEmail = data.email || '';
+                }
+            }
+        }
+    } catch (e) {
+        console.log('Could not load session data for validation:', e);
+    }
+}
         
         // Minimale Validierung: Name und Email müssen vorhanden sein für SEPA
         if (!customerName && !customerEmail) {
@@ -2786,31 +2810,53 @@ async function validateStripeSepaElement() {
         }
         
         // Fallback: Prüfe Session-Daten wenn formData nicht verfügbar
-        if (!customerName || !customerEmail) {
-            try {
-                // Versuche Shipping-Session zu laden
-                const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: new URLSearchParams({
-                        action: 'yprint_get_shipping_session',
-                        nonce: yprint_checkout_params.nonce
-                    })
-                });
-                const shippingResult = await shippingResponse.json();
-                if (shippingResult.success && shippingResult.data) {
-                    const data = shippingResult.data;
-                    if (!customerName) {
-                        customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-                    }
-                    if (!customerEmail) {
-                        customerEmail = data.email || '';
-                    }
-                }
-            } catch (e) {
-                console.log('Could not load shipping session for validation:', e);
+if (!customerName || !customerEmail) {
+    try {
+        // Zuerst Billing-Session versuchen (falls im Billing-Kontext)
+        const billingResponse = await fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                action: 'yprint_get_billing_session',
+                nonce: yprint_checkout_params.nonce
+            })
+        });
+        const billingResult = await billingResponse.json();
+        if (billingResult.success && billingResult.data) {
+            const data = billingResult.data;
+            if (!customerName) {
+                customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+            }
+            if (!customerEmail) {
+                customerEmail = data.email || '';
             }
         }
+        
+        // Wenn Billing-Session keine Daten lieferte, Shipping-Session versuchen
+        if (!customerName || !customerEmail) {
+            const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'yprint_get_shipping_session',
+                    nonce: yprint_checkout_params.nonce
+                })
+            });
+            const shippingResult = await shippingResponse.json();
+            if (shippingResult.success && shippingResult.data) {
+                const data = shippingResult.data;
+                if (!customerName) {
+                    customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+                }
+                if (!customerEmail) {
+                    customerEmail = data.email || '';
+                }
+            }
+        }
+    } catch (e) {
+        console.log('Could not load session data for validation:', e);
+    }
+}
         
         // Minimale Validierung: Name und Email müssen vorhanden sein für SEPA
         if (!customerName && !customerEmail) {
