@@ -1588,73 +1588,85 @@ public function ajax_get_cart_data() {
     }
 
 /**
-     * Sendet Bestätigungsmail nach erfolgreichem Checkout
-     *
-     * @param WC_Order $order Das Bestellobjekt
-     */
-    private function send_confirmation_email_if_needed($order) {
-        error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger gestartet ===');
-        
-        if (!$order || !is_a($order, 'WC_Order')) {
-            error_log('YPrint CHECKOUT DEBUG: FEHLER - Ungültiges Order-Objekt empfangen');
-            error_log('YPrint CHECKOUT DEBUG: Order Type: ' . gettype($order));
-            error_log('YPrint CHECKOUT DEBUG: Is WC_Order: ' . (is_a($order, 'WC_Order') ? 'JA' : 'NEIN'));
-            return false;
-        }
+ * Sendet Bestätigungsmail nach erfolgreichem Checkout
+ *
+ * @param WC_Order $order Das Bestellobjekt
+ * @param string|null $payment_intent_id Die ID des Stripe Payment Intents, falls vorhanden
+ */
+private function send_confirmation_email_if_needed($order, $payment_intent_id = null) {
+    error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger gestartet ===');
 
-        error_log('YPrint CHECKOUT DEBUG: Gültiges Order-Objekt empfangen');
-        error_log('YPrint CHECKOUT DEBUG: Bestellnummer: ' . $order->get_order_number());
-        error_log('YPrint CHECKOUT DEBUG: Bestell-ID: ' . $order->get_id());
-
-        // Prüfe ob E-Mail bereits gesendet wurde
-        $email_sent = $order->get_meta('_yprint_confirmation_email_sent');
-        error_log('YPrint CHECKOUT DEBUG: E-Mail bereits gesendet Meta: "' . $email_sent . '"');
-        
-        if ($email_sent === 'yes') {
-            error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestätigungsmail bereits gesendet für Bestellung ' . $order->get_order_number());
-            return;
-        }
-
-        // Prüfe ob Bestellung bezahlt ist
-        $is_paid = $order->is_paid();
-        error_log('YPrint CHECKOUT DEBUG: Ist Bestellung bezahlt: ' . ($is_paid ? 'JA' : 'NEIN'));
-        error_log('YPrint CHECKOUT DEBUG: Bestellstatus: ' . $order->get_status());
-        error_log('YPrint CHECKOUT DEBUG: Zahlungsmethode: ' . $order->get_payment_method());
-        error_log('YPrint CHECKOUT DEBUG: Transaktions-ID: ' . ($order->get_transaction_id() ?: 'KEINE'));
-        
-        // Für Test-Bestellungen: Sende E-Mail auch wenn nicht als "bezahlt" markiert
-$is_test_order = YPrint_Stripe_API::is_testmode() || strpos($order->get_payment_method_title(), '(Test)') !== false;
-        error_log('YPrint CHECKOUT DEBUG: Ist Test-Bestellung: ' . ($is_test_order ? 'JA' : 'NEIN'));
-        
-        if (!$is_paid && !$is_test_order) {
-            error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt und keine Test-Bestellung - keine E-Mail');
-            return false;
-        }
-        
-        if ($is_test_order) {
-            error_log('YPrint CHECKOUT DEBUG: Test-Bestellung erkannt - E-Mail wird trotzdem gesendet');
-        }
-
-        // Prüfe E-Mail-Funktion Verfügbarkeit!
-        $function_exists = function_exists('yprint_send_order_confirmation_email');
-        error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion verfügbar: ' . ($function_exists ? 'JA' : 'NEIN'));
-        
-        if (!$function_exists) {
-            error_log('YPrint CHECKOUT DEBUG: FEHLER - E-Mail-Funktion nicht verfügbar');
-            error_log('YPrint CHECKOUT DEBUG: Definierte Funktionen: ' . print_r(get_defined_functions()['user'], true));
-            return;
-        }
-
-        error_log('YPrint CHECKOUT DEBUG: Rufe yprint_send_order_confirmation_email() auf...');
-        
-        // E-Mail-Funktion aufrufen
-        $email_result = yprint_send_order_confirmation_email($order);
-        
-        error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion Ergebnis: ' . ($email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
-        error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger beendet ===');
-        
-        return $email_result;
+    if (!$order || !is_a($order, 'WC_Order')) {
+        error_log('YPrint CHECKOUT DEBUG: FEHLER - Ungültiges Order-Objekt empfangen');
+        error_log('YPrint CHECKOUT DEBUG: Order Type: ' . gettype($order));
+        error_log('YPrint CHECKOUT DEBUG: Is WC_Order: ' . (is_a($order, 'WC_Order') ? 'JA' : 'NEIN'));
+        return false;
     }
+
+    error_log('YPrint CHECKOUT DEBUG: Gültiges Order-Objekt empfangen');
+    error_log('YPrint CHECKOUT DEBUG: Bestellnummer: ' . $order->get_order_number());
+    error_log('YPrint CHECKOUT DEBUG: Bestell-ID: ' . $order->get_id());
+
+    // Füge Payment Intent ID zur Protokollierung hinzu, falls übergeben
+    if ($payment_intent_id) {
+        error_log('YPrint CHECKOUT DEBUG: Payment Intent ID (übergeben): ' . $payment_intent_id);
+    } else {
+        error_log('YPrint CHECKOUT DEBUG: Keine Payment Intent ID direkt übergeben.');
+    }
+
+    // Prüfe ob E-Mail bereits gesendet wurde
+    $email_sent = $order->get_meta('_yprint_confirmation_email_sent');
+    error_log('YPrint CHECKOUT DEBUG: E-Mail bereits gesendet Meta: "' . $email_sent . '"');
+
+    if ($email_sent === 'yes') {
+        error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestätigungsmail bereits gesendet für Bestellung ' . $order->get_order_number());
+        return;
+    }
+
+    // Prüfe ob Bestellung bezahlt ist
+    $is_paid = $order->is_paid();
+    error_log('YPrint CHECKOUT DEBUG: Ist Bestellung bezahlt: ' . ($is_paid ? 'JA' : 'NEIN'));
+    error_log('YPrint CHECKOUT DEBUG: Bestellstatus: ' . $order->get_status());
+    error_log('YPrint CHECKOUT DEBUG: Zahlungsmethode: ' . $order->get_payment_method());
+    error_log('YPrint CHECKOUT DEBUG: Transaktions-ID: ' . ($order->get_transaction_id() ?: 'KEINE'));
+    
+    // Für Test-Bestellungen: Sende E-Mail auch wenn nicht als "bezahlt" markiert
+    // Annahme: YPrint_Stripe_API::is_testmode() ist eine statische Methode in deiner Stripe API Klasse
+    $is_test_order = YPrint_Stripe_API::is_testmode() || strpos($order->get_payment_method_title(), '(Test)') !== false;
+    error_log('YPrint CHECKOUT DEBUG: Ist Test-Bestellung: ' . ($is_test_order ? 'JA' : 'NEIN'));
+    
+    if (!$is_paid && !$is_test_order) {
+        error_log('YPrint CHECKOUT DEBUG: ÜBERSPRUNGEN - Bestellung ' . $order->get_order_number() . ' ist noch nicht bezahlt und keine Test-Bestellung - keine E-Mail');
+        return false;
+    }
+    
+    if ($is_test_order) {
+        error_log('YPrint CHECKOUT DEBUG: Test-Bestellung erkannt - E-Mail wird trotzdem gesendet');
+    }
+
+    // Prüfe E-Mail-Funktion Verfügbarkeit!
+    $function_exists = function_exists('yprint_send_order_confirmation_email');
+    error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion verfügbar: ' . ($function_exists ? 'JA' : 'NEIN'));
+    
+    if (!$function_exists) {
+        error_log('YPrint CHECKOUT DEBUG: FEHLER - E-Mail-Funktion nicht verfügbar');
+        // Das Protokollieren aller Benutzerfunktionen kann sehr umfangreich sein.
+        // Nur für tiefe Debugging-Zwecke aktivieren.
+        // error_log('YPrint CHECKOUT DEBUG: Definierte Funktionen: ' . print_r(get_defined_functions()['user'], true));
+        return;
+    }
+
+    error_log('YPrint CHECKOUT DEBUG: Rufe yprint_send_order_confirmation_email() auf...');
+    
+    // E-Mail-Funktion aufrufen
+    // Optional: Übergebe payment_intent_id an die E-Mail-Funktion, falls diese es benötigt
+    $email_result = yprint_send_order_confirmation_email($order, $payment_intent_id);
+    
+    error_log('YPrint CHECKOUT DEBUG: E-Mail-Funktion Ergebnis: ' . ($email_result ? 'ERFOLGREICH' : 'FEHLGESCHLAGEN'));
+    error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger beendet ===');
+    
+    return $email_result;
+}
 
     /**
      * AJAX handler for processing payment methods (DEBUG VERSION)
