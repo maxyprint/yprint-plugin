@@ -2684,18 +2684,55 @@ async function validateStripeSepaElement() {
             return false;
         }
         
-        // Teste Payment Method Creation mit echten Billing Details
-        const billingDetails = {
-            name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim() || 'Test Name',
-            email: document.getElementById('email')?.value || '',
-            address: {
-                line1: formData.shipping.street || '',
-                line2: formData.shipping.housenumber || '',
-                city: formData.shipping.city || '',
-                postal_code: formData.shipping.zip || '',
-                country: formData.shipping.country || 'DE',
+        // Hole die aktuellen Billing/Shipping Daten
+        let billingData = null;
+        let shippingData = null;
+        
+        // Versuche Billing-Session zu laden
+        try {
+            const billingResponse = await fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'yprint_get_billing_session',
+                    nonce: yprint_checkout_params.nonce
+                })
+            });
+            const billingResult = await billingResponse.json();
+            if (billingResult.success && billingResult.data) {
+                billingData = billingResult.data;
             }
+        } catch (e) {
+            console.log('Could not load billing session:', e);
+        }
+        
+        // Versuche Shipping-Session zu laden
+        try {
+            const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'yprint_get_shipping_session',
+                    nonce: yprint_checkout_params.nonce
+                })
+            });
+            const shippingResult = await shippingResponse.json();
+            if (shippingResult.success && shippingResult.data) {
+                shippingData = shippingResult.data;
+            }
+        } catch (e) {
+            console.log('Could not load shipping session:', e);
+        }
+        
+        // Erstelle minimale aber gültige Billing Details für SEPA
+        const useData = billingData || shippingData || {};
+        const billingDetails = {
+            name: `${useData.first_name || 'Max'} ${useData.last_name || 'Mustermann'}`.trim(),
+            email: useData.email || document.getElementById('email')?.value || 'test@example.com'
         };
+        
+        // Für SEPA ist nur Name und Email erforderlich - keine Adresse nötig
+        console.log('DEBUG: Using billing details for SEPA validation:', billingDetails);
         
         const {paymentMethod, error} = await stripe.createPaymentMethod({
             type: 'sepa_debit',
