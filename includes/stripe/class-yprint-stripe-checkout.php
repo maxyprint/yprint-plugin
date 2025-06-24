@@ -1674,6 +1674,9 @@ private function send_confirmation_email_if_needed($order, $payment_intent_id = 
 /**
  * AJAX handler for processing payment methods (CORRECTED VERSION)
  */
+/**
+ * AJAX handler for processing payment methods (FINAL CORRECTED VERSION)
+ */
 public function ajax_process_payment_method() {
     error_log('=== YPRINT EXPRESS PAYMENT METHOD PROCESSING START ===');
     
@@ -2096,10 +2099,31 @@ public function ajax_process_payment_method() {
         error_log('Order saved with ID: ' . $order_id);
         error_log('Design transfers - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
         
-        // CRITICAL: Create and confirm Payment Intent
+        // CRITICAL: Create and confirm Payment Intent with corrected method
         error_log('=== CREATING PAYMENT INTENT ===');
+        
+        // Helper function to get Stripe amount (in cents)
+        $get_stripe_amount = function($amount, $currency = null) {
+            if (!$currency) {
+                $currency = get_woocommerce_currency();
+            }
+            
+            $currency = strtolower($currency);
+            
+            // Zero decimal currencies
+            $zero_decimal_currencies = array(
+                'bif', 'djf', 'jpy', 'krw', 'pyg', 'vnd', 'xaf', 'xpf', 'kmf', 'mga', 'rwf', 'xof'
+            );
+            
+            if (in_array($currency, $zero_decimal_currencies, true)) {
+                return absint($amount);
+            } else {
+                return absint($amount * 100);
+            }
+        };
+        
         $intent_data = array(
-            'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
+            'amount' => $get_stripe_amount($order->get_total(), $order->get_currency()),
             'currency' => strtolower($order->get_currency()),
             'payment_method' => $payment_method['id'],
             'confirmation_method' => 'manual',
