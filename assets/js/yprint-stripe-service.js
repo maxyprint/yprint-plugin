@@ -164,7 +164,15 @@ async handlePaymentMethod(event, options = {}) {
         };
         
         console.log('=== AJAX REQUEST DATA ===');
-console.log('Full Request Data:', requestData);
+// Debug boolean parameters specifically
+Object.keys(requestData).forEach(key => {
+    const value = requestData[key];
+    if (typeof value === 'boolean') {
+        console.log(`FRONTEND BOOLEAN: ${key} = ${value} (type: ${typeof value})`);
+    } else if (value === '1' || value === '0' || value === 'true' || value === 'false') {
+        console.log(`FRONTEND STRING BOOLEAN: ${key} = "${value}" (type: ${typeof value})`);
+    }
+});
 console.log('Payment Method Object:', event.paymentMethod);
 console.log('Payment Method JSON String:', JSON.stringify(event.paymentMethod));
 console.log('Payment Method JSON Length:', JSON.stringify(event.paymentMethod).length);

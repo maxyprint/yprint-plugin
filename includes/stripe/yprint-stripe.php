@@ -268,6 +268,32 @@ public static function request($request, $api = '', $method = 'POST') {
     error_log('Stripe API Request: ' . $method . ' ' . self::ENDPOINT . $api);
     error_log('Request data: ' . wp_json_encode($request));
     
+    // CRITICAL DEBUG: Check for boolean conversion issues
+    if (is_array($request)) {
+        foreach ($request as $key => $value) {
+            if (is_bool($value)) {
+                error_log("BOOLEAN DETECTED in request: $key = " . ($value ? 'true' : 'false'));
+            } elseif ($value === '1' || $value === '0') {
+                error_log("STRING BOOLEAN DETECTED in request: $key = '$value'");
+            }
+        }
+    }
+    
+    // Convert request data properly for Stripe
+    if (is_array($request)) {
+        $converted_request = array();
+        foreach ($request as $key => $value) {
+            if (is_bool($value)) {
+                $converted_request[$key] = $value ? 'true' : 'false';
+                error_log("CONVERTED BOOLEAN: $key from " . ($value ? 'PHP_TRUE' : 'PHP_FALSE') . " to '" . $converted_request[$key] . "'");
+            } else {
+                $converted_request[$key] = $value;
+            }
+        }
+        $request = $converted_request;
+        error_log('Request data after boolean conversion: ' . wp_json_encode($request));
+    }
+    
     // Erhöhter Timeout für API-Anfragen
     $response = wp_remote_request(
         self::ENDPOINT . $api,
