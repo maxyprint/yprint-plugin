@@ -87,15 +87,32 @@ class YPrint_Stripe_API {
     public static function set_secret_key_for_mode() {
         $options = self::get_stripe_settings();
         $testmode = isset($options['testmode']) && 'yes' === $options['testmode'];
+        
+        // DEBUG: Erstelle JavaScript-Output für Browser-Konsole
+        $debug_info = array(
+            'testmode_setting' => $testmode ? 'YES' : 'NO',
+            'live_key_set' => !empty($options['secret_key']) ? 'YES' : 'NO',
+            'test_key_set' => !empty($options['test_secret_key']) ? 'YES' : 'NO'
+        );
+        
         self::set_testmode($testmode);
         
         if ($testmode) {
             $secret_key = isset($options['test_secret_key']) ? $options['test_secret_key'] : '';
+            $debug_info['using_key_type'] = 'TEST';
+            $debug_info['key_prefix'] = substr($secret_key, 0, 10);
         } else {
             $secret_key = isset($options['secret_key']) ? $options['secret_key'] : '';
+            $debug_info['using_key_type'] = 'LIVE';
+            $debug_info['key_prefix'] = substr($secret_key, 0, 10);
         }
         
         self::set_secret_key($secret_key);
+        
+        // JavaScript-Konsolen-Output für Frontend
+        add_action('wp_footer', function() use ($debug_info) {
+            echo '<script>console.log("=== STRIPE MODE DEBUG ===", ' . wp_json_encode($debug_info) . ');</script>';
+        });
     }
 
     /**
@@ -233,6 +250,21 @@ public static function test_payment_request_button() {
 public static function request($request, $api = '', $method = 'POST') {
     $headers = self::get_headers();
     
+    // CRITICAL DEBUG: API-Key-Validierung
+    $secret_key = self::get_secret_key();
+    $is_test_key = strpos($secret_key, 'sk_test_') === 0;
+    $is_live_key = strpos($secret_key, 'sk_live_') === 0;
+    
+    // JavaScript-Output für Browser-Konsole
+    add_action('wp_footer', function() use ($secret_key, $is_test_key, $is_live_key, $method, $api) {
+        echo '<script>console.log("🔍 STRIPE API REQUEST:", {
+            "endpoint": "' . esc_js($method . ' ' . self::ENDPOINT . $api) . '",
+            "key_type": "' . ($is_test_key ? 'TEST_KEY' : ($is_live_key ? 'LIVE_KEY' : 'UNKNOWN_KEY')) . '",
+            "key_prefix": "' . esc_js(substr($secret_key, 0, 12)) . '...",
+            "timestamp": "' . date('Y-m-d H:i:s') . '"
+        });</script>';
+    });
+    
     error_log('Stripe API Request: ' . $method . ' ' . self::ENDPOINT . $api);
     error_log('Request data: ' . wp_json_encode($request));
     
@@ -325,20 +357,135 @@ public static function test_connection() {
     }
 }
 
-    /**
-     * Test Apple Pay domain verification
-     *
-     * @return array API response with success/error details
-     */
-    public static function test_apple_pay_domain_verification() {
-        // Ensure Apple Pay class is loaded
-        require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
-        
-        // Test domain verification
-        $apple_pay = YPrint_Stripe_Apple_Pay::get_instance();
-        return $apple_pay->test_domain_verification();
+
+
+// It's assumed this code exists within a class,
+// and 'self::get_stripe_settings()' is a valid method within that class.
+// For example, if these are methods of a class like YPrint_Stripe_Gateway.
+
+/**
+ * Test Apple Pay domain verification.
+ *
+ * This function initiates the Apple Pay domain verification process
+ * by calling a method on the Apple Pay class instance.
+ *
+ * @return array API response with success/error details from the verification process.
+ */
+public static function test_apple_pay_domain_verification() {
+    // Define the path to the Apple Pay class.
+    // Using plugin_dir_path() is generally safer than YPRINT_PLUGIN_DIR directly
+    // if YPRINT_PLUGIN_DIR is not guaranteed to have a trailing slash.
+    $apple_pay_class_path = plugin_dir_path( __FILE__ ) . 'includes/stripe/class-yprint-stripe-apple-pay.php';
+
+    // Ensure the Apple Pay class file exists and is loaded.
+    // Use file_exists() for a cleaner check before requiring.
+    if ( ! file_exists( $apple_pay_class_path ) ) {
+        // Log an error or return an error message if the file is missing.
+        // In a WordPress context, error_log() is good for server-side debugging.
+        error_log( 'YPrint Stripe: Apple Pay class file not found at ' . $apple_pay_class_path );
+        return array(
+            'success' => false,
+            'message' => esc_html__( 'Apple Pay class file not found.', 'your-text-domain' ),
+            'details' => array( 'file_path' => $apple_pay_class_path )
+        );
     }
+
+    require_once $apple_pay_class_path;
+
+    // Check if the class exists after requiring the file.
+    if ( ! class_exists( 'YPrint_Stripe_Apple_Pay' ) ) {
+        error_log( 'YPrint Stripe: Apple Pay class (YPrint_Stripe_Apple_Pay) not found after requiring file.' );
+        return array(
+            'success' => false,
+            'message' => esc_html__( 'Apple Pay class not defined.', 'your-text-domain' ),
+        );
+    }
+
+    // Get the singleton instance of the Apple Pay handler.
+    $apple_pay = YPrint_Stripe_Apple_Pay::get_instance();
+
+    // Call the domain verification method.
+    // Renamed 'test_domain_verification' to 'verify_domain' for clarity
+    // assuming it actually performs the verification, not just a 'test'.
+    // If it truly is just a test that doesn't alter state, 'test_domain_verification' is fine.
+    // I've kept your 'verify_domain' call as per your update.
+    $result = $apple_pay->verify_domain();
+
+    // Ensure the result is always an array, even if the called method doesn't return one.
+    if ( ! is_array( $result ) ) {
+        error_log( 'YPrint Stripe: verify_domain() did not return an array.' );
+        return array(
+            'success' => false,
+            'message' => esc_html__( 'Unexpected response from Apple Pay verification.', 'your-text-domain' ),
+            'raw_response' => $result // Include raw response for debugging
+        );
+    }
+
+    return $result;
 }
+
+/**
+ * Debug Stripe configuration for browser console.
+ *
+ * This function retrieves Stripe settings, determines the active keys (test/live),
+ * and outputs debug information to the browser's console using JavaScript.
+ *
+ * @return array Configuration debug info.
+ */
+public static function debug_stripe_config() {
+    // Retrieve Stripe settings. It's assumed 'self::get_stripe_settings()' exists
+    // and returns an array of plugin options.
+    $options = self::get_stripe_settings();
+
+    // Determine if test mode is active.
+    $testmode = isset( $options['testmode'] ) && 'yes' === $options['testmode'];
+
+    // Get the appropriate secret and publishable keys based on test mode.
+    // Using array_key_exists and null coalescing operator for robustness.
+    $secret_key = $testmode
+        ? ( $options['test_secret_key'] ?? '' )
+        : ( $options['secret_key'] ?? '' );
+
+    $publishable_key = $testmode
+        ? ( $options['test_publishable_key'] ?? '' )
+        : ( $options['publishable_key'] ?? '' );
+
+    // Prepare debug information.
+    // Use ternary operator for 'key_type' for conciseness.
+    $debug_info = array(
+        'testmode'               => $testmode,
+        'secret_key_type'        => ( strpos( $secret_key, 'sk_test_' ) === 0 ) ? 'TEST' :
+                                    ( ( strpos( $secret_key, 'sk_live_' ) === 0 ) ? 'LIVE' : 'INVALID' ),
+        'publishable_key_type'   => ( strpos( $publishable_key, 'pk_test_' ) === 0 ) ? 'TEST' :
+                                    ( ( strpos( $publishable_key, 'pk_live_' ) === 0 ) ? 'LIVE' : 'INVALID' ),
+        // Only show prefixes for security. Using empty string for substr if key is empty.
+        'secret_key_prefix'      => ! empty( $secret_key ) ? substr( $secret_key, 0, 12 ) : '',
+        'publishable_key_prefix' => ! empty( $publishable_key ) ? substr( $publishable_key, 0, 12 ) : '',
+    );
+
+    // Add JavaScript output to the footer of the WordPress site.
+    // This action ensures the script is loaded after the main content.
+    // wp_json_encode() is safer for outputting JSON to JavaScript.
+    // esc_js() is used for any string that goes directly into JavaScript.
+    add_action( 'wp_footer', function() use ( $debug_info ) {
+        // Only output if current user has capabilities to view debug info (e.g., 'manage_options').
+        // This prevents debug info from appearing for regular visitors.
+        if ( current_user_can( 'manage_options' ) || WP_DEBUG ) { // Consider a custom capability or WP_DEBUG
+            // Output a script tag with the debug info.
+            echo '<script type="text/javascript">';
+            echo '/* <![CDATA[ */'; // CDATA for old browsers, though less critical now.
+            echo 'console.log("🔍 STRIPE CONFIG DEBUG:", ' . wp_json_encode( $debug_info ) . ');';
+            echo '/* ]]> */';
+            echo '</script>';
+        }
+    });
+
+    return $debug_info;
+}}
+
+// Your next function /** * Test Payment Request Button */ would go here.
+// I've stopped before it as you only provided the start of its docblock.
+
 
 // Load required classes
 require_once YPRINT_PLUGIN_DIR . 'includes/stripe/class-yprint-stripe-apple-pay.php';
