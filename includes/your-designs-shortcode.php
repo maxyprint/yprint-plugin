@@ -1691,11 +1691,10 @@ if ($design->template_id && !empty($default_variation)) {
     }
 }
 
-// NEUE LOGIK: Überschreibe den Farbnamen mit dem Wert aus yprint_zusatzdaten, falls vorhanden.
-// Dies hat Priorität.
-$yprint_zusatzdaten = get_post_meta($base_product_id, 'yprint_zusatzdaten', true);
-if (is_array($yprint_zusatzdaten) && !empty($yprint_zusatzdaten['Design-Standardfarbe'])) {
-    $variation_name = $yprint_zusatzdaten['Design-Standardfarbe'];
+// Design-Standardfarbe aus dem korrekten Meta-Feld laden
+$design_color = get_post_meta($base_product_id, '_design_color', true);
+if (!empty($design_color)) {
+    $variation_name = $design_color;
 }
 
             // Get selected size from AJAX request
