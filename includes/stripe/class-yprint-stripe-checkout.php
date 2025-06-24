@@ -1795,6 +1795,29 @@ public function ajax_process_payment_method() {
         return;
     }
     
+    // Validate and sanitize boolean parameters to prevent "Invalid boolean: 1" error
+    $source = isset($_POST['source']) ? sanitize_text_field($_POST['source']) : '';
+    $type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : '';
+    
+    // Explicitly validate boolean parameters
+    if (isset($_POST['capture_payment'])) {
+        $capture_value = $_POST['capture_payment'];
+        if (!in_array($capture_value, array('0', '1', 'true', 'false', 0, 1, true, false), true)) {
+            error_log('ERROR: Invalid boolean value for capture_payment: ' . $capture_value);
+            wp_send_json_error(array('message' => 'Invalid boolean: ' . $capture_value));
+            return;
+        }
+    }
+    
+    if (isset($_POST['save_payment_method'])) {
+        $save_value = $_POST['save_payment_method'];
+        if (!in_array($save_value, array('0', '1', 'true', 'false', 0, 1, true, false), true)) {
+            error_log('ERROR: Invalid boolean value for save_payment_method: ' . $save_value);
+            wp_send_json_error(array('message' => 'Invalid boolean: ' . $save_value));
+            return;
+        }
+    }
+    
     // Payment Method Data - Fix URL encoding issues
     $payment_method_json = isset($_POST['payment_method']) ? wp_unslash($_POST['payment_method']) : '';
     error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
@@ -2125,12 +2148,17 @@ public function ajax_process_payment_method() {
             }
         };
         
+        // Convert boolean parameters correctly
+        $capture_payment = isset($_POST['capture_payment']) ? wc_string_to_bool($_POST['capture_payment']) : true;
+        $save_payment_method = isset($_POST['save_payment_method']) ? wc_string_to_bool($_POST['save_payment_method']) : false;
+        
         $intent_data = array(
             'amount' => $get_stripe_amount($order->get_total(), $order->get_currency()),
             'currency' => strtolower($order->get_currency()),
             'payment_method' => $payment_method['id'],
             'confirmation_method' => 'manual',
-            'confirm' => (bool) true,  // Explicit Boolean conversion
+            'confirm' => true,  // Native boolean
+            'capture_method' => $capture_payment ? 'automatic' : 'manual',
             'description' => sprintf('Order #%s from %s', $order->get_order_number(), get_bloginfo('name')),
             'metadata' => array(
                 'order_id' => (string) $order->get_id(),  // Ensure string for metadata
@@ -2138,12 +2166,21 @@ public function ajax_process_payment_method() {
             ),
             'receipt_email' => $order->get_billing_email(),
         );
+        
+        // Add save payment method if requested
+        if ($save_payment_method && is_user_logged_in()) {
+            $intent_data['setup_future_usage'] = 'off_session';
+        }
 
+        // Debug: Log intent data before sending to Stripe
+        error_log('Intent data being sent to Stripe: ' . wp_json_encode($intent_data));
+        
         // Create and confirm Payment Intent
         $intent = YPrint_Stripe_API::request($intent_data, 'payment_intents');
 
         if (!empty($intent->error)) {
             error_log('Payment Intent creation failed: ' . $intent->error->message);
+            error_log('Intent data that caused error: ' . wp_json_encode($intent_data));
             wp_send_json_error(array('message' => $intent->error->message));
             return;
         }
