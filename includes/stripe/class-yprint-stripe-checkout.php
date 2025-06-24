@@ -2174,8 +2174,55 @@ public function ajax_process_payment_method() {
             $intent_data['setup_future_usage'] = 'off_session';
         }
 
-        // Debug: Log intent data before sending to Stripe
-        error_log('Intent data being sent to Stripe: ' . wp_json_encode($intent_data));
+        // CRITICAL DEBUG: Validate all data before sending to Stripe
+        error_log('=== STRIPE PAYMENT INTENT DEBUG ===');
+        error_log('Order ID: ' . $order->get_id());
+        error_log('Order Total: ' . $order->get_total());
+        error_log('Order Currency: ' . $order->get_currency());
+        error_log('Stripe Amount: ' . $get_stripe_amount($order->get_total(), $order->get_currency()));
+        error_log('Billing Email: ' . $order->get_billing_email());
+        error_log('Payment Method ID: ' . $payment_method['id']);
+        error_log('Return URL: ' . home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()));
+        
+        // Validate critical fields
+        if (empty($order->get_billing_email())) {
+            error_log('WARNING: Billing email is empty');
+            $order->set_billing_email('noreply@yprint.de'); // Fallback email
+            $order->save();
+        }
+        
+        if ($order->get_total() <= 0) {
+            error_log('ERROR: Order total is zero or negative: ' . $order->get_total());
+            wp_send_json_error(array('message' => 'Invalid order amount'));
+            return;
+        }
+        
+        // Enhanced intent data with better validation
+        $intent_data = array(
+            'amount' => $get_stripe_amount($order->get_total(), $order->get_currency()),
+            'currency' => strtolower($order->get_currency()),
+            'payment_method' => $payment_method['id'],
+            'confirmation_method' => 'manual',
+            'confirm' => true,
+            'capture_method' => $capture_payment ? 'automatic' : 'manual',
+            'description' => sprintf('YPrint Order #%s - %s', $order->get_order_number(), get_bloginfo('name')),
+            'metadata' => array(
+                'order_id' => (string) $order->get_id(),
+                'order_number' => $order->get_order_number(),
+                'site_url' => get_site_url(),
+                'customer_email' => $order->get_billing_email(),
+            ),
+            'receipt_email' => $order->get_billing_email(),
+            'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()),
+            'payment_method_options' => array(
+                'card' => array(
+                    'request_three_d_secure' => 'automatic'
+                )
+            )
+        );
+        
+        // Debug: Log complete intent data
+        error_log('Complete Intent data being sent to Stripe: ' . wp_json_encode($intent_data));
         
         // Create and confirm Payment Intent
         $intent = YPrint_Stripe_API::request($intent_data, 'payment_intents');
