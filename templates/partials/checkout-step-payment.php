@@ -1010,26 +1010,121 @@ jQuery(document).ready(function($) {
     const $container = $('#add-billing-button-container');
 
     // 🧪 Session prüfen beim Load und nach Step-Wechsel
-    checkBillingSessionStatus();
-    
-    // Prüfe Session auch nach Step-Wechsel vom Billing zurück
-    $(document).on('yprint_step_changed', function(event, stepData) {
-        if (stepData.step === 'payment' && stepData.from === 'billing') {
-            console.log('🔄 Zurück vom Billing-Step - prüfe Session erneut');
-            setTimeout(() => {
-                checkBillingSessionStatus();
-            }, 100);
-        }
-    });
-    
-    // Event-Handler für Billing-Adresse-Auswahl
-    $(document).on('yprint_billing_address_selected', function(event, data) {
-        console.log('🎯 Billing address selected event received:', data);
-        // Kurz warten und dann Session prüfen
+checkBillingSessionStatus();
+// ✅ Zusätzlich: Rechnungsadresse beim Payment Step Load anzeigen
+getCurrentBillingAddress();
+
+// Prüfe Session auch nach Step-Wechsel vom Billing zurück
+$(document).on('yprint_step_changed', function(event, stepData) {
+    if (stepData.step === 'payment') {
+        console.log('🔄 Payment Step geladen - lade Rechnungsadresse');
         setTimeout(() => {
             checkBillingSessionStatus();
-        }, 200);
+            getCurrentBillingAddress(); // ✅ Immer die aktuelle Rechnungsadresse laden
+        }, 100);
+    }
+});
+
+// ✅ Auch bei Rückkehr von anderen Steps die Rechnungsadresse aktualisieren
+$(document).on('yprint_step_changed', function(event, stepData) {
+    if (stepData.step === 'payment' && (stepData.from === 'billing' || stepData.from === 'address')) {
+        console.log('🔄 Zurück zum Payment-Step - aktualisiere Rechnungsadresse');
+        setTimeout(() => {
+            getCurrentBillingAddress();
+        }, 150);
+    }
+});
+    
+    // Event-Handler für Billing-Adresse-Auswahl
+$(document).on('yprint_billing_address_selected', function(event, data) {
+    console.log('🎯 Billing address selected event received:', data);
+    // Kurz warten und dann Session prüfen
+    setTimeout(() => {
+        checkBillingSessionStatus();
+    }, 200);
+});
+
+// ✅ Vollständige displayBilling() Funktion implementieren
+function displayBilling(billingData, isDifferentBilling = false) {
+    safeDebugLog('🏠 Zeige Billing Address an', 'success');
+    safeDebugUpdate('last-action', 'displayBilling');
+    
+    // HTML für Adress-Anzeige generieren
+    let addressHtml = '';
+    if (billingData && typeof billingData === 'object') {
+        const fullName = [billingData.first_name, billingData.last_name].filter(Boolean).join(' ');
+        const company = billingData.company ? `<div class="text-sm text-gray-600">${billingData.company}</div>` : '';
+        const address1 = billingData.address_1 || '';
+        const address2 = billingData.address_2 ? ` ${billingData.address_2}` : '';
+        const city = [billingData.postcode, billingData.city].filter(Boolean).join(' ');
+        const country = billingData.country || 'DE';
+        
+        addressHtml = `
+            <div class="text-sm">
+                <div class="font-semibold text-gray-800">${fullName}</div>
+                ${company}
+                <div class="text-gray-700">${address1}${address2}</div>
+                <div class="text-gray-700">${city}</div>
+                <div class="text-gray-600">${country}</div>
+            </div>
+        `;
+    }
+    
+    // Content in das Display-Element einfügen
+    $billingContent.html(addressHtml);
+    
+    // Anzeige-Status je nach Adresstyp anpassen
+    if (isDifferentBilling) {
+        // Separate Rechnungsadresse gewählt
+        $selectedDisplay.find('.text-green-800').text('<?php esc_html_e('Abweichende Rechnungsadresse festgelegt', 'yprint-checkout'); ?>');
+        $selectedDisplay.removeClass('hidden').show();
+        $container.hide();
+        safeDebugLog('✅ Separate Billing Address angezeigt', 'success');
+    } else {
+        // Lieferadresse als Rechnungsadresse
+        $selectedDisplay.find('.text-green-800').text('<?php esc_html_e('Rechnungsadresse (entspricht Lieferadresse)', 'yprint-checkout'); ?>');
+        $selectedDisplay.removeClass('hidden').show();
+        $container.hide();
+        safeDebugLog('✅ Shipping als Billing Address angezeigt', 'info');
+    }
+}
+
+// ✅ Funktion zum Abrufen der aktuellen Rechnungsadresse
+function getCurrentBillingAddress() {
+    safeDebugLog('🔍 Hole aktuelle Rechnungsadresse von Session', 'info');
+    
+    $.ajax({
+        url: yprint_address_ajax.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'yprint_get_billing_session',
+            nonce: yprint_address_ajax.nonce
+        },
+        success: function(response) {
+            if (response.success && response.data) {
+                const data = response.data;
+                safeDebugLog('✅ Billing Session Daten erhalten', 'success');
+                safeDebugUpdate('session-status', 'Geladen');
+                
+                if (data.has_billing_address) {
+                    // Zeige die entsprechende Rechnungsadresse an
+                    displayBilling(data.billing_address, data.is_different_billing);
+                } else {
+                    // Keine Rechnungsadresse in Session - zeige Add Button
+                    showAddBillingButton();
+                    safeDebugLog('ℹ️ Keine Billing Address in Session', 'info');
+                }
+            } else {
+                safeDebugLog('⚠️ Billing Session leer oder Fehler', 'warning');
+                showAddBillingButton();
+            }
+        },
+        error: function(xhr, status, error) {
+            safeDebugLog(`❌ AJAX Error: ${error}`, 'error');
+            showAddBillingButton();
+        }
     });
+}
 
     // 🔧 Sichere Debug-Funktion
 function safeDebugLog(message, type = 'info') {
@@ -1247,15 +1342,23 @@ try {
     }
 
     function showBillingStep() {
-        try {
-            $('.checkout-step').removeClass('active').hide();
-            $billingStep.addClass('active').show();
-            safeDebugLog('🔁 Billing Step sichtbar (Change)', 'info');
-            safeDebugUpdate('step-nav', 'OK');
-        } catch (err) {
-            safeDebugLog('❌ Navigation Fehler: ' + err.message, 'error');
-        }
+    try {
+        $('.checkout-step').removeClass('active').hide();
+        $billingStep.addClass('active').show();
+        safeDebugLog('🔁 Billing Step sichtbar (Change)', 'info');
+        safeDebugUpdate('step-nav', 'OK');
+    } catch (err) {
+        safeDebugLog('❌ Navigation Fehler: ' + err.message, 'error');
     }
+}
+
+// ✅ Funktion zum Anzeigen des Add Billing Button
+function showAddBillingButton() {
+    $selectedDisplay.hide();
+    $container.show();
+    safeDebugLog('🔄 Add Billing Button angezeigt', 'info');
+    safeDebugUpdate('display-status', 'Add Button');
+}
 
     });
 </script>
