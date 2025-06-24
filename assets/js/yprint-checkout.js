@@ -2846,82 +2846,25 @@ async function validateStripeSepaElement() {
             return false;
         }
         
-        // Vereinfachte Validierung: Prüfe nur ob das Element bereit ist, ohne createPaymentMethod
         console.log('DEBUG: SEPA element is mounted and available');
         
-        // Hole Name und Email aus den verfügbaren Datenquellen
-        let customerName = '';
-        let customerEmail = '';
+        // Nutze zentrale Kundendaten-Funktion
+        const customerData = await getCustomerDataForPayment();
+        console.log('DEBUG: Customer data retrieved:', customerData);
         
-        // Versuche Email-Feld zu finden
-        const emailField = document.getElementById('email') || document.querySelector('input[type="email"]');
-        if (emailField && emailField.value) {
-            customerEmail = emailField.value;
-        }
-        
-        // Versuche Namen aus Shipping-Daten zu holen
-        if (typeof formData !== 'undefined' && formData.shipping) {
-            customerName = `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim();
-        }
-        
-        // Fallback: Prüfe Session-Daten wenn formData nicht verfügbar
-if (!customerName || !customerEmail) {
-    try {
-        // Zuerst Billing-Session versuchen (falls im Billing-Kontext)
-        const billingResponse = await fetch(yprint_checkout_params.ajax_url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                action: 'yprint_get_billing_session',
-                nonce: yprint_checkout_params.nonce
-            })
-        });
-        const billingResult = await billingResponse.json();
-        if (billingResult.success && billingResult.data) {
-            const data = billingResult.data;
-            if (!customerName) {
-                customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-            }
-            if (!customerEmail) {
-                customerEmail = data.email || '';
-            }
-        }
-        
-        // Wenn Billing-Session keine Daten lieferte, Shipping-Session versuchen
-        if (!customerName || !customerEmail) {
-            const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
-                    action: 'yprint_get_shipping_session',
-                    nonce: yprint_checkout_params.nonce
-                })
-            });
-            const shippingResult = await shippingResponse.json();
-            if (shippingResult.success && shippingResult.data) {
-                const data = shippingResult.data;
-                if (!customerName) {
-                    customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-                }
-                if (!customerEmail) {
-                    customerEmail = data.email || '';
-                }
-            }
-        }
-    } catch (e) {
-        console.log('Could not load session data for validation:', e);
-    }
-}
-        
-        // Minimale Validierung: Name und Email müssen vorhanden sein für SEPA
-        if (!customerName && !customerEmail) {
-            console.log('SEPA validation failed: No customer name or email available');
+        // SEPA-Validierung: Name UND Email sind für rechtsgültige Mandate erforderlich
+        if (!customerData.name || !customerData.email) {
+            console.log('SEPA validation failed: Missing customer data');
+            console.log('DEBUG: Name available:', !!customerData.name);
+            console.log('DEBUG: Email available:', !!customerData.email);
+            console.log('DEBUG: Data source:', customerData.source);
             return false;
         }
         
-        console.log('DEBUG: SEPA validation passed - customer data available');
-        console.log('DEBUG: Customer name:', customerName || 'Not set');
-        console.log('DEBUG: Customer email:', customerEmail || 'Not set');
+        console.log('DEBUG: SEPA validation passed - complete customer data available');
+        console.log('DEBUG: Customer name:', customerData.name);
+        console.log('DEBUG: Customer email:', customerData.email);
+        console.log('DEBUG: Data source:', customerData.source);
         
         return true;
         
