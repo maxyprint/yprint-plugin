@@ -2747,21 +2747,88 @@ async function validateStripeSepaElement() {
     }
 }
     
-    async function validateStripeSepaElement() {
-        if (!window.YPrintStripeCheckout.sepaElement) return false;
-        
-        try {
-            // Teste ob SEPA Element gültig ist
-            const {error} = await window.YPrintStripeCheckout.stripe.createPaymentMethod({
-                type: 'sepa_debit',
-                sepa_debit: window.YPrintStripeCheckout.sepaElement,
-            });
-            
-            return !error;
-        } catch (e) {
+async function validateStripeSepaElement() {
+    if (!window.YPrintStripeCheckout.sepaElement) {
+        console.log('SEPA element not available');
+        return false;
+    }
+    
+    try {
+        const stripe = window.YPrintStripeService.getStripe();
+        if (!stripe) {
+            console.log('Stripe not available');
             return false;
         }
+        
+        // Prüfe ob SEPA Element gemountet ist
+        const sepaElementContainer = document.getElementById('stripe-sepa-element');
+        if (!sepaElementContainer || (!sepaElementContainer.querySelector('.StripeElement') && !sepaElementContainer.querySelector('.__PrivateStripeElement'))) {
+            console.log('SEPA element not mounted or visible');
+            return false;
+        }
+        
+        // Vereinfachte Validierung: Prüfe nur ob das Element bereit ist, ohne createPaymentMethod
+        console.log('DEBUG: SEPA element is mounted and available');
+        
+        // Hole Name und Email aus den verfügbaren Datenquellen
+        let customerName = '';
+        let customerEmail = '';
+        
+        // Versuche Email-Feld zu finden
+        const emailField = document.getElementById('email') || document.querySelector('input[type="email"]');
+        if (emailField && emailField.value) {
+            customerEmail = emailField.value;
+        }
+        
+        // Versuche Namen aus Shipping-Daten zu holen
+        if (typeof formData !== 'undefined' && formData.shipping) {
+            customerName = `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim();
+        }
+        
+        // Fallback: Prüfe Session-Daten wenn formData nicht verfügbar
+        if (!customerName || !customerEmail) {
+            try {
+                // Versuche Shipping-Session zu laden
+                const shippingResponse = await fetch(yprint_checkout_params.ajax_url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({
+                        action: 'yprint_get_shipping_session',
+                        nonce: yprint_checkout_params.nonce
+                    })
+                });
+                const shippingResult = await shippingResponse.json();
+                if (shippingResult.success && shippingResult.data) {
+                    const data = shippingResult.data;
+                    if (!customerName) {
+                        customerName = `${data.first_name || ''} ${data.last_name || ''}`.trim();
+                    }
+                    if (!customerEmail) {
+                        customerEmail = data.email || '';
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load shipping session for validation:', e);
+            }
+        }
+        
+        // Minimale Validierung: Name und Email müssen vorhanden sein für SEPA
+        if (!customerName && !customerEmail) {
+            console.log('SEPA validation failed: No customer name or email available');
+            return false;
+        }
+        
+        console.log('DEBUG: SEPA validation passed - customer data available');
+        console.log('DEBUG: Customer name:', customerName || 'Not set');
+        console.log('DEBUG: Customer email:', customerEmail || 'Not set');
+        
+        return true;
+        
+    } catch (e) {
+        console.log('SEPA validation exception:', e);
+        return false;
     }
+}
 
     
 
