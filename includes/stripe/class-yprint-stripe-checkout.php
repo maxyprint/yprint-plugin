@@ -2158,32 +2158,15 @@ public function ajax_process_payment_method() {
         // CRITICAL: Create and confirm Payment Intent with corrected method
         error_log('=== CREATING PAYMENT INTENT ===');
         
-        // Helper function to get Stripe amount (in cents)
-        $get_stripe_amount = function($amount, $currency = null) {
-            if (!$currency) {
-                $currency = get_woocommerce_currency();
-            }
-            
-            $currency = strtolower($currency);
-            
-            // Zero decimal currencies
-            $zero_decimal_currencies = array(
-                'bif', 'djf', 'jpy', 'krw', 'pyg', 'vnd', 'xaf', 'xpf', 'kmf', 'mga', 'rwf', 'xof'
-            );
-            
-            if (in_array($currency, $zero_decimal_currencies, true)) {
-                return absint($amount);
-            } else {
-                return absint($amount * 100);
-            }
-        };
+        // Use the static method from YPrint_Stripe_API class instead of local closure
+// The static method YPrint_Stripe_API::get_stripe_amount() will be used consistently
         
         // Convert boolean parameters correctly
         $capture_payment = isset($_POST['capture_payment']) ? wc_string_to_bool($_POST['capture_payment']) : true;
         $save_payment_method = isset($_POST['save_payment_method']) ? wc_string_to_bool($_POST['save_payment_method']) : false;
         
         $intent_data = array(
-            'amount' => $get_stripe_amount($order->get_total(), $order->get_currency()),
+            'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
             'currency' => strtolower($order->get_currency()),
             'payment_method' => $payment_method['id'],
             'confirmation_method' => 'manual',
