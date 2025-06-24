@@ -2476,8 +2476,6 @@ async function createStripeCardPaymentMethod() {
 async function createStripeSepaPaymentMethod() {
     console.log('=== DEBUG: createStripeSepaPaymentMethod START ===');
     
-    // Überspringe die Mount-Prüfung - das Element funktioniert bereits
-    
     const stripe = window.YPrintStripeService.getStripe();
     console.log('Stripe instance:', stripe);
     
@@ -2488,54 +2486,63 @@ async function createStripeSepaPaymentMethod() {
     
     console.log('DEBUG: All systems ready, creating payment method...');
     
-    // Sammle Billing-Details aus dem Formular
+    // Nutze zentrale Kundendaten-Funktion (gleiche wie in Validierung)
+    const customerData = await getCustomerDataForPayment();
+    console.log('DEBUG: Customer data for payment method:', customerData);
+    
+    if (!customerData.name || !customerData.email) {
+        throw new Error('Kundendaten nicht verfügbar für SEPA Payment Method');
+    }
+    
+    // Sammle Billing-Details mit korrekten Kundendaten
     const billingDetails = {
-        name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim(),
-        email: document.getElementById('email')?.value || '',
+        name: customerData.name,
+        email: customerData.email,
         address: {
-            line1: formData.shipping.street || '',
-            line2: formData.shipping.housenumber || '',
-            city: formData.shipping.city || '',
-            postal_code: formData.shipping.zip || '',
-            country: formData.shipping.country || 'DE',
+            line1: formData.shipping?.street || '',
+            line2: formData.shipping?.housenumber || '',
+            city: formData.shipping?.city || '',
+            postal_code: formData.shipping?.zip || '',
+            country: formData.shipping?.country || 'DE',
         }
     };
     
     console.log('Creating SEPA payment method with billing details:', billingDetails);
     
-    // Timeout-Wrapper für Stripe createPaymentMethod
-const createPaymentMethodWithTimeout = () => {
-    return Promise.race([
-        stripe.createPaymentMethod({
-            type: 'card',
-            card: window.YPrintStripeCheckout.cardElement,
-            billing_details: billingDetails,
-        }),
-        new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('createPaymentMethod timeout after 5 seconds')), 5000)
-        )
-    ]);
-};
+    // Korrektur: SEPA Payment Method erstellen, nicht Card
+    const createPaymentMethodWithTimeout = () => {
+        return Promise.race([
+            stripe.createPaymentMethod({
+                type: 'sepa_debit',
+                sepa_debit: window.YPrintStripeCheckout.sepaElement,
+                billing_details: billingDetails,
+            }),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('createPaymentMethod timeout after 10 seconds')), 10000)
+            )
+        ]);
+    };
 
-console.log('DEBUG: Starting createPaymentMethod with timeout...');
+    console.log('DEBUG: Starting SEPA createPaymentMethod with timeout...');
 
-let createPaymentResult;
-try {
-    createPaymentResult = await createPaymentMethodWithTimeout();
-    console.log('DEBUG: createPaymentMethod completed normally');
-} catch (timeoutError) {
-    console.error('DEBUG: createPaymentMethod timed out or failed:', timeoutError);
-    throw new Error('Stripe Kommunikation fehlgeschlagen. Bitte versuchen Sie es erneut.');
-}
+    let createPaymentResult;
+    try {
+        createPaymentResult = await createPaymentMethodWithTimeout();
+        console.log('DEBUG: SEPA createPaymentMethod completed normally');
+    } catch (timeoutError) {
+        console.error('DEBUG: SEPA createPaymentMethod timed out or failed:', timeoutError);
+        throw new Error('SEPA Stripe Kommunikation fehlgeschlagen. Bitte versuchen Sie es erneut.');
+    }
 
-const { paymentMethod, error } = createPaymentResult;
-console.log('DEBUG: Extracted paymentMethod and error from result');
+    const { paymentMethod, error } = createPaymentResult;
+    console.log('DEBUG: Extracted SEPA paymentMethod and error from result');
     
     if (error) {
         console.error('SEPA payment method creation error:', error);
         throw new Error(error.message);
     }
     
+    console.log('DEBUG: SEPA Payment method created successfully:', paymentMethod.id);
     return paymentMethod;
 }
 
