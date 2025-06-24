@@ -116,6 +116,8 @@ public function ajax_get_checkout_context() {
     wp_send_json_success($checkout_context);
 }
 
+
+
 /**
  * AJAX handler to refresh checkout context after changes
  */
@@ -367,6 +369,8 @@ public function ajax_refresh_checkout_context() {
         
         error_log('EXPRESS DB: Processed and saved ' . count($processed_views) . ' views');
     }
+
+    
 
     /**
      * Triggere Enhanced Debug-Analyse für Express Orders
@@ -1666,6 +1670,32 @@ private function send_confirmation_email_if_needed($order, $payment_intent_id = 
     error_log('=== YPRINT CHECKOUT DEBUG: E-Mail-Trigger beendet ===');
     
     return $email_result;
+}
+
+/**
+ * Get Stripe amount (in cents)
+ *
+ * @param float $amount
+ * @param string $currency
+ * @return int
+ */
+public static function get_stripe_amount($amount, $currency = null) {
+    if (!$currency) {
+        $currency = get_woocommerce_currency();
+    }
+    
+    $currency = strtolower($currency);
+    
+    // Zero decimal currencies
+    $zero_decimal_currencies = array(
+        'bif', 'djf', 'jpy', 'krw', 'pyg', 'vnd', 'xaf', 'xpf', 'kmf', 'mga', 'rwf', 'xof'
+    );
+    
+    if (in_array($currency, $zero_decimal_currencies, true)) {
+        return absint($amount);
+    } else {
+        return absint($amount * 100);
+    }
 }
 
     /**
