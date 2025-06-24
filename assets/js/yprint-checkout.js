@@ -2724,13 +2724,24 @@ async function getCustomerDataForPayment() {
     
     try {
         // PRIMÄRE QUELLE: WordPress REST API (funktioniert nachweislich)
-        const userResponse = await fetch('/wp-json/wp/v2/users/me?context=edit', {
-            method: 'GET',
-            headers: {
-                'X-WP-Nonce': wpApiSettings.nonce,
-                'Content-Type': 'application/json'
-            }
-        });
+let nonce = '';
+if (typeof wpApiSettings !== 'undefined' && wpApiSettings.nonce) {
+    nonce = wpApiSettings.nonce;
+} else if (typeof yprint_checkout_params !== 'undefined' && yprint_checkout_params.nonce) {
+    nonce = yprint_checkout_params.nonce;
+} else if (typeof wc_checkout_params !== 'undefined' && wc_checkout_params.checkout_nonce) {
+    nonce = wc_checkout_params.checkout_nonce;
+}
+
+console.log('DEBUG: Using nonce source:', nonce ? 'Found' : 'NOT FOUND');
+
+const userResponse = await fetch('/wp-json/wp/v2/users/me?context=edit', {
+    method: 'GET',
+    headers: {
+        'X-WP-Nonce': nonce,
+        'Content-Type': 'application/json'
+    }
+});
         
         if (userResponse.ok) {
             const userData = await userResponse.json();
@@ -2758,6 +2769,13 @@ async function getCustomerDataForPayment() {
     } catch (error) {
         console.log('DEBUG: WordPress REST API failed:', error);
     }
+
+    // TEMPORÄRER DEBUG - entfernen nach Test
+console.log('DEBUG: Available global variables:', {
+    wpApiSettings: typeof wpApiSettings !== 'undefined' ? wpApiSettings : 'NOT AVAILABLE',
+    yprint_checkout_params: typeof yprint_checkout_params !== 'undefined' ? yprint_checkout_params : 'NOT AVAILABLE',
+    wc_checkout_params: typeof wc_checkout_params !== 'undefined' ? wc_checkout_params : 'NOT AVAILABLE'
+});
     
     // FALLBACK 1: DOM-Felder (falls jemand doch etwas eingetippt hat)
     if (!customerEmail) {
@@ -2801,8 +2819,12 @@ async function getCustomerDataForPayment() {
         name: customerName, 
         email: customerEmail, 
         source: customerName || customerEmail ? 'Fallback sources' : 'No data found' 
+        
     };
+    
 }
+
+
 
 async function validateStripeSepaElement() {
     if (!window.YPrintStripeCheckout.sepaElement) {
