@@ -344,6 +344,32 @@ public static function request($request, $api = '', $method = 'POST') {
 }
 
     /**
+     * Get Stripe amount (in cents)
+     *
+     * @param float $amount
+     * @param string $currency
+     * @return int
+     */
+    public static function get_stripe_amount($amount, $currency = null) {
+        if (!$currency) {
+            $currency = get_woocommerce_currency();
+        }
+        
+        $currency = strtolower($currency);
+        
+        // Zero decimal currencies
+        $zero_decimal_currencies = array(
+            'bif', 'djf', 'jpy', 'krw', 'pyg', 'vnd', 'xaf', 'xpf', 'kmf', 'mga', 'rwf', 'xof'
+        );
+        
+        if (in_array($currency, $zero_decimal_currencies, true)) {
+            return absint($amount);
+        } else {
+            return absint($amount * 100);
+        }
+    }
+
+    /**
  * Test the API connection
  *
  * @return array API response with success/error details
