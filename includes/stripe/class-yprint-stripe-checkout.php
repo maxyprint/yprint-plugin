@@ -2124,46 +2124,9 @@ public function ajax_process_payment_method() {
         $this->apply_final_yprint_addresses($order);
         
         // Nach autoritärer Anwendung: Order speichern und als final markieren
-        $order->update_meta_data('_yprint_addresses_final_applied', true);
-        $order->update_meta_data('_yprint_final_timestamp', current_time('mysql'));
-        $order->save();
-            
-            // AUTORITATIVE: Setze Rechnungsadresse - entweder separate oder gleiche wie Shipping
-            if ($has_different_billing && !empty($billing_address)) {
-                error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - Applying separate YPrint billing address');
-                
-                $order->set_billing_first_name($billing_address['first_name'] ?? '');
-                $order->set_billing_last_name($billing_address['last_name'] ?? '');
-                $order->set_billing_address_1($billing_address['address_1'] ?? '');
-                $order->set_billing_address_2($billing_address['address_2'] ?? '');
-                $order->set_billing_city($billing_address['city'] ?? '');
-                $order->set_billing_postcode($billing_address['postcode'] ?? '');
-                $order->set_billing_country($billing_address['country'] ?? 'DE');
-                $order->set_billing_phone($billing_address['phone'] ?? '');
-                // E-Mail bleibt aus Customer/Payment Method Data
-                
-                error_log('🔍 YPRINT DEBUG: Applied separate billing address: ' . $billing_address['address_1'] . ', ' . $billing_address['city']);
-            } else {
-                error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - Using YPrint shipping as billing address');
-                
-                $order->set_billing_first_name($selected_address['first_name'] ?? '');
-                $order->set_billing_last_name($selected_address['last_name'] ?? '');
-                $order->set_billing_address_1($selected_address['address_1'] ?? '');
-                $order->set_billing_address_2($selected_address['address_2'] ?? '');
-                $order->set_billing_city($selected_address['city'] ?? '');
-                $order->set_billing_postcode($selected_address['postcode'] ?? '');
-                $order->set_billing_country($selected_address['country'] ?? 'DE');
-                $order->set_billing_phone($selected_address['phone'] ?? '');
-                // E-Mail bleibt aus Customer/Payment Method Data
-                
-                error_log('🔍 YPRINT DEBUG: Applied shipping address as billing: ' . $selected_address['address_1'] . ', ' . $selected_address['city']);
-            }
-            
-            // Markiere dass YPrint-Adressen autoritativ angewendet wurden
-            $order->update_meta_data('_yprint_addresses_applied_authoritatively', 'normal_payment');
-            $order->update_meta_data('_yprint_addresses_timestamp', current_time('mysql'));
-            
-            error_log('🔍 YPRINT DEBUG: AUTORITATIVE APPLICATION SUCCESS - YPrint addresses applied to Order #' . $order->get_id());
+$order->update_meta_data('_yprint_addresses_final_applied', true);
+$order->update_meta_data('_yprint_final_timestamp', current_time('mysql'));
+$order->save();
             
         
         
@@ -2225,6 +2188,10 @@ public function ajax_process_payment_method() {
             }
         }
         
+// Empty cart
+// Empty cart
+WC()->cart->empty_cart();
+
         // Calculate totals and save order
         $order->calculate_totals();
         $order->save();
