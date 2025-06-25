@@ -2011,17 +2011,24 @@ public function ajax_process_payment_method() {
         $order_id = $order->get_id();
         error_log('Created order with ID: ' . $order_id);
         
-        // Set customer details
-        if (!empty($customer_email)) {
-            $order->set_billing_email($customer_email);
-        }
-        
-        if (isset($payment_method['billing_details']['name'])) {
-            $name_parts = explode(' ', $payment_method['billing_details']['name']);
-            $order->set_billing_first_name($name_parts[0]);
-            if (count($name_parts) > 1) {
-                $order->set_billing_last_name(end($name_parts));
+        // CRITICAL: Prüfe ob YPrint-Adressen bereits gesetzt wurden
+        $yprint_addresses_set = $order->get_meta('_yprint_addresses_applied', true);
+
+        if (!$yprint_addresses_set) {
+            // Set customer details nur wenn YPrint-Adressen noch nicht angewendet wurden
+            if (!empty($customer_email)) {
+                $order->set_billing_email($customer_email);
             }
+
+            if (isset($payment_method['billing_details']['name'])) {
+                $name_parts = explode(' ', $payment_method['billing_details']['name']);
+                $order->set_billing_first_name($name_parts[0]);
+                if (count($name_parts) > 1) {
+                    $order->set_billing_last_name(end($name_parts));
+                }
+            }
+        } else {
+            error_log('YPRINT DEBUG: Skipping Stripe address override - YPrint addresses already applied');
         }
         
         // Nutze YPrint Address Manager für korrekte Adress-Zuordnung

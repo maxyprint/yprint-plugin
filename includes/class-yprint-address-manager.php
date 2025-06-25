@@ -68,20 +68,15 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
-        // CRITICAL: Hooks für Bestellerstellung - ENHANCED with higher priority
-add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 5, 2);
-add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 5, 2);
+        // CLEAN HOOKS: Eindeutige Prioritäten, keine Duplikate
+        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 5, 2);
+        add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 5, 2);
 
-// ADDITIONAL: Backup-Hook für Express Payment scenarios
-add_action('woocommerce_checkout_order_processed', array($this, 'apply_addresses_to_order_backup'), 5, 3);
+        // Stripe-spezifischer Hook für Express Payments
+        add_action('woocommerce_checkout_order_processed', array($this, 'apply_addresses_to_order_backup'), 20, 3);
         
         // Debug-Hooks
-        add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 10, 1);
-    
-        
-        // Hooks für Bestellerstellung
-        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
-        add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
+        add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 25, 1);
 
         // AJAX-Handler für Billing Different Flag
 add_action('wp_ajax_yprint_activate_billing_different', array($this, 'ajax_activate_billing_different'));
@@ -732,10 +727,18 @@ public function ajax_save_billing_session() {
             $sanitized_billing[sanitize_key($key)] = sanitize_text_field($value);
         }
         
+        // CRITICAL: E-Mail-Adresse ergänzen wenn nicht vorhanden
+        if (empty($sanitized_billing['email']) && WC()->customer) {
+            $sanitized_billing['email'] = WC()->customer->get_email();
+        }
+        
         // In WooCommerce Session speichern
         if (WC()->session) {
             WC()->session->set('yprint_billing_address', $sanitized_billing);
             WC()->session->set('yprint_billing_address_different', true);
+            
+            // Debug: Verification der Session-Speicherung
+            error_log('🔍 YPRINT DEBUG: Billing session saved with email: ' . ($sanitized_billing['email'] ?? 'NO_EMAIL'));
         }
         
         wp_send_json_success(array(
@@ -963,6 +966,10 @@ public function apply_addresses_to_order($order, $data = null) {
             error_log('YPrint: Set billing address same as shipping');
         }
     }
+    
+    // CRITICAL: Markiere dass YPrint-Adressen angewendet wurden
+    $order->update_meta_data('_yprint_addresses_applied', true);
+    $order->update_meta_data('_yprint_application_timestamp', current_time('mysql'));
     
     $order->save();
 
