@@ -100,6 +100,9 @@ class YPrint_Stripe_Checkout {
         // Express Checkout Design Transfer Hook
         add_action('yprint_express_order_created', array($instance, 'express_checkout_design_transfer_hook'), 10, 1);
         
+        // SCHUTZ-HOOK: Finale YPrint-Adress-Kontrolle nach allen anderen Hooks
+        add_action('woocommerce_checkout_order_processed', array($instance, 'final_address_protection_hook'), 999, 3);
+        
     }
 
     /**
@@ -1698,18 +1701,104 @@ public static function get_stripe_amount($amount, $currency = null) {
     }
 }
 
+/**
+     * FINALE AUTORITÄRE YPRINT-ADRESS-ANWENDUNG
+     * Diese Funktion hat das FINALE Wort über alle Adressdaten
+     */
+    private function apply_final_yprint_addresses($order) {
+        error_log('🔍 YPRINT FINAL: ==========================================');
+        error_log('🔍 YPRINT FINAL: FINALE AUTORITATIVE ADRESS-ANWENDUNG START');
+        error_log('🔍 YPRINT FINAL: Order #' . $order->get_id());
+        
+        // YPrint Session-Daten laden
+        $selected_address = WC()->session->get('yprint_selected_address', array());
+        $billing_address = WC()->session->get('yprint_billing_address', array());
+        $has_different_billing = WC()->session->get('yprint_billing_address_different', false);
+        
+        error_log('🔍 YPRINT FINAL: Selected Address Count: ' . count($selected_address));
+        error_log('🔍 YPRINT FINAL: Has Different Billing: ' . ($has_different_billing ? 'YES' : 'NO'));
+        error_log('🔍 YPRINT FINAL: Billing Address Count: ' . count($billing_address));
+        
+        // BEDINGUNG: Nur anwenden wenn YPrint-Adressen vorhanden sind
+        if (empty($selected_address)) {
+            error_log('🔍 YPRINT FINAL: SKIP - Keine YPrint-Adresse in Session');
+            return;
+        }
+        
+        // SCHRITT 1: SHIPPING ADDRESS - IMMER aus selected_address
+        error_log('🔍 YPRINT FINAL: ANWENDEN - Shipping Address');
+        $order->set_shipping_first_name($selected_address['first_name'] ?? '');
+        $order->set_shipping_last_name($selected_address['last_name'] ?? '');
+        $order->set_shipping_address_1($selected_address['address_1'] ?? '');
+        $order->set_shipping_address_2($selected_address['address_2'] ?? '');
+        $order->set_shipping_city($selected_address['city'] ?? '');
+        $order->set_shipping_postcode($selected_address['postcode'] ?? '');
+        $order->set_shipping_country($selected_address['country'] ?? 'DE');
+        $order->set_shipping_phone($selected_address['phone'] ?? '');
+        
+        error_log('🔍 YPRINT FINAL: Shipping gesetzt: ' . $selected_address['address_1'] . ', ' . $selected_address['city']);
+        
+        // SCHRITT 2: BILLING ADDRESS - Conditional Logic
+        if ($has_different_billing && !empty($billing_address)) {
+            // FALL A: Abweichende Rechnungsadresse verwenden
+            error_log('🔍 YPRINT FINAL: ANWENDEN - Separate Billing Address');
+            $order->set_billing_first_name($billing_address['first_name'] ?? '');
+            $order->set_billing_last_name($billing_address['last_name'] ?? '');
+            $order->set_billing_address_1($billing_address['address_1'] ?? '');
+            $order->set_billing_address_2($billing_address['address_2'] ?? '');
+            $order->set_billing_city($billing_address['city'] ?? '');
+            $order->set_billing_postcode($billing_address['postcode'] ?? '');
+            $order->set_billing_country($billing_address['country'] ?? 'DE');
+            $order->set_billing_phone($billing_address['phone'] ?? '');
+            // E-Mail wird NICHT überschrieben - bleibt aus Payment Method
+            
+            error_log('🔍 YPRINT FINAL: Billing gesetzt: ' . $billing_address['address_1'] . ', ' . $billing_address['city']);
+        } else {
+            // FALL B: Shipping-Adresse als Billing verwenden
+            error_log('🔍 YPRINT FINAL: ANWENDEN - Shipping als Billing');
+            $order->set_billing_first_name($selected_address['first_name'] ?? '');
+            $order->set_billing_last_name($selected_address['last_name'] ?? '');
+            $order->set_billing_address_1($selected_address['address_1'] ?? '');
+            $order->set_billing_address_2($selected_address['address_2'] ?? '');
+            $order->set_billing_city($selected_address['city'] ?? '');
+            $order->set_billing_postcode($selected_address['postcode'] ?? '');
+            $order->set_billing_country($selected_address['country'] ?? 'DE');
+            $order->set_billing_phone($selected_address['phone'] ?? '');
+            // E-Mail wird NICHT überschrieben - bleibt aus Payment Method
+            
+            error_log('🔍 YPRINT FINAL: Billing=Shipping gesetzt: ' . $selected_address['address_1'] . ', ' . $selected_address['city']);
+        }
+        
+        error_log('🔍 YPRINT FINAL: FINALE AUTORITATIVE ADRESS-ANWENDUNG COMPLETE');
+        error_log('🔍 YPRINT FINAL: ==========================================');
+    }
+
+
+/**
+     * FINALER SCHUTZ-HOOK: Verhindert Überschreibung der YPrint-Adressen
+     */
+    public function final_address_protection_hook($order_id, $posted_data, $order) {
+        if (!$order instanceof WC_Order) {
+            return;
+        }
+        
+        // Prüfe ob dieser Order YPrint-Adressen hatte
+        $yprint_final_applied = $order->get_meta('_yprint_addresses_final_applied', true);
+        
+        if ($yprint_final_applied) {
+            error_log('🔍 YPRINT PROTECTION: Finale YPrint-Adress-Kontrolle für Order #' . $order_id);
+            
+            // Re-apply YPrint addresses als absolute finale Maßnahme
+            $this->apply_final_yprint_addresses($order);
+            $order->save();
+            
+            error_log('🔍 YPRINT PROTECTION: YPrint-Adressen final geschützt');
+        }
+    }
+
     /**
- * AJAX handler for processing payment methods (COMPLETE VERSION)
- */
-/**
- * AJAX handler for processing payment methods (CORRECTED VERSION)
- */
-/**
- * AJAX handler for processing payment methods (FINAL CORRECTED VERSION)
- */
-/**
- * AJAX handler for processing payment methods (FINAL CORRECTED VERSION)
- */
+     * AJAX handler for processing payment methods (FINAL CORRECTED VERSION)
+     */
 public function ajax_process_payment_method() {
     error_log('=== YPRINT EXPRESS PAYMENT METHOD PROCESSING START ===');
     
@@ -2031,27 +2120,13 @@ public function ajax_process_payment_method() {
             error_log('YPRINT DEBUG: Skipping Stripe address override - YPrint addresses already applied');
         }
         
-        // AUTORITATIVE YPRINT-ADRESS-ANWENDUNG: Überschreibe ALLE Adressen mit YPrint-Session-Daten
-        $selected_address = WC()->session->get('yprint_selected_address');
-        $billing_address = WC()->session->get('yprint_billing_address');
-        $has_different_billing = WC()->session->get('yprint_billing_address_different', false);
-
-        error_log('🔍 YPRINT DEBUG: AUTORITATIVE ADDRESS APPLICATION - Normal Payment Flow');
-        error_log('🔍 YPRINT DEBUG: - Selected Address available: ' . (!empty($selected_address) ? 'YES' : 'NO'));
-        error_log('🔍 YPRINT DEBUG: - Billing Different: ' . ($has_different_billing ? 'YES' : 'NO'));
-
-        if ($selected_address && !empty($selected_address)) {
-            error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - Applying YPrint addresses for normal payment');
-            
-            // AUTORITATIVE: Setze Lieferadresse aus YPrint Session (überschreibt Payment Method Daten)
-            $order->set_shipping_first_name($selected_address['first_name'] ?? '');
-            $order->set_shipping_last_name($selected_address['last_name'] ?? '');
-            $order->set_shipping_address_1($selected_address['address_1'] ?? '');
-            $order->set_shipping_address_2($selected_address['address_2'] ?? '');
-            $order->set_shipping_city($selected_address['city'] ?? '');
-            $order->set_shipping_postcode($selected_address['postcode'] ?? '');
-            $order->set_shipping_country($selected_address['country'] ?? 'DE');
-            $order->set_shipping_phone($selected_address['phone'] ?? '');
+        // FINAL AUTORITÄRE YPRINT-ADRESS-ANWENDUNG - DARF NICHT ÜBERSCHRIEBEN WERDEN
+        $this->apply_final_yprint_addresses($order);
+        
+        // Nach autoritärer Anwendung: Order speichern und als final markieren
+        $order->update_meta_data('_yprint_addresses_final_applied', true);
+        $order->update_meta_data('_yprint_final_timestamp', current_time('mysql'));
+        $order->save();
             
             // AUTORITATIVE: Setze Rechnungsadresse - entweder separate oder gleiche wie Shipping
             if ($has_different_billing && !empty($billing_address)) {
@@ -2090,30 +2165,7 @@ public function ajax_process_payment_method() {
             
             error_log('🔍 YPRINT DEBUG: AUTORITATIVE APPLICATION SUCCESS - YPrint addresses applied to Order #' . $order->get_id());
             
-        } else {
-            error_log('🔍 YPRINT DEBUG: FALLBACK - No YPrint session data, using payment method addresses');
-            
-            // Fallback: Payment Method Adresse (nur wenn keine YPrint-Daten vorhanden)
-            if (isset($payment_method['billing_details']['address'])) {
-                $billing_address_data = $payment_method['billing_details']['address'];
-                $order->set_billing_address_1($billing_address_data['line1'] ?? '');
-                $order->set_billing_city($billing_address_data['city'] ?? '');
-                $order->set_billing_postcode($billing_address_data['postal_code'] ?? '');
-                $order->set_billing_country($billing_address_data['country'] ?? 'DE');
-            }
-
-            // Set shipping address if provided
-            if ($shipping_address) {
-                $order->set_shipping_first_name($order->get_billing_first_name());
-                $order->set_shipping_last_name($order->get_billing_last_name());
-                $order->set_shipping_address_1($shipping_address['addressLine'][0] ?? '');
-                $order->set_shipping_city($shipping_address['city'] ?? '');
-                $order->set_shipping_postcode($shipping_address['postalCode'] ?? '');
-                $order->set_shipping_country($shipping_address['country'] ?? 'DE');
-            }
-            
-            error_log('🔍 YPRINT DEBUG: Applied fallback payment method addresses');
-        }
+        
         
         // Set payment method
         $order->set_payment_method('yprint_stripe');
