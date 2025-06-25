@@ -2254,6 +2254,29 @@ $intent_data = array(
         )
     ) 
 );
+
+// SEPA-spezifische Erweiterungen für Mandat
+if (isset($payment_method['type']) && $payment_method['type'] === 'sepa_debit') {
+    error_log('🚀 SEPA MANDATE: Adding mandate_data for SEPA payment');
+    
+    // SEPA-Mandat-Daten hinzufügen (EU-Recht konform)
+    $intent_data['mandate_data'] = array(
+        'customer_acceptance' => array(
+            'type' => 'online',
+            'online' => array(
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'YPrint Checkout'
+            )
+        )
+    );
+    
+    // SEPA-spezifische Payment Method Options
+    $intent_data['payment_method_options']['sepa_debit'] = array(
+        'mandate_options' => array()
+    );
+    
+    error_log('🚀 SEPA MANDATE: mandate_data added: ' . wp_json_encode($intent_data['mandate_data']));
+}
         
         // Debug: Log complete intent data
         error_log('Complete Intent data being sent to Stripe: ' . wp_json_encode($intent_data));
