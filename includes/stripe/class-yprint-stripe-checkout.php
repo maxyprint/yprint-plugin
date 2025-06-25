@@ -2120,13 +2120,82 @@ public function ajax_process_payment_method() {
             error_log('YPRINT DEBUG: Skipping Stripe address override - YPrint addresses already applied');
         }
         
-        // FINAL AUTORITÄRE YPRINT-ADRESS-ANWENDUNG - DARF NICHT ÜBERSCHRIEBEN WERDEN
-        $this->apply_final_yprint_addresses($order);
+        // ========== KRITISCHE YPRINT-ADRESS-ANWENDUNG START ==========
+        error_log('🔍 YPRINT CRITICAL: Applying YPrint addresses for Order #' . $order_id);
         
-        // Nach autoritärer Anwendung: Order speichern und als final markieren
-$order->update_meta_data('_yprint_addresses_final_applied', true);
-$order->update_meta_data('_yprint_final_timestamp', current_time('mysql'));
-$order->save();
+        // Session-Daten laden BEVOR Stripe-Adressen überschreiben
+        $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+        $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+        $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+        
+        error_log('🔍 YPRINT CRITICAL: Session Analysis:');
+        error_log('🔍 YPRINT CRITICAL: - Selected Address Count: ' . count($yprint_selected));
+        error_log('🔍 YPRINT CRITICAL: - Has Different Billing: ' . ($yprint_billing_different ? 'YES' : 'NO'));
+        error_log('🔍 YPRINT CRITICAL: - Billing Address Count: ' . count($yprint_billing));
+        
+        // AUTORITATIVE ANWENDUNG: YPrint Session überschreibt ALLES
+        if (!empty($yprint_selected)) {
+            error_log('🔍 YPRINT CRITICAL: APPLYING YPrint addresses authoritatively');
+            
+            // SCHRITT 1: Shipping Address - IMMER aus yprint_selected_address
+            $order->set_shipping_first_name($yprint_selected['first_name'] ?? '');
+            $order->set_shipping_last_name($yprint_selected['last_name'] ?? '');
+            $order->set_shipping_address_1($yprint_selected['address_1'] ?? '');
+            $order->set_shipping_address_2($yprint_selected['address_2'] ?? '');
+            $order->set_shipping_city($yprint_selected['city'] ?? '');
+            $order->set_shipping_postcode($yprint_selected['postcode'] ?? '');
+            $order->set_shipping_country($yprint_selected['country'] ?? 'DE');
+            $order->set_shipping_phone($yprint_selected['phone'] ?? '');
+            
+            error_log('🔍 YPRINT CRITICAL: Shipping Address set: ' . $yprint_selected['address_1'] . ', ' . $yprint_selected['city']);
+            
+            // SCHRITT 2: Billing Address - Unterscheidung zwischen separater oder gleicher Adresse
+            if ($yprint_billing_different && !empty($yprint_billing)) {
+                // Separate Rechnungsadresse
+                error_log('🔍 YPRINT CRITICAL: Applying separate billing address');
+                $order->set_billing_first_name($yprint_billing['first_name'] ?? '');
+                $order->set_billing_last_name($yprint_billing['last_name'] ?? '');
+                $order->set_billing_address_1($yprint_billing['address_1'] ?? '');
+                $order->set_billing_address_2($yprint_billing['address_2'] ?? '');
+                $order->set_billing_city($yprint_billing['city'] ?? '');
+                $order->set_billing_postcode($yprint_billing['postcode'] ?? '');
+                $order->set_billing_country($yprint_billing['country'] ?? 'DE');
+                $order->set_billing_phone($yprint_billing['phone'] ?? '');
+                // E-Mail bleibt aus Stripe Payment Method
+                
+                error_log('🔍 YPRINT CRITICAL: Billing Address set: ' . $yprint_billing['address_1'] . ', ' . $yprint_billing['city']);
+            } else {
+                // Rechnungsadresse = Lieferadresse
+                error_log('🔍 YPRINT CRITICAL: Using shipping as billing address');
+                $order->set_billing_first_name($yprint_selected['first_name'] ?? '');
+                $order->set_billing_last_name($yprint_selected['last_name'] ?? '');
+                $order->set_billing_address_1($yprint_selected['address_1'] ?? '');
+                $order->set_billing_address_2($yprint_selected['address_2'] ?? '');
+                $order->set_billing_city($yprint_selected['city'] ?? '');
+                $order->set_billing_postcode($yprint_selected['postcode'] ?? '');
+                $order->set_billing_country($yprint_selected['country'] ?? 'DE');
+                $order->set_billing_phone($yprint_selected['phone'] ?? '');
+                // E-Mail bleibt aus Stripe Payment Method
+            }
+            
+            // Meta-Daten zur Verifizierung
+            $order->update_meta_data('_yprint_addresses_applied_authoritatively', 'express_payment');
+            $order->update_meta_data('_yprint_addresses_timestamp', current_time('mysql'));
+            $order->update_meta_data('_yprint_session_backup', array(
+                'selected' => $yprint_selected,
+                'billing' => $yprint_billing,
+                'billing_different' => $yprint_billing_different
+            ));
+            
+            error_log('🔍 YPRINT CRITICAL: YPrint addresses applied successfully');
+        } else {
+            error_log('🔍 YPRINT CRITICAL: No YPrint session data - keeping Stripe addresses');
+        }
+        
+        error_log('🔍 YPRINT CRITICAL: ========== KRITISCHE YPRINT-ADRESS-ANWENDUNG END ==========');
+        
+        // Order speichern mit angewendeten YPrint-Adressen
+        $order->save();
             
         
         
