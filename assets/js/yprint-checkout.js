@@ -2419,19 +2419,27 @@ async function createStripeCardPaymentMethod() {
     
     console.log('DEBUG: All systems ready, creating payment method...');
     
-    // Sammle Billing-Details aus dem Formular
-    const billingDetails = {
-        name: `${formData.shipping.first_name || ''} ${formData.shipping.last_name || ''}`.trim(),
-        email: document.getElementById('email')?.value || '',
-        phone: formData.shipping.phone || '',
-        address: {
-            line1: formData.shipping.street || '',
-            line2: formData.shipping.housenumber || '',
-            city: formData.shipping.city || '',
-            postal_code: formData.shipping.zip || '',
-            country: formData.shipping.country || 'DE',
-        }
-    };
+    // Nutze zentrale Kundendaten-Funktion (gleiche wie in SEPA-Implementierung)
+const customerData = await getCustomerDataForPayment();
+console.log('DEBUG: Customer data for payment method:', customerData);
+
+if (!customerData.name || !customerData.email) {
+    throw new Error('Kundendaten nicht verfügbar für Card Payment Method');
+}
+
+// Sammle Billing-Details mit korrekten Kundendaten
+const billingDetails = {
+    name: customerData.name,
+    email: customerData.email,
+    phone: customerData.phone || '',
+    address: {
+        line1: formData.shipping?.street || '',
+        line2: formData.shipping?.housenumber || '',
+        city: formData.shipping?.city || '',
+        postal_code: formData.shipping?.zip || '',
+        country: formData.shipping?.country || 'DE',
+    }
+};
     
     console.log('Creating card payment method with billing details:', billingDetails);
     console.log('DEBUG: About to call stripe.createPaymentMethod...');
