@@ -2217,7 +2217,7 @@ $intent_data = array(
     'payment_method' => $payment_method['id'],
     'confirmation_method' => 'manual',
     'confirm' => true,
-    'capture_method' => $capture_payment ? 'automatic' : 'manual',
+    'capture_method' => 'automatic',  // Simplified - always automatic for regular payments
     'description' => sprintf('YPrint Order #%s - %s', $order->get_order_number(), get_bloginfo('name')),
     'metadata' => array(
         'order_id' => (string) $order->get_id(),
@@ -2226,10 +2226,11 @@ $intent_data = array(
         'customer_email' => $order->get_billing_email(),
     ),
     'receipt_email' => $order->get_billing_email(),
-    'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()),
+    // REMOVED: return_url not needed for server-side confirmation
+    // 'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()),
     'payment_method_options' => array(
         'card' => array(
-            'request_three_d_secure' => 'automatic'
+            'request_three_d_secure' => 'if_required'  // Changed from 'automatic' to 'if_required'
         )
     )
 );
@@ -2243,9 +2244,21 @@ $intent_data = array(
         if (!empty($intent->error)) {
             error_log('Payment Intent creation failed: ' . $intent->error->message);
             error_log('Intent data that caused error: ' . wp_json_encode($intent_data));
-            wp_send_json_error(array('message' => $intent->error->message));
+            
+            // Check for specific test card declined error
+            $error_message = $intent->error->message;
+            if (strpos($error_message, 'card was declined') !== false) {
+                $error_message = 'Payment was declined. Please try with a different card or contact your bank. (This might be due to using test card 4000000000003012 which simulates declines)';
+            }
+            
+            wp_send_json_error(array('message' => $error_message));
             return;
         }
+
+        // Debug: Check if this is a test card that simulates decline
+if (isset($payment_method['card']['last4']) && $payment_method['card']['last4'] === '3012') {
+    error_log('WARNING: Using test card 4000000000003012 which always declines. Use 4242424242424242 for successful test payments.');
+}
 
         error_log('Payment Intent created: ' . $intent->id . ' with status: ' . $intent->status);
 
@@ -2326,6 +2339,8 @@ $intent_data = array(
         ));
     }
 }
+
+
 
 
 
