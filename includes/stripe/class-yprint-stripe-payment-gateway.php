@@ -141,11 +141,22 @@ public function process_payment($order_id) {
             
         // If no payment method provided, check if we should redirect to Stripe Checkout
         if (empty($payment_method_id)) {
+            // Determine payment method types based on selected gateway
+            $payment_method_types = ['card']; // Default
+            
+            // Check if SEPA was selected
+            $selected_payment_method = isset($_POST['payment_method']) ? wc_clean(wp_unslash($_POST['payment_method'])) : '';
+            if ($selected_payment_method === 'yprint_stripe_sepa') {
+                $payment_method_types = ['sepa_debit'];
+            } elseif ($selected_payment_method === 'yprint_stripe_card') {
+                $payment_method_types = ['card'];
+            }
+            
             // Create payment intent
             $intent_data = array(
                 'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
                 'currency' => strtolower($order->get_currency()),
-                'payment_method_types' => ['card'],
+                'payment_method_types' => $payment_method_types,
                 'description' => sprintf('Order #%s from %s', $order->get_order_number(), get_bloginfo('name')),
                 'metadata' => array(
                     'order_id' => $order->get_id(),

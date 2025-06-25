@@ -2210,10 +2210,29 @@ error_log('Return URL: ' . home_url('/checkout/?step=confirmation&order_id=' . $
             return;
         }
         
-        // Enhanced intent data with better validation
+        // Determine payment method types based on PaymentMethod type
+        $payment_method_types = ['card']; // Default
+        if (isset($payment_method['type'])) {
+            switch ($payment_method['type']) {
+                case 'sepa_debit':
+                    $payment_method_types = ['sepa_debit'];
+                    break;
+                case 'card':
+                    $payment_method_types = ['card'];
+                    break;
+                default:
+                    $payment_method_types = [$payment_method['type']];
+            }
+        }
+        
+        error_log('🚀 SEPA DEBUG: PaymentIntent will be created with payment_method_types: ' . wp_json_encode($payment_method_types));
+        error_log('🚀 SEPA DEBUG: PaymentMethod type detected: ' . ($payment_method['type'] ?? 'unknown'));
+
+        // Enhanced intent data with better validation and dynamic payment_method_types
 $intent_data = array(
     'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
     'currency' => strtolower($order->get_currency()),
+    'payment_method_types' => $payment_method_types,
     'payment_method' => $payment_method['id'],
     'confirmation_method' => 'manual',
     'confirm' => true,
@@ -2224,6 +2243,7 @@ $intent_data = array(
         'order_number' => $order->get_order_number(),
         'site_url' => get_site_url(),
         'customer_email' => $order->get_billing_email(),
+        'payment_method_type' => $payment_method['type'] ?? 'unknown',
     ),
     'receipt_email' => $order->get_billing_email(),
     // CRITICAL: Add return_url as required by Stripe (compatible with confirmation_method manual)
@@ -2232,7 +2252,7 @@ $intent_data = array(
         'card' => array(
             'request_three_d_secure' => 'automatic'  // Fixed: Use valid Stripe parameter value
         )
-    )
+    ) 
 );
         
         // Debug: Log complete intent data
