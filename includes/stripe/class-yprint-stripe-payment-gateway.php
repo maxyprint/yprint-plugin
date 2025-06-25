@@ -236,6 +236,69 @@ public function process_payment($order_id) {
             }
             
             $order->add_order_note(sprintf(__('Stripe payment complete (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+            
+            // CRITICAL: Apply YPrint address corrections BEFORE final save (Standard Checkout)
+            if (class_exists('YPrint_Stripe_Checkout')) {
+                error_log('🔍 YPRINT DEBUG: Applying address corrections for Standard Payment Order #' . $order->get_id());
+                
+                // Session-Daten vor Überschreibung sichern
+                $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+                $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+                $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+                
+                error_log('🔍 YPRINT DEBUG: Standard Payment - Session preserved data check:');
+                error_log('🔍 YPRINT DEBUG: - Selected Address empty: ' . (empty($yprint_selected) ? 'TRUE' : 'FALSE'));
+                error_log('🔍 YPRINT DEBUG: - Billing Different: ' . ($yprint_billing_different ? 'TRUE' : 'FALSE'));
+                
+                // AUTORITATIVE YPRINT-ADRESS-ANWENDUNG: Überschreibe Stripe Payment Method Adressen mit YPrint-Daten
+                if (!empty($yprint_selected)) {
+                    error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - Applying YPrint selected address for Standard Payment');
+                    
+                    // Setze Lieferadresse aus YPrint Session (überschreibt Stripe Payment Method)
+                    $order->set_shipping_first_name($yprint_selected['first_name'] ?? '');
+                    $order->set_shipping_last_name($yprint_selected['last_name'] ?? '');
+                    $order->set_shipping_address_1($yprint_selected['address_1'] ?? '');
+                    $order->set_shipping_address_2($yprint_selected['address_2'] ?? '');
+                    $order->set_shipping_city($yprint_selected['city'] ?? '');
+                    $order->set_shipping_postcode($yprint_selected['postcode'] ?? '');
+                    $order->set_shipping_country($yprint_selected['country'] ?? 'DE');
+                    $order->set_shipping_phone($yprint_selected['phone'] ?? '');
+                    
+                    // Setze Rechnungsadresse: Entweder separate Billing oder gleiche wie Shipping
+                    if ($yprint_billing_different && !empty($yprint_billing)) {
+                        error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - Applying separate YPrint billing address for Standard Payment');
+                        $order->set_billing_first_name($yprint_billing['first_name'] ?? '');
+                        $order->set_billing_last_name($yprint_billing['last_name'] ?? '');
+                        $order->set_billing_address_1($yprint_billing['address_1'] ?? '');
+                        $order->set_billing_address_2($yprint_billing['address_2'] ?? '');
+                        $order->set_billing_city($yprint_billing['city'] ?? '');
+                        $order->set_billing_postcode($yprint_billing['postcode'] ?? '');
+                        $order->set_billing_country($yprint_billing['country'] ?? 'DE');
+                        $order->set_billing_phone($yprint_billing['phone'] ?? '');
+                        // E-Mail bleibt aus Stripe Payment Method
+                    } else {
+                        error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - Using YPrint shipping as billing address for Standard Payment');
+                        $order->set_billing_first_name($yprint_selected['first_name'] ?? '');
+                        $order->set_billing_last_name($yprint_selected['last_name'] ?? '');
+                        $order->set_billing_address_1($yprint_selected['address_1'] ?? '');
+                        $order->set_billing_address_2($yprint_selected['address_2'] ?? '');
+                        $order->set_billing_city($yprint_selected['city'] ?? '');
+                        $order->set_billing_postcode($yprint_selected['postcode'] ?? '');
+                        $order->set_billing_country($yprint_selected['country'] ?? 'DE');
+                        $order->set_billing_phone($yprint_selected['phone'] ?? '');
+                        // E-Mail bleibt aus Stripe Payment Method
+                    }
+                    
+                    // Markiere dass YPrint-Adressen autoritativ angewendet wurden
+                    $order->update_meta_data('_yprint_addresses_applied_authoritatively', 'standard_payment');
+                    $order->update_meta_data('_yprint_addresses_timestamp', current_time('mysql'));
+                    
+                    error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE COMPLETED for Standard Payment');
+                } else {
+                    error_log('🔍 YPRINT DEBUG: No YPrint session data found - keeping Stripe Payment Method addresses');
+                }
+            }
+            
             $order->save();
             
             // Empty cart
