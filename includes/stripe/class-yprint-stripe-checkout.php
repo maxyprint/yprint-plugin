@@ -2978,6 +2978,74 @@ if (!function_exists('yprint_complete_design_transfer')) {
         // Design Image URL
         $order_item->update_meta_data('design_image_url', $design_data['design_image_url'] ?? $design_data['original_url'] ?? '');
         
+        // === KRITISCHE ERGÄNZUNG: DATENBANKINTEGRATION ===
+        // Hole erweiterte Design-Daten aus der octo_designs Datenbank
+        if (!empty($design_data['design_id'])) {
+            error_log('COMPLETE TRANSFER: Integrating database design data for ID: ' . $design_data['design_id']);
+            
+            global $wpdb;
+            $db_design = $wpdb->get_row($wpdb->prepare(
+                "SELECT id, user_id, template_id, name, design_data, created_at, product_name, product_description 
+                 FROM deo6_octo_user_designs 
+                 WHERE id = %d",
+                $design_data['design_id']
+            ), ARRAY_A);
+            
+            if ($db_design) {
+                error_log('COMPLETE TRANSFER: Database design found, processing...');
+                
+                // Parse JSON design_data
+                $parsed_design_data = json_decode($db_design['design_data'], true);
+                
+                if (json_last_error() === JSON_ERROR_NONE && $parsed_design_data) {
+                    // Erweiterte Datenbank-Meta-Daten
+                    $order_item->update_meta_data('_db_design_template_id', $db_design['template_id']);
+                    $order_item->update_meta_data('_db_design_user_id', $db_design['user_id']);
+                    $order_item->update_meta_data('_db_design_created_at', $db_design['created_at']);
+                    $order_item->update_meta_data('_db_design_product_name', $db_design['product_name']);
+                    $order_item->update_meta_data('_db_design_product_description', $db_design['product_description']);
+                    
+                    // Vollständige JSON-Daten speichern
+                    $order_item->update_meta_data('_db_design_raw_json', $db_design['design_data']);
+                    $order_item->update_meta_data('_db_design_parsed_data', wp_json_encode($parsed_design_data));
+                    
+                    // Template Info
+                    if (isset($parsed_design_data['templateId'])) {
+                        $order_item->update_meta_data('_db_template_id', $parsed_design_data['templateId']);
+                    }
+                    if (isset($parsed_design_data['currentVariation'])) {
+                        $order_item->update_meta_data('_db_current_variation', $parsed_design_data['currentVariation']);
+                    }
+                    
+                    // Verarbeite variationImages für detaillierte View-Daten
+                    if (isset($parsed_design_data['variationImages'])) {
+                        foreach ($parsed_design_data['variationImages'] as $variation_key => $variation_images) {
+                            if (is_array($variation_images) && isset($variation_images['views'])) {
+                                foreach ($variation_images['views'] as $view_name => $view_data) {
+                                    if (isset($view_data['layers']) && is_array($view_data['layers'])) {
+                                        foreach ($view_data['layers'] as $layer_index => $layer) {
+                                            if (isset($layer['printAreas']) && is_array($layer['printAreas'])) {
+                                                foreach ($layer['printAreas'] as $area_index => $print_area) {
+                                                    $area_key = "variation_{$variation_key}_view_{$view_name}_layer_{$layer_index}_area_{$area_index}";
+                                                    $order_item->update_meta_data("print_area_{$area_key}", wp_json_encode($print_area));
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    error_log('COMPLETE TRANSFER: Database integration completed successfully');
+                } else {
+                    error_log('COMPLETE TRANSFER: Failed to parse JSON design data');
+                }
+            } else {
+                error_log('COMPLETE TRANSFER: No database design found for ID: ' . $design_data['design_id']);
+            }
+        }
+        
         // Product Images (JSON)
         if (isset($design_data['product_images']) && !empty($design_data['product_images'])) {
             $product_images_json = is_string($design_data['product_images']) ? 
