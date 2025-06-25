@@ -801,19 +801,37 @@ if (class_exists('YPrint_Stripe_Checkout')) {
                     </div>
 
                     <!-- SEPA-Felder (initial versteckt) -->
-                    <div id="sepa-payment-fields" class="payment-input-fields">
-                        <div class="payment-field-group">
-                            <label class="payment-field-label"><?php esc_html_e('IBAN', 'yprint-checkout'); ?></label>
-                            <div id="stripe-sepa-element" class="payment-stripe-element"></div>
-                            <div id="stripe-sepa-errors" class="payment-error-display"></div>
-                        </div>
-                        <div class="sepa-info">
-                            <div class="sepa-info-content">
-                                <p><?php esc_html_e('Mit der Eingabe Ihrer IBAN erteilen Sie uns ein SEPA-Lastschriftmandat.', 'yprint-checkout'); ?></p>
-                                <p><?php esc_html_e('Der Betrag wird von Ihrem Konto abgebucht, nachdem wir Ihre Bestellung bearbeitet haben.', 'yprint-checkout'); ?></p>
-                            </div>
-                        </div>
-                    </div>
+<div id="sepa-payment-fields" class="payment-input-fields">
+    <div class="payment-field-group">
+        <label class="payment-field-label"><?php esc_html_e('IBAN', 'yprint-checkout'); ?></label>
+        <div id="stripe-sepa-element" class="payment-stripe-element"></div>
+        <div id="stripe-sepa-errors" class="payment-error-display"></div>
+    </div>
+    
+    <!-- RECHTLICH ERFORDERLICHE SEPA-MANDAT-ZUSTIMMUNG -->
+    <div class="sepa-mandate-section">
+        <div class="payment-checkbox-container">
+            <input type="checkbox" id="sepa-mandate-consent" class="payment-checkbox" required>
+            <label for="sepa-mandate-consent" class="payment-checkbox-label">
+                <?php esc_html_e('Ich erteile YPrint ein SEPA-Lastschriftmandat', 'yprint-checkout'); ?>
+            </label>
+        </div>
+        <div class="sepa-mandate-text">
+            <p class="sepa-mandate-details">
+                <?php esc_html_e('Ich ermächtige YPrint, Zahlungen von meinem Konto mittels Lastschrift einzuziehen. Zugleich weise ich mein Kreditinstitut an, die von YPrint auf mein Konto gezogenen Lastschriften einzulösen.', 'yprint-checkout'); ?>
+            </p>
+            <p class="sepa-mandate-note">
+                <?php esc_html_e('Hinweis: Sie können innerhalb von acht Wochen, beginnend mit dem Belastungsdatum, die Erstattung des belasteten Betrages verlangen. Es gelten dabei die mit Ihrem Kreditinstitut vereinbarten Bedingungen.', 'yprint-checkout'); ?>
+            </p>
+        </div>
+    </div>
+    
+    <div class="sepa-info">
+        <div class="sepa-info-content">
+            <p><?php esc_html_e('Der Betrag wird von Ihrem Konto abgebucht, nachdem wir Ihre Bestellung bearbeitet haben.', 'yprint-checkout'); ?></p>
+        </div>
+    </div>
+</div>
 
                 </div>
                 

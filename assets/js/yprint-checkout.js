@@ -2706,13 +2706,29 @@ async function validateStripeSepaElement() {
         console.log('DEBUG: Customer data retrieved:', customerData);
         
         // SEPA-Validierung: Name UND Email sind für rechtsgültige Mandate erforderlich
-        if (!customerData.name || !customerData.email) {
-            console.log('SEPA validation failed: Missing customer data');
-            console.log('DEBUG: Name available:', !!customerData.name);
-            console.log('DEBUG: Email available:', !!customerData.email);
-            console.log('DEBUG: Data source:', customerData.source);
-            return false;
-        }
+if (!customerData.name || !customerData.email) {
+    console.log('SEPA validation failed: Missing customer data');
+    console.log('DEBUG: Name available:', !!customerData.name);
+    console.log('DEBUG: Email available:', !!customerData.email);
+    console.log('DEBUG: Data source:', customerData.source);
+    return false;
+}
+
+// KRITISCH: Prüfe SEPA-Mandat-Zustimmung (EU-Recht erforderlich)
+const sepaMandateConsent = document.getElementById('sepa-mandate-consent');
+if (!sepaMandateConsent || !sepaMandateConsent.checked) {
+    console.log('SEPA validation failed: Missing mandate consent');
+    showMessage('Bitte stimmen Sie dem SEPA-Lastschriftmandat zu.', 'error');
+    return false;
+}
+
+console.log('DEBUG: SEPA validation passed - complete customer data and mandate consent available');
+console.log('DEBUG: Customer name:', customerData.name);
+console.log('DEBUG: Customer email:', customerData.email);
+console.log('DEBUG: Mandate consent given:', sepaMandateConsent.checked);
+console.log('DEBUG: Data source:', customerData.source);
+
+return true;
         
         console.log('DEBUG: SEPA validation passed - complete customer data available');
         console.log('DEBUG: Customer name:', customerData.name);
@@ -2868,13 +2884,29 @@ async function validateStripeSepaElement() {
         console.log('DEBUG: Customer data retrieved:', customerData);
         
         // SEPA-Validierung: Name UND Email sind für rechtsgültige Mandate erforderlich
-        if (!customerData.name || !customerData.email) {
-            console.log('SEPA validation failed: Missing customer data');
-            console.log('DEBUG: Name available:', !!customerData.name);
-            console.log('DEBUG: Email available:', !!customerData.email);
-            console.log('DEBUG: Data source:', customerData.source);
-            return false;
-        }
+if (!customerData.name || !customerData.email) {
+    console.log('SEPA validation failed: Missing customer data');
+    console.log('DEBUG: Name available:', !!customerData.name);
+    console.log('DEBUG: Email available:', !!customerData.email);
+    console.log('DEBUG: Data source:', customerData.source);
+    return false;
+}
+
+// KRITISCH: Prüfe SEPA-Mandat-Zustimmung (EU-Recht erforderlich)
+const sepaMandateConsent = document.getElementById('sepa-mandate-consent');
+if (!sepaMandateConsent || !sepaMandateConsent.checked) {
+    console.log('SEPA validation failed: Missing mandate consent');
+    showMessage('Bitte stimmen Sie dem SEPA-Lastschriftmandat zu.', 'error');
+    return false;
+}
+
+console.log('DEBUG: SEPA validation passed - complete customer data and mandate consent available');
+console.log('DEBUG: Customer name:', customerData.name);
+console.log('DEBUG: Customer email:', customerData.email);
+console.log('DEBUG: Mandate consent given:', sepaMandateConsent.checked);
+console.log('DEBUG: Data source:', customerData.source);
+
+return true;
         
         console.log('DEBUG: SEPA validation passed - complete customer data available');
         console.log('DEBUG: Customer name:', customerData.name);

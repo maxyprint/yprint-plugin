@@ -2244,3 +2244,43 @@ input[name="payment_method"]:checked + .payment-method-label {
 .cart-items::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
+
+.sepa-mandate-section {
+    margin: 16px 0;
+    padding: 16px;
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+}
+
+.sepa-mandate-text {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.sepa-mandate-details {
+    color: #495057;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.sepa-mandate-note {
+    color: #6c757d;
+    font-size: 0.8rem;
+    margin-bottom: 0;
+}
+
+.payment-checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    cursor: pointer;
+    gap: 8px;
+}
+
+.payment-checkbox-label {
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 500;
+    cursor: pointer;
+}
