@@ -2427,17 +2427,53 @@ if (!customerData.name || !customerData.email) {
     throw new Error('Kundendaten nicht verfügbar für Card Payment Method');
 }
 
-// Sammle Billing-Details mit korrekten Kundendaten
+// KORREKTUR: Prüfe ob abweichende Rechnungsadresse existiert
+let billingAddress = formData.shipping; // Fallback: Shipping als Billing
+
+// Session-Abfrage für YPrint Billing-Adresse
+try {
+    const sessionResponse = await fetch(yprint_checkout_params.ajax_url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            action: 'yprint_get_billing_session',
+            nonce: yprint_checkout_params.nonce
+        })
+    });
+    
+    const sessionData = await sessionResponse.json();
+    
+    if (sessionData.success && sessionData.data.has_different_billing && sessionData.data.billing_address) {
+        // Verwende YPrint Rechnungsadresse für Stripe Payment Method
+        const yprintBilling = sessionData.data.billing_address;
+        billingAddress = {
+            street: yprintBilling.address_1 || '',
+            housenumber: yprintBilling.address_2 || '',
+            city: yprintBilling.city || '',
+            zip: yprintBilling.postcode || '',
+            country: yprintBilling.country || 'DE'
+        };
+        console.log('DEBUG: Using YPrint billing address for Stripe Payment Method:', billingAddress);
+    } else {
+        console.log('DEBUG: Using shipping address as billing for Stripe Payment Method');
+    }
+} catch (error) {
+    console.warn('DEBUG: Could not fetch billing session, using shipping as fallback:', error);
+}
+
+// Sammle Billing-Details mit KORREKTER Rechnungsadresse
 const billingDetails = {
     name: customerData.name,
     email: customerData.email,
     phone: customerData.phone || '',
     address: {
-        line1: formData.shipping?.street || '',
-        line2: formData.shipping?.housenumber || '',
-        city: formData.shipping?.city || '',
-        postal_code: formData.shipping?.zip || '',
-        country: formData.shipping?.country || 'DE',
+        line1: billingAddress.street || '',
+        line2: billingAddress.housenumber || '',
+        city: billingAddress.city || '',
+        postal_code: billingAddress.zip || '',
+        country: billingAddress.country || 'DE',
     }
 };
     
