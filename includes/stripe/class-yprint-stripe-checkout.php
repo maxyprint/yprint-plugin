@@ -2229,10 +2229,10 @@ $intent_data = array(
     // REMOVED: return_url not needed for server-side confirmation
     // 'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()),
     'payment_method_options' => array(
-        'card' => array(
-            'request_three_d_secure' => 'if_required'  // Changed from 'automatic' to 'if_required'
-        )
+    'card' => array(
+        'request_three_d_secure' => 'automatic'  // Fixed: Use valid Stripe parameter value
     )
+)
 );
         
         // Debug: Log complete intent data
