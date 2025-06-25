@@ -20,54 +20,97 @@ $cart_totals = array();
 
 // Prüfe ob WooCommerce verfügbar ist und Warenkorb Daten hat
 if (class_exists('WooCommerce') && WC() && !WC()->cart->is_empty()) {
-    // Kundendaten - prioritär aus Address Manager Session laden
-$selected_address = WC()->session->get('yprint_selected_address');
-$checkout = WC()->checkout();
+    // Lade finale Order-Daten statt Session-Daten für korrekte Adressenanzeige
+$final_order = null;
+$order_data_from_session = WC()->session->get('yprint_pending_order');
 
-if ($selected_address && !empty($selected_address)) {
-    // Verwende Address Manager Daten
+// Versuche Order ID aus Session-Daten zu ermitteln
+$order_id = null;
+if ($order_data_from_session && isset($order_data_from_session['order_id'])) {
+    $order_id = $order_data_from_session['order_id'];
+} else {
+    // Fallback: Letzte Order ID aus Session
+    $last_order_id_session = WC()->session->get('yprint_last_order_id');
+    if ($last_order_id_session && strpos($last_order_id_session, 'YP-') === 0) {
+        $order_id = str_replace('YP-', '', $last_order_id_session);
+    }
+}
+
+// Lade finale WooCommerce Order
+if ($order_id) {
+    $final_order = wc_get_order($order_id);
+}
+
+if ($final_order && is_a($final_order, 'WC_Order')) {
+    // Verwende finale Order-Daten für korrekte Adressenanzeige
     $customer_data = array(
-        'first_name' => $selected_address['first_name'] ?? '',
-        'last_name' => $selected_address['last_name'] ?? '',
-        'email' => $checkout->get_value('billing_email') ?: WC()->customer->get_email(),
-        'phone' => $selected_address['phone'] ?? '',
+        'first_name' => $final_order->get_billing_first_name() ?: $final_order->get_shipping_first_name(),
+        'last_name' => $final_order->get_billing_last_name() ?: $final_order->get_shipping_last_name(),
+        'email' => $final_order->get_billing_email(),
+        'phone' => $final_order->get_billing_phone() ?: $final_order->get_shipping_phone(),
         'shipping' => array(
-            'address_1' => $selected_address['address_1'] ?? '',
-            'address_2' => $selected_address['address_2'] ?? '',
-            'city' => $selected_address['city'] ?? '',
-            'postcode' => $selected_address['postcode'] ?? '',
-            'country' => $selected_address['country'] ?? 'DE',
+            'address_1' => $final_order->get_shipping_address_1(),
+            'address_2' => $final_order->get_shipping_address_2(),
+            'city' => $final_order->get_shipping_city(),
+            'postcode' => $final_order->get_shipping_postcode(),
+            'country' => $final_order->get_shipping_country(),
         ),
         'billing' => array(
-            'address_1' => $selected_address['address_1'] ?? '',
-            'address_2' => $selected_address['address_2'] ?? '',
-            'city' => $selected_address['city'] ?? '',
-            'postcode' => $selected_address['postcode'] ?? '',
-            'country' => $selected_address['country'] ?? 'DE',
+            'address_1' => $final_order->get_billing_address_1(),
+            'address_2' => $final_order->get_billing_address_2(),
+            'city' => $final_order->get_billing_city(),
+            'postcode' => $final_order->get_billing_postcode(),
+            'country' => $final_order->get_billing_country(),
         )
     );
 } else {
-    // Fallback: Standard Checkout-Daten
-    $customer_data = array(
-        'first_name' => $checkout->get_value('billing_first_name') ?: $checkout->get_value('shipping_first_name'),
-        'last_name' => $checkout->get_value('billing_last_name') ?: $checkout->get_value('shipping_last_name'),
-        'email' => $checkout->get_value('billing_email'),
-        'phone' => $checkout->get_value('billing_phone') ?: $checkout->get_value('shipping_phone'),
-        'shipping' => array(
-            'address_1' => $checkout->get_value('shipping_address_1'),
-            'address_2' => $checkout->get_value('shipping_address_2'),
-            'city' => $checkout->get_value('shipping_city'),
-            'postcode' => $checkout->get_value('shipping_postcode'),
-            'country' => $checkout->get_value('shipping_country'),
-        ),
-        'billing' => array(
-            'address_1' => $checkout->get_value('billing_address_1'),
-            'address_2' => $checkout->get_value('billing_address_2'),
-            'city' => $checkout->get_value('billing_city'),
-            'postcode' => $checkout->get_value('billing_postcode'),
-            'country' => $checkout->get_value('billing_country'),
-        )
-    );
+    // Fallback: Session-Daten nur wenn keine finale Order verfügbar
+    $selected_address = WC()->session->get('yprint_selected_address');
+    $checkout = WC()->checkout();
+
+    if ($selected_address && !empty($selected_address)) {
+        $customer_data = array(
+            'first_name' => $selected_address['first_name'] ?? '',
+            'last_name' => $selected_address['last_name'] ?? '',
+            'email' => $checkout->get_value('billing_email') ?: WC()->customer->get_email(),
+            'phone' => $selected_address['phone'] ?? '',
+            'shipping' => array(
+                'address_1' => $selected_address['address_1'] ?? '',
+                'address_2' => $selected_address['address_2'] ?? '',
+                'city' => $selected_address['city'] ?? '',
+                'postcode' => $selected_address['postcode'] ?? '',
+                'country' => $selected_address['country'] ?? 'DE',
+            ),
+            'billing' => array(
+                'address_1' => $selected_address['address_1'] ?? '',
+                'address_2' => $selected_address['address_2'] ?? '',
+                'city' => $selected_address['city'] ?? '',
+                'postcode' => $selected_address['postcode'] ?? '',
+                'country' => $selected_address['country'] ?? 'DE',
+            )
+        );
+    } else {
+        $customer_data = array(
+            'first_name' => $checkout->get_value('billing_first_name') ?: $checkout->get_value('shipping_first_name'),
+            'last_name' => $checkout->get_value('billing_last_name') ?: $checkout->get_value('shipping_last_name'),
+            'email' => $checkout->get_value('billing_email'),
+            'phone' => $checkout->get_value('billing_phone') ?: $checkout->get_value('shipping_phone'),
+            'shipping' => array(
+                'address_1' => $checkout->get_value('shipping_address_1'),
+                'address_2' => $checkout->get_value('shipping_address_2'),
+                'city' => $checkout->get_value('shipping_city'),
+                'postcode' => $checkout->get_value('shipping_postcode'),
+                'country' => $checkout->get_value('shipping_country'),
+            ),
+            'billing' => array(
+                'address_1' => $checkout->get_value('billing_address_1'),
+                'address_2' => $checkout->get_value('billing_address_2'),
+                'city' => $checkout->get_value('billing_city'),
+                'postcode' => $checkout->get_value('billing_postcode'),
+                'country' => $checkout->get_value('billing_country'),
+            )
+        );
+    }
 }
     
     // Warenkorb-Items laden
@@ -177,12 +220,39 @@ if (empty($cart_items)) {
                     <?php endif; ?><br>
                     <?php echo esc_html($customer_data['shipping']['postcode'] . ' ' . $customer_data['shipping']['city']); ?><br>
                     <?php echo esc_html(WC()->countries->countries[$customer_data['shipping']['country']] ?? $customer_data['shipping']['country']); ?>
+                <?php else: ?>
+                    <span class="text-gray-500"><?php esc_html_e('Keine Lieferadresse angegeben', 'yprint-checkout'); ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Rechnungsadresse -->
+        <div>
+            <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?></h3>
+            <div class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
+                <?php if ($customer_data && !empty($customer_data['billing']['address_1'])): ?>
+                    <?php echo esc_html($customer_data['first_name'] . ' ' . $customer_data['last_name']); ?><br>
+                    <?php echo esc_html($customer_data['billing']['address_1']); ?>
+                    <?php if ($customer_data['billing']['address_2']): ?>
+                        <?php echo esc_html(' ' . $customer_data['billing']['address_2']); ?>
+                    <?php endif; ?><br>
+                    <?php echo esc_html($customer_data['billing']['postcode'] . ' ' . $customer_data['billing']['city']); ?><br>
+                    <?php echo esc_html(WC()->countries->countries[$customer_data['billing']['country']] ?? $customer_data['billing']['country']); ?>
+                    <?php if (!empty($customer_data['email'])): ?>
+                        <br><?php echo esc_html($customer_data['email']); ?>
+                    <?php endif; ?>
+                    <?php if (!empty($customer_data['phone'])): ?>
+                        <br><?php echo esc_html($customer_data['phone']); ?>
+                    <?php endif; ?>
+                <?php else: ?>
+                    <span class="text-gray-500"><?php esc_html_e('Keine Rechnungsadresse angegeben', 'yprint-checkout'); ?></span>
+                <?php endif; ?>
+            </div>
+        </div> $customer_data['shipping']['country']); ?>
                     <?php if ($customer_data['phone']): ?>
                         <br><?php esc_html_e('Tel:', 'yprint-checkout'); ?> <?php echo esc_html($customer_data['phone']); ?>
                     <?php endif; ?>
-                <?php else: ?>
                     <p class="text-gray-600"><?php esc_html_e('Adressdaten werden verarbeitet...', 'yprint-checkout'); ?></p>
-                <?php endif; ?>
             </div>
         </div>
 
