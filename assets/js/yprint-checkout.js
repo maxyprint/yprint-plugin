@@ -2432,6 +2432,12 @@ let billingAddress = formData.shipping; // Fallback: Shipping als Billing
 
 // Session-Abfrage für YPrint Billing-Adresse
 try {
+    // Prüfe ob yprint_address_ajax verfügbar ist
+    if (typeof yprint_address_ajax === 'undefined' || !yprint_address_ajax.nonce) {
+        console.warn('DEBUG: yprint_address_ajax not available, using shipping as billing');
+        throw new Error('yprint_address_ajax nicht verfügbar');
+    }
+    
     const sessionResponse = await fetch(yprint_checkout_params.ajax_url, {
         method: 'POST',
         headers: {
@@ -2439,7 +2445,7 @@ try {
         },
         body: new URLSearchParams({
             action: 'yprint_get_billing_session',
-            nonce: yprint_checkout_params.nonce
+            nonce: yprint_address_ajax.nonce
         })
     });
     
