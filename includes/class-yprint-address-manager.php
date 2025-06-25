@@ -85,6 +85,10 @@ add_action('wp_ajax_nopriv_yprint_activate_billing_different', array($this, 'aja
 // Debug Handler registrieren
 add_action('wp_ajax_yprint_debug_session_state', array($this, 'ajax_debug_session_state'));
 add_action('wp_ajax_nopriv_yprint_debug_session_state', array($this, 'ajax_debug_session_state'));
+
+// AJAX handlers
+add_action('wp_ajax_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
+add_action('wp_ajax_nopriv_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
     }
 
 /**
@@ -751,17 +755,22 @@ public function ajax_save_billing_session() {
 }
 
 /**
- * AJAX-Handler zum Abrufen der Billing-Session
+ * AJAX handler to get billing session data for JavaScript
  */
 public function ajax_get_billing_session() {
-    check_ajax_referer('yprint_save_address_action', 'nonce');
-    
-    $billing_address = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
-    $has_billing_address = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+    // Nonce verification - KRITISCH: Gleiche Nonce wie für andere Address Manager Funktionen
+    if (!wp_verify_nonce($_POST['nonce'], 'yprint_address_nonce')) {
+        wp_send_json_error('Invalid nonce');
+        return;
+    }
+
+    $has_different_billing = WC()->session->get('yprint_billing_address_different', false);
+    $billing_address = WC()->session->get('yprint_billing_address', array());
     
     wp_send_json_success(array(
-        'has_billing_address' => $has_billing_address && !empty($billing_address),
-        'billing_address' => $billing_address
+        'has_different_billing' => $has_different_billing,
+        'billing_address' => $billing_address,
+        'has_billing_address' => !empty($billing_address)
     ));
 }
 

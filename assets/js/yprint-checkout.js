@@ -12,6 +12,16 @@ document.querySelectorAll('script[src]').forEach(script => {
     }
 });
 
+// === YPRINT ADDRESS AJAX VERFÜGBARKEIT PRÜFEN ===
+if (typeof yprint_address_ajax === 'undefined') {
+    console.warn('CRITICAL: yprint_address_ajax not loaded! Payment Method creation will fail.');
+    // Fallback-Definition falls nicht geladen
+    window.yprint_address_ajax = {
+        ajax_url: (typeof yprint_checkout_params !== 'undefined') ? yprint_checkout_params.ajax_url : '/wp-admin/admin-ajax.php',
+        nonce: (typeof yprint_checkout_params !== 'undefined') ? yprint_checkout_params.nonce : ''
+    };
+}
+
 // Check for any 404 script errors
 const originalError = window.onerror;
 window.onerror = function(msg, url, line, col, error) {
@@ -2438,7 +2448,7 @@ try {
         throw new Error('yprint_address_ajax nicht verfügbar');
     }
     
-    const sessionResponse = await fetch(yprint_checkout_params.ajax_url, {
+    const sessionResponse = await fetch(yprint_address_ajax.ajax_url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
