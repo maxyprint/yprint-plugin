@@ -2519,67 +2519,70 @@ if ('succeeded' === $intent->status) {
         
         // **FINALE YPRINT-ADRESS-SCHUTZ-ANWENDUNG**
         // Verhindert nachgelagerte Überschreibung der YPrint-Adressen
-        error_log('🔍 YPRINT FINAL: Applying final address protection for Order #' . $order_id);
+        error_log('🔍 YPRINT FINAL: Applying comprehensive address protection for Order #' . $order_id);
         
-        // Session-Daten nochmals laden für finale Anwendung
-        $yprint_selected_final = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
-        $yprint_billing_final = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
-        $yprint_billing_different_final = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
-        
-        if (!empty($yprint_selected_final)) {
-            error_log('🔍 YPRINT FINAL: Re-applying YPrint addresses as final protection');
-            
-            // Force reload order to get latest state
-            $final_order = wc_get_order($order_id);
-            
-            if ($final_order) {
-                // FINALE Shipping Address Anwendung
-                $final_order->set_shipping_first_name($yprint_selected_final['first_name'] ?? '');
-                $final_order->set_shipping_last_name($yprint_selected_final['last_name'] ?? '');
-                $final_order->set_shipping_address_1($yprint_selected_final['address_1'] ?? '');
-                $final_order->set_shipping_address_2($yprint_selected_final['address_2'] ?? '');
-                $final_order->set_shipping_city($yprint_selected_final['city'] ?? '');
-                $final_order->set_shipping_postcode($yprint_selected_final['postcode'] ?? '');
-                $final_order->set_shipping_country($yprint_selected_final['country'] ?? 'DE');
-                $final_order->set_shipping_phone($yprint_selected_final['phone'] ?? '');
-                
-                // FINALE Billing Address Anwendung
-                if ($yprint_billing_different_final && !empty($yprint_billing_final)) {
-                    // Separate Rechnungsadresse
-                    $final_order->set_billing_first_name($yprint_billing_final['first_name'] ?? '');
-                    $final_order->set_billing_last_name($yprint_billing_final['last_name'] ?? '');
-                    $final_order->set_billing_address_1($yprint_billing_final['address_1'] ?? '');
-                    $final_order->set_billing_address_2($yprint_billing_final['address_2'] ?? '');
-                    $final_order->set_billing_city($yprint_billing_final['city'] ?? '');
-                    $final_order->set_billing_postcode($yprint_billing_final['postcode'] ?? '');
-                    $final_order->set_billing_country($yprint_billing_final['country'] ?? 'DE');
-                    $final_order->set_billing_phone($yprint_billing_final['phone'] ?? '');
-                    error_log('🔍 YPRINT FINAL: Applied separate billing address');
-                } else {
-                    // Billing = Shipping
-                    $final_order->set_billing_first_name($yprint_selected_final['first_name'] ?? '');
-                    $final_order->set_billing_last_name($yprint_selected_final['last_name'] ?? '');
-                    $final_order->set_billing_address_1($yprint_selected_final['address_1'] ?? '');
-                    $final_order->set_billing_address_2($yprint_selected_final['address_2'] ?? '');
-                    $final_order->set_billing_city($yprint_selected_final['city'] ?? '');
-                    $final_order->set_billing_postcode($yprint_selected_final['postcode'] ?? '');
-                    $final_order->set_billing_country($yprint_selected_final['country'] ?? 'DE');
-                    $final_order->set_billing_phone($yprint_selected_final['phone'] ?? '');
-                    error_log('🔍 YPRINT FINAL: Applied shipping as billing address');
-                }
-                
-                // FINALE Meta-Daten und Speicherung
-                $final_order->update_meta_data('_yprint_final_protection_applied', current_time('mysql'));
-                $final_order->update_meta_data('_yprint_final_shipping_address', $yprint_selected_final['address_1'] . ', ' . $yprint_selected_final['city']);
-                $final_order->save();
-                
-                error_log('🔍 YPRINT FINAL: Final protection completed - YPrint addresses are now definitive');
-                error_log('🔍 YPRINT FINAL: Final shipping: ' . $yprint_selected_final['address_1'] . ', ' . $yprint_selected_final['city']);
-            } else {
-                error_log('🔍 YPRINT FINAL: ERROR - Could not reload order for final protection');
-            }
+        $final_order = wc_get_order($order_id);
+        if (!$final_order) {
+            error_log('🔍 YPRINT FINAL: ERROR - Could not reload order for final protection');
         } else {
-            error_log('🔍 YPRINT FINAL: No YPrint session data for final protection');
+            $address_applied = false;
+            
+            // 1. YPrint Standard-Adresse (Lieferadresse)
+            $yprint_selected_session = WC()->session->get('yprint_selected_address');
+            if ($yprint_selected_session && !empty($yprint_selected_session)) {
+                error_log('🔍 YPRINT FINAL: Applying YPrint shipping address');
+                $final_order->set_shipping_first_name($yprint_selected_session['first_name']);
+                $final_order->set_shipping_last_name($yprint_selected_session['last_name']);
+                $final_order->set_shipping_address_1($yprint_selected_session['address_1']);
+                $final_order->set_shipping_address_2($yprint_selected_session['address_2'] ?? '');
+                $final_order->set_shipping_city($yprint_selected_session['city']);
+                $final_order->set_shipping_postcode($yprint_selected_session['postcode']);
+                $final_order->set_shipping_country($yprint_selected_session['country']);
+                $final_order->set_shipping_phone($yprint_selected_session['phone'] ?? '');
+                $address_applied = true;
+                error_log('🔍 YPRINT FINAL: Shipping address applied: ' . $yprint_selected_session['address_1'] . ', ' . $yprint_selected_session['city']);
+            }
+            
+            // 2. YPrint Rechnungsadresse (falls unterschiedlich)
+            $yprint_billing_session = WC()->session->get('yprint_billing_address');
+            $billing_different = WC()->session->get('yprint_billing_address_different');
+            
+            if ($billing_different && $yprint_billing_session && !empty($yprint_billing_session)) {
+                error_log('🔍 YPRINT FINAL: Applying YPrint billing address (different from shipping)');
+                $final_order->set_billing_first_name($yprint_billing_session['first_name']);
+                $final_order->set_billing_last_name($yprint_billing_session['last_name']);
+                $final_order->set_billing_address_1($yprint_billing_session['address_1']);
+                $final_order->set_billing_address_2($yprint_billing_session['address_2'] ?? '');
+                $final_order->set_billing_city($yprint_billing_session['city']);
+                $final_order->set_billing_postcode($yprint_billing_session['postcode']);
+                $final_order->set_billing_country($yprint_billing_session['country']);
+                $final_order->set_billing_phone($yprint_billing_session['phone'] ?? '');
+                error_log('🔍 YPRINT FINAL: Billing address applied: ' . $yprint_billing_session['address_1'] . ', ' . $yprint_billing_session['city']);
+            } elseif ($address_applied && $yprint_selected_session) {
+                // Rechnungsadresse = Lieferadresse falls keine separate Rechnungsadresse
+                error_log('🔍 YPRINT FINAL: Using shipping address as billing address');
+                $final_order->set_billing_first_name($yprint_selected_session['first_name']);
+                $final_order->set_billing_last_name($yprint_selected_session['last_name']);
+                $final_order->set_billing_address_1($yprint_selected_session['address_1']);
+                $final_order->set_billing_address_2($yprint_selected_session['address_2'] ?? '');
+                $final_order->set_billing_city($yprint_selected_session['city']);
+                $final_order->set_billing_postcode($yprint_selected_session['postcode']);
+                $final_order->set_billing_country($yprint_selected_session['country']);
+                $final_order->set_billing_phone($yprint_selected_session['phone'] ?? '');
+            }
+            
+            // 3. E-Mail aus User-Daten sicherstellen
+            if (is_user_logged_in()) {
+                $current_user = wp_get_current_user();
+                $final_order->set_billing_email($current_user->user_email);
+            }
+            
+            if ($address_applied) {
+                $final_order->save();
+                error_log('🔍 YPRINT FINAL: All YPrint addresses successfully applied and saved');
+            } else {
+                error_log('🔍 YPRINT FINAL: No YPrint session data found - keeping Stripe addresses');
+            }
         }
         
         // Return success with payment intent ID
