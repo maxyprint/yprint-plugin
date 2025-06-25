@@ -2237,9 +2237,9 @@ $intent_data = array(
     'currency' => strtolower($order->get_currency()),
     'payment_method_types' => $payment_method_types,
     'payment_method' => $payment_method['id'],
-    // KRITISCH: SEPA braucht automatic confirmation, Cards können manual bleiben
-    'confirmation_method' => $is_sepa_payment ? 'automatic' : 'manual',
-    'confirm' => !$is_sepa_payment, // SEPA nicht sofort bestätigen, Cards schon
+    // KORREKTUR: SEPA muss confirm=true haben wegen mandate_data Requirement
+    'confirmation_method' => 'automatic',
+    'confirm' => true, // Beide Payment-Arten benötigen confirm=true für mandate_data
     'capture_method' => 'automatic',
     'description' => sprintf('YPrint Order #%s - %s', $order->get_order_number(), get_bloginfo('name')),
     'metadata' => array(
@@ -2257,10 +2257,8 @@ $intent_data = array(
     ) 
 );
 
-// SEPA: return_url nur bei manual confirmation nötig
-if (!$is_sepa_payment) {
-    $intent_data['return_url'] = home_url('/checkout/?step=confirmation&order_id=' . $order->get_id());
-}
+// return_url für beide Payment-Arten setzen
+$intent_data['return_url'] = home_url('/checkout/?step=confirmation&order_id=' . $order->get_id());
 
 // SEPA-spezifische Erweiterungen für Mandat
 if (isset($payment_method['type']) && $payment_method['type'] === 'sepa_debit') {
@@ -2321,13 +2319,32 @@ if ('succeeded' === $intent->status) {
     $order->save();
     error_log('Payment completed for order: ' . $order->get_id());
     
-} elseif ('processing' === $intent->status && $is_sepa_payment) {
-    // SEPA in Bearbeitung - normal für SEPA-Zahlungen
-    $order->update_status('pending-payment', sprintf(__('SEPA payment is being processed (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
-    $order->set_transaction_id($intent->id);
-    $order->add_order_note(__('SEPA payment initiated. Payment will be confirmed via webhook when processing completes.', 'yprint-plugin'));
-    $order->save();
-    error_log('SEPA payment initiated and pending for order: ' . $order->get_id());
+} elseif ('processing' === $intent->status) {
+    // SEPA oder andere asynchrone Zahlungen in Bearbeitung
+    if ($is_sepa_payment) {
+        // SEPA: "processing" ist der normale Erfolgsstatus
+        $order->update_status('processing', sprintf(__('SEPA payment confirmed and processing (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+        $order->set_transaction_id($intent->id);
+        $order->add_order_note(__('SEPA payment successfully initiated. The payment is being processed and will be completed automatically.', 'yprint-plugin'));
+        $order->save();
+        error_log('SEPA payment successfully initiated for order: ' . $order->get_id());
+        
+        // WICHTIG: Als Erfolg zurückgeben für Frontend
+        wp_send_json_success(array(
+            'next_step' => 'confirmation',
+            'order_id' => $order->get_id(),
+            'payment_status' => 'processing',
+            'message' => __('SEPA payment initiated successfully', 'yprint-plugin')
+        ));
+        return;
+    } else {
+        // Andere Payment-Arten: processing als pending behandeln
+        $order->update_status('pending-payment', sprintf(__('Payment is being processed (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+        $order->set_transaction_id($intent->id);
+        $order->add_order_note(__('Payment initiated. Waiting for final confirmation.', 'yprint-plugin'));
+        $order->save();
+        error_log('Payment initiated and pending for order: ' . $order->get_id());
+    }
     
 } elseif ('requires_action' === $intent->status || 'requires_source_action' === $intent->status) {
     // 3D Secure oder weitere Aktionen erforderlich
