@@ -2226,13 +2226,16 @@ $intent_data = array(
         'customer_email' => $order->get_billing_email(),
     ),
     'receipt_email' => $order->get_billing_email(),
-    // REMOVED: return_url not needed for server-side confirmation
-    // 'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()),
+    // CRITICAL: Configure automatic payment methods to disable redirects for server-side confirmation
+    'automatic_payment_methods' => array(
+        'enabled' => true,
+        'allow_redirects' => 'never'
+    ),
     'payment_method_options' => array(
-    'card' => array(
-        'request_three_d_secure' => 'automatic'  // Fixed: Use valid Stripe parameter value
+        'card' => array(
+            'request_three_d_secure' => 'automatic'  // Fixed: Use valid Stripe parameter value
+        )
     )
-)
 );
         
         // Debug: Log complete intent data
