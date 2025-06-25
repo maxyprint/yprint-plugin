@@ -248,6 +248,30 @@ console.log('URLSearchParams size:', new URLSearchParams(requestData).toString()
                 }, 1000); // Small delay to show success state
             }
         } else {
+            // KORREKTUR: SEPA "processing" als Erfolg behandeln
+            if (data.data?.message === 'Payment Intent confirmation failed: processing') {
+                console.log('=== SEPA PROCESSING - TREATING AS SUCCESS ===');
+                console.log('SEPA payment is being processed asynchronously');
+                event.complete('success');
+                this.emit('payment_success', { 
+                    message: 'SEPA payment initiated successfully',
+                    sepa_processing: true 
+                });
+                
+                // Gehe zu Confirmation Step mit SEPA-spezifischer Nachricht
+                setTimeout(() => {
+                    if (typeof window.showStep === 'function') {
+                        window.showStep(3);
+                        
+                        // Zeige SEPA-spezifische Bestätigungsnachricht
+                        if (typeof window.showSepaProcessingConfirmation === 'function') {
+                            window.showSepaProcessingConfirmation();
+                        }
+                    }
+                }, 1000);
+                return; // Wichtig: Nicht als Fehler behandeln
+            }
+            
             console.error('=== PAYMENT FAILED ===');
             console.error('Error Message:', data.data?.message);
             console.error('Error Details:', data.data);
