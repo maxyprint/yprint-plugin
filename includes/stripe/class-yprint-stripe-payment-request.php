@@ -900,42 +900,12 @@ if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
         $order_item->add_meta_data('_design_id', $design_data['design_id'] ?? '');
         $design_items++;
     }
-} else {
-    error_log('🎯 CART URL QUALITY DEBUG: NO DESIGN DATA FOUND for cart key: ' . $cart_item_key);
-
-                        $order_item->add_meta_data('_express_payment_transfer', 'yes');
-                        $order_item->add_meta_data('_cart_item_key', $cart_item_key);
-                        $order_item->add_meta_data('_transfer_timestamp', current_time('mysql'));
-                        
-                        // DIAGNOSE: Prüfe design_data Struktur
-error_log('EXPRESS DIAGNOSE: design_data structure: ' . print_r($design_data, true));
-error_log('EXPRESS DIAGNOSE: design_id exists: ' . (isset($design_data['design_id']) ? 'YES' : 'NO'));
-error_log('EXPRESS DIAGNOSE: design_id value: ' . ($design_data['design_id'] ?? 'UNDEFINED'));
-error_log('EXPRESS DIAGNOSE: design_id empty check: ' . (empty($design_data['design_id']) ? 'EMPTY' : 'NOT_EMPTY'));
-
-// DIAGNOSE: Prüfe design_data Struktur BEVOR Datenbankintegration
-error_log('EXPRESS DIAGNOSE: design_data structure: ' . print_r($design_data, true));
-error_log('EXPRESS DIAGNOSE: design_id exists: ' . (isset($design_data['design_id']) ? 'YES' : 'NO'));
-error_log('EXPRESS DIAGNOSE: design_id value: ' . ($design_data['design_id'] ?? 'UNDEFINED'));
-error_log('EXPRESS DIAGNOSE: design_id empty check: ' . (empty($design_data['design_id']) ? 'EMPTY' : 'NOT_EMPTY'));
-
-// KRITISCH: Integriere Datenbank-Design-Daten für Express Checkout
-if (!empty($design_data['design_id'])) {
-    error_log('EXPRESS PAYMENT: Starting database integration for design_id: ' . $design_data['design_id']);
-    
-    // Rufe vollständige Datenbankintegration auf
-    $integration_result = $this->integrate_express_database_design_data($order_item, $design_data['design_id']);
-    error_log('EXPRESS PAYMENT: Database integration result: ' . ($integration_result ? 'SUCCESS' : 'FAILED'));
-    
-    if (!$integration_result) {
-        error_log('EXPRESS PAYMENT: WARNING - Database integration failed for design_id: ' . $design_data['design_id']);
-    }
-} else {
-    error_log('EXPRESS PAYMENT: CRITICAL - No design_id found in design_data, falling back to preview URLs');
 }
-                        
-                        $design_items++;
-                    }
+                    
+                    // Add universal meta data for all items
+                    $order_item->add_meta_data('_express_payment_transfer', 'yes');
+                    $order_item->add_meta_data('_cart_item_key', $cart_item_key);
+                    $order_item->add_meta_data('_transfer_timestamp', current_time('mysql'));
                     
                     // Add item to order
                     $order->add_item($order_item);
