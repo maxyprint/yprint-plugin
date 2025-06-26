@@ -782,40 +782,37 @@ private function integrate_express_database_design_data($order_item, $design_id)
     return false;
 }
 
-/**
- * Verarbeite variationImages für detaillierte View-Daten (Express Checkout)
- */
 private function process_express_variation_images($order_item, $variation_images) {
-    $processed_views = array();
-    
+    $processed_views = [];
+
     foreach ($variation_images as $view_key => $images) {
         $view_parts = explode('_', $view_key);
         $variation_id = $view_parts[0] ?? '';
         $view_system_id = $view_parts[1] ?? '';
-        
-        $view_data = array(
-            'view_key' => $view_key,
+
+        $view_data = [
+            'view_key'     => $view_key,
             'variation_id' => $variation_id,
-            'system_id' => $view_system_id,
-            'view_name' => yprint_get_view_name_by_system_id($view_system_id),
-            'images' => array()
-        );
-        
-        foreach ($images as $image_index => $image) {
-            $image_data = array(
-                'id' => $image['id'] ?? '',
-                'url' => $image['url'] ?? '',
-                'width' => $image['width'] ?? 0,
+            'system_id'    => $view_system_id,
+            'view_name'    => yprint_get_view_name_by_system_id($view_system_id), // Annahme: Diese Funktion existiert und ist global verfügbar
+            'images'       => [],
+        ];
+
+        foreach ($images as $image) {
+            $image_data = [
+                'id'     => $image['id'] ?? '',
+                'url'    => $image['url'] ?? '',
+                'width'  => $image['width'] ?? 0,
                 'height' => $image['height'] ?? 0,
-                'type' => $image['type'] ?? 'unknown'
-            );
+                'type'   => $image['type'] ?? 'unknown',
+            ];
             $view_data['images'][] = $image_data;
         }
-        
+
         $processed_views[$view_key] = $view_data;
         $order_item->update_meta_data('_view_' . $view_key, wp_json_encode($view_data));
     }
-    
+
     $order_item->update_meta_data('_processed_variation_images', wp_json_encode($processed_views));
     error_log('EXPRESS DB: Processed ' . count($processed_views) . ' variation image views');
 }
@@ -877,20 +874,35 @@ private function process_express_variation_images($order_item, $variation_images
                     $order_item->set_subtotal($cart_item['line_subtotal']);
                     $order_item->set_total($cart_item['line_total']);
                     
-                    // YPRINT: Transfer design data immediately
-                    if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
-                        $design_data = $cart_item['print_design'];
-                        error_log('EXPRESS: Adding design data to order item');
-                        error_log('Design data: ' . print_r($design_data, true));
-                        
-                        $order_item->add_meta_data('print_design', $design_data);
-                        $order_item->add_meta_data('_is_design_product', true);
-                        $order_item->add_meta_data('_has_print_design', 'yes');
-                        $order_item->add_meta_data('_design_id', $design_data['design_id'] ?? '');
-                        $order_item->add_meta_data('_design_name', $design_data['name'] ?? '');
-                        $order_item->add_meta_data('_design_template_id', $design_data['template_id'] ?? '');
-                        $order_item->add_meta_data('_design_color', $design_data['variation_name'] ?? '');
-                        $order_item->add_meta_data('_design_size', $design_data['size_name'] ?? '');
+                    // YPRINT: Use central design transfer function for consistency
+if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+    error_log('EXPRESS: Found design data, using central transfer function');
+    error_log('🎯 CART URL QUALITY DEBUG: Processing design transfer for cart key: ' . $cart_item_key);
+    
+    // Use the central design transfer function (same as normal checkout)
+    if (function_exists('yprint_complete_design_transfer')) {
+        $transfer_success = yprint_complete_design_transfer($order_item, $cart_item, $cart_item_key);
+        
+        if ($transfer_success) {
+            error_log('Found design data for cart item: ' . $cart_item_key . ' (Source: express_checkout)');
+            $order_item->update_meta_data('_express_checkout_transfer', 'yes');
+            $design_items++;
+        } else {
+            error_log('EXPRESS: Design transfer failed for cart item: ' . $cart_item_key);
+        }
+    } else {
+        error_log('EXPRESS: Central design transfer function not available, using fallback');
+        // Fallback to existing code if function not available
+        $design_data = $cart_item['print_design'];
+        $order_item->add_meta_data('print_design', $design_data);
+        $order_item->add_meta_data('_is_design_product', true);
+        $order_item->add_meta_data('_has_print_design', 'yes');
+        $order_item->add_meta_data('_design_id', $design_data['design_id'] ?? '');
+        $design_items++;
+    }
+} else {
+    error_log('🎯 CART URL QUALITY DEBUG: NO DESIGN DATA FOUND for cart key: ' . $cart_item_key);
+
                         $order_item->add_meta_data('_express_payment_transfer', 'yes');
                         $order_item->add_meta_data('_cart_item_key', $cart_item_key);
                         $order_item->add_meta_data('_transfer_timestamp', current_time('mysql'));
