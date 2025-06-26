@@ -2988,13 +2988,13 @@ if (!function_exists('yprint_complete_design_transfer')) {
         $order_item->update_meta_data('width_cm', $design_data['width_cm'] ?? $design_data['width'] ?? '25.4');
         $order_item->update_meta_data('height_cm', $design_data['height_cm'] ?? $design_data['height'] ?? '30.2');
 
-        // Design Image URL
-        $order_item->update_meta_data('design_image_url', $design_data['design_image_url'] ?? $design_data['original_url'] ?? '');
-
         // ---
-        ## KRITISCHE ERGÄNZUNG: DATENBANKINTEGRATION
+        ## INTELLIGENTE DESIGN IMAGE URL AUSWAHL MIT DATENBANKPRIORITÄT
 
-        // Hole erweiterte Design-Daten aus der octo_designs Datenbank
+        $final_design_url = '';
+        $url_source = 'none';
+        
+        // PRIORITÄT 1: Finale Design-URL aus der Datenbank
         if (!empty($design_data['design_id'])) {
             error_log('COMPLETE TRANSFER: Integrating database design data for ID: ' . $design_data['design_id']);
 
@@ -3019,6 +3019,24 @@ if (!function_exists('yprint_complete_design_transfer')) {
                     $order_item->update_meta_data('_db_design_created_at', $db_design['created_at']);
                     $order_item->update_meta_data('_db_design_product_name', $db_design['product_name']);
                     $order_item->update_meta_data('_db_design_product_description', $db_design['product_description']);
+                    
+                    // KRITISCH: Suche nach finaler Design-URL in der Datenbank
+                    // Versuche verschiedene JSON-Felder für finale Design-Datei
+                    if (!empty($parsed_design_data['final_design_url'])) {
+                        $final_design_url = $parsed_design_data['final_design_url'];
+                        $url_source = 'database_final_design_url';
+                    } elseif (!empty($parsed_design_data['print_ready_url'])) {
+                        $final_design_url = $parsed_design_data['print_ready_url'];
+                        $url_source = 'database_print_ready_url';
+                    } elseif (!empty($parsed_design_data['high_res_url'])) {
+                        $final_design_url = $parsed_design_data['high_res_url'];
+                        $url_source = 'database_high_res_url';
+                    } elseif (!empty($parsed_design_data['design_image_url'])) {
+                        $final_design_url = $parsed_design_data['design_image_url'];
+                        $url_source = 'database_design_image_url';
+                    }
+                    
+                    error_log('COMPLETE TRANSFER: Database URL search result - Source: ' . $url_source . ', URL: ' . $final_design_url);
 
                     // Vollständige JSON-Daten speichern
                     $order_item->update_meta_data('_db_design_raw_json', $db_design['design_data']);
@@ -3060,6 +3078,32 @@ if (!function_exists('yprint_complete_design_transfer')) {
                 error_log('COMPLETE TRANSFER: No database design found for ID: ' . $design_data['design_id']);
             }
         }
+        
+        // PRIORITÄT 2-4: Fallback auf Cart-Daten wenn Datenbank keine URL liefert
+        if (empty($final_design_url)) {
+            // Priorität 2: Explizite design_image_url aus Cart-Daten
+            if (!empty($design_data['design_image_url'])) {
+                $final_design_url = $design_data['design_image_url'];
+                $url_source = 'cart_design_image_url';
+            } 
+            // Priorität 3: original_url als Fallback
+            elseif (!empty($design_data['original_url'])) {
+                $final_design_url = $design_data['original_url'];
+                $url_source = 'cart_original_url';
+            } 
+            // Priorität 4: preview_url als letzter Ausweg (mit Warnung)
+            elseif (!empty($design_data['preview_url'])) {
+                $final_design_url = $design_data['preview_url'];
+                $url_source = 'cart_preview_url_fallback';
+                error_log('COMPLETE TRANSFER WARNING: Using preview_url as design_image_url - may not be print-ready quality!');
+            }
+        }
+        
+        // Design Image URL mit intelligenter Quelle setzen
+        $order_item->update_meta_data('design_image_url', $final_design_url);
+        $order_item->update_meta_data('_design_url_source', $url_source);
+        
+        error_log('COMPLETE TRANSFER: Final design URL selected from source "' . $url_source . '": ' . $final_design_url);
 
         // ---
         ## Product Images (JSON)
@@ -3136,6 +3180,15 @@ if (!function_exists('yprint_complete_design_transfer')) {
         $order_item->update_meta_data('_design_product_images', $order_item->get_meta('product_images'));
         $order_item->update_meta_data('_design_images', $order_item->get_meta('design_images'));
 
+        // Finale Datenqualitätskontrolle
+        if ($url_source === 'cart_preview_url_fallback') {
+            error_log('COMPLETE TRANSFER QUALITY WARNING: Order will be created with preview URL instead of final design file!');
+        } elseif ($url_source === 'none') {
+            error_log('COMPLETE TRANSFER QUALITY ERROR: No design URL found at all!');
+        } else {
+            error_log('COMPLETE TRANSFER QUALITY OK: Using ' . $url_source . ' as design source');
+        }
+        
         return true;
     }
 }}
