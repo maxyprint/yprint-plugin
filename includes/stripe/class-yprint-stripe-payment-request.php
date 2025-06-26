@@ -794,18 +794,34 @@ private function process_express_variation_images($order_item, $variation_images
             'view_key'     => $view_key,
             'variation_id' => $variation_id,
             'system_id'    => $view_system_id,
-            'view_name'    => yprint_get_view_name_by_system_id($view_system_id), // Annahme: Diese Funktion existiert und ist global verfügbar
+            'view_name'    => yprint_get_view_name_by_system_id($view_system_id),
             'images'       => [],
         ];
 
         foreach ($images as $image) {
+            // ERWEITERTE IMAGE-DATEN FÜR PRINT PROVIDER
             $image_data = [
-                'id'     => $image['id'] ?? '',
-                'url'    => $image['url'] ?? '',
-                'width'  => $image['width'] ?? 0,
-                'height' => $image['height'] ?? 0,
-                'type'   => $image['type'] ?? 'unknown',
+                'id'       => $image['id'] ?? '',
+                'url'      => $image['url'] ?? '',
+                'filename' => basename($image['url'] ?? ''),
+                'width'    => $image['width'] ?? 0,
+                'height'   => $image['height'] ?? 0,
+                'type'     => $image['type'] ?? 'unknown',
             ];
+            
+            // TRANSFORM-DATEN HINZUFÜGEN (KRITISCH FÜR PRINT PROVIDER)
+            if (isset($image['transform'])) {
+                $image_data['transform'] = [
+                    'left'   => $image['transform']['left'] ?? 0,
+                    'top'    => $image['transform']['top'] ?? 0,
+                    'width'  => $image['transform']['width'] ?? 0,
+                    'height' => $image['transform']['height'] ?? 0,
+                    'scaleX' => $image['transform']['scaleX'] ?? 1,
+                    'scaleY' => $image['transform']['scaleY'] ?? 1,
+                    'angle'  => $image['transform']['angle'] ?? 0
+                ];
+            }
+            
             $view_data['images'][] = $image_data;
         }
 
@@ -813,8 +829,14 @@ private function process_express_variation_images($order_item, $variation_images
         $order_item->update_meta_data('_view_' . $view_key, wp_json_encode($view_data));
     }
 
-    $order_item->update_meta_data('_processed_variation_images', wp_json_encode($processed_views));
-    error_log('EXPRESS DB: Processed ' . count($processed_views) . ' variation image views');
+    // KRITISCH: KORREKTE META-FELD-NAMEN FÜR PRINT PROVIDER
+    $order_item->update_meta_data('_db_processed_views', wp_json_encode($processed_views));
+    $order_item->update_meta_data('_db_view_count', count($processed_views));
+    
+    // ZUSÄTZLICHE LEGACY-UNTERSTÜTZUNG
+    $order_item->update_meta_data('_design_has_multiple_images', count($processed_views) > 1);
+    
+    error_log('EXPRESS DB: Processed and saved ' . count($processed_views) . ' views with PRINT PROVIDER COMPATIBILITY');
 }
 
     public function ajax_process_payment() {
