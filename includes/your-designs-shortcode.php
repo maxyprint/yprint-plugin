@@ -1706,12 +1706,11 @@ $final_size_name = !empty($selected_size) ? $selected_size : $size_name;
 // === URL QUALITY DEBUGGING FÜR CART TRANSFER ===
 $final_design_url = self::get_final_design_url($design_id, $preview_url);
 
-echo "<script>console.log('=== CART URL QUALITY DEBUG ===');</script>";
-echo "<script>console.log('Design ID: " . $design_id . "');</script>";
-echo "<script>console.log('Preview URL from DB: " . esc_js($preview_url) . "');</script>";
-echo "<script>console.log('Final Design URL: " . esc_js($final_design_url) . "');</script>";
-echo "<script>console.log('URLs match (Preview used): " . ($preview_url === $final_design_url ? 'true' : 'false') . "');</script>";
-echo "<script>console.log('=== END CART URL DEBUG ===');</script>";
+// SAFE DEBUG LOGGING (nicht in AJAX Response)
+error_log('CART URL QUALITY DEBUG - Design ID: ' . $design_id);
+error_log('CART URL QUALITY DEBUG - Preview URL from DB: ' . $preview_url);
+error_log('CART URL QUALITY DEBUG - Final Design URL: ' . $final_design_url);
+error_log('CART URL QUALITY DEBUG - URLs match (Preview used): ' . ($preview_url === $final_design_url ? 'true' : 'false'));
 
 // Add to cart with vollständigen design metadata für Print Provider System
 $cart_item_data = array(
@@ -1774,6 +1773,12 @@ $cart_item_data = array(
                     'variation_name_used' => $variation_name,
                     'design_color_set' => $variation_name,
                     'yprint_zusatzdaten_keys' => is_array($yprint_zusatzdaten) ? array_keys($yprint_zusatzdaten) : 'KEINE'
+                ),
+                'debug_url_quality' => array(
+                    'preview_url' => $preview_url,
+                    'final_design_url' => $final_design_url,
+                    'urls_match' => ($preview_url === $final_design_url),
+                    'get_final_called' => true
                 )
             ));
 
