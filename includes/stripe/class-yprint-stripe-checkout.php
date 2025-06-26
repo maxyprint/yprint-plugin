@@ -2417,45 +2417,80 @@ public function ajax_process_payment_method() {
                 $order_item->set_subtotal($cart_item['line_subtotal']);
                 $order_item->set_total($cart_item['line_total']);
                 
-                // INTELLIGENT DESIGN DATA RECOVERY SYSTEM - KORRIGIERTE VERSION
+                // === SICHERE DESIGN-BACKUP-ERSTELLUNG VOR CART-PROCESSING ===
+                // Diese Backup-Erstellung muss VOR jeder Cart-Manipulation stehen!
+                if (!isset($express_design_backup_created)) {
+                    $express_design_backup_created = true;
+                    error_log('🎯 EXPRESS SECURE: Creating fresh design backup from active cart');
+                    
+                    $active_design_backup = array();
+                    $active_design_count = 0;
+                    
+                    foreach (WC()->cart->get_cart() as $backup_cart_key => $backup_cart_item) {
+                        if (isset($backup_cart_item['print_design']) && !empty($backup_cart_item['print_design'])) {
+                            $active_design_backup[$backup_cart_key] = array(
+                                'design_data' => $backup_cart_item['print_design'],
+                                'product_id' => $backup_cart_item['product_id'],
+                                'variation_id' => $backup_cart_item['variation_id'] ?? 0,
+                                'quantity' => $backup_cart_item['quantity'],
+                                'line_subtotal' => $backup_cart_item['line_subtotal'],
+                                'line_total' => $backup_cart_item['line_total'],
+                                'secured_timestamp' => current_time('mysql')
+                            );
+                            $active_design_count++;
+                            error_log('🎯 EXPRESS SECURE: Active backup created for: ' . $backup_cart_key . ' (Design ID: ' . ($backup_cart_item['print_design']['design_id'] ?? 'unknown') . ')');
+                        }
+                    }
+                    
+                    // Triple-Session-Backup mit aktiven Daten
+                    if ($active_design_count > 0) {
+                        WC()->session->set('yprint_express_design_backup_active', $active_design_backup);
+                        WC()->session->set('yprint_express_design_backup_v2_active', $active_design_backup);
+                        WC()->session->set('yprint_express_design_backup_v3_active', $active_design_backup);
+                        error_log('🎯 EXPRESS SECURE: Active triple-backup created with ' . $active_design_count . ' design items');
+                    }
+                }
+                
+                // === INTELLIGENTE DESIGN DATA RECOVERY ===
                 $design_data = null;
                 $data_source = 'none';
-
-                // Lade Session-Backup-Daten
-                $design_backup = WC()->session->get('yprint_express_design_backup', array());
-
-                // PRIO 1: Aktuelle Cart-Daten (falls noch vorhanden)
+                
+                // PRIO 1: Direkter Cart-Zugriff (falls Cart noch aktiv)
                 if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
                     $design_data = $cart_item['print_design'];
-                    $data_source = 'active_cart';
-                    error_log('🎯 CART URL QUALITY DEBUG: Using active cart design data for: ' . $cart_item_key);
-                } 
-                // PRIO 2: Session-Backup (Haupt-Fallback)
-                elseif (isset($design_backup[$cart_item_key]) && !empty($design_backup[$cart_item_key])) {
-                    // Korrekte Array-Struktur: design_data kann direkt oder unter 'design_data' Key stehen
-                    if (isset($design_backup[$cart_item_key]['design_data'])) {
-                        $design_data = $design_backup[$cart_item_key]['design_data'];
-                    } else {
-                        $design_data = $design_backup[$cart_item_key];
-                    }
-                    $data_source = 'session_backup_primary';
-                    error_log('🎯 CART URL QUALITY DEBUG: Recovered design data from primary backup for: ' . $cart_item_key);
+                    $data_source = 'direct_cart_access';
+                    error_log('🎯 CART URL QUALITY DEBUG: Using direct cart design data for: ' . $cart_item_key);
                 }
-                // PRIO 3: Alternative Session-Backups
+                // PRIO 2: Aktives Session-Backup (frisch erstellt)
+                elseif (isset($active_design_backup[$cart_item_key]['design_data'])) {
+                    $design_data = $active_design_backup[$cart_item_key]['design_data'];
+                    $data_source = 'active_session_backup';
+                    error_log('🎯 CART URL QUALITY DEBUG: Using active session backup for: ' . $cart_item_key);
+                }
+                // PRIO 3: Bestehende Session-Backups
                 else {
-                    $fallback_backups = array('yprint_express_design_backup_v2', 'yprint_express_design_backup_v3');
-                    foreach ($fallback_backups as $backup_key) {
-                        $fallback_backup = WC()->session->get($backup_key, array());
-                        if (isset($fallback_backup[$cart_item_key]) && !empty($fallback_backup[$cart_item_key])) {
-                            // Flexible Struktur-Behandlung
-                            if (isset($fallback_backup[$cart_item_key]['design_data'])) {
-                                $design_data = $fallback_backup[$cart_item_key]['design_data'];
-                            } else {
-                                $design_data = $fallback_backup[$cart_item_key];
+                    $existing_backup_keys = array(
+                        'yprint_express_design_backup_active',
+                        'yprint_express_design_backup',
+                        'yprint_express_design_backup_v2',
+                        'yprint_express_design_backup_v3'
+                    );
+                    
+                    foreach ($existing_backup_keys as $backup_key) {
+                        $existing_backup = WC()->session->get($backup_key, array());
+                        if (isset($existing_backup[$cart_item_key])) {
+                            // Flexible Datenstruktur-Behandlung
+                            if (isset($existing_backup[$cart_item_key]['design_data'])) {
+                                $design_data = $existing_backup[$cart_item_key]['design_data'];
+                            } elseif (is_array($existing_backup[$cart_item_key]) && isset($existing_backup[$cart_item_key]['design_id'])) {
+                                $design_data = $existing_backup[$cart_item_key];
                             }
-                            $data_source = 'session_backup_fallback_' . $backup_key;
-                            error_log('🎯 CART URL QUALITY DEBUG: Recovered design data from fallback backup: ' . $backup_key . ' for: ' . $cart_item_key);
-                            break;
+                            
+                            if (!empty($design_data)) {
+                                $data_source = 'existing_backup_' . $backup_key;
+                                error_log('🎯 CART URL QUALITY DEBUG: Recovered from existing backup: ' . $backup_key . ' for: ' . $cart_item_key);
+                                break;
+                            }
                         }
                     }
                 }
@@ -2506,10 +2541,73 @@ public function ajax_process_payment_method() {
                     $design_transfers_failed++;
                 }
                 
+                // === VOLLSTÄNDIGE DESIGN-TRANSFER-LOGIK ===
+                if (!empty($design_data)) {
+                    error_log('🎯 EXPRESS CHECKOUT: Found design data for cart item: ' . $cart_item_key . ' (Source: ' . $data_source . ')');
+                    
+                    // Use central design transfer function if available
+                    if (function_exists('yprint_complete_design_transfer')) {
+                        // Erstelle vollständigen Cart-Item für Transfer-Funktion
+                        $complete_cart_item = $cart_item;
+                        $complete_cart_item['print_design'] = $design_data;
+                        
+                        error_log('🎯 EXPRESS CHECKOUT: Calling yprint_complete_design_transfer for: ' . $cart_item_key);
+                        $transfer_success = yprint_complete_design_transfer($order_item, $complete_cart_item, $cart_item_key);
+                        
+                        if ($transfer_success) {
+                            $order_item->update_meta_data('_express_checkout_transfer', 'yes');
+                            $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+                            $order_item->update_meta_data('_design_transfer_source', $data_source);
+                            $design_transfers_success++;
+                            error_log('🎯 EXPRESS SUCCESS: Design data transferred using central function for: ' . $cart_item_key);
+                        } else {
+                            error_log('🎯 EXPRESS FAILED: Central design transfer failed for: ' . $cart_item_key);
+                            $design_transfers_failed++;
+                        }
+                    } else {
+                        error_log('🎯 EXPRESS FALLBACK: Central function not available, using manual transfer for: ' . $cart_item_key);
+                        
+                        // Fallback: manual design data transfer with validation
+                        if (is_array($design_data) && !empty($design_data)) {
+                            // Legacy format compatibility
+                            $order_item->update_meta_data('print_design', $design_data);
+                            $order_item->update_meta_data('_is_design_product', true);
+                            $order_item->update_meta_data('_has_print_design', 'yes');
+                            
+                            // Individual design data fields
+                            foreach ($design_data as $key => $value) {
+                                $order_item->update_meta_data('_yprint_' . $key, $value);
+                            }
+                            
+                            // Transfer metadata
+                            $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+                            $order_item->update_meta_data('_design_transfer_source', $data_source);
+                            $order_item->update_meta_data('_express_manual_transfer', 'yes');
+                            
+                            $design_transfers_success++;
+                            error_log('🎯 EXPRESS MANUAL: Design data transferred manually for: ' . $cart_item_key);
+                        } else {
+                            error_log('🎯 EXPRESS ERROR: Invalid design data format for: ' . $cart_item_key . ' - Data: ' . print_r($design_data, true));
+                            $design_transfers_failed++;
+                        }
+                    }
+                } else {
+                    error_log('🎯 EXPRESS MISSING: No design data found for cart item: ' . $cart_item_key . ' from any source');
+                    $design_transfers_failed++;
+                }
+                
                 // Add item to order
                 $order->add_item($order_item);
             }
         }
+        
+        // === FINAL DESIGN-TRANSFER-STATISTIK ===
+        error_log('🎯 EXPRESS FINAL: Design transfers completed - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
+        
+        // Design-Transfer-Status in Order Meta speichern
+        $order->update_meta_data('_express_design_transfers_success', $design_transfers_success);
+        $order->update_meta_data('_express_design_transfers_failed', $design_transfers_failed);
+        $order->update_meta_data('_express_design_transfer_timestamp', current_time('mysql'));
         
         // Empty cart NACH der Design-Daten-Übertragung
         WC()->cart->empty_cart();
