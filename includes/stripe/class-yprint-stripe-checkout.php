@@ -2940,19 +2940,9 @@ $order->set_payment_method_title($title);
 
 /**
  * Zentrale Funktion für Design Data Transfer mit Print Provider E-Mail Kompatibilität
- * 
- * @param WC_Order_Item_Product $order_item
- * @param array $cart_item
- * @param string $cart_item_key
- * @return bool
- */
-if (!function_exists('yprint_complete_design_transfer')) {
-    /**
- * Transfers print design data from cart item to order item.
- * Prevents re-declaration if the function already exists.
  *
- * @param WC_Order_Item_Product $order_item The order item object.
- * @param array                 $cart_item  The cart item data.
+ * @param WC_Order_Item_Product $order_item    The order item object.
+ * @param array                 $cart_data     The cart item data. This can be either the full cart_item array or a $values array from normal checkout.
  * @param string                $cart_item_key The cart item key.
  * @return bool True if data was transferred, false otherwise.
  */
@@ -2960,22 +2950,23 @@ if (!function_exists('yprint_complete_design_transfer')) {
     function yprint_complete_design_transfer($order_item, $cart_data, $cart_item_key) {
         // UNIVERSAL PARAMETER HANDLING für Express und Normal Checkout
         $cart_item = $cart_data;
-        
+
         // Wenn $cart_data von Normal Checkout kommt (ist $values), extrahiere cart_item
+        // Ein $values-Array aus dem Normal-Checkout hat üblicherweise den 'data'-Schlüssel, aber nicht 'print_design' direkt.
         if (!isset($cart_data['print_design']) && isset($cart_data['data'])) {
-            // Das ist ein $values Array vom Normal Checkout, hole cart_item vom WC()->cart
+            // Dies ist ein $values Array vom Normal Checkout, hole cart_item vom WC()->cart
             $current_cart = WC()->cart->get_cart();
             if (isset($current_cart[$cart_item_key])) {
                 $cart_item = $current_cart[$cart_item_key];
                 error_log('COMPLETE TRANSFER: Using cart item from WC()->cart for Normal Checkout');
             } else {
-                error_log('COMPLETE TRANSFER: ERROR - Cannot find cart item for key: ' . $cart_item_key);
+                error_log('COMPLETE TRANSFER: ERROR - Cannot find cart item for key: ' . $cart_item_key . ' in WC()->cart.');
                 return false;
             }
         }
-        
+
         if (!isset($cart_item['print_design']) || empty($cart_item['print_design'])) {
-            error_log('COMPLETE TRANSFER: No print_design found in cart item');
+            error_log('COMPLETE TRANSFER: No print_design found in cart item for key: ' . $cart_item_key);
             return false;
         }
 
@@ -2983,7 +2974,8 @@ if (!function_exists('yprint_complete_design_transfer')) {
         error_log('COMPLETE TRANSFER: Processing design data for cart key: ' . $cart_item_key);
 
         // ---
-        ## LEGACY FORMAT (für Kompatibilität)
+        // ## LEGACY FORMAT (für Kompatibilität)
+        // ---
 
         $order_item->update_meta_data('print_design', $design_data);
         $order_item->update_meta_data('_is_design_product', true);
@@ -2992,7 +2984,8 @@ if (!function_exists('yprint_complete_design_transfer')) {
         $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
 
         // ---
-        ## PRINT PROVIDER E-MAIL FORMAT
+        // ## PRINT PROVIDER E-MAIL FORMAT
+        // ---
 
         // Basis Design-Daten
         $order_item->update_meta_data('design_id', $design_data['design_id'] ?? '');
@@ -3007,22 +3000,27 @@ if (!function_exists('yprint_complete_design_transfer')) {
         $order_item->update_meta_data('height_cm', $design_data['height_cm'] ?? $design_data['height'] ?? '30.2');
 
         // ---
-        ## INTELLIGENTE DESIGN IMAGE URL AUSWAHL MIT DATENBANKPRIORITÄT
+        // ## INTELLIGENTE DESIGN IMAGE URL AUSWAHL MIT DATENBANKPRIORITÄT
+        // ---
 
         $final_design_url = '';
         $url_source = 'none';
-        
+
         // PRIORITÄT 1: Finale Design-URL aus der Datenbank
         if (!empty($design_data['design_id'])) {
             error_log('COMPLETE TRANSFER: Integrating database design data for ID: ' . $design_data['design_id']);
 
             global $wpdb;
+            $design_id = intval($design_data['design_id']);
+
+            // Hole vollständige Design-Daten aus der Datenbank
+            // Nutze die korrekte Tabellenpräfix-Variable für WordPress
             $db_design = $wpdb->get_row($wpdb->prepare(
                 "SELECT id, user_id, template_id, name, design_data, created_at, product_name, product_description
-                 FROM deo6_octo_user_designs
+                 FROM {$wpdb->prefix}octo_user_designs
                  WHERE id = %d",
-                $design_data['design_id']
-            ), ARRAY_A);
+                $design_id
+            ), ARRAY_A); // ARRAY_A gibt ein assoziatives Array zurück
 
             if ($db_design) {
                 error_log('COMPLETE TRANSFER: Database design found, processing...');
@@ -3037,7 +3035,7 @@ if (!function_exists('yprint_complete_design_transfer')) {
                     $order_item->update_meta_data('_db_design_created_at', $db_design['created_at']);
                     $order_item->update_meta_data('_db_design_product_name', $db_design['product_name']);
                     $order_item->update_meta_data('_db_design_product_description', $db_design['product_description']);
-                    
+
                     // KRITISCH: Suche nach finaler Design-URL in der Datenbank
                     // Versuche verschiedene JSON-Felder für finale Design-Datei
                     if (!empty($parsed_design_data['final_design_url'])) {
@@ -3052,8 +3050,11 @@ if (!function_exists('yprint_complete_design_transfer')) {
                     } elseif (!empty($parsed_design_data['design_image_url'])) {
                         $final_design_url = $parsed_design_data['design_image_url'];
                         $url_source = 'database_design_image_url';
+                    } elseif (!empty($parsed_design_data['original_url'])) { // Zusätzlicher Fallback auf original_url aus der DB
+                        $final_design_url = $parsed_design_data['original_url'];
+                        $url_source = 'database_original_url';
                     }
-                    
+
                     error_log('COMPLETE TRANSFER: Database URL search result - Source: ' . $url_source . ', URL: ' . $final_design_url);
 
                     // Vollständige JSON-Daten speichern
@@ -3087,28 +3088,31 @@ if (!function_exists('yprint_complete_design_transfer')) {
                             }
                         }
                     }
-
+                    error_log('COMPLETE TRANSFER: Merged database design data with cart data for display.');
+                    // Merge database data with cart data (database takes priority for relevant fields)
+                    // Beachten Sie, dass $design_data selbst überschrieben wird, um die Datenbankdaten zu priorisieren
+                    $design_data = array_merge($design_data, $parsed_design_data);
                     error_log('COMPLETE TRANSFER: Database integration completed successfully');
                 } else {
-                    error_log('COMPLETE TRANSFER: Failed to parse JSON design data');
+                    error_log('COMPLETE TRANSFER: Failed to parse JSON design data from database for ID: ' . $design_id);
                 }
             } else {
                 error_log('COMPLETE TRANSFER: No database design found for ID: ' . $design_data['design_id']);
             }
         }
-        
+
         // PRIORITÄT 2-4: Fallback auf Cart-Daten wenn Datenbank keine URL liefert
         if (empty($final_design_url)) {
             // Priorität 2: Explizite design_image_url aus Cart-Daten
             if (!empty($design_data['design_image_url'])) {
                 $final_design_url = $design_data['design_image_url'];
                 $url_source = 'cart_design_image_url';
-            } 
+            }
             // Priorität 3: original_url als Fallback
             elseif (!empty($design_data['original_url'])) {
                 $final_design_url = $design_data['original_url'];
                 $url_source = 'cart_original_url';
-            } 
+            }
             // Priorität 4: preview_url als letzter Ausweg (mit Warnung)
             elseif (!empty($design_data['preview_url'])) {
                 $final_design_url = $design_data['preview_url'];
@@ -3116,15 +3120,16 @@ if (!function_exists('yprint_complete_design_transfer')) {
                 error_log('COMPLETE TRANSFER WARNING: Using preview_url as design_image_url - may not be print-ready quality!');
             }
         }
-        
+
         // Design Image URL mit intelligenter Quelle setzen
         $order_item->update_meta_data('design_image_url', $final_design_url);
         $order_item->update_meta_data('_design_url_source', $url_source);
-        
+
         error_log('COMPLETE TRANSFER: Final design URL selected from source "' . $url_source . '": ' . $final_design_url);
 
         // ---
-        ## Product Images (JSON)
+        // ## Product Images (JSON)
+        // ---
 
         if (isset($design_data['product_images']) && !empty($design_data['product_images'])) {
             $product_images_json = is_string($design_data['product_images']) ?
@@ -3146,7 +3151,8 @@ if (!function_exists('yprint_complete_design_transfer')) {
         }
 
         // ---
-        ## Design Images (JSON)
+        // ## Design Images (JSON)
+        // ---
 
         if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
             $design_images_json = is_string($design_data['design_images']) ?
@@ -3169,7 +3175,8 @@ if (!function_exists('yprint_complete_design_transfer')) {
         }
 
         // ---
-        ## MULTIPLE IMAGES FLAG
+        // ## MULTIPLE IMAGES FLAG
+        // ---
 
         $has_multiple_images = false;
         if (isset($design_data['product_images'])) {
@@ -3184,7 +3191,8 @@ if (!function_exists('yprint_complete_design_transfer')) {
 
 
         // ---
-        ## DISPLAY META-DATEN FÜR ADMIN
+        // ## DISPLAY META-DATEN FÜR ADMIN
+        // ---
 
         $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
         $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
@@ -3210,10 +3218,10 @@ if (!function_exists('yprint_complete_design_transfer')) {
         // Checkout-Pfad-Logging für Debugging
         $checkout_type = isset($cart_data['data']) ? 'NORMAL' : 'EXPRESS';
         error_log("COMPLETE TRANSFER ({$checkout_type}): Function completed for cart key: " . $cart_item_key);
-        
+
         return true;
     }
-}}
+}
 
 /**
  * Hook for Standard WooCommerce Checkout
