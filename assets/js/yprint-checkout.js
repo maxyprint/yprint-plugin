@@ -390,6 +390,38 @@ function syncBillingWithShipping() {
 
 // Entfernt - wird vollständig vom Address Manager übernommen
 
+// Automatische Design-Backup-Aktivierung vor Express Checkout
+function secureExpressDesignData() {
+    console.log('=== SECURING EXPRESS DESIGN DATA ===');
+    
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('action', 'yprint_secure_express_design_data');
+        formData.append('nonce', yprint_checkout_params.nonce);
+        
+        fetch(yprint_checkout_params.ajax_url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('EXPRESS SECURE: Design data secured successfully');
+                console.log('Design count:', data.data.design_count);
+                console.log('Backup keys:', data.data.backup_keys);
+                resolve(data.data);
+            } else {
+                console.log('EXPRESS SECURE: No design data found or error:', data.data.message);
+                resolve(null); // Nicht rejekten, da leerer Cart okay ist
+            }
+        })
+        .catch(error => {
+            console.error('EXPRESS SECURE: Error securing design data:', error);
+            reject(error);
+        });
+    });
+}
+
 // Nachrichten anzeigen
 function showMessage(message, type = 'info') {
     const messageDiv = document.createElement('div');
@@ -2608,7 +2640,18 @@ async function createStripeSepaPaymentMethod() {
 
 // Verarbeitung über Stripe Service
 async function processPaymentViaStripeService(paymentMethod) {
-    console.log('Processing payment via Stripe Service:', paymentMethod.id);
+    // CRITICAL: Secure design data BEFORE payment processing
+console.log('=== SECURING DESIGN DATA BEFORE PAYMENT ===');
+try {
+    await secureExpressDesignData();
+    console.log('Design data secured successfully');
+} catch (error) {
+    console.error('Failed to secure design data:', error);
+    // Fortfahren, aber mit Warnung
+}
+
+// Processing payment via Stripe Service
+console.log('Processing payment via Stripe Service:', paymentMethod.id);
     
     // Simuliere Event-Objekt für Stripe Service
     const mockEvent = {

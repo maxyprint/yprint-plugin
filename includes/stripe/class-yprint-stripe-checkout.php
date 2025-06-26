@@ -1591,11 +1591,42 @@ public function ajax_get_cart_data() {
             $order->set_address($address, 'billing');
         }
 
-        // KRITISCH: Cart-Daten ZUERST zwischenspeichern bevor sie verloren gehen
+        // KRITISCH: AKTIVE DESIGN-DATEN SICHERUNG VOR CART-VERLUST
+error_log('=== EXPRESS ORDER: SECURING DESIGN DATA BEFORE CART LOSS ===');
+
+// 1. Sichere Design-Daten in Session BEVOR Cart geleert wird
+$design_backup = array();
+$design_count = 0;
+foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+    if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+        $design_backup[$cart_item_key] = array(
+            'design_data' => $cart_item['print_design'],
+            'product_id' => $cart_item['product_id'],
+            'variation_id' => $cart_item['variation_id'] ?? 0,
+            'quantity' => $cart_item['quantity'],
+            'line_subtotal' => $cart_item['line_subtotal'],
+            'line_total' => $cart_item['line_total'],
+            'data' => $cart_item['data'], // Komplettes Produkt-Objekt
+            'secured_at' => current_time('mysql')
+        );
+        $design_count++;
+        error_log('EXPRESS SECURE: Design secured for key: ' . $cart_item_key . ' (ID: ' . ($cart_item['print_design']['design_id'] ?? 'unknown') . ')');
+    }
+}
+
+// 2. Speichere in Session mit Triple-Backup
+if ($design_count > 0) {
+    WC()->session->set('yprint_express_design_backup', $design_backup);
+    WC()->session->set('yprint_express_design_backup_v2', $design_backup);
+    WC()->session->set('yprint_express_design_backup_v3', $design_backup);
+    error_log('EXPRESS SECURE: Triple-backup created with ' . $design_count . ' design items');
+}
+
+// 3. Cart-Backup erstellen (weiterhin für Standard-Items)
 $cart_items_backup = WC()->cart->get_cart();
 error_log('EXPRESS CHECKOUT: Cart backup created with ' . count($cart_items_backup) . ' items');
 
-// Add cart items WITH COMPLETE DESIGN DATA TRANSFER  
+// 4. Design-Transfer mit Backup-Fallback-System
 error_log('EXPRESS CHECKOUT: Starting cart items transfer with design data');
 $design_transfers_success = 0;
 $design_transfers_failed = 0;
@@ -2386,14 +2417,49 @@ public function ajax_process_payment_method() {
                 $order_item->set_subtotal($cart_item['line_subtotal']);
                 $order_item->set_total($cart_item['line_total']);
                 
-                // Design data transfer
-                if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
-                    $design_data = $cart_item['print_design'];
-                    error_log('Found design data for cart item: ' . $cart_item_key);
-                    
-                    // Use central design transfer function if available
-                    if (function_exists('yprint_complete_design_transfer')) {
-                        $transfer_success = yprint_complete_design_transfer($order_item, $cart_item, $cart_item_key);
+                // INTELLIGENT DESIGN DATA RECOVERY SYSTEM
+$design_data = null;
+$data_source = 'none';
+
+// PRIO 1: Aktuelle Cart-Daten (falls noch vorhanden)
+if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+    $design_data = $cart_item['print_design'];
+    $data_source = 'active_cart';
+    error_log('🎯 CART URL QUALITY DEBUG: Using active cart design data for: ' . $cart_item_key);
+} 
+// PRIO 2: Session-Backup (Haupt-Fallback)
+elseif (isset($design_backup[$cart_item_key]) && !empty($design_backup[$cart_item_key]['design_data'])) {
+    $design_data = $design_backup[$cart_item_key]['design_data'];
+    $data_source = 'session_backup_primary';
+    error_log('🎯 CART URL QUALITY DEBUG: Recovered design data from primary backup for: ' . $cart_item_key);
+}
+// PRIO 3: Alternative Session-Backups
+else {
+    $fallback_backups = array('yprint_express_design_backup_v2', 'yprint_express_design_backup_v3');
+    foreach ($fallback_backups as $backup_key) {
+        $fallback_backup = WC()->session->get($backup_key, array());
+        if (isset($fallback_backup[$cart_item_key]) && !empty($fallback_backup[$cart_item_key]['design_data'])) {
+            $design_data = $fallback_backup[$cart_item_key]['design_data'];
+            $data_source = 'session_backup_fallback_' . $backup_key;
+            error_log('🎯 CART URL QUALITY DEBUG: Recovered design data from fallback backup: ' . $backup_key . ' for: ' . $cart_item_key);
+            break;
+        }
+    }
+}
+
+// DESIGN-TRANSFER MIT QUALITÄTSKONTROLLE
+if (!empty($design_data)) {
+    error_log('Found design data for cart item: ' . $cart_item_key . ' (Source: ' . $data_source . ')');
+    error_log('🔍 EXPRESS CHECKOUT: Processing cart item: ' . $cart_item_key);
+    error_log('🔍 Found design data for cart item: ' . $cart_item_key);
+    
+    // Use central design transfer function if available
+    if (function_exists('yprint_complete_design_transfer')) {
+        // Erstelle temporären Cart-Item für Transfer-Funktion
+        $temp_cart_item = $cart_item;
+        $temp_cart_item['print_design'] = $design_data;
+        
+        $transfer_success = yprint_complete_design_transfer($order_item, $temp_cart_item, $cart_item_key);
                         
                         if ($transfer_success) {
                             $order_item->update_meta_data('_express_checkout_transfer', 'yes');
