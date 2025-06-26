@@ -901,6 +901,12 @@ error_log('EXPRESS DIAGNOSE: design_id exists: ' . (isset($design_data['design_i
 error_log('EXPRESS DIAGNOSE: design_id value: ' . ($design_data['design_id'] ?? 'UNDEFINED'));
 error_log('EXPRESS DIAGNOSE: design_id empty check: ' . (empty($design_data['design_id']) ? 'EMPTY' : 'NOT_EMPTY'));
 
+// DIAGNOSE: Prüfe design_data Struktur BEVOR Datenbankintegration
+error_log('EXPRESS DIAGNOSE: design_data structure: ' . print_r($design_data, true));
+error_log('EXPRESS DIAGNOSE: design_id exists: ' . (isset($design_data['design_id']) ? 'YES' : 'NO'));
+error_log('EXPRESS DIAGNOSE: design_id value: ' . ($design_data['design_id'] ?? 'UNDEFINED'));
+error_log('EXPRESS DIAGNOSE: design_id empty check: ' . (empty($design_data['design_id']) ? 'EMPTY' : 'NOT_EMPTY'));
+
 // KRITISCH: Integriere Datenbank-Design-Daten für Express Checkout
 if (!empty($design_data['design_id'])) {
     error_log('EXPRESS PAYMENT: Starting database integration for design_id: ' . $design_data['design_id']);
@@ -912,6 +918,8 @@ if (!empty($design_data['design_id'])) {
     if (!$integration_result) {
         error_log('EXPRESS PAYMENT: WARNING - Database integration failed for design_id: ' . $design_data['design_id']);
     }
+} else {
+    error_log('EXPRESS PAYMENT: CRITICAL - No design_id found in design_data, falling back to preview URLs');
 }
                         
                         $design_items++;
