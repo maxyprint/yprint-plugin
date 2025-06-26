@@ -2957,12 +2957,30 @@ if (!function_exists('yprint_complete_design_transfer')) {
  * @return bool True if data was transferred, false otherwise.
  */
 if (!function_exists('yprint_complete_design_transfer')) {
-    function yprint_complete_design_transfer($order_item, $cart_item, $cart_item_key) {
+    function yprint_complete_design_transfer($order_item, $cart_data, $cart_item_key) {
+        // UNIVERSAL PARAMETER HANDLING für Express und Normal Checkout
+        $cart_item = $cart_data;
+        
+        // Wenn $cart_data von Normal Checkout kommt (ist $values), extrahiere cart_item
+        if (!isset($cart_data['print_design']) && isset($cart_data['data'])) {
+            // Das ist ein $values Array vom Normal Checkout, hole cart_item vom WC()->cart
+            $current_cart = WC()->cart->get_cart();
+            if (isset($current_cart[$cart_item_key])) {
+                $cart_item = $current_cart[$cart_item_key];
+                error_log('COMPLETE TRANSFER: Using cart item from WC()->cart for Normal Checkout');
+            } else {
+                error_log('COMPLETE TRANSFER: ERROR - Cannot find cart item for key: ' . $cart_item_key);
+                return false;
+            }
+        }
+        
         if (!isset($cart_item['print_design']) || empty($cart_item['print_design'])) {
+            error_log('COMPLETE TRANSFER: No print_design found in cart item');
             return false;
         }
 
         $design_data = $cart_item['print_design'];
+        error_log('COMPLETE TRANSFER: Processing design data for cart key: ' . $cart_item_key);
 
         // ---
         ## LEGACY FORMAT (für Kompatibilität)
@@ -3188,6 +3206,10 @@ if (!function_exists('yprint_complete_design_transfer')) {
         } else {
             error_log('COMPLETE TRANSFER QUALITY OK: Using ' . $url_source . ' as design source');
         }
+
+        // Checkout-Pfad-Logging für Debugging
+        $checkout_type = isset($cart_data['data']) ? 'NORMAL' : 'EXPRESS';
+        error_log("COMPLETE TRANSFER ({$checkout_type}): Function completed for cart key: " . $cart_item_key);
         
         return true;
     }
