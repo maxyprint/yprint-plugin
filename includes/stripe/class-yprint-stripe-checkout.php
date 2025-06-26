@@ -1591,12 +1591,17 @@ public function ajax_get_cart_data() {
             $order->set_address($address, 'billing');
         }
 
-        // Add cart items WITH COMPLETE DESIGN DATA TRANSFER
-        error_log('NORMAL CHECKOUT: Starting cart items transfer with design data');
-        $design_transfers_success = 0;
-        $design_transfers_failed = 0;
-        
-        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+        // KRITISCH: Cart-Daten ZUERST zwischenspeichern bevor sie verloren gehen
+$cart_items_backup = WC()->cart->get_cart();
+error_log('EXPRESS CHECKOUT: Cart backup created with ' . count($cart_items_backup) . ' items');
+
+// Add cart items WITH COMPLETE DESIGN DATA TRANSFER  
+error_log('EXPRESS CHECKOUT: Starting cart items transfer with design data');
+$design_transfers_success = 0;
+$design_transfers_failed = 0;
+
+foreach ($cart_items_backup as $cart_item_key => $cart_item) {
+    error_log('EXPRESS CHECKOUT: Processing cart item: ' . $cart_item_key);
             error_log('NORMAL CHECKOUT: Processing cart item: ' . $cart_item_key);
             
             // Create proper WC_Order_Item_Product
@@ -2418,9 +2423,9 @@ public function ajax_process_payment_method() {
             }
         }
         
-// Empty cart
-// Empty cart
-WC()->cart->empty_cart();
+        // Empty cart NACH der Design-Daten-Übertragung
+        WC()->cart->empty_cart();
+        error_log('EXPRESS CHECKOUT: Cart emptied after design transfer');
 
         // Calculate totals and save order
         $order->calculate_totals();
