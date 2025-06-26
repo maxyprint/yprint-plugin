@@ -768,6 +768,20 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
                         $order_item->add_meta_data('_cart_item_key', $cart_item_key);
                         $order_item->add_meta_data('_transfer_timestamp', current_time('mysql'));
                         
+                        // KRITISCH: Integriere Datenbank-Design-Daten für Express Checkout
+                        if (!empty($design_data['design_id'])) {
+                            error_log('EXPRESS PAYMENT: Calling integrate_database_design_data for design_id: ' . $design_data['design_id']);
+                            
+                            // Instanziiere YPrint_Stripe_Checkout um die Methode aufzurufen
+                            $stripe_checkout = YPrint_Stripe_Checkout::get_instance();
+                            if (method_exists($stripe_checkout, 'integrate_database_design_data')) {
+                                $integration_result = $stripe_checkout->integrate_database_design_data($order_item, $design_data['design_id']);
+                                error_log('EXPRESS PAYMENT: Database integration result: ' . ($integration_result ? 'SUCCESS' : 'FAILED'));
+                            } else {
+                                error_log('EXPRESS PAYMENT: WARNING - integrate_database_design_data method not found');
+                            }
+                        }
+                        
                         $design_items++;
                     }
                     

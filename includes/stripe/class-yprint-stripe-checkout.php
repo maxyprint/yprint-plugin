@@ -255,7 +255,7 @@ public function ajax_refresh_checkout_context() {
         // Hole vollständige Design-Daten aus der Datenbank
         $db_design = $wpdb->get_row($wpdb->prepare(
             "SELECT id, user_id, template_id, name, design_data, created_at, product_name, product_description 
-             FROM deo6_octo_user_designs 
+             FROM {$wpdb->prefix}octo_user_designs 
              WHERE id = %d",
             $design_id
         ), ARRAY_A);
@@ -284,6 +284,35 @@ public function ajax_refresh_checkout_context() {
                 }
                 if (isset($parsed_design_data['currentVariation'])) {
                     $order_item->update_meta_data('_db_current_variation', $parsed_design_data['currentVariation']);
+                }
+                
+                // KRITISCH: Design-URL-Auswahl mit Datenbankpriorität (Express Checkout)
+                $final_design_url = '';
+                $url_source = 'none';
+                
+                if (!empty($parsed_design_data['final_design_url'])) {
+                    $final_design_url = $parsed_design_data['final_design_url'];
+                    $url_source = 'database_final_design_url';
+                } elseif (!empty($parsed_design_data['print_ready_url'])) {
+                    $final_design_url = $parsed_design_data['print_ready_url'];
+                    $url_source = 'database_print_ready_url';
+                } elseif (!empty($parsed_design_data['high_res_url'])) {
+                    $final_design_url = $parsed_design_data['high_res_url'];
+                    $url_source = 'database_high_res_url';
+                } elseif (!empty($parsed_design_data['design_image_url'])) {
+                    $final_design_url = $parsed_design_data['design_image_url'];
+                    $url_source = 'database_design_image_url';
+                } elseif (!empty($parsed_design_data['original_url'])) {
+                    $final_design_url = $parsed_design_data['original_url'];
+                    $url_source = 'database_original_url';
+                }
+                
+                if (!empty($final_design_url)) {
+                    $order_item->update_meta_data('_yprint_design_image_url', $final_design_url);
+                    $order_item->update_meta_data('_yprint_url_source', $url_source);
+                    error_log('EXPRESS DB: Final design URL selected from: ' . $url_source . ' -> ' . $final_design_url);
+                } else {
+                    error_log('EXPRESS DB: WARNING - No design URL found in database for design ID: ' . $design_id);
                 }
                 
                 // Verarbeite variationImages für detaillierte View-Daten
