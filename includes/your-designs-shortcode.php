@@ -1727,7 +1727,7 @@ $cart_item_data = array(
                     'product_images' => $product_images,
                     'has_multiple_images' => !empty($design_images),
                     // Legacy Kompatibilität
-                    'design_image_url' => $preview_url,
+                    'design_image_url' => self::get_final_design_url($design_id, $preview_url),
                     'design_scaleX' => 1,
                     'design_scaleY' => 1,
                     // Pricing
@@ -1771,6 +1771,35 @@ $cart_item_data = array(
             wp_send_json_error('Fehler: ' . $e->getMessage());
         }
     }
+
+/**
+ * Get final design URL from database or fallback to preview
+ */
+private static function get_final_design_url($design_id, $preview_fallback) {
+    global $wpdb;
+    
+    $design = $wpdb->get_row($wpdb->prepare(
+        "SELECT design_data FROM {$wpdb->prefix}octo_user_designs WHERE id = %d",
+        $design_id
+    ));
+    
+    if ($design && !empty($design->design_data)) {
+        $design_data = json_decode($design->design_data, true);
+        
+        // Priorität 1: Finale Design-URL aus Datenbank
+        if (!empty($design_data['final_design_url'])) {
+            return $design_data['final_design_url'];
+        }
+        
+        // Priorität 2: Original URL aus Datenbank
+        if (!empty($design_data['design_image_url'])) {
+            return $design_data['design_image_url'];
+        }
+    }
+    
+    // Fallback: Preview URL
+    return $preview_fallback;
+}
 
     /**
      * Handle delete design AJAX request
