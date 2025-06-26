@@ -1703,6 +1703,16 @@ $selected_size = isset($_POST['selected_size']) ? sanitize_text_field($_POST['se
 // Use selected size as size_name if provided, otherwise fallback to default
 $final_size_name = !empty($selected_size) ? $selected_size : $size_name;
 
+// === URL QUALITY DEBUGGING FÜR CART TRANSFER ===
+$final_design_url = self::get_final_design_url($design_id, $preview_url);
+
+echo "<script>console.log('=== CART URL QUALITY DEBUG ===');</script>";
+echo "<script>console.log('Design ID: " . $design_id . "');</script>";
+echo "<script>console.log('Preview URL from DB: " . esc_js($preview_url) . "');</script>";
+echo "<script>console.log('Final Design URL: " . esc_js($final_design_url) . "');</script>";
+echo "<script>console.log('URLs match (Preview used): " . ($preview_url === $final_design_url ? 'true' : 'false') . "');</script>";
+echo "<script>console.log('=== END CART URL DEBUG ===');</script>";
+
 // Add to cart with vollständigen design metadata für Print Provider System
 $cart_item_data = array(
     '_design_id' => $design_id,
@@ -1727,7 +1737,7 @@ $cart_item_data = array(
                     'product_images' => $product_images,
                     'has_multiple_images' => !empty($design_images),
                     // Legacy Kompatibilität
-                    'design_image_url' => self::get_final_design_url($design_id, $preview_url),
+                    'design_image_url' => $final_design_url,
                     'design_scaleX' => 1,
                     'design_scaleY' => 1,
                     // Pricing
