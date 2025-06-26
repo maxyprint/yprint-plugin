@@ -247,7 +247,7 @@ public function ajax_refresh_checkout_context() {
     /**
      * Integriere erweiterte Design-Daten aus der Datenbank
      */
-    private function integrate_database_design_data($order_item, $design_id) {
+    public function integrate_database_design_data($order_item, $design_id) {
         global $wpdb;
         
         error_log('EXPRESS DB: Integrating database design data for ID: ' . $design_id);

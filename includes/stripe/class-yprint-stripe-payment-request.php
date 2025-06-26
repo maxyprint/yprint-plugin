@@ -693,6 +693,133 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
         wp_send_json_success($data);
     }
     
+/**
+ * Integriere erweiterte Design-Daten aus der Datenbank für Express Checkout
+ */
+private function integrate_express_database_design_data($order_item, $design_id) {
+    global $wpdb;
+    
+    error_log('EXPRESS DB: Integrating database design data for ID: ' . $design_id);
+    
+    // Hole vollständige Design-Daten aus der Datenbank mit korrektem WordPress-Präfix
+    $db_design = $wpdb->get_row($wpdb->prepare(
+        "SELECT id, user_id, template_id, name, design_data, created_at, product_name, product_description 
+         FROM {$wpdb->prefix}octo_user_designs 
+         WHERE id = %d",
+        $design_id
+    ), ARRAY_A);
+    
+    if ($db_design) {
+        error_log('EXPRESS DB: Database design found, processing...');
+        
+        // Parse JSON design_data
+        $parsed_design_data = json_decode($db_design['design_data'], true);
+        
+        if (json_last_error() === JSON_ERROR_NONE && $parsed_design_data) {
+            // Erweiterte Datenbank-Meta-Daten
+            $order_item->update_meta_data('_db_design_template_id', $db_design['template_id']);
+            $order_item->update_meta_data('_db_design_user_id', $db_design['user_id']);
+            $order_item->update_meta_data('_db_design_created_at', $db_design['created_at']);
+            $order_item->update_meta_data('_db_design_product_name', $db_design['product_name']);
+            $order_item->update_meta_data('_db_design_product_description', $db_design['product_description']);
+            
+            // Vollständige JSON-Daten speichern
+            $order_item->update_meta_data('_db_design_raw_json', $db_design['design_data']);
+            $order_item->update_meta_data('_db_design_parsed_data', wp_json_encode($parsed_design_data));
+            
+            // Template Info
+            if (isset($parsed_design_data['templateId'])) {
+                $order_item->update_meta_data('_db_template_id', $parsed_design_data['templateId']);
+            }
+            if (isset($parsed_design_data['currentVariation'])) {
+                $order_item->update_meta_data('_db_current_variation', $parsed_design_data['currentVariation']);
+            }
+            
+            // KRITISCH: Intelligente Design-URL-Auswahl mit Datenbankpriorität
+            $final_design_url = '';
+            $url_source = 'none';
+            
+            // Priorisierte URL-Auswahl (finale Design-URLs haben Vorrang)
+            if (!empty($parsed_design_data['final_design_url'])) {
+                $final_design_url = $parsed_design_data['final_design_url'];
+                $url_source = 'database_final_design_url';
+            } elseif (!empty($parsed_design_data['print_ready_url'])) {
+                $final_design_url = $parsed_design_data['print_ready_url'];
+                $url_source = 'database_print_ready_url';
+            } elseif (!empty($parsed_design_data['high_res_url'])) {
+                $final_design_url = $parsed_design_data['high_res_url'];
+                $url_source = 'database_high_res_url';
+            } elseif (!empty($parsed_design_data['design_image_url'])) {
+                $final_design_url = $parsed_design_data['design_image_url'];
+                $url_source = 'database_design_image_url';
+            } elseif (!empty($parsed_design_data['original_url'])) {
+                $final_design_url = $parsed_design_data['original_url'];
+                $url_source = 'database_original_url';
+            }
+            
+            if (!empty($final_design_url)) {
+                $order_item->update_meta_data('_yprint_design_image_url', $final_design_url);
+                $order_item->update_meta_data('_yprint_url_source', $url_source);
+                error_log('EXPRESS DB: Final design URL selected from: ' . $url_source . ' -> ' . $final_design_url);
+            } else {
+                error_log('EXPRESS DB: WARNING - No design URL found in database for design ID: ' . $design_id);
+            }
+            
+            // Verarbeite variationImages für detaillierte View-Daten
+            if (isset($parsed_design_data['variationImages'])) {
+                $this->process_express_variation_images($order_item, $parsed_design_data['variationImages']);
+            }
+            
+            error_log('EXPRESS DB: Database integration completed successfully');
+            return true;
+        } else {
+            error_log('EXPRESS DB: Failed to parse JSON design data: ' . json_last_error_msg());
+        }
+    } else {
+        error_log('EXPRESS DB: Design not found in database for ID: ' . $design_id);
+    }
+    
+    return false;
+}
+
+/**
+ * Verarbeite variationImages für detaillierte View-Daten (Express Checkout)
+ */
+private function process_express_variation_images($order_item, $variation_images) {
+    $processed_views = array();
+    
+    foreach ($variation_images as $view_key => $images) {
+        $view_parts = explode('_', $view_key);
+        $variation_id = $view_parts[0] ?? '';
+        $view_system_id = $view_parts[1] ?? '';
+        
+        $view_data = array(
+            'view_key' => $view_key,
+            'variation_id' => $variation_id,
+            'system_id' => $view_system_id,
+            'view_name' => yprint_get_view_name_by_system_id($view_system_id),
+            'images' => array()
+        );
+        
+        foreach ($images as $image_index => $image) {
+            $image_data = array(
+                'id' => $image['id'] ?? '',
+                'url' => $image['url'] ?? '',
+                'width' => $image['width'] ?? 0,
+                'height' => $image['height'] ?? 0,
+                'type' => $image['type'] ?? 'unknown'
+            );
+            $view_data['images'][] = $image_data;
+        }
+        
+        $processed_views[$view_key] = $view_data;
+        $order_item->update_meta_data('_view_' . $view_key, wp_json_encode($view_data));
+    }
+    
+    $order_item->update_meta_data('_processed_variation_images', wp_json_encode($processed_views));
+    error_log('EXPRESS DB: Processed ' . count($processed_views) . ' variation image views');
+}
+
     public function ajax_process_payment() {
         check_ajax_referer('yprint-stripe-payment-request', 'security');
         
@@ -769,18 +896,17 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
                         $order_item->add_meta_data('_transfer_timestamp', current_time('mysql'));
                         
                         // KRITISCH: Integriere Datenbank-Design-Daten für Express Checkout
-                        if (!empty($design_data['design_id'])) {
-                            error_log('EXPRESS PAYMENT: Calling integrate_database_design_data for design_id: ' . $design_data['design_id']);
-                            
-                            // Instanziiere YPrint_Stripe_Checkout um die Methode aufzurufen
-                            $stripe_checkout = YPrint_Stripe_Checkout::get_instance();
-                            if (method_exists($stripe_checkout, 'integrate_database_design_data')) {
-                                $integration_result = $stripe_checkout->integrate_database_design_data($order_item, $design_data['design_id']);
-                                error_log('EXPRESS PAYMENT: Database integration result: ' . ($integration_result ? 'SUCCESS' : 'FAILED'));
-                            } else {
-                                error_log('EXPRESS PAYMENT: WARNING - integrate_database_design_data method not found');
-                            }
-                        }
+if (!empty($design_data['design_id'])) {
+    error_log('EXPRESS PAYMENT: Starting database integration for design_id: ' . $design_data['design_id']);
+    
+    // Rufe vollständige Datenbankintegration auf
+    $integration_result = $this->integrate_express_database_design_data($order_item, $design_data['design_id']);
+    error_log('EXPRESS PAYMENT: Database integration result: ' . ($integration_result ? 'SUCCESS' : 'FAILED'));
+    
+    if (!$integration_result) {
+        error_log('EXPRESS PAYMENT: WARNING - Database integration failed for design_id: ' . $design_data['design_id']);
+    }
+}
                         
                         $design_items++;
                     }
