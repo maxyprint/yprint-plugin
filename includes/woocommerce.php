@@ -1129,105 +1129,9 @@ function yprint_debug_cart_callback() {
 
 
 
-/**
- * DEBUG: Recent Debug-Logs abrufen
- */
-add_action('wp_ajax_yprint_get_recent_debug_logs', 'yprint_get_recent_debug_logs');
-add_action('wp_ajax_nopriv_yprint_get_recent_debug_logs', 'yprint_get_recent_debug_logs');
+// Debug-Logs AJAX-Handler wurde entfernt
 
-function yprint_get_recent_debug_logs() {
-    $debug_file = WP_CONTENT_DIR . '/debug.log';
-    
-    if (!file_exists($debug_file)) {
-        wp_send_json_success(array('logs' => array()));
-        return;
-    }
-    
-    $lines = array();
-    $file = file($debug_file);
-    if ($file) {
-        $lines = array_slice($file, -20);
-        
-        $yprint_logs = array();
-        foreach ($lines as $line) {
-            if (strpos($line, 'YPRINT') !== false || 
-                strpos($line, 'DESIGN') !== false || 
-                strpos($line, 'EMERGENCY') !== false) {
-                $yprint_logs[] = trim($line);
-            }
-        }
-        
-        wp_send_json_success(array('logs' => $yprint_logs));
-    } else {
-        wp_send_json_success(array('logs' => array()));
-    }
-}
-
-/**
- * DEBUG: Hook-Verifikation für Order
- */
-add_action('wp_ajax_yprint_verify_order_hooks', 'yprint_verify_order_hooks');
-add_action('wp_ajax_nopriv_yprint_verify_order_hooks', 'yprint_verify_order_hooks');
-
-function yprint_verify_order_hooks() {
-    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
-    
-    if (!$order_id) {
-        wp_send_json_error('Keine Order ID');
-        return;
-    }
-    
-    $order = wc_get_order($order_id);
-    if (!$order) {
-        wp_send_json_error('Order nicht gefunden');
-        return;
-    }
-    
-    error_log('=== YPRINT HOOK VERIFICATION FOR ORDER ' . $order_id . ' ===');
-    
-    $hooks_executed = false;
-    $design_data_found = false;
-    
-    $debug_file = WP_CONTENT_DIR . '/debug.log';
-    if (file_exists($debug_file)) {
-        $log_content = file_get_contents($debug_file);
-        
-        $patterns = [
-            'EMERGENCY DESIGN TRANSFER',
-            'FINAL DESIGN TRANSFER', 
-            'Order ID: ' . $order_id,
-            'ADDING design data to order item'
-        ];
-        
-        foreach ($patterns as $pattern) {
-            if (strpos($log_content, $pattern) !== false) {
-                $hooks_executed = true;
-                break;
-            }
-        }
-    }
-    
-    foreach ($order->get_items() as $item) {
-        if ($item->get_meta('print_design') || 
-            $item->get_meta('_has_print_design') || 
-            $item->get_meta('_design_id')) {
-            $design_data_found = true;
-            break;
-        }
-    }
-    
-    $verification_result = array(
-        'order_id' => $order_id,
-        'hooks_executed' => $hooks_executed,
-        'design_data_found' => $design_data_found,
-        'debug_file_exists' => file_exists($debug_file),
-        'order_status' => $order->get_status()
-    );
-    
-    error_log('Hook verification result: ' . print_r($verification_result, true));
-    
-    wp_send_json_success($verification_result);
-}
+// Hook-Verifikation Debug-Handler wurde entfernt
 
 /**
  * Fügt Design-Details zum Produktnamen im Warenkorb hinzu
@@ -1309,20 +1213,7 @@ function yprint_get_customer_orders() {
     ));
 }
 
-/**
- * Helper: Log-Speicherung für Debug-Zwecke
- */
-function yprint_store_debug_log($message) {
-    $logs = get_option('yprint_debug_logs', array());
-    
-    $logs[] = '[' . current_time('mysql') . '] ' . $message;
-    
-    if (count($logs) > 100) {
-        $logs = array_slice($logs, -100);
-    }
-    
-    update_option('yprint_debug_logs', $logs);
-}
+// Debug-Log-Speicher-Funktion wurde entfernt
 
 // Diese doppelten Funktionen komplett entfernt
 
@@ -1523,48 +1414,7 @@ function yprint_remove_cart_item_callback() {
 
 // Diese doppelte Registrierung komplett entfernt - die erste Funktion reicht aus
 
-/**
- * Erweiterte Order Meta Anzeige im Admin
- */
-add_action('woocommerce_admin_order_data_after_order_details', 'yprint_display_admin_order_meta');
-function yprint_display_admin_order_meta($order) {
-    echo '<div class="yprint-order-meta" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd;">';
-    echo '<h3>YPrint Order Information</h3>';
-    
-    $has_design_products = false;
-    foreach ($order->get_items() as $item_id => $item) {
-        $design_data = $item->get_meta('print_design');
-        if (!empty($design_data)) {
-            $has_design_products = true;
-            
-            echo '<div style="margin-bottom: 15px; padding: 10px; background: white; border-left: 4px solid #2271b1;">';
-            echo '<h4>Design Item: ' . esc_html($item->get_name()) . '</h4>';
-            
-            if (is_array($design_data)) {
-                echo '<ul>';
-                foreach ($design_data as $key => $value) {
-                    if (!is_array($value) && !is_object($value)) {
-                        echo '<li><strong>' . esc_html($key) . ':</strong> ' . esc_html($value) . '</li>';
-                    }
-                }
-                echo '</ul>';
-                
-                if (isset($design_data['preview_url'])) {
-                    echo '<p><strong>Preview:</strong> <a href="' . esc_url($design_data['preview_url']) . '" target="_blank">Vorschau öffnen</a></p>';
-                }
-            } else {
-                echo '<p>Design Data: ' . esc_html($design_data) . '</p>';
-            }
-            echo '</div>';
-        }
-    }
-    
-    if (!$has_design_products) {
-        echo '<p style="color: #666;">Keine Design-Produkte in dieser Bestellung gefunden.</p>';
-    }
-    
-    echo '</div>';
-}
+// YPrint Order Information Meta-Box wurde entfernt
 
 /**
  * Checkout-spezifische Funktionen
@@ -1758,31 +1608,7 @@ function yprint_emergency_final_design_transfer($order_id, $posted_data, $order)
     error_log('EMERGENCY: Order saved with design data');
 }
 
-function yprint_debug_checkout_info() {
-    if (!is_checkout() && !is_cart()) {
-        return;
-    }
-    
-    if (!WC()->cart || WC()->cart->is_empty()) {
-        return;
-    }
-    
-    echo '<div id="yprint-debug-info" style="position: fixed; bottom: 10px; right: 10px; background: #000; color: #fff; padding: 10px; border-radius: 5px; font-size: 12px; max-width: 300px; z-index: 9999;">';
-    echo '<strong>YPrint Debug Info:</strong><br>';
-    echo 'Cart Items: ' . WC()->cart->get_cart_contents_count() . '<br>';
-    
-    $design_items = 0;
-    foreach (WC()->cart->get_cart() as $cart_item) {
-        if (isset($cart_item['print_design'])) {
-            $design_items++;
-        }
-    }
-    
-    echo 'Design Items: ' . $design_items . '<br>';
-    echo 'Session ID: ' . (WC()->session ? WC()->session->get_customer_id() : 'N/A') . '<br>';
-    echo '<button onclick="this.parentElement.style.display=\'none\'" style="background: #fff; color: #000; border: none; padding: 2px 5px; margin-top: 5px;">Hide</button>';
-    echo '</div>';
-}
+// Checkout Debug-Info wurde entfernt
 
 /**
  * CRITICAL: Add Cart Item Data Filter für Design-Daten
