@@ -132,22 +132,37 @@ if ( empty( $chosen_payment_method ) ) {
     }
 }
 
-// 4. Priorität: Payment Method Title aus der finalen Order (falls verfügbar)
+// 4. PRIORITÄT: Payment Method Title aus der finalen Order (falls verfügbar)
 $payment_method_title_from_order = '';
-if ( $final_order instanceof \WC_Order ) {
+$final_order = null;
+
+// Versuche Order aus verschiedenen Quellen zu bekommen
+if (isset($_GET['order_id']) && !empty($_GET['order_id'])) {
+    $order_id = intval($_GET['order_id']);
+    $final_order = wc_get_order($order_id);
+    error_log('YPrint: Order loaded from URL parameter: ' . $order_id);
+} elseif (WC()->session && WC()->session->get('yprint_last_order_id')) {
+    $order_id = WC()->session->get('yprint_last_order_id');
+    $final_order = wc_get_order($order_id);
+    error_log('YPrint: Order loaded from session: ' . $order_id);
+}
+
+if ($final_order instanceof \WC_Order) {
     $payment_method_title_from_order = $final_order->get_payment_method_title();
-    if ( ! empty( $payment_method_title_from_order ) ) {
-        error_log( 'YPrint Payment Method Title from final_order: ' . $payment_method_title_from_order );
+    if (!empty($payment_method_title_from_order)) {
+        error_log('YPrint Payment Method Title from final_order: ' . $payment_method_title_from_order);
     }
     
     // Fallback zur Payment Method ID falls kein Title verfügbar
-    if ( empty( $chosen_payment_method ) ) {
+    if (empty($chosen_payment_method)) {
         $payment_method_from_order = $final_order->get_payment_method();
-        if ( ! empty( $payment_method_from_order ) ) {
+        if (!empty($payment_method_from_order)) {
             $chosen_payment_method = $payment_method_from_order;
-            error_log( 'YPrint Payment Method from final_order: ' . $chosen_payment_method );
+            error_log('YPrint Payment Method from final_order: ' . $chosen_payment_method);
         }
     }
+} else {
+    error_log('YPrint: No final order available for payment method detection');
 }
 
 // Debug: Alle verfügbaren Session-Daten loggen
