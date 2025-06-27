@@ -348,46 +348,23 @@ if (!method && window.confirmationPaymentData?.order_data?.payment_method_id) {
     }
 }
 
-// 4. FALLBACK: Aktiver Slider (UI-Zustand)
+// Keine Fallbacks - nur echte Payment-Daten sind gültig
 if (!method) {
-    const activeSlider = document.querySelector('.slider-option.active');
-    if (activeSlider?.dataset.method) {
-        method = activeSlider.dataset.method;
-        console.log('Payment method from active slider:', method);
-    }
+    console.warn('YPrint: Keine echten Zahlungsdaten gefunden - Payment Method kann nicht bestimmt werden');
+    console.log('Verfügbare echte Payment-Quellen:', {
+        confirmationPaymentData: window.confirmationPaymentData?.payment_method_type || 'not available',
+        windowPaymentData: window.paymentData?.payment_method_type || 'not available',
+        orderPaymentMethodId: window.confirmationPaymentData?.order_data?.payment_method_id || 'not available'
+    });
 }
 
-// 5. FALLBACK: SessionStorage (kann veraltet sein - nur als letzter Fallback)
-if (!method) {
-    try {
-        const orderData = JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'));
-        if (orderData?.payment?.method && !orderData.payment.method.includes('old')) {
-            method = orderData.payment.method;
-            console.log('Payment method from sessionStorage (fallback):', method);
-        }
-    } catch (e) { /* silent fail */ }
-}
-
-// 6. LETZTER FALLBACK: Radio Button Selection
-if (!method) {
-    const selectedRadio = document.querySelector('input[name="payment_method"]:checked');
-    if (selectedRadio?.value) {
-        method = selectedRadio.value;
-        console.log('Payment method from radio button (last resort):', method);
-    }
-}
-
-// Debug: Alle verfügbaren Quellen loggen
-console.log('Payment Method Detection Debug:', {
-    paymentData: window.paymentData?.payment_method_type || 'not available',
-    sessionStorage: (() => {
-        try {
-            return JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'))?.payment?.method || 'not available';
-        } catch { return 'parse error'; }
-    })(),
-    activeSlider: document.querySelector('.slider-option.active')?.dataset.method || 'not available',
-    radioButton: document.querySelector('input[name="payment_method"]:checked')?.value || 'not available',
-    finalMethod: method || 'none found'
+// Debug: Nur echte Payment-Daten loggen
+console.log('Payment Method Detection (Real Data Only):', {
+    confirmationPaymentData: window.confirmationPaymentData?.payment_method_type || 'not available',
+    windowPaymentData: window.paymentData?.payment_method_type || 'not available',
+    orderPaymentMethodId: window.confirmationPaymentData?.order_data?.payment_method_id || 'not available',
+    expressPaymentIndicator: window.confirmationPaymentData?.message?.includes('Express') || false,
+    finalMethod: method || 'NO REAL DATA FOUND'
 });
 
                 title = getPaymentMethodTitle(method);
@@ -422,6 +399,15 @@ if (originalPopulate) {
         // Force update payment method display
         setTimeout(updatePaymentMethodDisplay, 50);
     };
+}
+
+title = getPaymentMethodTitle(method);
+if (title) {
+    displayElement.innerHTML = title;
+} else {
+    // Keine echten Payment-Daten gefunden - Warnung anzeigen
+    displayElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> <span class="text-amber-600"><?php echo esc_js( __( 'Zahlungsart wird ermittelt...', 'yprint-checkout' ) ); ?></span>';
+    console.error('YPrint: Payment Method Display - Keine echten Zahlungsdaten verfügbar');
 }
         </script>
 
