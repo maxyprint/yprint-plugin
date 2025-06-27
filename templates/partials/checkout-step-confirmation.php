@@ -29,21 +29,36 @@ if ( ! function_exists( 'WC' ) || ! WC()->session ) {
 } else {
 
     // 1. Lade die WooCommerce-Bestellung (Order)
-    // Versuche, die Order-ID aus verschiedenen Session-Quellen zu ermitteln.
-    $order_data_from_session = WC()->session->get( 'yprint_pending_order' );
-    $order_id                = $order_data_from_session['order_id'] ?? null;
+    // PRIORITÄT 1: Order-ID aus URL-Parameter (nach erfolgreicher Zahlung)
+    $order_id = null;
+    if (isset($_GET['order_id']) && !empty($_GET['order_id'])) {
+        $order_id = intval($_GET['order_id']);
+        error_log('YPrint Confirmation: Order ID from URL parameter: ' . $order_id);
+    }
 
+    // PRIORITÄT 2: Fallback - Versuche, die Order-ID aus Session-Quellen zu ermitteln
     if ( ! $order_id ) {
-        $last_order_id_session = WC()->session->get( 'yprint_last_order_id' );
-        // Prüfe, ob es sich um eine gültige YP-ID handelt.
-        if ( is_string( $last_order_id_session ) && str_starts_with( $last_order_id_session, 'YP-' ) ) {
-            $order_id = substr( $last_order_id_session, 3 );
+        $order_data_from_session = WC()->session->get( 'yprint_pending_order' );
+        $order_id                = $order_data_from_session['order_id'] ?? null;
+
+        if ( ! $order_id ) {
+            $last_order_id_session = WC()->session->get( 'yprint_last_order_id' );
+            // Prüfe, ob es sich um eine gültige YP-ID handelt.
+            if ( is_string( $last_order_id_session ) && str_starts_with( $last_order_id_session, 'YP-' ) ) {
+                $order_id = substr( $last_order_id_session, 3 );
+            } else {
+                $order_id = $last_order_id_session;
+            }
         }
+        error_log('YPrint Confirmation: Order ID from session fallback: ' . ($order_id ?: 'NONE'));
     }
 
     // Lade das Order-Objekt, wenn eine ID gefunden wurde.
     if ( $order_id ) {
         $final_order = wc_get_order( $order_id );
+        error_log('YPrint Confirmation: Order loaded successfully: ' . ($final_order ? 'YES' : 'NO'));
+    } else {
+        error_log('YPrint Confirmation: FEHLER - Keine Order ID gefunden!');
     }
 
     // 2. Extrahiere Adressdaten aus der Bestellung
@@ -56,53 +71,112 @@ if ( ! function_exists( 'WC' ) || ! WC()->session ) {
         ];
     }
 
-    // 3. Lade die Artikel aus dem Warenkorb (falls noch nicht geleert)
-    if ( WC()->cart && ! WC()->cart->is_empty() ) {
-        foreach ( WC()->cart->get_cart() as $cart_item ) {
-            $product = $cart_item['data'];
+    // 3. Lade die Artikel AUS DER BESTELLUNG (nicht aus dem Cart - der ist nach Payment leer!)
+    if ( $final_order instanceof \WC_Order ) {
+        error_log('YPrint Confirmation: Loading items from order...');
+        
+        foreach ( $final_order->get_items() as $item_id => $item ) {
+            $product = $item->get_product();
             if ( ! $product ) {
                 continue;
             }
 
             $item_data = [
-                'name'              => $product->get_name(),
-                'quantity'          => $cart_item['quantity'],
-                'price'             => $product->get_price(),
-                'total'             => $cart_item['line_total'],
+                'name'              => $item->get_name(),
+                'quantity'          => $item->get_quantity(),
+                'price'             => $item->get_subtotal() / $item->get_quantity(), // Einzelpreis
+                'total'             => $item->get_total(),
                 'image'             => wp_get_attachment_image_url( $product->get_image_id(), 'thumbnail' ) ?: wc_placeholder_img_src( 'thumbnail' ),
                 'is_design_product' => false,
             ];
 
-            // Füge erweiterte Design-Details hinzu, falls vorhanden.
-            if ( ! empty( $cart_item['print_design'] ) ) {
-                $design_data = $cart_item['print_design'];
-                $preview_url = '';
-
-                // Versuche, eine Vorschau aus den Variation-Images zu extrahieren.
-                if ( ! empty( $design_data['variationImages'] ) ) {
-                    $variation_images   = is_string( $design_data['variationImages'] ) ? json_decode( $design_data['variationImages'], true ) : $design_data['variationImages'];
-                    $first_variation    = is_array( $variation_images ) ? reset( $variation_images ) : null;
-                    $first_image        = is_array( $first_variation ) ? reset( $first_variation ) : null;
-                    $preview_url        = $first_image['url'] ?? '';
-                }
-
+            // Prüfe auf Design-Produkt über Order Item Meta
+            $print_design_meta = $item->get_meta('print_design');
+            $design_id_meta = $item->get_meta('_design_id');
+            $design_name_meta = $item->get_meta('_design_name');
+            
+            if ( $print_design_meta || $design_id_meta || $design_name_meta ) {
                 $item_data['is_design_product'] = true;
-                $item_data['design_name']       = $design_data['name'] ?? __( 'Custom Design', 'yprint-checkout' );
-                $item_data['design_details']    = $item_data['design_name'];
-                $item_data['design_preview']    = $preview_url ?: $design_data['preview_url'] ?? $design_data['design_image_url'] ?? '';
+                
+                // Design-Details aus Order Meta extrahieren
+                if ( $print_design_meta ) {
+                    $design_data = is_string($print_design_meta) ? json_decode($print_design_meta, true) : $print_design_meta;
+                    if (is_array($design_data)) {
+                        $item_data['design_details'] = $design_data['name'] ?? 'Custom Design';
+                        $item_data['design_preview'] = $design_data['preview_url'] ?? $design_data['design_image_url'] ?? '';
+                    }
+                } else {
+                    // Fallback zu einzelnen Meta-Feldern
+                    $item_data['design_details'] = $design_name_meta ?: 'Custom Design';
+                    $item_data['design_preview'] = '';
+                }
             }
 
             $cart_items[] = $item_data;
         }
-
-        // 4. Berechne die Gesamtbeträge
+        
+        // 4. Berechne die Gesamtbeträge AUS DER BESTELLUNG
         $cart_totals = [
-            'subtotal' => WC()->cart->get_subtotal(),
-            'shipping' => WC()->cart->get_shipping_total(),
-            'tax'      => WC()->cart->get_total_tax(),
-            'discount' => WC()->cart->get_discount_total(),
-            'total'    => WC()->cart->get_total( 'edit' ),
+            'subtotal' => $final_order->get_subtotal(),
+            'shipping' => $final_order->get_shipping_total(),
+            'tax'      => $final_order->get_total_tax(),
+            'discount' => $final_order->get_discount_total(),
+            'total'    => $final_order->get_total(),
         ];
+        
+        error_log('YPrint Confirmation: Loaded ' . count($cart_items) . ' items from order');
+    } else {
+        error_log('YPrint Confirmation: WARNUNG - Keine gültige Bestellung für Artikel-Ladung gefunden!');
+        
+        // Fallback: Versuche Artikel aus Cart zu laden (falls noch vorhanden)
+        if ( WC()->cart && ! WC()->cart->is_empty() ) {
+            error_log('YPrint Confirmation: Fallback - Lade Artikel aus Cart');
+            foreach ( WC()->cart->get_cart() as $cart_item ) {
+                $product = $cart_item['data'];
+                if ( ! $product ) {
+                    continue;
+                }
+
+                $item_data = [
+                    'name'              => $product->get_name(),
+                    'quantity'          => $cart_item['quantity'],
+                    'price'             => $product->get_price(),
+                    'total'             => $cart_item['line_total'],
+                    'image'             => wp_get_attachment_image_url( $product->get_image_id(), 'thumbnail' ) ?: wc_placeholder_img_src( 'thumbnail' ),
+                    'is_design_product' => false,
+                ];
+
+                // Füge erweiterte Design-Details hinzu, falls vorhanden.
+                if ( ! empty( $cart_item['print_design'] ) ) {
+                    $design_data = $cart_item['print_design'];
+                    $preview_url = '';
+
+                    // Versuche, eine Vorschau aus den Variation-Images zu extrahieren.
+                    if ( ! empty( $design_data['variationImages'] ) ) {
+                        $variation_images   = is_string( $design_data['variationImages'] ) ? json_decode( $design_data['variationImages'], true ) : $design_data['variationImages'];
+                        $first_variation    = is_array( $variation_images ) ? reset( $variation_images ) : null;
+                        $first_image        = is_array( $first_variation ) ? reset( $first_variation ) : null;
+                        $preview_url        = $first_image['url'] ?? '';
+                    }
+
+                    $item_data['is_design_product'] = true;
+                    $item_data['design_name']       = $design_data['name'] ?? __( 'Custom Design', 'yprint-checkout' );
+                    $item_data['design_details']    = $item_data['design_name'];
+                    $item_data['design_preview']    = $preview_url ?: $design_data['preview_url'] ?? $design_data['design_image_url'] ?? '';
+                }
+
+                $cart_items[] = $item_data;
+            }
+
+            // 4. Berechne die Gesamtbeträge aus Cart (Fallback)
+            $cart_totals = [
+                'subtotal' => WC()->cart->get_subtotal(),
+                'shipping' => WC()->cart->get_shipping_total(),
+                'tax'      => WC()->cart->get_total_tax(),
+                'discount' => WC()->cart->get_discount_total(),
+                'total'    => WC()->cart->get_total( 'edit' ),
+            ];
+        }
     }
 
     // 5. Ermittle die gewählte Zahlungsmethode

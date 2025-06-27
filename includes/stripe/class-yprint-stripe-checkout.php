@@ -2800,11 +2800,17 @@ if ('succeeded' === $intent->status) {
         $order->save();
         error_log('SEPA payment successfully initiated for order: ' . $order->get_id());
         
-        // WICHTIG: Als Erfolg zurückgeben für Frontend
+        // WICHTIG: Als Erfolg zurückgeben für Frontend mit korrekter Redirect URL
+        $confirmation_url = add_query_arg(array(
+            'step' => 'confirmation',
+            'order_id' => $order->get_id()
+        ), get_permalink());
+        
         wp_send_json_success(array(
             'next_step' => 'confirmation',
             'order_id' => $order->get_id(),
             'payment_status' => 'processing',
+            'redirect_url' => $confirmation_url,
             'message' => __('SEPA payment initiated successfully', 'yprint-plugin')
         ));
         return;
@@ -2855,6 +2861,7 @@ if ('succeeded' === $intent->status) {
         
         // Store order data in session for confirmation page
         WC()->session->set('yprint_pending_order', $order_data);
+        WC()->session->set('yprint_last_order_id', $order_id);
         
         // Clear cart after successful payment
         if (WC()->cart && !WC()->cart->is_empty()) {
@@ -2957,7 +2964,12 @@ if ('succeeded' === $intent->status) {
             }
         }
         
-        // Return success with payment intent ID
+        // Return success with payment intent ID und Redirect URL
+        $confirmation_url = add_query_arg(array(
+            'step' => 'confirmation',
+            'order_id' => $order_id
+        ), get_permalink());
+        
         wp_send_json_success(array(
             'message' => 'Express order created and payment confirmed',
             'payment_method_id' => $payment_method['id'],
@@ -2965,6 +2977,7 @@ if ('succeeded' === $intent->status) {
             'order_id' => $order_id,
             'order_data' => $order_data,
             'next_step' => 'confirmation',
+            'redirect_url' => $confirmation_url,
             'design_transfers' => array(
                 'success' => $design_transfers_success,
                 'failed' => $design_transfers_failed
