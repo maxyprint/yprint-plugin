@@ -106,10 +106,47 @@ if ( ! function_exists( 'WC' ) || ! WC()->session ) {
     }
 
     // 5. Ermittle die gewählte Zahlungsmethode
-    // Kette von Fallbacks, um die zuverlässigste Quelle zu finden.
-    $chosen_payment_method = WC()->session->get( 'yprint_checkout_payment_method' )
-        ?: WC()->session->get( 'chosen_payment_method' )
-        ?: ( WC()->session->get( 'yprint_pending_order' )['payment_method_type'] ?? null );
+// Priorisiere die zuverlässigsten Quellen zuerst
+$chosen_payment_method = null;
+
+// 1. Priorität: Pending Order Data (zuverlässigste Quelle für Stripe-Zahlungen)
+$pending_order_data = WC()->session->get( 'yprint_pending_order' );
+if ( $pending_order_data && ! empty( $pending_order_data['payment_method_type'] ) ) {
+    $chosen_payment_method = $pending_order_data['payment_method_type'];
+    error_log( 'YPrint Payment Method from pending_order: ' . $chosen_payment_method );
+}
+
+// 2. Priorität: YPrint Checkout Session
+if ( empty( $chosen_payment_method ) ) {
+    $chosen_payment_method = WC()->session->get( 'yprint_checkout_payment_method' );
+    if ( ! empty( $chosen_payment_method ) ) {
+        error_log( 'YPrint Payment Method from yprint_checkout_payment_method: ' . $chosen_payment_method );
+    }
+}
+
+// 3. Priorität: Standard WooCommerce Session
+if ( empty( $chosen_payment_method ) ) {
+    $chosen_payment_method = WC()->session->get( 'chosen_payment_method' );
+    if ( ! empty( $chosen_payment_method ) ) {
+        error_log( 'YPrint Payment Method from chosen_payment_method: ' . $chosen_payment_method );
+    }
+}
+
+// 4. Priorität: Aus der finalen Order (falls verfügbar)
+if ( empty( $chosen_payment_method ) && $final_order instanceof \WC_Order ) {
+    $payment_method_from_order = $final_order->get_payment_method();
+    if ( ! empty( $payment_method_from_order ) ) {
+        $chosen_payment_method = $payment_method_from_order;
+        error_log( 'YPrint Payment Method from final_order: ' . $chosen_payment_method );
+    }
+}
+
+// Debug: Alle verfügbaren Session-Daten loggen
+error_log( 'YPrint Payment Method DEBUG - All session data:' );
+error_log( '  - yprint_checkout_payment_method: ' . ( WC()->session->get( 'yprint_checkout_payment_method' ) ?: 'empty' ) );
+error_log( '  - chosen_payment_method: ' . ( WC()->session->get( 'chosen_payment_method' ) ?: 'empty' ) );
+error_log( '  - pending_order.payment_method_type: ' . ( $pending_order_data['payment_method_type'] ?? 'empty' ) );
+error_log( '  - Final chosen_payment_method: ' . ( $chosen_payment_method ?: 'empty' ) );
 }
 
 
@@ -270,15 +307,53 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
                 let method = null;
                 let title = null;
 
-                // Verschiedene Quellen in priorisierter Reihenfolge prüfen
-                try {
-                    const orderData = JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'));
-                    method = orderData?.payment?.method;
-                } catch (e) { /* silent fail */ }
+                // Verschiedene Quellen in priorisierter Reihenfolge prüfen (zuverlässigste zuerst)
 
-                if (!method && window.paymentData?.payment_method_type) method = window.paymentData.payment_method_type;
-                if (!method) method = document.querySelector('.slider-option.active')?.dataset.method;
-                if (!method) method = document.querySelector('input[name="payment_method"]:checked')?.value;
+// 1. Stripe Payment Data (höchste Priorität für abgeschlossene Zahlungen)
+if (window.paymentData?.payment_method_type) {
+    method = window.paymentData.payment_method_type;
+    console.log('Payment method from window.paymentData:', method);
+}
+
+// 2. SessionStorage Order Data
+if (!method) {
+    try {
+        const orderData = JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'));
+        method = orderData?.payment?.method;
+        if (method) console.log('Payment method from sessionStorage:', method);
+    } catch (e) { /* silent fail */ }
+}
+
+// 3. Aktiver Slider (UI-Zustand)
+if (!method) {
+    const activeSlider = document.querySelector('.slider-option.active');
+    if (activeSlider?.dataset.method) {
+        method = activeSlider.dataset.method;
+        console.log('Payment method from active slider:', method);
+    }
+}
+
+// 4. Radio Button Selection (niedrigste Priorität)
+if (!method) {
+    const selectedRadio = document.querySelector('input[name="payment_method"]:checked');
+    if (selectedRadio?.value) {
+        method = selectedRadio.value;
+        console.log('Payment method from radio button:', method);
+    }
+}
+
+// Debug: Alle verfügbaren Quellen loggen
+console.log('Payment Method Detection Debug:', {
+    paymentData: window.paymentData?.payment_method_type || 'not available',
+    sessionStorage: (() => {
+        try {
+            return JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'))?.payment?.method || 'not available';
+        } catch { return 'parse error'; }
+    })(),
+    activeSlider: document.querySelector('.slider-option.active')?.dataset.method || 'not available',
+    radioButton: document.querySelector('input[name="payment_method"]:checked')?.value || 'not available',
+    finalMethod: method || 'none found'
+});
 
                 title = getPaymentMethodTitle(method);
                 if (title) {
