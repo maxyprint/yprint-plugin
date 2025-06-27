@@ -3,8 +3,7 @@
  * Partial Template: Schritt 3 - Bestellung überprüfen und abschließen.
  *
  * Benötigt:
- * JavaScript füllt die dynamischen Daten (Adressen, Produkte, Preise)
- * basierend auf dem `formData` Objekt und den `cartItems`.
+ * Die Adressdaten werden nun direkt aus dem finalen WooCommerce Order-Objekt geladen.
  */
 
 // Direktaufruf verhindern
@@ -13,165 +12,121 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 ?>
 <?php
-// Lade aktuelle Bestelldaten bevor der Warenkorb geleert wird
+// Lade aktuelle Bestelldaten
 $customer_data = null;
 $cart_items = array();
 $cart_totals = array();
 
-// Prüfe ob WooCommerce verfügbar ist und Warenkorb Daten hat
-if (class_exists('WooCommerce') && WC() && !WC()->cart->is_empty()) {
-    // Lade finale Order-Daten statt Session-Daten für korrekte Adressenanzeige
-$final_order = null;
-$order_data_from_session = WC()->session->get('yprint_pending_order');
+// Prüfe ob WooCommerce verfügbar ist
+if (class_exists('WooCommerce') && WC()) {
+    
+    // Versuche, die finale WooCommerce Order zu laden
+    $final_order = null;
+    $order_id = null;
+    $order_data_from_session = WC()->session->get('yprint_pending_order');
 
-// Versuche Order ID aus Session-Daten zu ermitteln
-$order_id = null;
-if ($order_data_from_session && isset($order_data_from_session['order_id'])) {
-    $order_id = $order_data_from_session['order_id'];
-} else {
-    // Fallback: Letzte Order ID aus Session
-    $last_order_id_session = WC()->session->get('yprint_last_order_id');
-    if ($last_order_id_session && strpos($last_order_id_session, 'YP-') === 0) {
-        $order_id = str_replace('YP-', '', $last_order_id_session);
-    }
-}
-
-// Lade finale WooCommerce Order
-if ($order_id) {
-    $final_order = wc_get_order($order_id);
-}
-
-if ($final_order && is_a($final_order, 'WC_Order')) {
-    // Verwende finale Order-Daten für korrekte Adressenanzeige
-    $customer_data = array(
-        'first_name' => $final_order->get_billing_first_name() ?: $final_order->get_shipping_first_name(),
-        'last_name' => $final_order->get_billing_last_name() ?: $final_order->get_shipping_last_name(),
-        'email' => $final_order->get_billing_email(),
-        'phone' => $final_order->get_billing_phone() ?: $final_order->get_shipping_phone(),
-        'shipping' => array(
-            'address_1' => $final_order->get_shipping_address_1(),
-            'address_2' => $final_order->get_shipping_address_2(),
-            'city' => $final_order->get_shipping_city(),
-            'postcode' => $final_order->get_shipping_postcode(),
-            'country' => $final_order->get_shipping_country(),
-        ),
-        'billing' => array(
-            'address_1' => $final_order->get_billing_address_1(),
-            'address_2' => $final_order->get_billing_address_2(),
-            'city' => $final_order->get_billing_city(),
-            'postcode' => $final_order->get_billing_postcode(),
-            'country' => $final_order->get_billing_country(),
-        )
-    );
-} else {
-    // Fallback: Session-Daten nur wenn keine finale Order verfügbar
-    $selected_address = WC()->session->get('yprint_selected_address');
-    $checkout = WC()->checkout();
-
-    if ($selected_address && !empty($selected_address)) {
-        $customer_data = array(
-            'first_name' => $selected_address['first_name'] ?? '',
-            'last_name' => $selected_address['last_name'] ?? '',
-            'email' => $checkout->get_value('billing_email') ?: WC()->customer->get_email(),
-            'phone' => $selected_address['phone'] ?? '',
-            'shipping' => array(
-                'address_1' => $selected_address['address_1'] ?? '',
-                'address_2' => $selected_address['address_2'] ?? '',
-                'city' => $selected_address['city'] ?? '',
-                'postcode' => $selected_address['postcode'] ?? '',
-                'country' => $selected_address['country'] ?? 'DE',
-            ),
-            'billing' => array(
-                'address_1' => $selected_address['address_1'] ?? '',
-                'address_2' => $selected_address['address_2'] ?? '',
-                'city' => $selected_address['city'] ?? '',
-                'postcode' => $selected_address['postcode'] ?? '',
-                'country' => $selected_address['country'] ?? 'DE',
-            )
-        );
+    // Versuche Order ID aus Session-Daten zu ermitteln
+    if ($order_data_from_session && isset($order_data_from_session['order_id'])) {
+        $order_id = $order_data_from_session['order_id'];
     } else {
+        // Fallback: Letzte Order ID aus Session
+        $last_order_id_session = WC()->session->get('yprint_last_order_id');
+        if ($last_order_id_session && strpos($last_order_id_session, 'YP-') === 0) {
+            $order_id = str_replace('YP-', '', $last_order_id_session);
+        }
+    }
+
+    // Lade die WooCommerce Order, wenn eine ID gefunden wurde
+    if ($order_id) {
+        $final_order = wc_get_order($order_id);
+    }
+
+    // Wenn die Order existiert, lade die Adressdaten direkt aus der Order
+    if ($final_order && is_a($final_order, 'WC_Order')) {
         $customer_data = array(
-            'first_name' => $checkout->get_value('billing_first_name') ?: $checkout->get_value('shipping_first_name'),
-            'last_name' => $checkout->get_value('billing_last_name') ?: $checkout->get_value('shipping_last_name'),
-            'email' => $checkout->get_value('billing_email'),
-            'phone' => $checkout->get_value('billing_phone') ?: $checkout->get_value('shipping_phone'),
+            'email' => $final_order->get_billing_email(),
+            'phone' => $final_order->get_billing_phone(),
             'shipping' => array(
-                'address_1' => $checkout->get_value('shipping_address_1'),
-                'address_2' => $checkout->get_value('shipping_address_2'),
-                'city' => $checkout->get_value('shipping_city'),
-                'postcode' => $checkout->get_value('shipping_postcode'),
-                'country' => $checkout->get_value('shipping_country'),
+                'first_name' => $final_order->get_shipping_first_name(),
+                'last_name'  => $final_order->get_shipping_last_name(),
+                'address_1'  => $final_order->get_shipping_address_1(),
+                'address_2'  => $final_order->get_shipping_address_2(),
+                'city'       => $final_order->get_shipping_city(),
+                'postcode'   => $final_order->get_shipping_postcode(),
+                'country'    => $final_order->get_shipping_country(),
             ),
             'billing' => array(
-                'address_1' => $checkout->get_value('billing_address_1'),
-                'address_2' => $checkout->get_value('billing_address_2'),
-                'city' => $checkout->get_value('billing_city'),
-                'postcode' => $checkout->get_value('billing_postcode'),
-                'country' => $checkout->get_value('billing_country'),
+                'first_name' => $final_order->get_billing_first_name(),
+                'last_name'  => $final_order->get_billing_last_name(),
+                'address_1'  => $final_order->get_billing_address_1(),
+                'address_2'  => $final_order->get_billing_address_2(),
+                'city'       => $final_order->get_billing_city(),
+                'postcode'   => $final_order->get_billing_postcode(),
+                'country'    => $final_order->get_billing_country(),
             )
         );
     }
-}
     
-    // Warenkorb-Items laden
-foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-    $product = $cart_item['data'];
-    if (!$product) continue;
-    
-    $item_data = array(
-        'name' => $product->get_name(),
-        'quantity' => $cart_item['quantity'],
-        'price' => $product->get_price(),
-        'total' => $cart_item['line_total'],
-        'image' => wp_get_attachment_image_url($product->get_image_id(), 'thumbnail') ?: wc_placeholder_img_src('thumbnail')
-    );
-    
-    // Erweiterte Design-Details falls vorhanden
-    if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
-        $design_data = $cart_item['print_design'];
-        
-        $item_data['is_design_product'] = true;
-        $item_data['design_name'] = $design_data['name'] ?? 'Custom Design';
-        
-        // Design Preview URL aus variationImages extrahieren
-        $preview_url = '';
-        if (isset($design_data['variationImages']) && !empty($design_data['variationImages'])) {
-            $variation_images = is_string($design_data['variationImages']) ? 
-                json_decode($design_data['variationImages'], true) : $design_data['variationImages'];
+    // Warenkorb-Items laden (falls der Warenkorb nicht bereits geleert wurde)
+    if (WC()->cart && !WC()->cart->is_empty()) {
+        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
+            $product = $cart_item['data'];
+            if (!$product) continue;
             
-            if ($variation_images && is_array($variation_images)) {
-                $first_variation = reset($variation_images);
-                if (is_array($first_variation) && !empty($first_variation)) {
-                    $first_image = reset($first_variation);
-                    $preview_url = $first_image['url'] ?? '';
+            $item_data = array(
+                'name' => $product->get_name(),
+                'quantity' => $cart_item['quantity'],
+                'price' => $product->get_price(),
+                'total' => $cart_item['line_total'],
+                'image' => wp_get_attachment_image_url($product->get_image_id(), 'thumbnail') ?: wc_placeholder_img_src('thumbnail')
+            );
+            
+            // Erweiterte Design-Details falls vorhanden
+            if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+                $design_data = $cart_item['print_design'];
+                
+                $item_data['is_design_product'] = true;
+                $item_data['design_name'] = $design_data['name'] ?? 'Custom Design';
+                
+                $preview_url = '';
+                if (isset($design_data['variationImages']) && !empty($design_data['variationImages'])) {
+                    $variation_images = is_string($design_data['variationImages']) ? 
+                        json_decode($design_data['variationImages'], true) : $design_data['variationImages'];
+                    
+                    if ($variation_images && is_array($variation_images)) {
+                        $first_variation = reset($variation_images);
+                        if (is_array($first_variation) && !empty($first_variation)) {
+                            $first_image = reset($first_variation);
+                            $preview_url = $first_image['url'] ?? '';
+                        }
+                    }
                 }
+                
+                if (empty($preview_url)) {
+                    $preview_url = $design_data['preview_url'] ?? $design_data['design_image_url'] ?? '';
+                }
+                
+                $item_data['design_preview'] = $preview_url;
+                $item_data['design_details'] = $item_data['design_name'];
             }
+            
+            $cart_items[] = $item_data;
         }
-        
-        // Fallback Preview URL
-        if (empty($preview_url)) {
-            $preview_url = $design_data['preview_url'] ?? $design_data['design_image_url'] ?? '';
-        }
-        
-        $item_data['design_preview'] = $preview_url;
-        $item_data['design_details'] = $item_data['design_name'];
+            
+        // Preise berechnen
+        $cart_totals = array(
+            'subtotal' => WC()->cart->get_subtotal(),
+            'shipping' => WC()->cart->get_shipping_total(),
+            'tax' => WC()->cart->get_total_tax(),
+            'discount' => WC()->cart->get_discount_total(),
+            'total' => WC()->cart->get_total('edit')
+        );
     }
-    
-    $cart_items[] = $item_data;
-}
-    
-    // Preise berechnen
-    $cart_totals = array(
-        'subtotal' => WC()->cart->get_subtotal(),
-        'shipping' => WC()->cart->get_shipping_total(),
-        'tax' => WC()->cart->get_total_tax(),
-        'discount' => WC()->cart->get_discount_total(),
-        'total' => WC()->cart->get_total('edit')
-    );
     
     // Zahlungsmethode
     $chosen_payment_method = WC()->session->get('chosen_payment_method');
 }
+
 
 // Fallback falls keine Daten verfügbar
 if (empty($cart_items)) {
@@ -197,7 +152,6 @@ if (empty($cart_items)) {
 
 <div id="step-3" class="checkout-step">
    <div class="space-y-6 mt-6">
-        <!-- Erfolgsmeldung -->
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
             <div class="flex items-center">
                 <i class="fas fa-check-circle text-green-600 mr-3 text-xl"></i>
@@ -208,14 +162,13 @@ if (empty($cart_items)) {
             </div>
         </div>
 
-        <!-- Lieferadresse -->
         <div>
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e('Lieferadresse', 'yprint-checkout'); ?></h3>
             <div class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
                 <?php if ($customer_data && !empty($customer_data['shipping']['address_1'])): ?>
-                    <?php echo esc_html($customer_data['first_name'] . ' ' . $customer_data['last_name']); ?><br>
+                    <?php echo esc_html($customer_data['shipping']['first_name'] . ' ' . $customer_data['shipping']['last_name']); ?><br>
                     <?php echo esc_html($customer_data['shipping']['address_1']); ?>
-                    <?php if ($customer_data['shipping']['address_2']): ?>
+                    <?php if ( ! empty($customer_data['shipping']['address_2'])): ?>
                         <?php echo esc_html(' ' . $customer_data['shipping']['address_2']); ?>
                     <?php endif; ?><br>
                     <?php echo esc_html($customer_data['shipping']['postcode'] . ' ' . $customer_data['shipping']['city']); ?><br>
@@ -226,14 +179,13 @@ if (empty($cart_items)) {
             </div>
         </div>
 
-        <!-- Rechnungsadresse -->
         <div>
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?></h3>
             <div class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
                 <?php if ($customer_data && !empty($customer_data['billing']['address_1'])): ?>
-                    <?php echo esc_html($customer_data['first_name'] . ' ' . $customer_data['last_name']); ?><br>
+                    <?php echo esc_html($customer_data['billing']['first_name'] . ' ' . $customer_data['billing']['last_name']); ?><br>
                     <?php echo esc_html($customer_data['billing']['address_1']); ?>
-                    <?php if ($customer_data['billing']['address_2']): ?>
+                    <?php if ( ! empty($customer_data['billing']['address_2'])): ?>
                         <?php echo esc_html(' ' . $customer_data['billing']['address_2']); ?>
                     <?php endif; ?><br>
                     <?php echo esc_html($customer_data['billing']['postcode'] . ' ' . $customer_data['billing']['city']); ?><br>
@@ -248,15 +200,8 @@ if (empty($cart_items)) {
                     <span class="text-gray-500"><?php esc_html_e('Keine Rechnungsadresse angegeben', 'yprint-checkout'); ?></span>
                 <?php endif; ?>
             </div>
-        </div> $customer_data['shipping']['country']); ?>
-                    <?php if ($customer_data['phone']): ?>
-                        <br><?php esc_html_e('Tel:', 'yprint-checkout'); ?> <?php echo esc_html($customer_data['phone']); ?>
-                    <?php endif; ?>
-                    <p class="text-gray-600"><?php esc_html_e('Adressdaten werden verarbeitet...', 'yprint-checkout'); ?></p>
-            </div>
         </div>
 
-        <!-- Zahlungsart -->
         <div>
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e('Gewählte Zahlungsart', 'yprint-checkout'); ?></h3>
             <div class="text-yprint-text-secondary text-sm bg-gray-50 p-4 rounded-lg">
@@ -276,7 +221,6 @@ if (empty($cart_items)) {
             </div>
         </div>
 
-        <!-- Produkte -->
         <div>
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e('Bestellte Artikel', 'yprint-checkout'); ?></h3>
             <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
@@ -284,13 +228,10 @@ if (empty($cart_items)) {
     <div class="flex justify-between items-center p-4 <?php echo $index > 0 ? 'border-t border-gray-100' : ''; ?>">
         <div class="flex items-center flex-1">
             <?php if (isset($item['is_design_product']) && $item['is_design_product'] && !empty($item['design_preview'])): ?>
-                <!-- Design Preview -->
                 <img src="<?php echo esc_url($item['design_preview']); ?>" alt="<?php echo esc_attr($item['design_details']); ?>" class="w-16 h-16 object-cover rounded border mr-3 bg-gray-50">
             <?php elseif (!empty($item['image'])): ?>
-                <!-- Standard Produktbild -->
                 <img src="<?php echo esc_url($item['image']); ?>" alt="<?php echo esc_attr($item['name']); ?>" class="w-16 h-16 object-cover rounded border mr-3 bg-gray-50">
             <?php else: ?>
-                <!-- Placeholder -->
                 <div class="w-16 h-16 bg-gray-200 rounded border mr-3 flex items-center justify-center">
                     <i class="fas fa-image text-gray-400"></i>
                 </div>
@@ -316,7 +257,6 @@ if (empty($cart_items)) {
     </div>
 <?php endforeach; ?>
                 
-                <!-- Bestätigungshinweis -->
                 <div class="bg-green-50 border-t border-green-200 p-4">
                     <div class="flex items-center">
                         <i class="fas fa-check-circle text-green-600 mr-2"></i>
@@ -326,7 +266,6 @@ if (empty($cart_items)) {
             </div>
         </div>
 
-        <!-- Gesamtkosten -->
         <div class="mt-6 border-t border-yprint-medium-gray pt-6">
             <h3 class="text-lg font-semibold mb-2"><?php esc_html_e('Gesamtkosten', 'yprint-checkout'); ?></h3>
             <div class="bg-gray-50 p-4 rounded-lg">
@@ -356,7 +295,6 @@ if (empty($cart_items)) {
                     </div>
                 </div>
                 
-                <!-- Finale Bestätigung -->
                 <div class="mt-3 text-center text-sm text-green-700 bg-green-100 p-3 rounded border border-green-200">
                     <i class="fas fa-shield-alt mr-1"></i> 
                     <?php esc_html_e('Danke für deine Bestellung! Wir machen uns gleich an den Druck.', 'yprint-checkout'); ?>
@@ -364,7 +302,6 @@ if (empty($cart_items)) {
             </div>
         </div>
 
-        <!-- Info-Box -->
         <div class="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 space-y-2">
             <h4 class="font-semibold text-blue-900 mb-2"><?php esc_html_e('Was passiert als nächstes?', 'yprint-checkout'); ?></h4>
             <p><i class="fas fa-clock fa-fw mr-2"></i> <?php esc_html_e('Wir bearbeiten Ihre Bestellung innerhalb von 24 Stunden', 'yprint-checkout'); ?></p>
@@ -373,7 +310,6 @@ if (empty($cart_items)) {
             <p><i class="fas fa-headset fa-fw mr-2"></i> <?php esc_html_e('Fragen?', 'yprint-checkout'); ?> <a href="https://yprint.de/help" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium"><?php esc_html_e('Support kontaktieren', 'yprint-checkout'); ?></a></p>
         </div>
 
-        <!-- Dashboard Button -->
         <div class="mt-6 text-center">
     <a href="https://yprint.de/dashboard" 
        class="btn btn-primary text-lg px-8 py-3 inline-flex items-center">
