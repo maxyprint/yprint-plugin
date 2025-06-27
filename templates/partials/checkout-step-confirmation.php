@@ -285,20 +285,30 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
         <script>
         document.addEventListener('DOMContentLoaded', function() {
             function getPaymentMethodTitle(method) {
-                if (!method) return null;
-                method = method.toLowerCase();
-                
-                if (method.includes('sepa') || method === 'sepa_debit') return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift (Stripe)', 'yprint-checkout' ) ); ?>';
-                if (method.includes('card')) return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Kreditkarte (Stripe)', 'yprint-checkout' ) ); ?>';
-                if (method.includes('apple') || method.includes('applepay')) return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                if (method.includes('google') || method.includes('googlepay')) return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                if (method.includes('paypal')) return '<i class="fab fa-paypal mr-2"></i> <?php echo esc_js( __( 'PayPal', 'yprint-checkout' ) ); ?>';
-                if (method.includes('express') || method.includes('payment_request')) return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
-                if (method.includes('stripe')) return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Kreditkarte (Stripe)', 'yprint-checkout' ) ); ?>';
-                
-                const cleanMethod = method.charAt(0).toUpperCase() + method.slice(1).replace(/[_-]/g, ' ');
-                return `<i class="fas fa-credit-card mr-2"></i> ${cleanMethod}`;
-            }
+    if (!method) return null;
+    method = method.toLowerCase();
+    
+    // Präzise Erkennung basierend auf echten Stripe Payment Types
+    if (method.includes('sepa') || method === 'sepa_debit') {
+        return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift (Stripe)', 'yprint-checkout' ) ); ?>';
+    } else if (method === 'apple_pay' || method.includes('applepay') || 
+               (window.confirmationPaymentData?.message?.includes('Express') && method === 'card')) {
+        return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+    } else if (method === 'google_pay' || method.includes('googlepay')) {
+        return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+    } else if (method.includes('paypal')) {
+        return '<i class="fab fa-paypal mr-2"></i> <?php echo esc_js( __( 'PayPal', 'yprint-checkout' ) ); ?>';
+    } else if (method.includes('express') || method.includes('payment_request')) {
+        return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
+    } else if (method.includes('card') || method === 'card') {
+        return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Kreditkarte (Stripe)', 'yprint-checkout' ) ); ?>';
+    } else if (method.includes('stripe')) {
+        return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Kreditkarte (Stripe)', 'yprint-checkout' ) ); ?>';
+    } else {
+        const cleanMethod = method.charAt(0).toUpperCase() + method.slice(1).replace(/[_-]/g, ' ');
+        return `<i class="fas fa-credit-card mr-2"></i> ${cleanMethod}`;
+    }
+}
 
             function updatePaymentMethodDisplay() {
                 const displayElement = document.getElementById('dynamic-payment-method-display');
@@ -307,24 +317,38 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
                 let method = null;
                 let title = null;
 
-                // Verschiedene Quellen in priorisierter Reihenfolge prüfen (zuverlässigste zuerst)
+                // Verschiedene Quellen in priorisierter Reihenfolge prüfen (echte Payment-Data zuerst)
 
-// 1. Stripe Payment Data (höchste Priorität für abgeschlossene Zahlungen)
-if (window.paymentData?.payment_method_type) {
+// 1. HÖCHSTE PRIORITÄT: Stripe Payment Data aus populateConfirmationWithPaymentData
+if (window.confirmationPaymentData?.payment_method_type) {
+    method = window.confirmationPaymentData.payment_method_type;
+    console.log('Payment method from confirmation payment data:', method);
+}
+
+// 2. PRIORITÄT: Window Payment Data (aktuelle Stripe Session)
+if (!method && window.paymentData?.payment_method_type) {
     method = window.paymentData.payment_method_type;
     console.log('Payment method from window.paymentData:', method);
 }
 
-// 2. SessionStorage Order Data
-if (!method) {
-    try {
-        const orderData = JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'));
-        method = orderData?.payment?.method;
-        if (method) console.log('Payment method from sessionStorage:', method);
-    } catch (e) { /* silent fail */ }
+// 3. PRIORITÄT: Payment Method aus Order Data (wenn verfügbar)
+if (!method && window.confirmationPaymentData?.order_data?.payment_method_id) {
+    // Erkenne Payment Method Type aus Stripe Payment Method
+    const paymentMethodId = window.confirmationPaymentData.order_data.payment_method_id;
+    if (paymentMethodId.startsWith('pm_')) {
+        // Versuche Type aus anderen Daten zu ermitteln
+        if (window.confirmationPaymentData.order_data.customer_details?.name && 
+            window.confirmationPaymentData.message?.includes('Express')) {
+            method = 'apple_pay'; // Express Payment = meist Apple Pay
+            console.log('Payment method derived from express payment:', method);
+        } else {
+            method = 'card'; // Standard Stripe Payment Method
+            console.log('Payment method derived from payment method ID:', method);
+        }
+    }
 }
 
-// 3. Aktiver Slider (UI-Zustand)
+// 4. FALLBACK: Aktiver Slider (UI-Zustand)
 if (!method) {
     const activeSlider = document.querySelector('.slider-option.active');
     if (activeSlider?.dataset.method) {
@@ -333,12 +357,23 @@ if (!method) {
     }
 }
 
-// 4. Radio Button Selection (niedrigste Priorität)
+// 5. FALLBACK: SessionStorage (kann veraltet sein - nur als letzter Fallback)
+if (!method) {
+    try {
+        const orderData = JSON.parse(sessionStorage.getItem('yprint_confirmation_order_data'));
+        if (orderData?.payment?.method && !orderData.payment.method.includes('old')) {
+            method = orderData.payment.method;
+            console.log('Payment method from sessionStorage (fallback):', method);
+        }
+    } catch (e) { /* silent fail */ }
+}
+
+// 6. LETZTER FALLBACK: Radio Button Selection
 if (!method) {
     const selectedRadio = document.querySelector('input[name="payment_method"]:checked');
     if (selectedRadio?.value) {
         method = selectedRadio.value;
-        console.log('Payment method from radio button:', method);
+        console.log('Payment method from radio button (last resort):', method);
     }
 }
 
@@ -373,7 +408,24 @@ console.log('Payment Method Detection Debug:', {
             }
             document.addEventListener('yprint_step_changed', (e) => (e.detail.step === 3) && setTimeout(updatePaymentMethodDisplay, 100));
         });
+
+        // Update bei window.populateConfirmationWithPaymentData calls
+const originalPopulate = window.populateConfirmationWithPaymentData;
+if (originalPopulate) {
+    window.populateConfirmationWithPaymentData = function(paymentData) {
+        // Speichere Payment Data global für Payment Method Detection
+        window.confirmationPaymentData = paymentData;
+        console.log('Confirmation payment data updated:', paymentData);
+        
+        originalPopulate.call(this, paymentData);
+        
+        // Force update payment method display
+        setTimeout(updatePaymentMethodDisplay, 50);
+    };
+}
         </script>
+
+        
 
 
         <div>
