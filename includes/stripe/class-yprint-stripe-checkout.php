@@ -1014,17 +1014,23 @@ private function add_express_checkout_ajax_handlers() {
 }
 
 /**
- * AJAX handler für Express Design Data Sicherung
+ * VERBESSERTE AJAX handler für Express Design Data Sicherung
  */
 public function ajax_secure_express_design_data() {
     check_ajax_referer('yprint_express_checkout_nonce', 'nonce');
     
-    error_log('=== SECURING EXPRESS DESIGN DATA ===');
+    error_log('=== SECURING EXPRESS DESIGN DATA (IMPROVED) ===');
     
     if (WC()->cart->is_empty()) {
         error_log('EXPRESS SECURE: Cart is empty');
         wp_send_json_error(array('message' => 'Cart is empty'));
         return;
+    }
+    
+    // SOFORTIGES BACKUP ERSTELLEN
+    $force_immediate = isset($_POST['force_immediate']) && $_POST['force_immediate'] === 'true';
+    if ($force_immediate) {
+        error_log('EXPRESS SECURE: Force immediate backup requested');
     }
     
     $design_backup = array();

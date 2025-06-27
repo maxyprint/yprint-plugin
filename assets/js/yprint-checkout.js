@@ -390,14 +390,16 @@ function syncBillingWithShipping() {
 
 // Entfernt - wird vollständig vom Address Manager übernommen
 
-// Automatische Design-Backup-Aktivierung vor Express Checkout
+// VERBESSERTE Design-Backup-Aktivierung vor Express Checkout mit Retry-Mechanismus
 function secureExpressDesignData() {
     console.log('=== SECURING EXPRESS DESIGN DATA ===');
     
     return new Promise((resolve, reject) => {
+        // SOFORTIGER BACKUP-AUFRUF ohne Warten
         const formData = new FormData();
         formData.append('action', 'yprint_secure_express_design_data');
         formData.append('nonce', yprint_checkout_params.nonce);
+        formData.append('force_immediate', 'true'); // Flag für sofortiges Backup
         
         fetch(yprint_checkout_params.ajax_url, {
             method: 'POST',
@@ -409,6 +411,17 @@ function secureExpressDesignData() {
                 console.log('EXPRESS SECURE: Design data secured successfully');
                 console.log('Design count:', data.data.design_count);
                 console.log('Backup keys:', data.data.backup_keys);
+                
+                // ZUSÄTZLICHE SICHERHEIT: Lokale Browser-Session-Speicherung
+                if (data.data.design_count > 0) {
+                    sessionStorage.setItem('yprint_express_design_backup_browser', JSON.stringify({
+                        backup_created: new Date().toISOString(),
+                        design_count: data.data.design_count,
+                        backup_keys: data.data.backup_keys
+                    }));
+                    console.log('EXPRESS SECURE: Browser session backup created');
+                }
+                
                 resolve(data.data);
             } else {
                 console.log('EXPRESS SECURE: No design data found or error:', data.data.message);
@@ -417,7 +430,26 @@ function secureExpressDesignData() {
         })
         .catch(error => {
             console.error('EXPRESS SECURE: Error securing design data:', error);
-            reject(error);
+            // Retry einmal bei Fehler
+            setTimeout(() => {
+                fetch(yprint_checkout_params.ajax_url, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('EXPRESS SECURE: Retry successful');
+                        resolve(data.data);
+                    } else {
+                        resolve(null);
+                    }
+                })
+                .catch(retryError => {
+                    console.error('EXPRESS SECURE: Retry failed:', retryError);
+                    resolve(null); // Auch bei Retry-Fehler nicht blockieren
+                });
+            }, 1000);
         });
     });
 }
