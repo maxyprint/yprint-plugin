@@ -206,25 +206,116 @@ if ( empty( $chosen_payment_method ) ) {
     }
 }
 
-// 4. PRIORITÄT: Payment Method Title aus der finalen Order (falls verfügbar)
+// 4. PRIORITÄT: Payment Method Title aus der finalen Order + Stripe API Details
 $payment_method_title_from_order = '';
-$final_order = null;
-
-// Versuche Order aus verschiedenen Quellen zu bekommen
-if (isset($_GET['order_id']) && !empty($_GET['order_id'])) {
-    $order_id = intval($_GET['order_id']);
-    $final_order = wc_get_order($order_id);
-    error_log('YPrint: Order loaded from URL parameter: ' . $order_id);
-} elseif (WC()->session && WC()->session->get('yprint_last_order_id')) {
-    $order_id = WC()->session->get('yprint_last_order_id');
-    $final_order = wc_get_order($order_id);
-    error_log('YPrint: Order loaded from session: ' . $order_id);
-}
+$stripe_payment_details = [];
 
 if ($final_order instanceof \WC_Order) {
     $payment_method_title_from_order = $final_order->get_payment_method_title();
-    if (!empty($payment_method_title_from_order)) {
-        error_log('YPrint Payment Method Title from final_order: ' . $payment_method_title_from_order);
+    
+    // Hole Payment Intent ID aus der Order
+    $payment_intent_id = $final_order->get_transaction_id();
+    if (empty($payment_intent_id)) {
+        $payment_intent_id = $final_order->get_meta('_yprint_stripe_intent_id');
+    }
+    
+    // Falls Payment Intent ID verfügbar, hole echte Zahlungsdetails von Stripe
+    if (!empty($payment_intent_id) && strpos($payment_intent_id, 'pi_') === 0) {
+        error_log('YPrint: Fetching Stripe Payment Intent details for: ' . $payment_intent_id);
+        
+        try {
+            // Stripe API Abfrage für Payment Intent Details
+            if (class_exists('YPrint_Stripe_API')) {
+                $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $payment_intent_id, 'GET');
+                
+                if (!empty($intent) && !isset($intent->error)) {
+                    // Extrahiere echte Zahlungsmethoden-Details
+                    if (isset($intent->payment_method_details)) {
+                        $payment_details = $intent->payment_method_details;
+                        
+                        // Card-basierte Zahlungen (Apple Pay, Google Pay, etc.)
+                        if (isset($payment_details->card)) {
+                            $card_details = $payment_details->card;
+                            
+                            // Wallet-Zahlungen (Apple Pay, Google Pay)
+                            if (isset($card_details->wallet)) {
+                                $wallet_type = $card_details->wallet->type;
+                                
+                                switch ($wallet_type) {
+                                    case 'apple_pay':
+                                        $stripe_payment_details = [
+                                            'type' => 'apple_pay',
+                                            'title' => __('Apple Pay (Stripe)', 'yprint-checkout'),
+                                            'icon' => 'fab fa-apple'
+                                        ];
+                                        break;
+                                    case 'google_pay':
+                                        $stripe_payment_details = [
+                                            'type' => 'google_pay',
+                                            'title' => __('Google Pay (Stripe)', 'yprint-checkout'),
+                                            'icon' => 'fab fa-google-pay'
+                                        ];
+                                        break;
+                                    default:
+                                        $stripe_payment_details = [
+                                            'type' => 'express',
+                                            'title' => sprintf(__('%s (Stripe)', 'yprint-checkout'), ucfirst(str_replace('_', ' ', $wallet_type))),
+                                            'icon' => 'fas fa-bolt'
+                                        ];
+                                }
+                                error_log('YPrint: Detected wallet payment: ' . $wallet_type);
+                            } else {
+                                // Normale Kartenzahlung
+                                $brand = isset($card_details->brand) ? ucfirst($card_details->brand) : 'Kreditkarte';
+                                $last4 = isset($card_details->last4) ? ' ****' . $card_details->last4 : '';
+                                
+                                $stripe_payment_details = [
+                                    'type' => 'card',
+                                    'title' => sprintf(__('%s%s (Stripe)', 'yprint-checkout'), $brand, $last4),
+                                    'icon' => 'fas fa-credit-card'
+                                ];
+                                error_log('YPrint: Detected card payment: ' . $brand . $last4);
+                            }
+                        }
+                        // SEPA-Lastschrift
+                        elseif (isset($payment_details->sepa_debit)) {
+                            $sepa_details = $payment_details->sepa_debit;
+                            $last4 = isset($sepa_details->last4) ? ' ****' . $sepa_details->last4 : '';
+                            
+                            $stripe_payment_details = [
+                                'type' => 'sepa_debit',
+                                'title' => sprintf(__('SEPA-Lastschrift%s (Stripe)', 'yprint-checkout'), $last4),
+                                'icon' => 'fas fa-university'
+                            ];
+                            error_log('YPrint: Detected SEPA payment: ' . $last4);
+                        }
+                        // Andere Zahlungsarten
+                        else {
+                            $payment_type = array_keys((array) $payment_details)[0] ?? 'unknown';
+                            $stripe_payment_details = [
+                                'type' => $payment_type,
+                                'title' => sprintf(__('%s (Stripe)', 'yprint-checkout'), ucfirst(str_replace('_', ' ', $payment_type))),
+                                'icon' => 'fas fa-credit-card'
+                            ];
+                            error_log('YPrint: Detected other payment type: ' . $payment_type);
+                        }
+                    }
+                } else {
+                    error_log('YPrint: Stripe API error or empty response for Payment Intent: ' . $payment_intent_id);
+                }
+            } else {
+                error_log('YPrint: YPrint_Stripe_API class not available');
+            }
+        } catch (Exception $e) {
+            error_log('YPrint: Error fetching Stripe Payment Intent: ' . $e->getMessage());
+        }
+    } else {
+        error_log('YPrint: No valid Payment Intent ID found in order');
+    }
+    
+    // Fallback: Verwende ursprüngliche Order-Daten
+    if (empty($stripe_payment_details) && !empty($payment_method_title_from_order)) {
+        error_log('YPrint: Using fallback payment method title from order: ' . $payment_method_title_from_order);
     }
     
     // Fallback zur Payment Method ID falls kein Title verfügbar
@@ -373,28 +464,39 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e( 'Gewählte Zahlungsart', 'yprint-checkout' ); ?></h3>
             <div class="text-yprint-text-secondary text-sm bg-gray-50 p-4 rounded-lg">
             <?php
-// 1. PRIORITÄT: Verwende den Payment Method Title direkt aus der Order (falls verfügbar)
-if ( ! empty( $payment_method_title_from_order ) ) {
+// 1. PRIORITÄT: Verwende echte Stripe-Zahlungsdetails (falls verfügbar)
+if ( ! empty( $stripe_payment_details ) ) {
+    $payment_method_html = sprintf( 
+        '<i class="%s mr-2"></i> %s', 
+        esc_attr( $stripe_payment_details['icon'] ), 
+        esc_html( $stripe_payment_details['title'] ) 
+    );
+    echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
+    
+    error_log( 'YPrint: Using Stripe API payment details: ' . $stripe_payment_details['type'] );
+}
+// 2. FALLBACK: Payment Method Title aus der Order
+elseif ( ! empty( $payment_method_title_from_order ) ) {
     // Füge nur ein passendes Icon hinzu basierend auf dem Titel
     $icon = 'fa-credit-card'; // Standard
     if ( stripos( $payment_method_title_from_order, 'apple' ) !== false ) {
-        $icon = 'fa-apple fab';
+        $icon = 'fab fa-apple';
     } elseif ( stripos( $payment_method_title_from_order, 'google' ) !== false ) {
-        $icon = 'fa-google-pay fab';
+        $icon = 'fab fa-google-pay';
     } elseif ( stripos( $payment_method_title_from_order, 'paypal' ) !== false ) {
-        $icon = 'fa-paypal fab';
+        $icon = 'fab fa-paypal';
     } elseif ( stripos( $payment_method_title_from_order, 'sepa' ) !== false ) {
-        $icon = 'fa-university';
+        $icon = 'fas fa-university';
     } elseif ( stripos( $payment_method_title_from_order, 'express' ) !== false ) {
-        $icon = 'fa-bolt';
+        $icon = 'fas fa-bolt';
     }
     
-    $payment_method_html = sprintf( '<i class="fas %s mr-2"></i> %s', esc_attr( $icon ), esc_html( $payment_method_title_from_order ) );
+    $payment_method_html = sprintf( '<i class="%s mr-2"></i> %s', esc_attr( $icon ), esc_html( $payment_method_title_from_order ) );
     echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
     
     error_log( 'YPrint: Using payment method title from order: ' . $payment_method_title_from_order );
 } else {
-    // 2. FALLBACK: Verwende die bestehende Logik für Fälle ohne finale Order
+    // 3. FALLBACK: Verwende die bestehende Logik für Fälle ohne finale Order
     $payment_method_html = yprint_get_payment_method_display( $chosen_payment_method );
     echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
     
