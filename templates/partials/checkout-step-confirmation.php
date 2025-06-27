@@ -132,12 +132,21 @@ if ( empty( $chosen_payment_method ) ) {
     }
 }
 
-// 4. Priorität: Aus der finalen Order (falls verfügbar)
-if ( empty( $chosen_payment_method ) && $final_order instanceof \WC_Order ) {
-    $payment_method_from_order = $final_order->get_payment_method();
-    if ( ! empty( $payment_method_from_order ) ) {
-        $chosen_payment_method = $payment_method_from_order;
-        error_log( 'YPrint Payment Method from final_order: ' . $chosen_payment_method );
+// 4. Priorität: Payment Method Title aus der finalen Order (falls verfügbar)
+$payment_method_title_from_order = '';
+if ( $final_order instanceof \WC_Order ) {
+    $payment_method_title_from_order = $final_order->get_payment_method_title();
+    if ( ! empty( $payment_method_title_from_order ) ) {
+        error_log( 'YPrint Payment Method Title from final_order: ' . $payment_method_title_from_order );
+    }
+    
+    // Fallback zur Payment Method ID falls kein Title verfügbar
+    if ( empty( $chosen_payment_method ) ) {
+        $payment_method_from_order = $final_order->get_payment_method();
+        if ( ! empty( $payment_method_from_order ) ) {
+            $chosen_payment_method = $payment_method_from_order;
+            error_log( 'YPrint Payment Method from final_order: ' . $chosen_payment_method );
+        }
     }
 }
 
@@ -274,11 +283,35 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
         <div>
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e( 'Gewählte Zahlungsart', 'yprint-checkout' ); ?></h3>
             <div class="text-yprint-text-secondary text-sm bg-gray-50 p-4 rounded-lg">
-                <?php
-                // PHP-Fallback wird initial angezeigt und kann per JS überschrieben werden.
-                $payment_method_html = yprint_get_payment_method_display( $chosen_payment_method );
-                echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
-                ?>
+            <?php
+// 1. PRIORITÄT: Verwende den Payment Method Title direkt aus der Order (falls verfügbar)
+if ( ! empty( $payment_method_title_from_order ) ) {
+    // Füge nur ein passendes Icon hinzu basierend auf dem Titel
+    $icon = 'fa-credit-card'; // Standard
+    if ( stripos( $payment_method_title_from_order, 'apple' ) !== false ) {
+        $icon = 'fa-apple fab';
+    } elseif ( stripos( $payment_method_title_from_order, 'google' ) !== false ) {
+        $icon = 'fa-google-pay fab';
+    } elseif ( stripos( $payment_method_title_from_order, 'paypal' ) !== false ) {
+        $icon = 'fa-paypal fab';
+    } elseif ( stripos( $payment_method_title_from_order, 'sepa' ) !== false ) {
+        $icon = 'fa-university';
+    } elseif ( stripos( $payment_method_title_from_order, 'express' ) !== false ) {
+        $icon = 'fa-bolt';
+    }
+    
+    $payment_method_html = sprintf( '<i class="fas %s mr-2"></i> %s', esc_attr( $icon ), esc_html( $payment_method_title_from_order ) );
+    echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
+    
+    error_log( 'YPrint: Using payment method title from order: ' . $payment_method_title_from_order );
+} else {
+    // 2. FALLBACK: Verwende die bestehende Logik für Fälle ohne finale Order
+    $payment_method_html = yprint_get_payment_method_display( $chosen_payment_method );
+    echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
+    
+    error_log( 'YPrint: Using fallback payment method display for: ' . $chosen_payment_method );
+}
+?>
             </div>
         </div>
         
@@ -319,43 +352,24 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
 
                 // Verschiedene Quellen in priorisierter Reihenfolge prüfen (echte Payment-Data zuerst)
 
-// 1. HÖCHSTE PRIORITÄT: Stripe Payment Data aus populateConfirmationWithPaymentData
-if (window.confirmationPaymentData?.payment_method_type) {
-    method = window.confirmationPaymentData.payment_method_type;
-    console.log('Payment method from confirmation payment data:', method);
+// VEREINFACHTE LOGIK: Nur noch für Fälle ohne finale Order notwendig
+console.log('🔍 Checking if dynamic payment method update is needed...');
+
+// Prüfe ob bereits ein Payment Method Title aus der Order gesetzt wurde
+const existingDisplay = displayElement.innerHTML;
+if (existingDisplay && !existingDisplay.includes('Kreditkarte (Stripe)')) {
+    console.log('✅ Payment method already set from order, no update needed');
+    return;
 }
 
-// 2. PRIORITÄT: Window Payment Data (aktuelle Stripe Session)
-if (!method && window.paymentData?.payment_method_type) {
-    method = window.paymentData.payment_method_type;
-    console.log('Payment method from window.paymentData:', method);
-}
-
-// 3. PRIORITÄT: Payment Method aus Order Data (wenn verfügbar)
-if (!method && window.confirmationPaymentData?.order_data?.payment_method_id) {
-    // Erkenne Payment Method Type aus Stripe Payment Method
+// Nur noch fallback für Express Payments ohne finale Order
+if (window.confirmationPaymentData?.order_data?.payment_method_id) {
     const paymentMethodId = window.confirmationPaymentData.order_data.payment_method_id;
-    if (paymentMethodId.startsWith('pm_')) {
-        // Versuche Type aus anderen Daten zu ermitteln
-        if (window.confirmationPaymentData.order_data.customer_details?.name && 
-            window.confirmationPaymentData.message?.includes('Express')) {
-            method = 'apple_pay'; // Express Payment = meist Apple Pay
-            console.log('Payment method derived from express payment:', method);
-        } else {
-            method = 'card'; // Standard Stripe Payment Method
-            console.log('Payment method derived from payment method ID:', method);
-        }
+    if (paymentMethodId.startsWith('pm_') && 
+        window.confirmationPaymentData.message?.includes('Express')) {
+        method = 'apple_pay'; // Express Payment = meist Apple Pay
+        console.log('Payment method derived from express payment:', method);
     }
-}
-
-// Keine Fallbacks - nur echte Payment-Daten sind gültig
-if (!method) {
-    console.warn('YPrint: Keine echten Zahlungsdaten gefunden - Payment Method kann nicht bestimmt werden');
-    console.log('Verfügbare echte Payment-Quellen:', {
-        confirmationPaymentData: window.confirmationPaymentData?.payment_method_type || 'not available',
-        windowPaymentData: window.paymentData?.payment_method_type || 'not available',
-        orderPaymentMethodId: window.confirmationPaymentData?.order_data?.payment_method_id || 'not available'
-    });
 }
 
 // Debug: Nur echte Payment-Daten loggen
