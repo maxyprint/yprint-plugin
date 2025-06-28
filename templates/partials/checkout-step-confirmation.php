@@ -649,7 +649,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.confirmationPaymentData.order_data) {
             const orderData = window.confirmationPaymentData.order_data;
             
-            // Prüfe explizit auf Billing Details mit Wallet-Information
+            // KORRIGIERT: Prüfe explizit auf Payment Method mit Wallet-Information
+            if (orderData.payment_method && orderData.payment_method.card && orderData.payment_method.card.wallet) {
+                const walletType = orderData.payment_method.card.wallet.type;
+                console.log('✅ Wallet detected from payment_method.card.wallet:', walletType);
+                
+                switch (walletType) {
+                    case 'apple_pay':
+                        return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                    case 'google_pay':
+                        return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                    default:
+                        return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
+                }
+            }
+            
+            // FALLBACK: Prüfe auch auf Billing Details mit Wallet-Information (alte Struktur beibehalten)
             if (orderData.billing_address && orderData.billing_address.wallet) {
                 const walletType = orderData.billing_address.wallet.type;
                 console.log('✅ Wallet detected from billing_address:', walletType);
