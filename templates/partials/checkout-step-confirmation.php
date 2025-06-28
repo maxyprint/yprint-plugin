@@ -233,72 +233,11 @@ if ($final_order instanceof \WC_Order) {
                     if (isset($intent->payment_method_details)) {
                         $payment_details = $intent->payment_method_details;
                         
-                        // Card-basierte Zahlungen (Apple Pay, Google Pay, etc.)
-                        if (isset($payment_details->card)) {
-                            $card_details = $payment_details->card;
-                            
-                            // Wallet-Zahlungen (Apple Pay, Google Pay)
-                            if (isset($card_details->wallet)) {
-                                $wallet_type = $card_details->wallet->type;
-                                
-                                switch ($wallet_type) {
-                                    case 'apple_pay':
-                                        $stripe_payment_details = [
-                                            'type' => 'apple_pay',
-                                            'title' => __('Apple Pay (Stripe)', 'yprint-checkout'),
-                                            'icon' => 'fab fa-apple'
-                                        ];
-                                        break;
-                                    case 'google_pay':
-                                        $stripe_payment_details = [
-                                            'type' => 'google_pay',
-                                            'title' => __('Google Pay (Stripe)', 'yprint-checkout'),
-                                            'icon' => 'fab fa-google-pay'
-                                        ];
-                                        break;
-                                    default:
-                                        $stripe_payment_details = [
-                                            'type' => 'express',
-                                            'title' => sprintf(__('%s (Stripe)', 'yprint-checkout'), ucfirst(str_replace('_', ' ', $wallet_type))),
-                                            'icon' => 'fas fa-bolt'
-                                        ];
-                                }
-                                error_log('YPrint: Detected wallet payment: ' . $wallet_type);
-                            } else {
-                                // Normale Kartenzahlung
-                                $brand = isset($card_details->brand) ? ucfirst($card_details->brand) : 'Kreditkarte';
-                                $last4 = isset($card_details->last4) ? ' ****' . $card_details->last4 : '';
-                                
-                                $stripe_payment_details = [
-                                    'type' => 'card',
-                                    'title' => sprintf(__('%s%s (Stripe)', 'yprint-checkout'), $brand, $last4),
-                                    'icon' => 'fas fa-credit-card'
-                                ];
-                                error_log('YPrint: Detected card payment: ' . $brand . $last4);
-                            }
-                        }
-                        // SEPA-Lastschrift
-                        elseif (isset($payment_details->sepa_debit)) {
-                            $sepa_details = $payment_details->sepa_debit;
-                            $last4 = isset($sepa_details->last4) ? ' ****' . $sepa_details->last4 : '';
-                            
-                            $stripe_payment_details = [
-                                'type' => 'sepa_debit',
-                                'title' => sprintf(__('SEPA-Lastschrift%s (Stripe)', 'yprint-checkout'), $last4),
-                                'icon' => 'fas fa-university'
-                            ];
-                            error_log('YPrint: Detected SEPA payment: ' . $last4);
-                        }
-                        // Andere Zahlungsarten
-                        else {
-                            $payment_type = array_keys((array) $payment_details)[0] ?? 'unknown';
-                            $stripe_payment_details = [
-                                'type' => $payment_type,
-                                'title' => sprintf(__('%s (Stripe)', 'yprint-checkout'), ucfirst(str_replace('_', ' ', $payment_type))),
-                                'icon' => 'fas fa-credit-card'
-                            ];
-                            error_log('YPrint: Detected other payment type: ' . $payment_type);
-                        }
+                        // UNIVERSELLE ZAHLUNGSARTEN-ERKENNUNG
+if (isset($intent->payment_method_details)) {
+    $stripe_payment_details = yprint_parse_stripe_payment_details($intent->payment_method_details);
+    error_log('YPrint: Dynamic payment detection result: ' . json_encode($stripe_payment_details));
+}
                     }
                 } else {
                     error_log('YPrint: Stripe API error or empty response for Payment Intent: ' . $payment_intent_id);
@@ -403,6 +342,110 @@ if ( ! function_exists( 'yprint_get_payment_method_display' ) ) {
 
         return sprintf( '<i class="fas %s mr-2"></i> %s', esc_attr( $icon ), esc_html( $title ) );
     }
+}
+
+/**
+ * Universelle Stripe Payment Method Details Parser
+ * Erkennt automatisch alle verfügbaren Zahlungsarten ohne Hardkodierung
+ *
+ * @param object $payment_details - Stripe payment_method_details Objekt
+ * @return array - Normalisierte Zahlungsdetails
+ */
+function yprint_parse_stripe_payment_details($payment_details) {
+    // Payment Method Icons Mapping
+    $icon_mapping = [
+        'apple_pay' => 'fas fa-mobile-alt',
+        'google_pay' => 'fas fa-mobile-alt', 
+        'card' => 'fas fa-credit-card',
+        'sepa_debit' => 'fas fa-university',
+        'bancontact' => 'fas fa-credit-card',
+        'ideal' => 'fas fa-university',
+        'giropay' => 'fas fa-university',
+        'sofort' => 'fas fa-bolt',
+        'eps' => 'fas fa-university',
+        'p24' => 'fas fa-university',
+        'alipay' => 'fab fa-alipay',
+        'wechat_pay' => 'fab fa-weixin',
+        'klarna' => 'fas fa-credit-card',
+        'afterpay_clearpay' => 'fas fa-credit-card',
+        'affirm' => 'fas fa-credit-card',
+    ];
+
+    // Lokalisierte Zahlungsarten-Namen
+    $name_mapping = [
+        'apple_pay' => __('Apple Pay', 'yprint-checkout'),
+        'google_pay' => __('Google Pay', 'yprint-checkout'),
+        'sepa_debit' => __('SEPA-Lastschrift', 'yprint-checkout'),
+        'bancontact' => __('Bancontact', 'yprint-checkout'),
+        'ideal' => __('iDEAL', 'yprint-checkout'),
+        'giropay' => __('Giropay', 'yprint-checkout'),
+        'sofort' => __('SOFORT', 'yprint-checkout'),
+        'eps' => __('EPS', 'yprint-checkout'),
+        'p24' => __('Przelewy24', 'yprint-checkout'),
+        'alipay' => __('Alipay', 'yprint-checkout'),
+        'wechat_pay' => __('WeChat Pay', 'yprint-checkout'),
+        'klarna' => __('Klarna', 'yprint-checkout'),
+        'afterpay_clearpay' => __('Afterpay/Clearpay', 'yprint-checkout'),
+        'affirm' => __('Affirm', 'yprint-checkout'),
+    ];
+
+    // Hauptlogik: Finde den primären Payment Type
+    $payment_types = array_keys((array) $payment_details);
+    $primary_type = $payment_types[0] ?? 'unknown';
+    
+    $result = [
+        'type' => $primary_type,
+        'title' => '',
+        'icon' => $icon_mapping['card'], // Fallback
+        'details' => []
+    ];
+
+    // Verarbeite basierend auf dem erkannten Typ
+    if ($primary_type === 'card' && isset($payment_details->card)) {
+        $card = $payment_details->card;
+        
+        // Prüfe auf Wallet-Zahlungen (Apple Pay, Google Pay)
+        if (isset($card->wallet)) {
+            $wallet_type = $card->wallet->type;
+            $result['type'] = $wallet_type;
+            $result['title'] = $name_mapping[$wallet_type] ?? ucfirst(str_replace('_', ' ', $wallet_type));
+            $result['icon'] = $icon_mapping[$wallet_type] ?? $icon_mapping['card'];
+            
+            // Zusätzliche Wallet-Details
+            if (isset($card->brand)) {
+                $result['details']['brand'] = $card->brand;
+            }
+            if (isset($card->last4)) {
+                $result['details']['last4'] = $card->last4;
+            }
+        } else {
+            // Normale Kartenzahlung
+            $brand = isset($card->brand) ? ucfirst($card->brand) : 'Kreditkarte';
+            $last4 = isset($card->last4) ? ' ****' . $card->last4 : '';
+            
+            $result['title'] = $brand . $last4;
+            $result['details']['brand'] = $card->brand ?? 'unknown';
+            $result['details']['last4'] = $card->last4 ?? '';
+        }
+    } else {
+        // Alle anderen Zahlungsarten (SEPA, iDEAL, etc.)
+        $payment_data = $payment_details->{$primary_type} ?? null;
+        
+        // Verwende vordefinierte Namen oder generiere automatisch
+        $result['title'] = $name_mapping[$primary_type] ?? ucfirst(str_replace('_', ' ', $primary_type));
+        $result['icon'] = $icon_mapping[$primary_type] ?? $icon_mapping['card'];
+        
+        // Füge spezifische Details hinzu (z.B. IBAN last4)
+        if ($payment_data && isset($payment_data->last4)) {
+            $result['title'] .= ' ****' . $payment_data->last4;
+            $result['details']['last4'] = $payment_data->last4;
+        }
+    }
+    
+    // Füge immer "(Stripe)" hinzu
+    $result['title'] .= ' (Stripe)';
+    
+    return $result;
 }
 ?>
 
@@ -640,6 +683,106 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start debugging after short delay
     setTimeout(debugPaymentMethodDetection, 1000);
 
+/**
+ * Universelle Payment Method Display Generator
+ * @param {Object} paymentMethodDetails - Stripe payment_method_details
+ * @returns {string} - HTML String mit Icon und Titel
+ */
+function getUniversalPaymentMethodDisplay(paymentMethodDetails) {
+    // Icon Mapping für alle Stripe Payment Methods
+    const iconMapping = {
+        'apple_pay': 'fas fa-mobile-alt',
+        'google_pay': 'fas fa-mobile-alt',
+        'card': 'fas fa-credit-card',
+        'sepa_debit': 'fas fa-university',
+        'bancontact': 'fas fa-credit-card',
+        'ideal': 'fas fa-university',
+        'giropay': 'fas fa-university',
+        'sofort': 'fas fa-bolt',
+        'eps': 'fas fa-university',
+        'p24': 'fas fa-university',
+        'alipay': 'fab fa-alipay',
+        'wechat_pay': 'fab fa-weixin',
+        'klarna': 'fas fa-credit-card',
+        'afterpay_clearpay': 'fas fa-credit-card',
+        'affirm': 'fas fa-credit-card',
+    };
+
+    // Name Mapping mit Fallback zu lokalisierten Strings
+    const getLocalizedName = (type) => {
+        const mapping = {
+            'apple_pay': yprint_checkout_l10n?.payment_methods?.apple_pay || 'Apple Pay',
+            'google_pay': yprint_checkout_l10n?.payment_methods?.google_pay || 'Google Pay',
+            'sepa_debit': yprint_checkout_l10n?.payment_methods?.sepa_debit || 'SEPA-Lastschrift',
+            'bancontact': 'Bancontact',
+            'ideal': 'iDEAL',
+            'giropay': 'Giropay', 
+            'sofort': 'SOFORT',
+            'eps': 'EPS',
+            'p24': 'Przelewy24',
+            'alipay': 'Alipay',
+            'wechat_pay': 'WeChat Pay',
+            'klarna': 'Klarna',
+            'afterpay_clearpay': 'Afterpay/Clearpay',
+            'affirm': 'Affirm'
+        };
+        return mapping[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    };
+
+    // Finde den primären Payment Type
+    const paymentTypes = Object.keys(paymentMethodDetails);
+    const primaryType = paymentTypes[0];
+    
+    if (!primaryType) {
+        console.log('❌ No payment type found');
+        return '<i class="fas fa-credit-card mr-2"></i> ' + (yprint_checkout_l10n?.payment_methods?.stripe_payment || 'Stripe Payment');
+    }
+
+    console.log('🔍 Detected primary payment type:', primaryType);
+    
+    let displayName = '';
+    let iconClass = iconMapping[primaryType] || iconMapping['card'];
+    let actualType = primaryType;
+
+    // Spezielle Behandlung für Card-Zahlungen
+    if (primaryType === 'card' && paymentMethodDetails.card) {
+        const card = paymentMethodDetails.card;
+        
+        // Prüfe auf Wallet-Zahlungen
+        if (card.wallet) {
+            actualType = card.wallet.type;
+            displayName = getLocalizedName(actualType);
+            iconClass = iconMapping[actualType] || iconMapping['card'];
+            
+            console.log('✅ Wallet payment detected:', actualType);
+        } else {
+            // Normale Kartenzahlung
+            const brand = card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1) : 'Kreditkarte';
+            const last4 = card.last4 ? ' ****' + card.last4 : '';
+            displayName = brand + last4;
+            
+            console.log('✅ Regular card payment detected:', brand, last4);
+        }
+    } else {
+        // Alle anderen Zahlungsarten
+        displayName = getLocalizedName(primaryType);
+        const paymentData = paymentMethodDetails[primaryType];
+        
+        // Füge Last4 hinzu falls verfügbar (z.B. bei SEPA)
+        if (paymentData && paymentData.last4) {
+            displayName += ' ****' + paymentData.last4;
+        }
+        
+        console.log('✅ Alternative payment method detected:', primaryType);
+    }
+
+    // Baue finalen Display String
+    const finalDisplay = `<i class="${iconClass} mr-2"></i> ${displayName} (Stripe)`;
+    console.log('✅ Final payment display:', finalDisplay);
+    
+    return finalDisplay;
+}
+
     function getPaymentMethodTitle() {
     console.log('🔍 getPaymentMethodTitle() aufgerufen');
     
@@ -666,51 +809,12 @@ if (typeof yprint_checkout_l10n === 'undefined' || !yprint_checkout_l10n.payment
         if (orderData.payment_method_details) {
             console.log('✅ payment_method_details gefunden:', orderData.payment_method_details);
             
-            // Card-basierte Zahlungen (Apple Pay, Google Pay, normale Karten)
-            if (orderData.payment_method_details.card) {
-                const cardDetails = orderData.payment_method_details.card;
-                console.log('✅ Card details gefunden:', cardDetails);
-                
-                // Wallet-Zahlungen (Apple Pay, Google Pay)
-                if (cardDetails.wallet) {
-                    const walletType = cardDetails.wallet.type;
-                    const cardBrand = cardDetails.brand || '';
-                    const last4 = cardDetails.last4 || '';
-                    
-                    console.log('✅ Wallet detected:', walletType, 'Brand:', cardBrand, 'Last4:', last4);
-                    
-                    switch (walletType) {
-    case 'apple_pay':
-        return '<i class="fas fa-mobile-alt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.apple_pay;
-    case 'google_pay':
-        return '<i class="fas fa-mobile-alt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.google_pay;
-    default:
-        return '<i class="fas fa-bolt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
+            // UNIVERSELLE PAYMENT METHOD DETECTION
+const paymentMethodDetails = orderData.payment_method_details;
+if (paymentMethodDetails) {
+    console.log('✅ Payment method details found:', paymentMethodDetails);
+    return getUniversalPaymentMethodDisplay(paymentMethodDetails);
 }
-                } else {
-                    // Normale Kartenzahlung
-                    const cardBrand = (cardDetails.brand || 'Kreditkarte').charAt(0).toUpperCase() + (cardDetails.brand || 'kreditkarte').slice(1);
-                    const last4 = cardDetails.last4 ? ' ****' + cardDetails.last4 : '';
-                    console.log('✅ Regular card detected:', cardBrand, last4);
-                    return '<i class="fas fa-credit-card mr-2"></i> ' + cardBrand + last4 + ' (Stripe)';
-                }
-            }
-            
-            // SEPA-Lastschrift
-            if (orderData.payment_method_details.sepa_debit) {
-                const sepaDetails = orderData.payment_method_details.sepa_debit;
-                const last4 = sepaDetails.last4 || '';
-                console.log('✅ SEPA detected, Last4:', last4);
-                const displayLast4 = last4 ? ' ****' + last4 : '';
-                return '<i class="fas fa-university mr-2"></i> ' + yprint_checkout_l10n.payment_methods.sepa_debit + displayLast4 + ' (Stripe)';
-            }
-            
-            // Andere Zahlungsarten
-            const paymentType = Object.keys(orderData.payment_method_details)[0];
-            if (paymentType) {
-                console.log('✅ Other payment type detected:', paymentType);
-                return '<i class="fas fa-credit-card mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
-            }
         }
         
         // LEGACY FALLBACKS für Abwärtskompatibilität
