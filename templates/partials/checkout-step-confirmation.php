@@ -643,11 +643,19 @@ document.addEventListener('DOMContentLoaded', function() {
     function getPaymentMethodTitle() {
     console.log('🔍 getPaymentMethodTitle() aufgerufen');
     
-    // Sichere Verfügbarkeit der Lokalisierung prüfen
-    if (typeof yprint_checkout_l10n === 'undefined' || !yprint_checkout_l10n.payment_methods) {
-        console.log('❌ yprint_checkout_l10n nicht verfügbar');
-        return null;
-    }
+    // Sichere Verfügbarkeit der Lokalisierung prüfen mit Fallback
+if (typeof yprint_checkout_l10n === 'undefined' || !yprint_checkout_l10n.payment_methods) {
+    console.log('❌ yprint_checkout_l10n nicht verfügbar - verwende Fallback-Texte');
+    // Fallback-Texte definieren
+    const fallbackTexts = {
+        apple_pay: 'Apple Pay (Stripe)',
+        google_pay: 'Google Pay (Stripe)', 
+        sepa_debit: 'SEPA-Lastschrift',
+        stripe_payment: 'Stripe-Zahlung',
+        card_payment: 'Kreditkarte (Stripe)'
+    };
+    window.yprint_checkout_l10n = { payment_methods: fallbackTexts };
+}
     
     // PRIORITÄT 1: Nutze verfügbare Payment Method Details von Express Checkout
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
@@ -672,13 +680,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('✅ Wallet detected:', walletType, 'Brand:', cardBrand, 'Last4:', last4);
                     
                     switch (walletType) {
-                        case 'apple_pay':
-                            return '<i class="fab fa-apple mr-2"></i> ' + yprint_checkout_l10n.payment_methods.apple_pay;
-                        case 'google_pay':
-                            return '<i class="fab fa-google-pay mr-2"></i> ' + yprint_checkout_l10n.payment_methods.google_pay;
-                        default:
-                            return '<i class="fas fa-bolt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
-                    }
+    case 'apple_pay':
+        return '<i class="fas fa-mobile-alt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.apple_pay;
+    case 'google_pay':
+        return '<i class="fas fa-mobile-alt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.google_pay;
+    default:
+        return '<i class="fas fa-bolt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
+}
                 } else {
                     // Normale Kartenzahlung
                     const cardBrand = (cardDetails.brand || 'Kreditkarte').charAt(0).toUpperCase() + (cardDetails.brand || 'kreditkarte').slice(1);
