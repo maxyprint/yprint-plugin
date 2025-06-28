@@ -643,6 +643,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function getPaymentMethodTitle() {
     console.log('🔍 getPaymentMethodTitle() aufgerufen');
     
+    // Sichere Verfügbarkeit der Lokalisierung prüfen
+    if (typeof yprint_checkout_l10n === 'undefined' || !yprint_checkout_l10n.payment_methods) {
+        console.log('❌ yprint_checkout_l10n nicht verfügbar');
+        return null;
+    }
+    
     // PRIORITÄT 1: Nutze verfügbare Payment Method Details von Express Checkout
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
         console.log('🔍 Checking confirmationPaymentData for payment method details...');
@@ -730,7 +736,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function updatePaymentMethodDisplay() {
     const displayElement = document.getElementById('dynamic-payment-method-display');
-    if (!displayElement) return;
+    if (!displayElement) {
+        console.log('❌ dynamic-payment-method-display Element nicht gefunden');
+        return;
+    }
 
     console.log('🔍 updatePaymentMethodDisplay() aufgerufen');
     console.log('🔍 window.confirmationPaymentData verfügbar:', !!window.confirmationPaymentData);
@@ -738,6 +747,13 @@ function updatePaymentMethodDisplay() {
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
         console.log('🔍 order_data verfügbar:', !!window.confirmationPaymentData.order_data);
         console.log('🔍 payment_method_details verfügbar:', !!window.confirmationPaymentData.order_data.payment_method_details);
+    }
+
+    // Sichere Verfügbarkeit der Lokalisierung prüfen
+    if (typeof yprint_checkout_l10n === 'undefined' || !yprint_checkout_l10n.payment_methods) {
+        console.log('❌ yprint_checkout_l10n nicht verfügbar - verwende Fallback-Texte');
+        displayElement.innerHTML = '<i class="fas fa-credit-card mr-2"></i> Stripe-Zahlung';
+        return;
     }
 
     // Direkt die getPaymentMethodTitle() Funktion aufrufen - sie hat ihre eigene Intelligenz
@@ -759,8 +775,39 @@ function updatePaymentMethodDisplay() {
     }
 }
 
-    // Sofort beim Load versuchen
-updatePaymentMethodDisplay();
+    // Mehrfache Update-Versuche für robuste Anzeige
+function attemptPaymentMethodUpdate(attempt = 1, maxAttempts = 10) {
+    console.log(`🔄 Payment Method Update Versuch ${attempt}/${maxAttempts}`);
+    
+    // Prüfe ob alle erforderlichen Daten verfügbar sind
+    const hasData = window.confirmationPaymentData && 
+                   window.confirmationPaymentData.order_data && 
+                   window.confirmationPaymentData.order_data.payment_method_details;
+    
+    const hasLocalization = typeof yprint_checkout_l10n !== 'undefined' && 
+                           yprint_checkout_l10n.payment_methods;
+    
+    if (hasData && hasLocalization) {
+        console.log('✅ Alle Daten verfügbar - führe Update aus');
+        updatePaymentMethodDisplay();
+        return;
+    }
+    
+    if (attempt < maxAttempts) {
+        console.log(`⏳ Daten noch nicht vollständig verfügbar - Retry in 500ms`);
+        console.log(`   - confirmationPaymentData: ${!!window.confirmationPaymentData}`);
+        console.log(`   - payment_method_details: ${hasData}`);
+        console.log(`   - yprint_checkout_l10n: ${hasLocalization}`);
+        
+        setTimeout(() => attemptPaymentMethodUpdate(attempt + 1, maxAttempts), 500);
+    } else {
+        console.log('❌ Max attempts reached - using fallback display');
+        updatePaymentMethodDisplay(); // Fallback ausführen
+    }
+}
+
+// Sofort beim Load versuchen
+attemptPaymentMethodUpdate();
 
 // Multiple Event-Handler für verschiedene Szenarien
 const originalPopulateConfirmation = window.populateConfirmationWithPaymentData;
@@ -774,7 +821,16 @@ if (originalPopulateConfirmation) {
         originalPopulateConfirmation.call(this, paymentData);
 
         // Force update payment method display after original function runs
-        setTimeout(updatePaymentMethodDisplay, 50);
+        setTimeout(() => attemptPaymentMethodUpdate(1, 5), 100);
+    };
+}
+
+// Fallback für direktes Data-Update
+if (typeof window.populateConfirmationWithPaymentData === 'undefined') {
+    window.populateConfirmationWithPaymentData = function(paymentData) {
+        window.confirmationPaymentData = paymentData;
+        console.log('✅ Direct populateConfirmationWithPaymentData called:', paymentData);
+        setTimeout(() => attemptPaymentMethodUpdate(1, 5), 100);
     };
 }
 
