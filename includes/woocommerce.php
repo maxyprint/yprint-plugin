@@ -1945,10 +1945,27 @@ add_action('wp_ajax_nopriv_yprint_debug_payment_method', 'yprint_debug_payment_m
  */
 function yprint_get_payment_method_details_callback() {
     // Verwende die vorhandene Stripe-Nonce
-    if (!wp_verify_nonce($_POST['nonce'], 'yprint_stripe_nonce')) {
-        wp_send_json_error('Security check failed');
-        return;
+    // Versuche verschiedene bekannte Nonce-Actions
+$nonce = $_POST['nonce'];
+$valid_nonce = false;
+
+$nonce_actions = array(
+    'yprint_stripe_nonce',
+    'yprint_checkout_nonce', 
+    'yprint_debug_nonce'
+);
+
+foreach ($nonce_actions as $action) {
+    if (wp_verify_nonce($nonce, $action)) {
+        $valid_nonce = true;
+        break;
     }
+}
+
+if (!$valid_nonce) {
+    wp_send_json_error('Security check failed. Tried nonce actions: ' . implode(', ', $nonce_actions));
+    return;
+}
     
     $order_id = intval($_POST['order_id']);
     if (!$order_id) {
