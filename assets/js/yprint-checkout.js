@@ -1682,7 +1682,24 @@ if (voucherButton) {
         // Zahlungsart basierend auf Payment Data setzen
         const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
         if (confirmPaymentMethodEl && paymentData.payment_method_id) {
-            let paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Apple Pay (Stripe)';
+            // Nutze die bereits vorhandene getPaymentMethodTitle Funktion
+            let paymentMethodText = null;
+            
+            // Verwende echte Payment Method Erkennung statt hardcoded Text
+            if (typeof getPaymentMethodTitle === 'function') {
+                paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
+            }
+            
+            // Fallback falls getPaymentMethodTitle nicht verfügbar oder null zurückgibt
+            if (!paymentMethodText) {
+                paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
+            }
+
+            // Speichere Payment Data global für spätere Payment Method Detection
+            window.confirmationPaymentData = paymentData;
+            
+            confirmPaymentMethodEl.innerHTML = paymentMethodText;
+        
             
             // Detect payment method type from payment data
             if (paymentData.order_data && paymentData.order_data.customer_details) {
