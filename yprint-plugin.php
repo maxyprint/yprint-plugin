@@ -153,6 +153,18 @@ wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
         'loading_addresses' => __('Adressen werden geladen...', 'yprint-plugin')
     )
 ));
+
+// Add checkout-specific localization for payment method display
+wp_localize_script('yprint-checkout', 'yprint_checkout_l10n', array(
+    'payment_methods' => array(
+        'apple_pay' => __('Apple Pay (Stripe)', 'yprint-plugin'),
+        'google_pay' => __('Google Pay (Stripe)', 'yprint-plugin'),
+        'sepa_debit' => __('SEPA-Lastschrift', 'yprint-plugin'),
+        'stripe_payment' => __('Stripe-Zahlung', 'yprint-plugin'),
+        'payment_pending' => __('Zahlungsart wird ermittelt...', 'yprint-plugin'),
+        'card_payment' => __('Kreditkarte (Stripe)', 'yprint-plugin')
+    )
+));
 }
 add_action('wp_enqueue_scripts', 'yprint_enqueue_scripts');
 

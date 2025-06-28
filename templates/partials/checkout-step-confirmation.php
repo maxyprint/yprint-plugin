@@ -667,11 +667,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     switch (walletType) {
                         case 'apple_pay':
-                            return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                            return '<i class="fab fa-apple mr-2"></i> ' + yprint_checkout_l10n.payment_methods.apple_pay;
                         case 'google_pay':
-                            return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                            return '<i class="fab fa-google-pay mr-2"></i> ' + yprint_checkout_l10n.payment_methods.google_pay;
                         default:
-                            return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( sprintf( __( '%s (Stripe)', 'yprint-checkout' ), ucfirst( str_replace( '_', ' ', $walletType ) ) ) ); ?>';
+                            return '<i class="fas fa-bolt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
                     }
                 } else {
                     // Normale Kartenzahlung
@@ -688,14 +688,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const last4 = sepaDetails.last4 || '';
                 console.log('✅ SEPA detected, Last4:', last4);
                 const displayLast4 = last4 ? ' ****' + last4 : '';
-                return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift', 'yprint-checkout' ) ); ?>' + displayLast4 + ' (Stripe)';
+                return '<i class="fas fa-university mr-2"></i> ' + yprint_checkout_l10n.payment_methods.sepa_debit + displayLast4 + ' (Stripe)';
             }
             
             // Andere Zahlungsarten
             const paymentType = Object.keys(orderData.payment_method_details)[0];
             if (paymentType) {
                 console.log('✅ Other payment type detected:', paymentType);
-                return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
+                return '<i class="fas fa-credit-card mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
             }
         }
         
@@ -705,18 +705,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('⚠️ Using legacy payment_method_type:', paymentType);
             
             if (paymentType.includes('apple_pay') || paymentType === 'apple_pay') {
-                return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                return '<i class="fab fa-apple mr-2"></i> ' + yprint_checkout_l10n.payment_methods.apple_pay;
             } else if (paymentType.includes('google_pay') || paymentType === 'google_pay') {
-                return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                return '<i class="fab fa-google-pay mr-2"></i> ' + yprint_checkout_l10n.payment_methods.google_pay;
             } else if (paymentType.includes('sepa')) {
-                return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift (Stripe)', 'yprint-checkout' ) ); ?>';
+                return '<i class="fas fa-university mr-2"></i> ' + yprint_checkout_l10n.payment_methods.sepa_debit + ' (Stripe)';
             }
         }
         
         // FALLBACK: Express Payment Detection basierend auf Payment Method ID-Struktur
         if (orderData.payment_method_id && orderData.payment_method_id.startsWith('pm_')) {
             console.log('⚠️ Using fallback - Express payment detected from payment_method_id structure only');
-            return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
+            return '<i class="fas fa-bolt mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
         }
         
         console.log('⚠️ Keine spezifische Zahlungsart in payment_method_details erkannt');
@@ -749,11 +749,11 @@ function updatePaymentMethodDisplay() {
     } else {
         // Fallback: Zeige "wird ermittelt" nur wenn gar keine Daten verfügbar sind
         if (!window.confirmationPaymentData) {
-            displayElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> <span class="text-amber-600"><?php echo esc_js( __( 'Zahlungsart wird ermittelt...', 'yprint-checkout' ) ); ?></span>';
+            displayElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> <span class="text-amber-600">' + yprint_checkout_l10n.payment_methods.payment_pending + '</span>';
             console.log('⚠️ Keine confirmationPaymentData verfügbar - zeige Warteanzeige');
         } else {
             // Wenn Daten da sind, aber keine Zahlungsart erkannt wurde
-            displayElement.innerHTML = '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
+            displayElement.innerHTML = '<i class="fas fa-credit-card mr-2"></i> ' + yprint_checkout_l10n.payment_methods.stripe_payment;
             console.log('⚠️ Payment Data verfügbar, aber keine spezifische Zahlungsart erkannt - zeige Fallback');
         }
     }
