@@ -1879,4 +1879,65 @@ add_action('wp_ajax_yprint_debug_payment_method', 'yprint_debug_payment_method_c
 add_action('wp_ajax_nopriv_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
 }
 
+/**
+ * AJAX Handler für Payment Method Debugging
+ */
+function yprint_debug_payment_method_callback() {
+    if (!wp_verify_nonce($_POST['nonce'], 'yprint_debug_nonce')) {
+        wp_send_json_error('Security check failed');
+        return;
+    }
+    
+    $order_id = intval($_POST['order_id']);
+    if (!$order_id) {
+        wp_send_json_error('No order ID provided');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Order not found');
+        return;
+    }
+    
+    $debug_data = array(
+        'order_id' => $order_id,
+        'wc_payment_method' => $order->get_payment_method(),
+        'wc_payment_method_title' => $order->get_payment_method_title(),
+        'transaction_id' => $order->get_transaction_id(),
+        'payment_intent_id' => $order->get_meta('_yprint_stripe_intent_id'),
+        'stripe_intent' => null,
+        'stripe_error' => null
+    );
+    
+    // Get Payment Intent ID
+    $payment_intent_id = $debug_data['transaction_id'];
+    if (empty($payment_intent_id)) {
+        $payment_intent_id = $debug_data['payment_intent_id'];
+    }
+    
+    // Try to fetch Stripe data
+    if (!empty($payment_intent_id) && strpos($payment_intent_id, 'pi_') === 0) {
+        if (class_exists('YPrint_Stripe_API')) {
+            try {
+                $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $payment_intent_id, 'GET');
+                
+                if (!empty($intent) && !isset($intent->error)) {
+                    $debug_data['stripe_intent'] = $intent;
+                } else {
+                    $debug_data['stripe_error'] = isset($intent->error) ? $intent->error->message : 'Unknown error';
+                }
+            } catch (Exception $e) {
+                $debug_data['stripe_error'] = $e->getMessage();
+            }
+        } else {
+            $debug_data['stripe_error'] = 'YPrint_Stripe_API class not found';
+        }
+    }
+    
+    wp_send_json_success($debug_data);
+}
+add_action('wp_ajax_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
+add_action('wp_ajax_nopriv_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
+
 ?>
