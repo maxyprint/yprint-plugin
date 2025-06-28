@@ -642,62 +642,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getPaymentMethodTitle(method) {
     // PRIORITÄT 1: Nutze verfügbare Payment Data von Express Checkout (Apple Pay, Google Pay)
-    if (window.confirmationPaymentData) {
+    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
         console.log('🔍 Checking confirmationPaymentData for wallet info...');
+        const orderData = window.confirmationPaymentData.order_data;
         
-        // Prüfe direkt auf order_data Payment Method Details
-        if (window.confirmationPaymentData.order_data) {
-            const orderData = window.confirmationPaymentData.order_data;
+        // NEU: Prüfe payment_method_details (Backend-Ergänzung) - das ist der Schlüssel!
+        if (orderData.payment_method_details && orderData.payment_method_details.card && orderData.payment_method_details.card.wallet) {
+            const walletType = orderData.payment_method_details.card.wallet.type;
+            const cardBrand = orderData.payment_method_details.card.brand || '';
+            const last4 = orderData.payment_method_details.card.last4 || '';
             
-            // KORRIGIERT: Prüfe explizit auf Payment Method mit Wallet-Information
-            if (orderData.payment_method && orderData.payment_method.card && orderData.payment_method.card.wallet) {
-                const walletType = orderData.payment_method.card.wallet.type;
-                console.log('✅ Wallet detected from payment_method.card.wallet:', walletType);
-                
-                switch (walletType) {
-                    case 'apple_pay':
-                        return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                    case 'google_pay':
-                        return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                    default:
-                        return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
-                }
-            }
+            console.log('✅ Wallet detected from payment_method_details:', walletType, 'Brand:', cardBrand, 'Last4:', last4);
             
-            // FALLBACK: Prüfe auch auf Billing Details mit Wallet-Information (alte Struktur beibehalten)
-            if (orderData.billing_address && orderData.billing_address.wallet) {
-                const walletType = orderData.billing_address.wallet.type;
-                console.log('✅ Wallet detected from billing_address:', walletType);
-                
-                switch (walletType) {
-                    case 'apple_pay':
-                        return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                    case 'google_pay':
-                        return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                    default:
-                        return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
-                }
-            }
-            
-            // Alternative: Prüfe auf Payment Method ID Struktur für Stripe Express Payments
-            if (orderData.payment_method_id && orderData.payment_method_id.startsWith('pm_')) {
-                console.log('✅ Express payment detected from payment_method_id structure');
-                // Für Express Checkout (Apple Pay/Google Pay) erstmal Express anzeigen
-                // Die korrekte Erkennung erfolgt dann über debugPaymentMethodDetection()
-                return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
+            switch (walletType) {
+                case 'apple_pay':
+                    return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                case 'google_pay':
+                    return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                default:
+                    return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
             }
         }
         
-        // Fallback: Prüfe direkt in den Payment Data auf bekannte Strukturen
+        // FALLBACK 1: Prüfe auf SEPA-Lastschrift in payment_method_details
+        if (orderData.payment_method_details && orderData.payment_method_details.sepa_debit) {
+            const last4 = orderData.payment_method_details.sepa_debit.last4 || '';
+            console.log('✅ SEPA detected from payment_method_details, Last4:', last4);
+            const displayLast4 = last4 ? ' ****' + last4 : '';
+            return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift', 'yprint-checkout' ) ); ?>' + displayLast4 + ' (Stripe)';
+        }
+        
+        // FALLBACK 2: Prüfe auf normale Karte in payment_method_details
+        if (orderData.payment_method_details && orderData.payment_method_details.card && !orderData.payment_method_details.card.wallet) {
+            const cardBrand = (orderData.payment_method_details.card.brand || 'Kreditkarte').charAt(0).toUpperCase() + (orderData.payment_method_details.card.brand || 'kreditkarte').slice(1);
+            const last4 = orderData.payment_method_details.card.last4 ? ' ****' + orderData.payment_method_details.card.last4 : '';
+            console.log('✅ Regular card detected from payment_method_details:', cardBrand, last4);
+            return '<i class="fas fa-credit-card mr-2"></i> ' + cardBrand + last4 + ' (Stripe)';
+        }
+        
+        // LEGACY FALLBACKS für Abwärtskompatibilität
         if (window.confirmationPaymentData.payment_method_type) {
             const paymentType = window.confirmationPaymentData.payment_method_type.toLowerCase();
-            console.log('✅ Payment type from confirmationPaymentData:', paymentType);
+            console.log('✅ Using legacy payment_method_type:', paymentType);
             
             if (paymentType.includes('apple_pay') || paymentType === 'apple_pay') {
                 return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
             } else if (paymentType.includes('google_pay') || paymentType === 'google_pay') {
                 return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+            } else if (paymentType.includes('sepa')) {
+                return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift (Stripe)', 'yprint-checkout' ) ); ?>';
             }
+        }
+        
+        // FALLBACK: Express Payment Detection basierend auf Payment Method ID-Struktur
+        if (orderData.payment_method_id && orderData.payment_method_id.startsWith('pm_')) {
+            console.log('⚠️ Using fallback - Express payment detected from payment_method_id structure only');
+            return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
         }
     }
     

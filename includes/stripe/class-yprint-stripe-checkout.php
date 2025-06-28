@@ -2854,9 +2854,11 @@ if ('succeeded' === $intent->status) {
             ),
             'billing_address' => $payment_method['billing_details']['address'] ?? array(),
             'shipping_address' => $shipping_address ?? array(),
+            'payment_method_details' => $payment_method, // HINZUGEFÜGT: Vollständige Payment Method Details mit Wallet-Info
             'design_transfers_success' => $design_transfers_success,
             'design_transfers_failed' => $design_transfers_failed,
-            'status' => 'completed'
+            'status' => 'completed',
+            'simple_order_id' => 'YP-' . $order_id
         );
         
         // Store order data in session for confirmation page
