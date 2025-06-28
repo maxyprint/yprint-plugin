@@ -2262,9 +2262,27 @@ window.YPrintOrderDisplay = new YPrintOrderDisplay();
                     
                     if (paymentResult.success) {
                         // Zahlung erfolgreich - zeige Bestätigung mit Zahlungsdaten
+                        console.log('=== NORMAL CARD PAYMENT SUCCESS - UPDATING CONFIRMATION ===');
                         await populateConfirmation();
-                        window.populateConfirmationWithPaymentData(paymentResult.data);
+                        
+                        // Stelle sicher, dass Payment Data gesetzt sind (bereits in processStripePaymentImmediately gemacht)
+                        if (window.confirmationPaymentData) {
+                            console.log('✅ confirmationPaymentData already set by payment success handler');
+                        } else {
+                            console.log('⚠️ Setting confirmationPaymentData from paymentResult');
+                            window.confirmationPaymentData = paymentResult.data;
+                            window.populateConfirmationWithPaymentData(paymentResult.data);
+                        }
+                        
                         showStep(3);
+                        
+                        // Force Payment Method Display Update nach kurzer Verzögerung
+                        setTimeout(() => {
+                            if (typeof updatePaymentMethodDisplay === 'function') {
+                                console.log('🔄 Force updating payment method display for normal card');
+                                updatePaymentMethodDisplay();
+                            }
+                        }, 100);
                     } else {
                         throw new Error(paymentResult.message || 'Zahlung fehlgeschlagen');
                     }
@@ -2718,28 +2736,41 @@ console.log('Processing payment via Stripe Service:', paymentMethod.id);
     };
     
     // Verwende den Stripe Service für einheitliche Verarbeitung
-    return new Promise((resolve, reject) => {
-        // Hook in die Stripe Service Events
-        window.YPrintStripeService.on('payment_success', (data) => {
-            console.log('Payment success received:', data);
-            resolve({
-                success: true,
-                data: data,
-                message: 'Zahlung erfolgreich verarbeitet'
-            });
-        });
+return new Promise((resolve, reject) => {
+    // Hook in die Stripe Service Events
+    window.YPrintStripeService.on('payment_success', (data) => {
+        console.log('Payment success received:', data);
         
-        window.YPrintStripeService.on('payment_error', (error) => {
-            console.log('Payment error received:', error);
-            reject(new Error(error.error || 'Zahlung fehlgeschlagen'));
-        });
+        // KRITISCH: Stelle sicher, dass Payment Data an Confirmation weitergegeben werden
+        console.log('=== STORING CONFIRMATION PAYMENT DATA FOR NORMAL CARDS ===');
+        window.confirmationPaymentData = data;
         
-        // Trigger Payment Processing
-        window.YPrintStripeService.handlePaymentMethod(mockEvent, {
-            source: 'checkout_form',
-            type: paymentMethod.type
+        // Rufe populateConfirmationWithPaymentData auf (gleich wie bei Apple Pay)
+        if (typeof window.populateConfirmationWithPaymentData === 'function') {
+            console.log('✅ Calling populateConfirmationWithPaymentData for normal card payment');
+            window.populateConfirmationWithPaymentData(data);
+        } else {
+            console.warn('⚠️ populateConfirmationWithPaymentData function not available');
+        }
+        
+        resolve({
+            success: true,
+            data: data,
+            message: 'Zahlung erfolgreich verarbeitet'
         });
     });
+    
+    window.YPrintStripeService.on('payment_error', (error) => {
+        console.log('Payment error received:', error);
+        reject(new Error(error.error || 'Zahlung fehlgeschlagen'));
+    });
+    
+    // Trigger Payment Processing
+    window.YPrintStripeService.handlePaymentMethod(mockEvent, {
+        source: 'checkout_form',
+        type: paymentMethod.type
+    });
+});
 }
     
 async function validateStripeCardElement() {
