@@ -640,50 +640,69 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start debugging after short delay
     setTimeout(debugPaymentMethodDetection, 1000);
 
-    function getPaymentMethodTitle(method) {
-    // PRIORITÄT 1: Nutze verfügbare Payment Data von Express Checkout (Apple Pay, Google Pay)
+    function getPaymentMethodTitle() {
+    console.log('🔍 getPaymentMethodTitle() aufgerufen');
+    
+    // PRIORITÄT 1: Nutze verfügbare Payment Method Details von Express Checkout
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
-        console.log('🔍 Checking confirmationPaymentData for wallet info...');
+        console.log('🔍 Checking confirmationPaymentData for payment method details...');
         const orderData = window.confirmationPaymentData.order_data;
         
-        // NEU: Prüfe payment_method_details (Backend-Ergänzung) - das ist der Schlüssel!
-        if (orderData.payment_method_details && orderData.payment_method_details.card && orderData.payment_method_details.card.wallet) {
-            const walletType = orderData.payment_method_details.card.wallet.type;
-            const cardBrand = orderData.payment_method_details.card.brand || '';
-            const last4 = orderData.payment_method_details.card.last4 || '';
+        // HAUPTLOGIK: Prüfe payment_method_details (Backend-Ergänzung)
+        if (orderData.payment_method_details) {
+            console.log('✅ payment_method_details gefunden:', orderData.payment_method_details);
             
-            console.log('✅ Wallet detected from payment_method_details:', walletType, 'Brand:', cardBrand, 'Last4:', last4);
-            
-            switch (walletType) {
-                case 'apple_pay':
-                    return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                case 'google_pay':
-                    return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-                default:
-                    return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
+            // Card-basierte Zahlungen (Apple Pay, Google Pay, normale Karten)
+            if (orderData.payment_method_details.card) {
+                const cardDetails = orderData.payment_method_details.card;
+                console.log('✅ Card details gefunden:', cardDetails);
+                
+                // Wallet-Zahlungen (Apple Pay, Google Pay)
+                if (cardDetails.wallet) {
+                    const walletType = cardDetails.wallet.type;
+                    const cardBrand = cardDetails.brand || '';
+                    const last4 = cardDetails.last4 || '';
+                    
+                    console.log('✅ Wallet detected:', walletType, 'Brand:', cardBrand, 'Last4:', last4);
+                    
+                    switch (walletType) {
+                        case 'apple_pay':
+                            return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                        case 'google_pay':
+                            return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
+                        default:
+                            return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( sprintf( __( '%s (Stripe)', 'yprint-checkout' ), ucfirst( str_replace( '_', ' ', $walletType ) ) ) ); ?>';
+                    }
+                } else {
+                    // Normale Kartenzahlung
+                    const cardBrand = (cardDetails.brand || 'Kreditkarte').charAt(0).toUpperCase() + (cardDetails.brand || 'kreditkarte').slice(1);
+                    const last4 = cardDetails.last4 ? ' ****' + cardDetails.last4 : '';
+                    console.log('✅ Regular card detected:', cardBrand, last4);
+                    return '<i class="fas fa-credit-card mr-2"></i> ' + cardBrand + last4 + ' (Stripe)';
+                }
             }
-        }
-        
-        // FALLBACK 1: Prüfe auf SEPA-Lastschrift in payment_method_details
-        if (orderData.payment_method_details && orderData.payment_method_details.sepa_debit) {
-            const last4 = orderData.payment_method_details.sepa_debit.last4 || '';
-            console.log('✅ SEPA detected from payment_method_details, Last4:', last4);
-            const displayLast4 = last4 ? ' ****' + last4 : '';
-            return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift', 'yprint-checkout' ) ); ?>' + displayLast4 + ' (Stripe)';
-        }
-        
-        // FALLBACK 2: Prüfe auf normale Karte in payment_method_details
-        if (orderData.payment_method_details && orderData.payment_method_details.card && !orderData.payment_method_details.card.wallet) {
-            const cardBrand = (orderData.payment_method_details.card.brand || 'Kreditkarte').charAt(0).toUpperCase() + (orderData.payment_method_details.card.brand || 'kreditkarte').slice(1);
-            const last4 = orderData.payment_method_details.card.last4 ? ' ****' + orderData.payment_method_details.card.last4 : '';
-            console.log('✅ Regular card detected from payment_method_details:', cardBrand, last4);
-            return '<i class="fas fa-credit-card mr-2"></i> ' + cardBrand + last4 + ' (Stripe)';
+            
+            // SEPA-Lastschrift
+            if (orderData.payment_method_details.sepa_debit) {
+                const sepaDetails = orderData.payment_method_details.sepa_debit;
+                const last4 = sepaDetails.last4 || '';
+                console.log('✅ SEPA detected, Last4:', last4);
+                const displayLast4 = last4 ? ' ****' + last4 : '';
+                return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift', 'yprint-checkout' ) ); ?>' + displayLast4 + ' (Stripe)';
+            }
+            
+            // Andere Zahlungsarten
+            const paymentType = Object.keys(orderData.payment_method_details)[0];
+            if (paymentType) {
+                console.log('✅ Other payment type detected:', paymentType);
+                return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
+            }
         }
         
         // LEGACY FALLBACKS für Abwärtskompatibilität
         if (window.confirmationPaymentData.payment_method_type) {
             const paymentType = window.confirmationPaymentData.payment_method_type.toLowerCase();
-            console.log('✅ Using legacy payment_method_type:', paymentType);
+            console.log('⚠️ Using legacy payment_method_type:', paymentType);
             
             if (paymentType.includes('apple_pay') || paymentType === 'apple_pay') {
                 return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
@@ -699,82 +718,105 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('⚠️ Using fallback - Express payment detected from payment_method_id structure only');
             return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
         }
+        
+        console.log('⚠️ Keine spezifische Zahlungsart in payment_method_details erkannt');
+    } else {
+        console.log('❌ Keine confirmationPaymentData.order_data verfügbar');
     }
     
-    // PRIORITÄT 2: Fallback auf bestehende Logik für normale Payment Methods
-    if (!method) return null;
-    method = method.toLowerCase();
+    // Kein Titel gefunden
+    return null;
+}
 
-    // Präzise Erkennung basierend auf echten Stripe Payment Types
-    if (method.includes('sepa') || method === 'sepa_debit') {
-        return '<i class="fas fa-university mr-2"></i> <?php echo esc_js( __( 'SEPA-Lastschrift (Stripe)', 'yprint-checkout' ) ); ?>';
-    } else if (method.includes('apple') || method === 'apple_pay') {
-        return '<i class="fab fa-apple mr-2"></i> <?php echo esc_js( __( 'Apple Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-    } else if (method.includes('google') || method === 'google_pay') {
-        return '<i class="fab fa-google-pay mr-2"></i> <?php echo esc_js( __( 'Google Pay (Stripe)', 'yprint-checkout' ) ); ?>';
-    } else if (method.includes('paypal')) {
-        return '<i class="fab fa-paypal mr-2"></i> <?php echo esc_js( __( 'PayPal', 'yprint-checkout' ) ); ?>';
-    } else if (method.includes('express') || method.includes('payment_request')) {
-        return '<i class="fas fa-bolt mr-2"></i> <?php echo esc_js( __( 'Express-Zahlung (Stripe)', 'yprint-checkout' ) ); ?>';
-    } else if (method.includes('card') || method === 'card' || method.includes('stripe')) {
-        return '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Kreditkarte (Stripe)', 'yprint-checkout' ) ); ?>';
+function updatePaymentMethodDisplay() {
+    const displayElement = document.getElementById('dynamic-payment-method-display');
+    if (!displayElement) return;
+
+    console.log('🔍 updatePaymentMethodDisplay() aufgerufen');
+    console.log('🔍 window.confirmationPaymentData verfügbar:', !!window.confirmationPaymentData);
+    
+    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+        console.log('🔍 order_data verfügbar:', !!window.confirmationPaymentData.order_data);
+        console.log('🔍 payment_method_details verfügbar:', !!window.confirmationPaymentData.order_data.payment_method_details);
+    }
+
+    // Direkt die getPaymentMethodTitle() Funktion aufrufen - sie hat ihre eigene Intelligenz
+    const title = getPaymentMethodTitle();
+
+    if (title) {
+        displayElement.innerHTML = title;
+        console.log('✅ Payment method display aktualisiert:', title);
     } else {
-        const cleanMethod = method.charAt(0).toUpperCase() + method.slice(1).replace(/[_-]/g, ' ');
-        return `<i class="fas fa-credit-card mr-2"></i> ${cleanMethod}`;
+        // Fallback: Zeige "wird ermittelt" nur wenn gar keine Daten verfügbar sind
+        if (!window.confirmationPaymentData) {
+            displayElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> <span class="text-amber-600"><?php echo esc_js( __( 'Zahlungsart wird ermittelt...', 'yprint-checkout' ) ); ?></span>';
+            console.log('⚠️ Keine confirmationPaymentData verfügbar - zeige Warteanzeige');
+        } else {
+            // Wenn Daten da sind, aber keine Zahlungsart erkannt wurde
+            displayElement.innerHTML = '<i class="fas fa-credit-card mr-2"></i> <?php echo esc_js( __( 'Stripe-Zahlung', 'yprint-checkout' ) ); ?>';
+            console.log('⚠️ Payment Data verfügbar, aber keine spezifische Zahlungsart erkannt - zeige Fallback');
+        }
     }
 }
 
-    function updatePaymentMethodDisplay() {
-        const displayElement = document.getElementById('dynamic-payment-method-display');
-        if (!displayElement) return;
+    // Sofort beim Load versuchen
+updatePaymentMethodDisplay();
 
-        // Simplified logic: Rely on `debugPaymentMethodDetection` and `window.confirmationPaymentData`
-        // or the order ID in URL to determine the payment method.
-        // This function will primarily display based on available data,
-        // rather than trying to re-detect from scratch.
+// Multiple Event-Handler für verschiedene Szenarien
+const originalPopulateConfirmation = window.populateConfirmationWithPaymentData;
+if (originalPopulateConfirmation) {
+    window.populateConfirmationWithPaymentData = function(paymentData) {
+        // Store Payment Data globally for Payment Method Detection
+        window.confirmationPaymentData = paymentData;
+        console.log('✅ Confirmation payment data updated via populateConfirmationWithPaymentData:', paymentData);
 
-        let method = null;
-        let title = null;
+        // Call the original function
+        originalPopulateConfirmation.call(this, paymentData);
 
-        // Prioritize actual order data from confirmationPaymentData if available
-        if (window.confirmationPaymentData && window.confirmationPaymentData.order_data && window.confirmationPaymentData.order_data.payment_method_id) {
-            method = window.confirmationPaymentData.order_data.payment_method_id;
-            console.log('Payment method from confirmationPaymentData.order_data:', method);
-        } else if (window.confirmationPaymentData && window.confirmationPaymentData.payment_method_type) {
-            method = window.confirmationPaymentData.payment_method_type;
-            console.log('Payment method from confirmationPaymentData.payment_method_type:', method);
-        } else {
-            console.log('No direct payment method from window.confirmationPaymentData to update display immediately.');
+        // Force update payment method display after original function runs
+        setTimeout(updatePaymentMethodDisplay, 50);
+    };
+}
+
+// Alternative: Überwache window.confirmationPaymentData direkt
+let confirmationDataWatcher = null;
+function startConfirmationDataWatcher() {
+    if (confirmationDataWatcher) clearInterval(confirmationDataWatcher);
+    
+    let attempts = 0;
+    const maxAttempts = 20; // 10 Sekunden max
+    
+    confirmationDataWatcher = setInterval(() => {
+        attempts++;
+        
+        if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+            console.log('✅ confirmationPaymentData via Watcher erkannt - aktualisiere Payment Method Display');
+            clearInterval(confirmationDataWatcher);
+            updatePaymentMethodDisplay();
+        } else if (attempts >= maxAttempts) {
+            console.log('⚠️ confirmationPaymentData Watcher timeout nach', maxAttempts, 'Versuchen');
+            clearInterval(confirmationDataWatcher);
         }
+    }, 500);
+}
 
-        title = getPaymentMethodTitle(method);
+// Starte Watcher nach 1 Sekunde
+setTimeout(startConfirmationDataWatcher, 1000);
 
-        if (title) {
-            displayElement.innerHTML = title;
-        } else {
-            // If no specific payment method could be determined yet, show a pending message
-            displayElement.innerHTML = '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i> <span class="text-amber-600"><?php echo esc_js( __( 'Zahlungsart wird ermittelt...', 'yprint-checkout' ) ); ?></span>';
-            console.error('YPrint: Payment Method Display - Keine echten Zahlungsdaten verfügbar oder noch nicht ermittelt.');
-        }
+// Event Listener for updates on step change
+document.addEventListener('yprint_step_changed', (e) => {
+    if (e.detail.step === 3) {
+        console.log('🔄 Step 3 detected - aktualisiere Payment Method Display');
+        setTimeout(updatePaymentMethodDisplay, 100);
+        setTimeout(debugPaymentMethodDetection, 200); // Re-run debug on step 3
     }
+});
 
+// Global Event für Payment Data Updates
+window.addEventListener('yprint_payment_data_updated', () => {
+    console.log('🔄 yprint_payment_data_updated Event empfangen');
     updatePaymentMethodDisplay();
-
-    // Store original function to extend its behavior
-    const originalPopulateConfirmation = window.populateConfirmationWithPaymentData;
-    if (originalPopulateConfirmation) {
-        window.populateConfirmationWithPaymentData = function(paymentData) {
-            // Store Payment Data globally for Payment Method Detection
-            window.confirmationPaymentData = paymentData;
-            console.log('Confirmation payment data updated:', paymentData);
-
-            // Call the original function
-            originalPopulateConfirmation.call(this, paymentData);
-
-            // Force update payment method display after original function runs
-            setTimeout(updatePaymentMethodDisplay, 50);
-        };
-    }
+});
 
     // Event Listener for updates on step change
     document.addEventListener('yprint_step_changed', (e) => {
