@@ -1541,44 +1541,48 @@ if (voucherButton) {
                     shipping: paymentOrderData.shipping_address ? {
                         first_name: paymentOrderData.shipping_address.recipient ? paymentOrderData.shipping_address.recipient.split(' ')[0] : '',
                         last_name: paymentOrderData.shipping_address.recipient ? paymentOrderData.shipping_address.recipient.split(' ').slice(1).join(' ') : '',
-                        street: paymentOrderData.shipping_address.addressLine ? paymentOrderData.shipping_address.addressLine[0] || paymentOrderData.shipping_address.line1 : '',
-                        city: paymentOrderData.shipping_address.city,
-                        zip: paymentOrderData.shipping_address.postalCode || paymentOrderData.shipping_address.postal_code,
-                        country: paymentOrderData.shipping_address.country
+                        street: paymentOrderData.shipping_address.addressLine ? paymentOrderData.shipping_address.addressLine[0] : '',
+                        housenumber: '', // Nicht verfügbar in Express Payment Daten
+                        city: paymentOrderData.shipping_address.city || '',
+                        zip: paymentOrderData.shipping_address.postalCode || '',
+                        country: paymentOrderData.shipping_address.country || '',
+                        phone: paymentOrderData.shipping_address.phone || ''
                     } : {},
                     billing: paymentOrderData.billing_address ? {
-                        first_name: paymentOrderData.customer_details ? paymentOrderData.customer_details.name.split(' ')[0] : '',
-                        last_name: paymentOrderData.customer_details ? paymentOrderData.customer_details.name.split(' ').slice(1).join(' ') : '',
-                        street: paymentOrderData.billing_address.line1,
-                        city: paymentOrderData.billing_address.city,
-                        zip: paymentOrderData.billing_address.postal_code,
-                        country: paymentOrderData.billing_address.country,
-                        email: paymentOrderData.customer_details ? paymentOrderData.customer_details.email : '',
-                        phone: paymentOrderData.customer_details ? paymentOrderData.customer_details.phone : ''
+                        first_name: paymentOrderData.customer_details.name ? paymentOrderData.customer_details.name.split(' ')[0] : '',
+                        last_name: paymentOrderData.customer_details.name ? paymentOrderData.customer_details.name.split(' ').slice(1).join(' ') : '',
+                        street: paymentOrderData.billing_address.line1 || '',
+                        housenumber: '', // Nicht getrennt verfügbar
+                        city: paymentOrderData.billing_address.city || '',
+                        zip: paymentOrderData.billing_address.postal_code || '',
+                        country: paymentOrderData.billing_address.country || '',
+                        email: paymentOrderData.customer_details.email || '',
+                        phone: paymentOrderData.customer_details.phone || ''
                     } : {},
                     payment: {
-                        method: 'stripe', // Express Payments verwenden immer Stripe
-                        transaction_id: paymentOrderData.payment_intent_id,
-                        payment_method_id: paymentOrderData.payment_method_id
+                        method: 'express_payment' // Express Payment Marker
                     },
                     timestamp: new Date().toISOString(),
-                    source: 'express_payment'
+                    isBillingSameAsShipping: false, // Für Express Payments oft getrennt
+                    voucher: ''
                 };
-                console.log('Generated order data from payment data:', orderData);
                 
-                // Update formData mit Express Payment Daten
+                // Weise Order Data zu Hauptvariablen zu
+                cartItems = orderData.items;
+                cartTotals = orderData.totals;
                 if (orderData.shipping) formData.shipping = orderData.shipping;
                 if (orderData.billing) formData.billing = orderData.billing;
                 if (orderData.payment) formData.payment = orderData.payment;
+                formData.isBillingSameAsShipping = orderData.isBillingSameAsShipping;
+                if (orderData.voucher) formData.voucher = orderData.voucher;
                 
-                // Update cartTotals mit Express Payment Daten
-                cartTotals = orderData.totals;
+                console.log('✅ Express Payment data successfully applied to confirmation');
             } else {
-                console.warn('No saved order data and no payment data found, falling back to current cart data');
-                // Fallback: Lade aktuelle Warenkorbdaten (falls noch vorhanden)
+                console.log('No saved order data found, loading cart data...');
                 await loadRealCartData();
             }
         }
+        
     } catch (error) {
         console.error('Error loading saved order data:', error);
         // Fallback: Lade aktuelle Warenkorbdaten NUR wenn keine Payment Data verfügbar
