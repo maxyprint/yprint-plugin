@@ -1940,4 +1940,106 @@ function yprint_debug_payment_method_callback() {
 add_action('wp_ajax_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
 add_action('wp_ajax_nopriv_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
 
+/**
+ * AJAX Handler für Payment Method Detection via Stripe API
+ */
+function yprint_get_payment_method_details_callback() {
+    // Verwende die vorhandene Stripe-Nonce
+    if (!wp_verify_nonce($_POST['nonce'], 'yprint_stripe_nonce')) {
+        wp_send_json_error('Security check failed');
+        return;
+    }
+    
+    $order_id = intval($_POST['order_id']);
+    if (!$order_id) {
+        wp_send_json_error('No order ID provided');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Order not found');
+        return;
+    }
+    
+    // Get Payment Method ID from order meta
+    $payment_method_id = $order->get_meta('_yprint_stripe_payment_method_id');
+    
+    // Fallback: Transaction ID könnte Payment Method ID sein
+    if (empty($payment_method_id)) {
+        $transaction_id = $order->get_transaction_id();
+        if (strpos($transaction_id, 'pm_') === 0) {
+            $payment_method_id = $transaction_id;
+        } elseif (strpos($transaction_id, 'pi_') === 0) {
+            // Falls Transaction ID ein Payment Intent ist, holen wir daraus die Payment Method
+            if (class_exists('YPrint_Stripe_API')) {
+                try {
+                    $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $transaction_id);
+                    if (!empty($intent->payment_method)) {
+                        $payment_method_id = $intent->payment_method;
+                    }
+                } catch (Exception $e) {
+                    wp_send_json_error('Failed to get Payment Intent: ' . $e->getMessage());
+                    return;
+                }
+            }
+        }
+    }
+    
+    if (empty($payment_method_id) || strpos($payment_method_id, 'pm_') !== 0) {
+        wp_send_json_error('No valid Payment Method ID found. Transaction ID: ' . $order->get_transaction_id());
+        return;
+    }
+    
+    // Get Payment Method Details via Stripe API
+    if (!class_exists('YPrint_Stripe_API')) {
+        wp_send_json_error('Stripe API not available');
+        return;
+    }
+    
+    try {
+        $payment_method = YPrint_Stripe_API::request(array(), 'payment_methods/' . $payment_method_id);
+        
+        $result = array(
+            'order_id' => $order_id,
+            'payment_method_id' => $payment_method_id,
+            'type' => $payment_method->type,
+            'display_method' => 'Kreditkarte',
+            'icon' => 'fas fa-credit-card'
+        );
+        
+        // Apple Pay / Google Pay Detection
+        if ($payment_method->type === 'card' && isset($payment_method->card->wallet)) {
+            $wallet = $payment_method->card->wallet;
+            
+            if ($wallet->type === 'apple_pay') {
+                $result['display_method'] = 'Apple Pay';
+                $result['icon'] = 'fab fa-apple-pay';
+            } elseif ($wallet->type === 'google_pay') {
+                $result['display_method'] = 'Google Pay';  
+                $result['icon'] = 'fab fa-google-pay';
+            }
+            
+            $result['wallet'] = $wallet;
+        } elseif ($payment_method->type === 'card') {
+            // Regular card payment
+            $brand = ucfirst($payment_method->card->brand);
+            $last4 = $payment_method->card->last4;
+            $result['display_method'] = $brand . ' ****' . $last4;
+        } elseif ($payment_method->type === 'sepa_debit') {
+            $last4 = $payment_method->sepa_debit->last4;
+            $result['display_method'] = 'SEPA-Lastschrift ****' . $last4;
+            $result['icon'] = 'fas fa-university';
+        }
+        
+        wp_send_json_success($result);
+        
+    } catch (Exception $e) {
+        wp_send_json_error('Stripe API error: ' . $e->getMessage());
+    }
+}
+
+add_action('wp_ajax_yprint_get_payment_method_details', 'yprint_get_payment_method_details_callback');
+add_action('wp_ajax_nopriv_yprint_get_payment_method_details', 'yprint_get_payment_method_details_callback');
+
 ?>
