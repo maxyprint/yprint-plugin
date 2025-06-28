@@ -1761,6 +1761,122 @@ function yprint_backup_transfer_v4($order_id) {
         WC()->session->__unset('yprint_express_design_backup_v4');
         error_log("BACKUP V4: Successfully transferred $transferred items");
     }
+
+    /**
+ * AJAX Handler für Payment Method Debugging
+ */
+function yprint_debug_payment_method_callback() {
+    // Security check
+    if (!wp_verify_nonce($_POST['nonce'], 'yprint_debug_nonce')) {
+        wp_send_json_error('Security check failed');
+        return;
+    }
+    
+    $order_id = intval($_POST['order_id']);
+    if (!$order_id) {
+        wp_send_json_error('No order ID provided');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Order not found');
+        return;
+    }
+    
+    $debug_data = array(
+        'order_id' => $order_id,
+        'wc_payment_method' => $order->get_payment_method(),
+        'wc_payment_method_title' => $order->get_payment_method_title(),
+        'transaction_id' => $order->get_transaction_id(),
+        'payment_intent_id' => $order->get_meta('_yprint_stripe_intent_id'),
+        'stripe_intent' => null,
+        'stripe_error' => null,
+        'detected_type' => null,
+        'display_title' => null,
+        'display_icon' => null
+    );
+    
+    // Get Payment Intent ID
+    $payment_intent_id = $debug_data['transaction_id'];
+    if (empty($payment_intent_id)) {
+        $payment_intent_id = $debug_data['payment_intent_id'];
+    }
+    
+    // Try to fetch Stripe data
+    if (!empty($payment_intent_id) && strpos($payment_intent_id, 'pi_') === 0) {
+        if (class_exists('YPrint_Stripe_API')) {
+            try {
+                $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $payment_intent_id, 'GET');
+                
+                if (!empty($intent) && !isset($intent->error)) {
+                    $debug_data['stripe_intent'] = $intent;
+                    
+                    // Analyze payment method details
+                    if (isset($intent->payment_method_details)) {
+                        $payment_details = $intent->payment_method_details;
+                        
+                        // Card-based payments
+                        if (isset($payment_details->card)) {
+                            $card_details = $payment_details->card;
+                            
+                            // Wallet payments (Apple Pay, Google Pay)
+                            if (isset($card_details->wallet)) {
+                                $wallet_type = $card_details->wallet->type;
+                                
+                                switch ($wallet_type) {
+                                    case 'apple_pay':
+                                        $debug_data['detected_type'] = 'apple_pay';
+                                        $debug_data['display_title'] = 'Apple Pay (Stripe)';
+                                        $debug_data['display_icon'] = 'fab fa-apple';
+                                        break;
+                                    case 'google_pay':
+                                        $debug_data['detected_type'] = 'google_pay';
+                                        $debug_data['display_title'] = 'Google Pay (Stripe)';
+                                        $debug_data['display_icon'] = 'fab fa-google-pay';
+                                        break;
+                                    default:
+                                        $debug_data['detected_type'] = 'express_' . $wallet_type;
+                                        $debug_data['display_title'] = ucfirst(str_replace('_', ' ', $wallet_type)) . ' (Stripe)';
+                                        $debug_data['display_icon'] = 'fas fa-bolt';
+                                }
+                            } else {
+                                // Regular card payment
+                                $brand = isset($card_details->brand) ? ucfirst($card_details->brand) : 'Kreditkarte';
+                                $last4 = isset($card_details->last4) ? ' ****' . $card_details->last4 : '';
+                                
+                                $debug_data['detected_type'] = 'card';
+                                $debug_data['display_title'] = $brand . $last4 . ' (Stripe)';
+                                $debug_data['display_icon'] = 'fas fa-credit-card';
+                            }
+                        }
+                        // SEPA payments
+                        elseif (isset($payment_details->sepa_debit)) {
+                            $sepa_details = $payment_details->sepa_debit;
+                            $last4 = isset($sepa_details->last4) ? ' ****' . $sepa_details->last4 : '';
+                            
+                            $debug_data['detected_type'] = 'sepa_debit';
+                            $debug_data['display_title'] = 'SEPA-Lastschrift' . $last4 . ' (Stripe)';
+                            $debug_data['display_icon'] = 'fas fa-university';
+                        }
+                    }
+                } else {
+                    $debug_data['stripe_error'] = isset($intent->error) ? $intent->error->message : 'Unknown error';
+                }
+            } catch (Exception $e) {
+                $debug_data['stripe_error'] = $e->getMessage();
+            }
+        } else {
+            $debug_data['stripe_error'] = 'YPrint_Stripe_API class not found';
+        }
+    } else {
+        $debug_data['stripe_error'] = 'No valid Payment Intent ID found';
+    }
+    
+    wp_send_json_success($debug_data);
+}
+add_action('wp_ajax_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
+add_action('wp_ajax_nopriv_yprint_debug_payment_method', 'yprint_debug_payment_method_callback');
 }
 
 ?>

@@ -508,6 +508,110 @@ elseif ( ! empty( $payment_method_title_from_order ) ) {
         
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+            
+            // DEBUG: Payment Method Detection
+            async function debugPaymentMethodDetection() {
+                console.log('=== YPRINT PAYMENT METHOD DEBUG START ===');
+                
+                // 1. Check Order ID from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const orderIdFromUrl = urlParams.get('order_id');
+                console.log('Order ID from URL:', orderIdFromUrl);
+                
+                if (orderIdFromUrl) {
+                    try {
+                        // AJAX Aufruf für Stripe Payment Details
+                        const formData = new FormData();
+                        formData.append('action', 'yprint_debug_payment_method');
+                        formData.append('order_id', orderIdFromUrl);
+                        formData.append('nonce', '<?php echo wp_create_nonce('yprint_debug_nonce'); ?>');
+                        
+                        const response = await fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        const data = await response.json();
+                        console.log('Server Response:', data);
+                        
+                        if (data.success) {
+                            const debug = data.data;
+                            
+                            console.log('=== ORDER PAYMENT DATA ===');
+                            console.log('Payment Method (WC):', debug.wc_payment_method);
+                            console.log('Payment Method Title (WC):', debug.wc_payment_method_title);
+                            console.log('Transaction ID:', debug.transaction_id);
+                            console.log('Payment Intent ID:', debug.payment_intent_id);
+                            
+                            console.log('=== STRIPE API RESPONSE ===');
+                            if (debug.stripe_intent) {
+                                console.log('Stripe Intent Status:', debug.stripe_intent.status);
+                                console.log('Stripe Intent ID:', debug.stripe_intent.id);
+                                
+                                if (debug.stripe_intent.payment_method_details) {
+                                    console.log('Payment Method Details:', debug.stripe_intent.payment_method_details);
+                                    
+                                    const details = debug.stripe_intent.payment_method_details;
+                                    
+                                    // Check for card payments
+                                    if (details.card) {
+                                        console.log('=== CARD PAYMENT DETAILS ===');
+                                        console.log('Card Brand:', details.card.brand);
+                                        console.log('Card Last4:', details.card.last4);
+                                        console.log('Card Country:', details.card.country);
+                                        
+                                        if (details.card.wallet) {
+                                            console.log('=== WALLET DETAILS (WICHTIG!) ===');
+                                            console.log('Wallet Type:', details.card.wallet.type);
+                                            console.log('Wallet Details:', details.card.wallet);
+                                            
+                                            // Das ist der wichtige Teil für Apple Pay Detection!
+                                            if (details.card.wallet.type === 'apple_pay') {
+                                                console.log('✅ APPLE PAY DETECTED!');
+                                            } else if (details.card.wallet.type === 'google_pay') {
+                                                console.log('✅ GOOGLE PAY DETECTED!');
+                                            }
+                                        } else {
+                                            console.log('❌ No wallet info - regular card payment');
+                                        }
+                                    }
+                                    
+                                    // Check for SEPA payments
+                                    if (details.sepa_debit) {
+                                        console.log('=== SEPA PAYMENT DETAILS ===');
+                                        console.log('SEPA Last4:', details.sepa_debit.last4);
+                                        console.log('SEPA Bank Code:', details.sepa_debit.bank_code);
+                                    }
+                                } else {
+                                    console.log('❌ No payment_method_details in Stripe response');
+                                }
+                            } else {
+                                console.log('❌ No Stripe Intent data available');
+                                console.log('Stripe Error:', debug.stripe_error);
+                            }
+                            
+                            console.log('=== FINAL DETECTION RESULT ===');
+                            console.log('Detected Payment Type:', debug.detected_type);
+                            console.log('Display Title:', debug.display_title);
+                            console.log('Display Icon:', debug.display_icon);
+                            
+                        } else {
+                            console.error('Debug AJAX failed:', data.data);
+                        }
+                        
+                    } catch (error) {
+                        console.error('Debug AJAX error:', error);
+                    }
+                } else {
+                    console.log('❌ No order ID found in URL');
+                }
+                
+                console.log('=== YPRINT PAYMENT METHOD DEBUG END ===');
+            }
+            
+            // Start debugging
+            debugPaymentMethodDetection();
+            
             function getPaymentMethodTitle(method) {
     if (!method) return null;
     method = method.toLowerCase();
