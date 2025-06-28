@@ -1524,17 +1524,72 @@ if (voucherButton) {
             }
             if (orderData.voucher) formData.voucher = orderData.voucher;
         } else {
-            console.warn('No saved order data found, falling back to current cart data');
-            // Fallback: Lade aktuelle Warenkorbdaten (falls noch vorhanden)
-            await loadRealCartData();
+            // Prüfe ob Express Payment Daten verfügbar sind BEVOR Cart-Daten geladen werden
+            if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+                console.log('Using Express Payment data instead of cart data');
+                // Für Express Payments: Verwende Payment Data als Order Data
+                const paymentOrderData = window.confirmationPaymentData.order_data;
+                orderData = {
+                    items: [], // Express Payments haben keine Items-Details, das ist OK
+                    totals: {
+                        subtotal: parseFloat(paymentOrderData.amount) || 0,
+                        total: parseFloat(paymentOrderData.amount) || 0,
+                        shipping: 0, // Kann später aus anderen Quellen ergänzt werden
+                        tax: 0,
+                        discount: 0
+                    },
+                    shipping: paymentOrderData.shipping_address ? {
+                        first_name: paymentOrderData.shipping_address.recipient ? paymentOrderData.shipping_address.recipient.split(' ')[0] : '',
+                        last_name: paymentOrderData.shipping_address.recipient ? paymentOrderData.shipping_address.recipient.split(' ').slice(1).join(' ') : '',
+                        street: paymentOrderData.shipping_address.addressLine ? paymentOrderData.shipping_address.addressLine[0] || paymentOrderData.shipping_address.line1 : '',
+                        city: paymentOrderData.shipping_address.city,
+                        zip: paymentOrderData.shipping_address.postalCode || paymentOrderData.shipping_address.postal_code,
+                        country: paymentOrderData.shipping_address.country
+                    } : {},
+                    billing: paymentOrderData.billing_address ? {
+                        first_name: paymentOrderData.customer_details ? paymentOrderData.customer_details.name.split(' ')[0] : '',
+                        last_name: paymentOrderData.customer_details ? paymentOrderData.customer_details.name.split(' ').slice(1).join(' ') : '',
+                        street: paymentOrderData.billing_address.line1,
+                        city: paymentOrderData.billing_address.city,
+                        zip: paymentOrderData.billing_address.postal_code,
+                        country: paymentOrderData.billing_address.country,
+                        email: paymentOrderData.customer_details ? paymentOrderData.customer_details.email : '',
+                        phone: paymentOrderData.customer_details ? paymentOrderData.customer_details.phone : ''
+                    } : {},
+                    payment: {
+                        method: 'stripe', // Express Payments verwenden immer Stripe
+                        transaction_id: paymentOrderData.payment_intent_id,
+                        payment_method_id: paymentOrderData.payment_method_id
+                    },
+                    timestamp: new Date().toISOString(),
+                    source: 'express_payment'
+                };
+                console.log('Generated order data from payment data:', orderData);
+                
+                // Update formData mit Express Payment Daten
+                if (orderData.shipping) formData.shipping = orderData.shipping;
+                if (orderData.billing) formData.billing = orderData.billing;
+                if (orderData.payment) formData.payment = orderData.payment;
+                
+                // Update cartTotals mit Express Payment Daten
+                cartTotals = orderData.totals;
+            } else {
+                console.warn('No saved order data and no payment data found, falling back to current cart data');
+                // Fallback: Lade aktuelle Warenkorbdaten (falls noch vorhanden)
+                await loadRealCartData();
+            }
         }
     } catch (error) {
         console.error('Error loading saved order data:', error);
-        // Fallback: Lade aktuelle Warenkorbdaten
-        try {
-            await loadRealCartData();
-        } catch (fallbackError) {
-            console.error('Fallback cart data loading failed:', fallbackError);
+        // Fallback: Lade aktuelle Warenkorbdaten NUR wenn keine Payment Data verfügbar
+        if (!window.confirmationPaymentData || !window.confirmationPaymentData.order_data) {
+            try {
+                await loadRealCartData();
+            } catch (fallbackError) {
+                console.error('Fallback cart data loading failed:', fallbackError);
+            }
+        } else {
+            console.log('Skipping cart data fallback - using available payment data');
         }
     }
         
