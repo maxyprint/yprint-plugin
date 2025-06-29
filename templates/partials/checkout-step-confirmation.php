@@ -790,16 +790,26 @@ if (paymentMethodDetails) {
     console.log('✅ Payment method details found:', paymentMethodDetails);
     
     // WICHTIG: Prüfe ob es payment_method_details (Payment Intent) oder payment_method (Stripe Object) ist
-    if (paymentMethodDetails.type && paymentMethodDetails.card) {
-        // Es ist ein payment_method Object - konvertiere zu payment_method_details Format
-        const convertedDetails = {};
-        convertedDetails[paymentMethodDetails.type] = paymentMethodDetails[paymentMethodDetails.type];
+if (paymentMethodDetails.object === 'payment_method' || (paymentMethodDetails.id && paymentMethodDetails.id.startsWith('pm_'))) {
+    // Es ist ein payment_method Object (vom Backend) - konvertiere zu payment_method_details Format
+    console.log('🔄 Erkanntes payment_method Objekt:', paymentMethodDetails);
+    
+    const convertedDetails = {};
+    const paymentType = paymentMethodDetails.type;
+    
+    if (paymentType && paymentMethodDetails[paymentType]) {
+        convertedDetails[paymentType] = paymentMethodDetails[paymentType];
         console.log('🔄 Converted payment_method to payment_method_details format:', convertedDetails);
         return getUniversalPaymentMethodDisplay(convertedDetails);
     } else {
-        // Es ist bereits payment_method_details Format
-        return getUniversalPaymentMethodDisplay(paymentMethodDetails);
+        console.log('❌ Konvertierung fehlgeschlagen - unbekannter Payment Type:', paymentType);
+        return null;
     }
+} else {
+    // Es ist bereits payment_method_details Format (von Payment Intent)
+    console.log('✅ Bereits payment_method_details Format erkannt');
+    return getUniversalPaymentMethodDisplay(paymentMethodDetails);
+}
 }
         }
         
