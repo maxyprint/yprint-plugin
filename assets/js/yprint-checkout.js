@@ -1755,9 +1755,21 @@ if (voucherButton) {
             }
 
             // Speichere Payment Data global für spätere Payment Method Detection
-            window.confirmationPaymentData = paymentData;
-            
-            confirmPaymentMethodEl.innerHTML = paymentMethodText;
+        window.confirmationPaymentData = paymentData;
+        
+        // KRITISCH: Trigger Payment Method Detection für Express Payments
+        console.log('=== TRIGGERING PAYMENT METHOD DETECTION FOR EXPRESS PAYMENTS ===');
+        console.log('Payment Data set:', paymentData);
+        
+        // Force Payment Method Detection Update via Event
+        setTimeout(() => {
+            console.log('Dispatching yprint_payment_data_updated event');
+            window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
+                detail: { paymentData: paymentData }
+            }));
+        }, 100);
+        
+        confirmPaymentMethodEl.innerHTML = paymentMethodText;
         
             
             // Detect payment method type from payment data
