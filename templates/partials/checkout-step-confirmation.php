@@ -704,9 +704,19 @@ function getUniversalPaymentMethodDisplay(paymentMethodDetails) {
         return mapping[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     };
 
-    // Finde den primären Payment Type
-    const paymentTypes = Object.keys(paymentMethodDetails);
-    const primaryType = paymentTypes[0];
+    // KORREKTUR: Richtige Logik für primären Payment Type
+    let primaryType;
+    
+    // 1. Prüfe ob explizites "type" Feld vorhanden ist (Standard bei payment_method_details)
+    if (paymentMethodDetails.type) {
+        primaryType = paymentMethodDetails.type;
+        console.log('🔍 Using explicit type field:', primaryType);
+    } else {
+        // 2. Fallback: Verwende erstes Key (für legacy Formate)
+        const paymentTypes = Object.keys(paymentMethodDetails);
+        primaryType = paymentTypes[0];
+        console.log('🔍 Using first key as type:', primaryType);
+    }
     
     if (!primaryType) {
         console.log('❌ No payment type found');
