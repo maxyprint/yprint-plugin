@@ -1343,28 +1343,55 @@ private function prepare_cart_data_for_templates() {
     // METHODE ENTFERNT - wird zentral von YPrint_Address_Handler verwaltet
     // ajax_save_address() wurde nach YPrint_Address_Handler::handle_checkout_context() migriert
 
-    /**
-     * AJAX handler to set payment method
-     */
     public function ajax_set_payment_method() {
         check_ajax_referer('yprint_checkout_nonce', 'security');
-
+    
         $payment_method = isset($_POST['payment_method']) ? sanitize_text_field($_POST['payment_method']) : '';
         $response = array('success' => false, 'message' => __('Fehler beim Setzen der Zahlungsart.', 'yprint-plugin'));
-
+    
         if (!empty($payment_method)) {
             WC()->session->set('yprint_checkout_payment_method', $payment_method);
-
+            
+            // Generiere den Display-Namen für die Confirmation Page
+            $display_name = $this->generate_payment_method_display($payment_method);
+            WC()->session->set('yprint_checkout_payment_method_display', $display_name);
+    
             // Store chosen saved payment method ID if it exists
             if (isset($_POST['chosen_payment_saved_id']) && !empty($_POST['chosen_payment_saved_id'])) {
                 WC()->session->set('chosen_payment_saved_id', sanitize_text_field($_POST['chosen_payment_saved_id']));
             }
-
+    
             $response['success'] = true;
             $response['message'] = __('Zahlungsart erfolgreich gesetzt.', 'yprint-plugin');
+            $response['display_name'] = $display_name;
         }
-
+    
         wp_send_json($response);
+    }
+    
+    /**
+     * Generiert den Display-Namen für eine Zahlungsmethode
+     */
+    private function generate_payment_method_display($payment_method) {
+        $method = strtolower($payment_method);
+        $title = __('Kreditkarte (Stripe)', 'yprint-plugin');
+        $icon = 'fa-credit-card';
+    
+        if (str_contains($method, 'sepa')) {
+            $title = __('SEPA-Lastschrift (Stripe)', 'yprint-plugin');
+            $icon = 'fa-university';
+        } elseif (str_contains($method, 'apple')) {
+            $title = __('Apple Pay (Stripe)', 'yprint-plugin');
+            $icon = 'fa-apple fab';
+        } elseif (str_contains($method, 'google')) {
+            $title = __('Google Pay (Stripe)', 'yprint-plugin');
+            $icon = 'fa-google-pay fab';
+        } elseif (str_contains($method, 'express') || str_contains($method, 'payment_request')) {
+            $title = __('Express-Zahlung (Stripe)', 'yprint-plugin');
+            $icon = 'fa-bolt';
+        }
+    
+        return sprintf('<i class="%s mr-2"></i>%s', $icon, $title);
     }
 
     /**

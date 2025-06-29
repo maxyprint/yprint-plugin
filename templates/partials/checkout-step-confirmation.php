@@ -507,44 +507,19 @@ function yprint_parse_stripe_payment_details($payment_details) {
             <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e( 'Gewählte Zahlungsart', 'yprint-checkout' ); ?></h3>
             <div class="text-yprint-text-secondary text-sm bg-gray-50 p-4 rounded-lg">
             <?php
-// 1. PRIORITÄT: Verwende echte Stripe-Zahlungsdetails (falls verfügbar)
-if ( ! empty( $stripe_payment_details ) ) {
-    $payment_method_html = sprintf( 
-        '<i class="%s mr-2"></i> %s', 
-        esc_attr( $stripe_payment_details['icon'] ), 
-        esc_html( $stripe_payment_details['title'] ) 
-    );
-    echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
-    
-    error_log( 'YPrint: Using Stripe API payment details: ' . $stripe_payment_details['type'] );
-}
-// 2. FALLBACK: Payment Method Title aus der Order
-elseif ( ! empty( $payment_method_title_from_order ) ) {
-    // Füge nur ein passendes Icon hinzu basierend auf dem Titel
-    $icon = 'fa-credit-card'; // Standard
-    if ( stripos( $payment_method_title_from_order, 'apple' ) !== false ) {
-        $icon = 'fab fa-apple';
-    } elseif ( stripos( $payment_method_title_from_order, 'google' ) !== false ) {
-        $icon = 'fab fa-google-pay';
-    } elseif ( stripos( $payment_method_title_from_order, 'paypal' ) !== false ) {
-        $icon = 'fab fa-paypal';
-    } elseif ( stripos( $payment_method_title_from_order, 'sepa' ) !== false ) {
-        $icon = 'fas fa-university';
-    } elseif ( stripos( $payment_method_title_from_order, 'express' ) !== false ) {
-        $icon = 'fas fa-bolt';
-    }
-    
-    $payment_method_html = sprintf( '<i class="%s mr-2"></i> %s', esc_attr( $icon ), esc_html( $payment_method_title_from_order ) );
-    echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
-    
-    error_log( 'YPrint: Using payment method title from order: ' . $payment_method_title_from_order );
+// VEREINFACHTE ZAHLUNGSART-ANZEIGE: Session-Display-Namen nutzen
+$payment_method_display = WC()->session->get('yprint_checkout_payment_method_display');
+
+// Fallback falls Session-Display-Name nicht vorhanden
+if (empty($payment_method_display)) {
+    $chosen_payment_method = WC()->session->get('yprint_checkout_payment_method');
+    $payment_method_display = yprint_get_payment_method_display($chosen_payment_method);
+    error_log('YPrint: Using fallback payment method display for: ' . $chosen_payment_method);
 } else {
-    // 3. FALLBACK: Verwende die bestehende Logik für Fälle ohne finale Order
-    $payment_method_html = yprint_get_payment_method_display( $chosen_payment_method );
-    echo '<span id="dynamic-payment-method-display">' . wp_kses_post( $payment_method_html ) . '</span>';
-    
-    error_log( 'YPrint: Using fallback payment method display for: ' . $chosen_payment_method );
+    error_log('YPrint: Using session payment method display');
 }
+
+echo '<span id="dynamic-payment-method-display">' . wp_kses_post($payment_method_display) . '</span>';
 ?>
             </div>
         </div>

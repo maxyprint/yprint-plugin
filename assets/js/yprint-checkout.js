@@ -3554,38 +3554,38 @@ setTimeout(logCheckoutState, 1000);
 // Vereinfachter Payment Method Slider Handler
 function initPaymentSlider() {
     console.log('Initializing payment slider...');
-    
+
     // Prüfe ob Slider vorhanden ist
     const sliderOptions = document.querySelectorAll('.slider-option');
     console.log('Found slider options:', sliderOptions.length);
-    
+
     if (sliderOptions.length === 0) {
         console.error('No slider options found!');
         return;
     }
-    
+
     // ENTFERNE alle bestehenden Event-Listener komplett
     jQuery('.slider-option').off('click.paymentSlider');
-    
+
     // EINZIGER Event-Handler mit jQuery (stabiler als native Events)
     jQuery(document).on('click.paymentSlider', '.slider-option', function(e) {
         e.preventDefault();
         e.stopPropagation();
-        
+
         console.log('DEBUG: Slider option clicked:', jQuery(this).data('method'));
-        
+
         if (jQuery(this).hasClass('active')) {
             console.log('DEBUG: Option already active, skipping');
             return;
         }
-        
+
         const selectedMethod = jQuery(this).data('method');
         console.log('DEBUG: Switching to payment method:', selectedMethod);
-        
+
         // Update Slider UI
         jQuery('.slider-option').removeClass('active');
         jQuery(this).addClass('active');
-        
+
         // Update Indicator mit Animation
         const indicator = jQuery('.slider-indicator');
         if (selectedMethod === 'sepa') {
@@ -3593,51 +3593,54 @@ function initPaymentSlider() {
         } else {
             indicator.removeClass('sepa');
         }
-        
+
         // Update Hidden Input
         const methodValue = selectedMethod === 'card' ? 'yprint_stripe_card' : 'yprint_stripe_sepa';
         jQuery('#selected-payment-method').val(methodValue);
         console.log('DEBUG: Payment method value set to:', methodValue);
-        
-        // Switch Payment Fields mit Verzögerung für Animation
-jQuery('.payment-input-fields').removeClass('active');
 
-setTimeout(() => {
-    if (selectedMethod === 'card') {
-        jQuery('#card-payment-fields').addClass('active');
-        console.log('DEBUG: Showing card fields');
-        // Robuste Stripe Card Element Initialisierung
-        setTimeout(async () => {
-            console.log('DEBUG: Ensuring Stripe Card Element is ready');
-            await ensureStripeCardElementReady();
-        }, 100);
-    } else if (selectedMethod === 'sepa') {
-        jQuery('#sepa-payment-fields').addClass('active');
-        console.log('DEBUG: Showing SEPA fields');
-        // Robuste Stripe SEPA Element Initialisierung mit Fallback
-        setTimeout(async () => {
-            console.log('DEBUG: Ensuring Stripe SEPA Element is ready');
-            const isReady = await ensureStripeSepaElementReady();
-            
-            // Fallback wenn ensureStripeSepaElementReady fehlschlägt
-            if (!isReady) {
-                console.log('DEBUG: Fallback - Direct SEPA init call');
-                if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
-                    window.YPrintStripeCheckout.initSepaElement();
-                }
+        // Switch Payment Fields mit Verzögerung für Animation
+        jQuery('.payment-input-fields').removeClass('active');
+
+        setTimeout(() => {
+            if (selectedMethod === 'card') {
+                jQuery('#card-payment-fields').addClass('active');
+                console.log('DEBUG: Showing card fields');
+                // Robuste Stripe Card Element Initialisierung
+                setTimeout(async () => {
+                    console.log('DEBUG: Ensuring Stripe Card Element is ready');
+                    await ensureStripeCardElementReady();
+                }, 100);
+            } else if (selectedMethod === 'sepa') {
+                jQuery('#sepa-payment-fields').addClass('active');
+                console.log('DEBUG: Showing SEPA fields');
+                // Robuste Stripe SEPA Element Initialisierung mit Fallback
+                setTimeout(async () => {
+                    console.log('DEBUG: Ensuring Stripe SEPA Element is ready');
+                    const isReady = await ensureStripeSepaElementReady();
+
+                    // Fallback wenn ensureStripeSepaElementReady fehlschlägt
+                    if (!isReady) {
+                        console.log('DEBUG: Fallback - Direct SEPA init call');
+                        if (window.YPrintStripeCheckout && window.YPrintStripeCheckout.initSepaElement) {
+                            window.YPrintStripeCheckout.initSepaElement();
+                        }
+                    }
+
+                    // CSS-Fix nach SEPA-Initialisierung
+                    setTimeout(() => {
+                        console.log('DEBUG: Applied CSS fixes for SEPA element');
+                    }, 200);
+                }, 100);
             }
-            
-            // CSS-Fix nach SEPA-Initialisierung
-            setTimeout(() => {
-                console.log('DEBUG: Applied CSS fixes for SEPA element');
-            }, 200);
-        }, 100);
-    }
-}, 50);
-        
+        }, 50);
+
+        // Session-Update mit der neuen Zahlungsart
+        updatePaymentMethodSession(methodValue);
+
         console.log('DEBUG: Slider switch completed');
     });
-    
+
     console.log('Payment slider initialized successfully');
 }
 
@@ -4122,6 +4125,37 @@ jQuery(document).ready(function($) {
     // Sofortiges Debug
     debugOrderViewButton();
 });
+
+/**
+ * Aktualisiert die Session mit der gewählten Zahlungsart
+ */
+function updatePaymentMethodSession(paymentMethod) {
+    console.log('DEBUG: Updating payment method session:', paymentMethod);
+    
+    const formData = new FormData();
+    formData.append('action', 'yprint_set_payment_method');
+    formData.append('payment_method', paymentMethod);
+    formData.append('security', yprint_checkout.nonce);
+
+    fetch(yprint_checkout.ajax_url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('DEBUG: Payment method session updated successfully');
+            if (data.display_name) {
+                console.log('DEBUG: Display name set to:', data.display_name);
+            }
+        } else {
+            console.error('DEBUG: Failed to update payment method session:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('DEBUG: Error updating payment method session:', error);
+    });
+}
 
 // Debug-Button entfernt
 
