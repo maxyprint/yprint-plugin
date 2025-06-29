@@ -2833,12 +2833,40 @@ if ('succeeded' === $intent->status) {
             'order_id' => $order->get_id()
         ), get_permalink());
         
+        // Erstelle order_data wie bei Express Payments für Konsistenz
+        $order_data = array(
+            'order_id' => $order->get_id(),
+            'payment_method_id' => $payment_method['id'],
+            'payment_intent_id' => $intent->id,
+            'amount' => $order->get_total(),
+            'currency' => get_woocommerce_currency(),
+            'customer_details' => array(
+                'name' => $payment_method['billing_details']['name'] ?? $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+                'email' => $payment_method['billing_details']['email'] ?? $order->get_billing_email(),
+                'phone' => $payment_method['billing_details']['phone'] ?? $order->get_billing_phone(),
+            ),
+            'billing_address' => $payment_method['billing_details']['address'] ?? array(),
+            'shipping_address' => array(), // SEPA hat meist keine shipping address
+            // KRITISCH: payment_method_details für Frontend-Konsistenz
+            'payment_method_details' => array(
+                'type' => $payment_method['type'] ?? 'sepa_debit',
+                'sepa_debit' => array(
+                    'last4' => $payment_method['sepa_debit']['last4'] ?? '',
+                    'bank_code' => $payment_method['sepa_debit']['bank_code'] ?? '',
+                    'country' => $payment_method['sepa_debit']['country'] ?? 'DE'
+                )
+            )
+        );
+
         wp_send_json_success(array(
             'next_step' => 'confirmation',
             'order_id' => $order->get_id(),
             'payment_status' => 'processing',
             'redirect_url' => $confirmation_url,
-            'message' => __('SEPA payment initiated successfully', 'yprint-plugin')
+            'message' => __('SEPA payment initiated successfully', 'yprint-plugin'),
+            'order_data' => $order_data,  // HINZUGEFÜGT: Gleiche Struktur wie Express Payments
+            'payment_method_id' => $payment_method['id'],
+            'payment_intent_id' => $intent->id
         ));
         return;
     } else {
@@ -2848,6 +2876,49 @@ if ('succeeded' === $intent->status) {
         $order->add_order_note(__('Payment initiated. Waiting for final confirmation.', 'yprint-plugin'));
         $order->save();
         error_log('Payment initiated and pending for order: ' . $order->get_id());
+        
+        // Erstelle order_data auch für Kreditkarten für Konsistenz
+        $confirmation_url = add_query_arg(array(
+            'step' => 'confirmation',
+            'order_id' => $order->get_id()
+        ), get_permalink());
+        
+        $order_data = array(
+            'order_id' => $order->get_id(),
+            'payment_method_id' => $payment_method['id'],
+            'payment_intent_id' => $intent->id,
+            'amount' => $order->get_total(),
+            'currency' => get_woocommerce_currency(),
+            'customer_details' => array(
+                'name' => $payment_method['billing_details']['name'] ?? $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+                'email' => $payment_method['billing_details']['email'] ?? $order->get_billing_email(),
+                'phone' => $payment_method['billing_details']['phone'] ?? $order->get_billing_phone(),
+            ),
+            'billing_address' => $payment_method['billing_details']['address'] ?? array(),
+            'shipping_address' => array(),
+            // KRITISCH: payment_method_details für Frontend-Konsistenz
+            'payment_method_details' => array(
+                'type' => $payment_method['type'] ?? 'card',
+                'card' => array(
+                    'last4' => $payment_method['card']['last4'] ?? '',
+                    'brand' => $payment_method['card']['brand'] ?? 'unknown',
+                    'exp_month' => $payment_method['card']['exp_month'] ?? '',
+                    'exp_year' => $payment_method['card']['exp_year'] ?? ''
+                )
+            )
+        );
+
+        wp_send_json_success(array(
+            'next_step' => 'confirmation',
+            'order_id' => $order->get_id(),
+            'payment_status' => 'pending',
+            'redirect_url' => $confirmation_url,
+            'message' => __('Card payment initiated successfully', 'yprint-plugin'),
+            'order_data' => $order_data,  // HINZUGEFÜGT: Gleiche Struktur wie Express Payments
+            'payment_method_id' => $payment_method['id'],
+            'payment_intent_id' => $intent->id
+        ));
+        return;
     }
     
 } elseif ('requires_action' === $intent->status || 'requires_source_action' === $intent->status) {
