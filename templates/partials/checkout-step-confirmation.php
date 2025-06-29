@@ -788,7 +788,18 @@ if (typeof yprint_checkout_l10n === 'undefined' || !yprint_checkout_l10n.payment
 const paymentMethodDetails = orderData.payment_method_details;
 if (paymentMethodDetails) {
     console.log('✅ Payment method details found:', paymentMethodDetails);
-    return getUniversalPaymentMethodDisplay(paymentMethodDetails);
+    
+    // WICHTIG: Prüfe ob es payment_method_details (Payment Intent) oder payment_method (Stripe Object) ist
+    if (paymentMethodDetails.type && paymentMethodDetails.card) {
+        // Es ist ein payment_method Object - konvertiere zu payment_method_details Format
+        const convertedDetails = {};
+        convertedDetails[paymentMethodDetails.type] = paymentMethodDetails[paymentMethodDetails.type];
+        console.log('🔄 Converted payment_method to payment_method_details format:', convertedDetails);
+        return getUniversalPaymentMethodDisplay(convertedDetails);
+    } else {
+        // Es ist bereits payment_method_details Format
+        return getUniversalPaymentMethodDisplay(paymentMethodDetails);
+    }
 }
         }
         
