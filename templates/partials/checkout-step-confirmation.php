@@ -808,8 +808,24 @@ if (paymentMethodDetails.object === 'payment_method' || (paymentMethodDetails.id
     const paymentType = paymentMethodDetails.type;
     
     if (paymentType && paymentMethodDetails[paymentType]) {
-        convertedDetails[paymentType] = paymentMethodDetails[paymentType];
-        console.log('🔄 Converted payment_method to payment_method_details format:', convertedDetails);
+        // Spezielle Behandlung für Card-basierte Wallet-Zahlungen (Apple Pay, Google Pay)
+        if (paymentType === 'card' && paymentMethodDetails.card && paymentMethodDetails.card.wallet) {
+            console.log('🍎 Apple Pay/Google Pay erkannt in payment_method Object');
+            
+            // Kopiere Card-Details inklusive Wallet-Informationen
+            convertedDetails.card = {
+                brand: paymentMethodDetails.card.brand,
+                last4: paymentMethodDetails.card.last4,
+                wallet: paymentMethodDetails.card.wallet
+            };
+            
+            console.log('🔄 Converted Apple Pay/Google Pay payment_method:', convertedDetails);
+        } else {
+            // Standard-Konvertierung für alle anderen Payment Types
+            convertedDetails[paymentType] = paymentMethodDetails[paymentType];
+            console.log('🔄 Standard payment_method conversion:', convertedDetails);
+        }
+        
         return getUniversalPaymentMethodDisplay(convertedDetails);
     } else {
         console.log('❌ Konvertierung fehlgeschlagen - unbekannter Payment Type:', paymentType);
