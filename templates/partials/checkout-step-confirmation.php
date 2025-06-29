@@ -969,6 +969,34 @@ window.addEventListener('yprint_payment_data_updated', () => {
         }
     });
 });
+
+// === TEMPORÄRER DEBUG CODE ===
+console.log('=== CONFIRMATION PAGE DEBUG ===');
+console.log('window.confirmationPaymentData:', window.confirmationPaymentData);
+console.log('yprint_checkout_l10n:', typeof yprint_checkout_l10n !== 'undefined' ? yprint_checkout_l10n : 'NICHT VERFÜGBAR');
+
+// Prüfe Element
+const debugElement = document.getElementById('dynamic-payment-method-display');
+console.log('dynamic-payment-method-display element:', debugElement);
+console.log('Current innerHTML:', debugElement ? debugElement.innerHTML : 'Element nicht gefunden');
+
+// Teste getPaymentMethodTitle Funktion
+if (typeof getPaymentMethodTitle === 'function') {
+    const title = getPaymentMethodTitle();
+    console.log('getPaymentMethodTitle() result:', title);
+} else {
+    console.log('getPaymentMethodTitle function nicht verfügbar');
+}
+
+// Teste getUniversalPaymentMethodDisplay Funktion  
+if (window.confirmationPaymentData && window.confirmationPaymentData.order_data && window.confirmationPaymentData.order_data.payment_method_details) {
+    console.log('Testing getUniversalPaymentMethodDisplay with:', window.confirmationPaymentData.order_data.payment_method_details);
+    if (typeof getUniversalPaymentMethodDisplay === 'function') {
+        const result = getUniversalPaymentMethodDisplay(window.confirmationPaymentData.order_data.payment_method_details);
+        console.log('getUniversalPaymentMethodDisplay result:', result);
+    }
+}
+console.log('=== DEBUG END ===');
 </script>
 
         
