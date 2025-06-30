@@ -34,46 +34,104 @@ function yprint_login_form_shortcode() {
     ob_start();
     ?>
     <style>
-        /* Moderner Login Container */
-        .yprint-login-container {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: #f9fafb;
-            font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        
-        .yprint-login-card {
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e5e7eb;
-            padding: 40px;
-            width: 100%;
-            max-width: 420px;
-            position: relative;
-        }
-        
-        .yprint-login-header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-        
-        .yprint-login-title {
-            font-size: 26px;
-            font-weight: 700;
-            color: #111827;
-            margin: 0 0 8px 0;
-        }
-        
-        .yprint-login-subtitle {
-            font-size: 15px;
-            color: #6b7280;
-            margin: 0;
-        }
+        /* Moderner Login Container - flexibel für Integration */
+.yprint-login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    padding: 40px 20px;
+    box-sizing: border-box;
+}
+
+.yprint-login-card {
+    background: #ffffff;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+}
+
+.yprint-login-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.yprint-logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.yprint-logo img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+}
+
+.yprint-login-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+}
+
+.yprint-login-subtitle {
+    font-size: 15px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Registrieren Button */
+.yprint-register-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+}
+
+.yprint-register-text {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0 0 16px 0;
+}
+
+.yprint-register-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 48px;
+    padding: 12px 24px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    color: #3b82f6 !important;
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.yprint-register-button:hover {
+    background-color: #f1f5f9;
+    border-color: #3b82f6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    color: #2563eb !important;
+    text-decoration: none;
+}
+
+.yprint-register-button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
         
         /* Reset WordPress Form Styles */
         #loginform {
@@ -268,6 +326,72 @@ function yprint_login_form_shortcode() {
                 white-space: normal;
                 max-width: 95%;
             }
+
+            /* Mobile Responsive für neue Elemente */
+@media screen and (max-width: 480px) {
+    .yprint-login-container {
+        padding: 20px 16px;
+    }
+    
+    .yprint-login-card {
+        padding: 24px;
+        border-radius: 16px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+    
+    .yprint-logo img {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .yprint-login-title {
+        font-size: 22px;
+    }
+    
+    .yprint-login-subtitle {
+        font-size: 14px;
+    }
+    
+    .yprint-register-button {
+        height: 44px;
+        font-size: 14px;
+    }
+    
+    #loginform input[type="text"],
+    #loginform input[type="password"],
+    #loginform input[type="email"],
+    #loginform input[type="submit"] {
+        height: 48px !important;
+        font-size: 16px !important;
+    }
+    
+    #email-hint {
+        font-size: 12px;
+        padding: 10px 14px;
+        white-space: normal;
+        max-width: 95%;
+    }
+}
+
+@media screen and (max-width: 320px) {
+    .yprint-login-card {
+        padding: 20px;
+    }
+    
+    .yprint-register-button {
+        height: 40px;
+        font-size: 13px;
+        padding: 10px 20px;
+    }
+    
+    #loginform input[type="text"],
+    #loginform input[type="password"],
+    #loginform input[type="email"],
+    #loginform input[type="submit"] {
+        height: 44px !important;
+        padding: 12px 16px !important;
+    }
+}
         }
         
         @media screen and (max-width: 320px) {
@@ -286,29 +410,39 @@ function yprint_login_form_shortcode() {
     </style>
     
     <div class="yprint-login-container">
-        <div class="yprint-login-card">
-            <div class="yprint-login-header">
-                <h1 class="yprint-login-title">Willkommen zurück!</h1>
-                <p class="yprint-login-subtitle">Bitte melde dich an, um fortzufahren</p>
+    <div class="yprint-login-card">
+        <div class="yprint-login-header">
+            <div class="yprint-logo">
+                <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="YPrint Logo" />
             </div>
+            <h1 class="yprint-login-title">Willkommen zurück!</h1>
+            <p class="yprint-login-subtitle">Bitte melde dich an, um fortzufahren</p>
+        </div>
+        
+        <div class="yprint-login-form">
+            <?php
+            // Standard WordPress Login-Formular
+            $args = array(
+                'redirect' => home_url('/dashboard'),
+                'label_username' => '',
+                'label_password' => '',
+                'label_remember' => '',
+                'value_username' => '',
+                'value_remember' => false,
+            );
             
-            <div class="yprint-login-form">
-                <?php
-                // Standard WordPress Login-Formular
-                $args = array(
-                    'redirect' => home_url('/dashboard'),
-                    'label_username' => '',
-                    'label_password' => '',
-                    'label_remember' => '',
-                    'value_username' => '',
-                    'value_remember' => false,
-                );
-                
-                wp_login_form($args);
-                ?>
-            </div>
+            wp_login_form($args);
+            ?>
+        </div>
+        
+        <div class="yprint-register-section">
+            <p class="yprint-register-text">Noch kein Konto?</p>
+            <a href="https://yprint.de/register/" class="yprint-register-button">
+                Jetzt registrieren
+            </a>
         </div>
     </div>
+</div>
     
     <div class="yprint-login-mobile-wrapper">
     <?php
