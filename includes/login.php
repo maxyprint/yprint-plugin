@@ -444,21 +444,7 @@ function yprint_login_form_shortcode() {
     </div>
 </div>
     
-    <div class="yprint-login-mobile-wrapper">
-    <?php
-    // Standard WordPress Login-Formular
-    $args = array(
-        'redirect' => home_url('/dashboard'),
-        'label_username' => '',
-        'label_password' => '',
-        'label_remember' => '',
-        'value_username' => '',
-        'value_remember' => false,
-    );
-    
-    wp_login_form($args);
-    ?>
-    </div>
+    <!-- Dieser komplette Block wird entfernt -->
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
