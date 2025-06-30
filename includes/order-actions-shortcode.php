@@ -556,9 +556,14 @@ class YPrint_Order_Actions_Screenshot_Final {
         </div>
 
         <script type="text/javascript">
-        document.addEventListener('DOMContentLoaded', () => {
-            const container = document.getElementById('<?php echo esc_js($unique_id); ?>');
-            if (!container) return;
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('<?php echo esc_js($unique_id); ?>');
+    if (!container) {
+        console.log('YPrint Debug: Container not found:', '<?php echo esc_js($unique_id); ?>');
+        return;
+    }
+    
+    console.log('YPrint Debug: Order Actions initialized for container:', container);
 
             // Unified Share Functionality
 const shareButton = container.querySelector('.yprint-share-trigger');
@@ -681,10 +686,19 @@ if (shareDropdown) {
             }
 
             const handleReorder = (orderId, itemId, designId, button) => {
+    console.log('YPrint Debug: handleReorder called with:', {
+        orderId: orderId,
+        itemId: itemId,
+        designId: designId,
+        hasDesignId: designId && designId !== 'undefined' && designId !== ''
+    });
+    
     // First check if we have design_id to show size selection
     if (designId && designId !== 'undefined' && designId !== '') {
+        console.log('YPrint Debug: Showing size selection modal');
         showSizeSelectionModal(designId, button, true, orderId, itemId);
     } else {
+        console.log('YPrint Debug: Using direct reorder fallback');
         // Fallback: Direct reorder without size selection
         directReorder(orderId, itemId, button);
     }
@@ -707,27 +721,30 @@ const directReorder = (orderId, itemId, button) => {
         }
     })
     .done(response => {
-        if (response.success) {
-            button.querySelector('span').textContent = 'Hinzugefügt!';
-            setTimeout(() => {
-                if (typeof refreshCartDisplay === 'function') {
-                    refreshCartDisplay();
-                }
-                window.location.hash = '#mobile-cart';
-            }, 300);
-            
-            setTimeout(() => {
-                button.querySelector('span').textContent = originalText;
-                button.classList.remove('loading');
-                button.disabled = false;
-            }, 2000);
-        } else {
-            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+    console.log('YPrint Debug: AJAX response received:', response);
+    if (response.success) {
+        console.log('YPrint Debug: Reorder successful');
+        button.querySelector('span').textContent = 'Hinzugefügt!';
+        setTimeout(() => {
+            if (typeof refreshCartDisplay === 'function') {
+                refreshCartDisplay();
+            }
+            window.location.hash = '#mobile-cart';
+        }, 300);
+        
+        setTimeout(() => {
             button.querySelector('span').textContent = originalText;
             button.classList.remove('loading');
             button.disabled = false;
-        }
-    })
+        }, 2000);
+    } else {
+        console.error('YPrint Debug: Reorder failed:', response.data);
+        alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+        button.querySelector('span').textContent = originalText;
+        button.classList.remove('loading');
+        button.disabled = false;
+    }
+})
     .fail(() => {
         alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
         button.querySelector('span').textContent = originalText;
@@ -830,19 +847,17 @@ const handleReorderWithSize = (orderId, itemId, designId, sizeId, sizeName, butt
     button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
     button.style.pointerEvents = 'none';
 
-    jQuery.ajax({
-        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-        type: 'POST',
-        data: {
-            action: 'yprint_reorder_design_with_size',
-            order_id: orderId,
-            item_id: itemId,
-            design_id: designId,
-            size_id: sizeId,
-            size_name: sizeName,
-            nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
-        }
-    })
+    console.log('YPrint Debug: Starting direct reorder AJAX call');
+jQuery.ajax({
+    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+    type: 'POST',
+    data: {
+        action: 'yprint_reorder_item',
+        order_id: orderId,
+        item_id: itemId,
+        nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
+    }
+})
     .done(response => {
         if (response.success) {
             button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
@@ -968,13 +983,8 @@ window.addEventListener('resize', adjustButtonLayout);
      * @return WC_Order|false Latest order or false if none found
      */
     private static function get_latest_user_order($user_id) {
-        error_log('YPrint Debug: === STARTING ORDER SEARCH ===');
-        error_log('YPrint Debug: User ID: ' . $user_id);
-        error_log('YPrint Debug: WooCommerce active: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
-        
-        // Verwende die EXAKT GLEICHE Methode wie in der funktionierenden woo_order_history Funktion
+        // Verwende EXAKT die gleiche Methode wie in der funktionierenden woo_order_history Funktion
         $all_statuses = array_keys(wc_get_order_statuses());
-        error_log('YPrint Debug: Available order statuses: ' . implode(', ', $all_statuses));
         
         $customer_orders = wc_get_orders(array(
             'customer' => $user_id,
@@ -985,52 +995,10 @@ window.addEventListener('resize', adjustButtonLayout);
             'order'    => 'DESC'
         ));
         
-        error_log('YPrint Debug: Found ' . count($customer_orders) . ' orders with wc_get_orders()');
-        
         if (!empty($customer_orders)) {
-            $order = $customer_orders[0];
-            error_log('YPrint Debug: SUCCESS - Order ID: ' . $order->get_id() . ', Status: ' . $order->get_status() . ', Date: ' . $order->get_date_created()->format('Y-m-d H:i:s'));
-            return $order;
+            return $customer_orders[0];
         }
         
-        // ERWEITERTE DIAGNOSE bei Fehlschlag
-        global $wpdb;
-        
-        $total_orders = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'shop_order'");
-        error_log('YPrint Debug: Total orders in database: ' . $total_orders);
-        
-        $user_orders_count = $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->posts} p 
-             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-             WHERE p.post_type = 'shop_order' 
-             AND pm.meta_key = '_customer_user' 
-             AND pm.meta_value = %d",
-            $user_id
-        ));
-        error_log('YPrint Debug: Orders for user ' . $user_id . ': ' . $user_orders_count);
-        
-        // Direkte Order-Suche ohne Status-Filter
-        $any_user_order = $wpdb->get_var($wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p 
-             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-             WHERE p.post_type = 'shop_order' 
-             AND pm.meta_key = '_customer_user' 
-             AND pm.meta_value = %d 
-             ORDER BY p.post_date DESC 
-             LIMIT 1",
-            $user_id
-        ));
-        
-        if ($any_user_order) {
-            error_log('YPrint Debug: Found order without status filter: ' . $any_user_order);
-            $order = wc_get_order($any_user_order);
-            if ($order) {
-                error_log('YPrint Debug: FALLBACK SUCCESS - Order loaded: ' . $order->get_id());
-                return $order;
-            }
-        }
-        
-        error_log('YPrint Debug: === NO ORDERS FOUND ===');
         return false;
     }
 
