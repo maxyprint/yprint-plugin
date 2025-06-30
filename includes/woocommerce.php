@@ -50,279 +50,222 @@ function woo_order_history($atts) {
     ?>
     <style>
         .yprint-order-history {
-            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            max-width: 1200px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
             margin: 0 auto;
-        }
-
-        .yprint-order-content {
-            width: 100%;
+            padding: 0;
         }
 
         .yprint-order-search {
             width: 100%;
-            padding: 12px 35px 12px 15px;
-            background-color: #FFFFFF;
-            border: 1px solid #e0e0e0 !important;
-            border-radius: 15px !important;
-            margin-bottom: 15px;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border: none;
+            border-radius: 12px;
+            margin-bottom: 24px;
             font-size: 16px;
-            transition: all 0.2s ease;
             color: #333;
             box-sizing: border-box;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 12px center;
+            transition: all 0.3s ease;
         }
 
         .yprint-order-search:focus {
             outline: none;
-            border-color: #0079FF;
-            box-shadow: 0 0 0 2px rgba(0, 121, 255, 0.1);
+            background: #ffffff;
+            box-shadow: 0 0 0 2px #007cba;
+        }
+
+        .yprint-order-search::placeholder {
+            color: #999;
         }
 
         .yprint-order-list {
-            display: grid;
-            gap: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
         .yprint-order-card {
-            padding: 15px 0;
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 20px;
-            align-items: center;
-        }
-        
-        .yprint-order-card:not(:last-child) {
-            border-bottom: 1px solid #e0e0e0;
+            background: #ffffff;
+            border: 1px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
         }
 
-        .yprint-order-info {
-            display: grid;
-            grid-template-columns: 80px 1fr 100px 100px 120px;
-            gap: 20px;
-            align-items: center;
-            width: 100%;
+        .yprint-order-card:hover {
+            border-color: #007cba;
+            box-shadow: 0 2px 12px rgba(0, 124, 186, 0.1);
+        }
+
+        .yprint-order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
         }
 
         .yprint-order-number {
+            font-size: 18px;
             font-weight: 600;
-            color: #1d1d1f;
-            font-size: 16px;
-        }
-
-        .yprint-order-items {
-            color: #666;
-        }
-
-        .yprint-order-date {
-            color: #999;
-            font-size: 14px;
+            color: #1a1a1a;
+            margin: 0;
         }
 
         .yprint-order-status {
-            padding: 4px 12px;
-            border-radius: 15px;
+            padding: 6px 12px;
+            border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
-            text-align: center;
-            white-space: nowrap;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .status-pending {
-            background-color: #fff3cd;
-            color: #856404;
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-processing { background: #cce5ff; color: #004085; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-on-hold { background: #f8d7da; color: #721c24; }
+        .status-cancelled { background: #f1f3f4; color: #5f6368; }
+
+        .yprint-order-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #f1f3f4;
         }
 
-        .status-processing {
-            background-color: #cce5ff;
-            color: #004085;
-        }
-
-        .status-completed {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .status-cancelled {
-            background-color: #f8d7da;
-            color: #721c24;
+        .yprint-order-details {
+            color: #5f6368;
+            font-size: 14px;
         }
 
         .yprint-order-total {
+            font-size: 16px;
             font-weight: 600;
-            color: #1d1d1f;
-            text-align: right;
+            color: #1a1a1a;
         }
 
-        .yprint-order-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .yprint-btn {
-            padding: 6px 12px;
-            border: 1px solid #d1d5db;
-            border-radius: 8px;
-            background: white;
-            color: #374151;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .yprint-btn:hover {
-            background: #f9fafb;
-            border-color: #9ca3af;
-            color: #111827;
-            text-decoration: none;
-        }
-
-        .yprint-btn-primary {
-            background: #0079FF;
-            border-color: #0079FF;
-            color: white;
-        }
-
-        .yprint-btn-primary:hover {
-            background: #0056b3;
-            border-color: #0056b3;
-            color: white;
-        }
-
-        .yprint-btn-danger {
+        .yprint-cancel-btn {
             background: #dc3545;
-            border-color: #dc3545;
             color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 12px;
         }
 
-        .yprint-btn-danger:hover {
+        .yprint-cancel-btn:hover {
             background: #c82333;
-            border-color: #c82333;
-            color: white;
+            transform: translateY(-1px);
         }
 
-        .yprint-empty-state {
+        .yprint-cancel-btn:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .yprint-no-orders {
             text-align: center;
             padding: 60px 20px;
-            color: #666;
-        }
-
-        .yprint-empty-state h3 {
-            color: #1d1d1f;
-            margin-bottom: 8px;
+            color: #5f6368;
+            font-size: 16px;
         }
 
         @media (max-width: 768px) {
-            .yprint-order-info {
-                grid-template-columns: 1fr;
+            .yprint-order-history {
+                padding: 0 16px;
+            }
+            
+            .yprint-order-header {
+                flex-direction: column;
                 gap: 8px;
+                align-items: flex-start;
             }
             
-            .yprint-order-card {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-            
-            .yprint-order-actions {
-                justify-content: flex-start;
+            .yprint-order-meta {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
             }
         }
     </style>
 
     <div class="yprint-order-history">
-        <div class="yprint-order-content">
-            <input 
-                type="text" 
-                id="order-search" 
-                class="yprint-order-search" 
-                placeholder="Bestellnummer, Artikel oder Status suchen..."
-            >
-            
-            <?php if (empty($customer_orders)): ?>
-                <div class="yprint-empty-state">
-                    <h3>Noch keine Bestellungen</h3>
-                    <p>Du hast noch keine Bestellungen aufgegeben.</p>
-                </div>
-            <?php else: ?>
-                <div class="yprint-order-list" id="order-list">
-                    <?php foreach ($customer_orders as $order): ?>
-                        <?php
-                        $order_id = $order->get_id();
-                        $order_date = $order->get_date_created()->format('d.m.Y');
-                        $order_status = $order->get_status();
-                        $order_total = $order->get_formatted_order_total();
-                        $order_items = $order->get_items();
-                        $status_name = wc_get_order_status_name($order_status);
-                        $can_cancel = $order->has_status(array('pending', 'on-hold'));
+        <input type="text" class="yprint-order-search" placeholder="Bestellungen durchsuchen..." id="orderSearch">
+        
+        <?php if (empty($customer_orders)): ?>
+            <div class="yprint-no-orders">
+                Du hast noch keine Bestellungen aufgegeben.
+            </div>
+        <?php else: ?>
+            <div class="yprint-order-list" id="orderList">
+                <?php foreach ($customer_orders as $order): 
+                    $status_name = wc_get_order_status_name($order->get_status());
+                    $order_date = $order->get_date_created();
+                    $now = new DateTime();
+                    $order_time = $order_date->getTimestamp();
+                    $current_time = $now->getTimestamp();
+                    $time_diff_hours = ($current_time - $order_time) / 3600;
+                    
+                    $can_cancel = in_array($order->get_status(), array('pending', 'on-hold')) && $time_diff_hours <= 2;
+                ?>
+                    <div class="yprint-order-card" 
+                         data-search="<?php echo esc_attr(strtolower($order->get_order_number() . ' ' . $status_name . ' ' . $order_date->format('Y-m-d'))); ?>">
                         
-                        // Erstelle Item-Liste
-                        $item_names = array();
-                        foreach ($order_items as $item) {
-                            $item_names[] = $item->get_name();
-                        }
-                        $items_text = count($item_names) > 2 
-                            ? implode(', ', array_slice($item_names, 0, 2)) . ' + ' . (count($item_names) - 2) . ' weitere'
-                            : implode(', ', $item_names);
-                        ?>
-                        <div class="yprint-order-card" data-order-id="<?php echo $order_id; ?>">
-                            <div class="yprint-order-info">
-                                <div class="yprint-order-number">#<?php echo $order_id; ?></div>
-                                <div class="yprint-order-items"><?php echo esc_html($items_text); ?></div>
-                                <div class="yprint-order-date"><?php echo esc_html($order_date); ?></div>
-                                <div class="yprint-order-status status-<?php echo esc_attr($order_status); ?>">
-                                    <?php echo esc_html($status_name); ?>
-                                </div>
-                                <div class="yprint-order-total"><?php echo $order_total; ?></div>
-                            </div>
-                            
-                            <div class="yprint-order-actions">
-                                <a href="<?php echo esc_url($order->get_view_order_url()); ?>" class="yprint-btn">
-                                    Details
-                                </a>
-                                
-                                <?php if ($can_cancel): ?>
-                                    <button onclick="cancelOrder(<?php echo $order_id; ?>)" class="yprint-btn yprint-btn-danger">
-                                        Stornieren
-                                    </button>
+                        <div class="yprint-order-header">
+                            <h3 class="yprint-order-number">Bestellung #<?php echo esc_html($order->get_order_number()); ?></h3>
+                            <span class="yprint-order-status status-<?php echo esc_attr($order->get_status()); ?>">
+                                <?php echo esc_html($status_name); ?>
+                            </span>
+                        </div>
+                        
+                        <div class="yprint-order-meta">
+                            <div class="yprint-order-details">
+                                <?php echo esc_html($order_date->format('d.m.Y H:i')); ?> Uhr
+                                <?php if ($time_diff_hours <= 2 && in_array($order->get_status(), array('pending', 'on-hold'))): ?>
+                                    <br><small style="color: #dc3545;">Stornierung noch <?php echo esc_html(number_format(2 - $time_diff_hours, 1)); ?> Stunden möglich</small>
                                 <?php endif; ?>
-                                
-                                <?php if ($order->has_status('completed')): ?>
-                                    <button class="yprint-btn yprint-btn-primary" onclick="alert('Nachbestellung-Feature kommt bald!');">
-                                        Erneut bestellen
+                            </div>
+                            <div style="display: flex; align-items: center;">
+                                <span class="yprint-order-total"><?php echo wp_kses_post(wc_price($order->get_total())); ?></span>
+                                <?php if ($can_cancel): ?>
+                                    <button class="yprint-cancel-btn" 
+                                            onclick="cancelOrder(<?php echo esc_js($order->get_id()); ?>)">
+                                        Stornieren
                                     </button>
                                 <?php endif; ?>
                             </div>
                         </div>
-                    <?php endforeach; ?>
-                </div>
-            <?php endif; ?>
-        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
     </div>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('order-search');
-        const orderList = document.getElementById('order-list');
-        
-        if (searchInput && orderList) {
-            searchInput.addEventListener('input', function() {
-                const searchTerm = this.value.toLowerCase();
-                const orders = orderList.querySelectorAll('.yprint-order-card');
+    jQuery(document).ready(function($) {
+        // Search functionality
+        $('#orderSearch').on('input', function() {
+            const searchTerm = $(this).val().toLowerCase();
+            
+            $('#orderList .yprint-order-card').each(function() {
+                const searchData = $(this).data('search');
                 
-                orders.forEach(function(order) {
-                    const orderText = order.textContent.toLowerCase();
-                    if (orderText.includes(searchTerm)) {
-                        order.style.display = 'grid';
-                    } else {
-                        order.style.display = 'none';
-                    }
-                });
+                if (searchData.includes(searchTerm)) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
             });
-        }
+        });
     });
 
     function cancelOrder(orderId) {
@@ -399,8 +342,20 @@ function yprint_cancel_order() {
         return;
     }
     
+    // 2-Stunden-Regel prüfen
+    $order_date = $order->get_date_created();
+    $now = new DateTime();
+    $order_time = $order_date->getTimestamp();
+    $current_time = $now->getTimestamp();
+    $time_diff_hours = ($current_time - $order_time) / 3600;
+    
+    if ($time_diff_hours > 2) {
+        wp_send_json_error('Diese Bestellung kann nur innerhalb von 2 Stunden nach Aufgabe storniert werden');
+        return;
+    }
+    
     try {
-        $order->update_status('cancelled', 'Vom Kunden storniert');
+        $order->update_status('cancelled', 'Vom Kunden innerhalb von 2 Stunden storniert');
         wp_send_json_success('Bestellung wurde erfolgreich storniert');
     } catch (Exception $e) {
         wp_send_json_error('Fehler beim Stornieren der Bestellung: ' . $e->getMessage());
