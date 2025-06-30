@@ -166,22 +166,21 @@ function woo_order_history($atts) {
         }
 
         .yprint-cancel-order-btn {
-    background: #f8f9fa;
-    color: #6c757d;
-    border: 1px solid #dee2e6;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 400;
+    background: #dc3545;
+    color: white;
+    border: 1px solid #dc3545;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
     margin-left: 12px;
 }
 
 .yprint-cancel-order-btn:hover {
-    background: #fff3cd;
-    color: #856404;
-    border-color: #ffeaa7;
+    background: #c82333;
+    border-color: #c82333;
     transform: none;
 }
 
@@ -280,22 +279,22 @@ function woo_order_history($atts) {
         }
 
         .yprint-cancel-item-btn {
-    background: #f8f9fa;
-    color: #6c757d;
-    border: 1px solid #dee2e6;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 400;
+    background: #dc3545;
+    color: white;
+    border: 1px solid #dc3545;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
 }
 
 .yprint-cancel-item-btn:hover {
-    background: #fff3cd;
-    color: #856404;
-    border-color: #ffeaa7;
+    background: #c82333;
+    border-color: #c82333;
 }
+
 
 .yprint-cancel-item-btn:disabled {
     background: #e9ecef;
@@ -313,8 +312,14 @@ function woo_order_history($atts) {
     position: relative;
 }
 
-.yprint-order-item.cancelled * {
+.yprint-order-item.cancelled .yprint-item-name,
+.yprint-order-item.cancelled .yprint-design-title,
+.yprint-order-item.cancelled .yprint-item-meta {
     color: #6c757d !important;
+}
+
+.yprint-order-item.cancelled .yprint-item-price {
+    color: #1a1a1a !important;
 }
 
 .yprint-order-item.cancelled .yprint-item-preview {
@@ -456,10 +461,16 @@ function woo_order_history($atts) {
         padding: 12px;
     }
 
-    .yprint-cancel-order-btn, .yprint-cancel-item-btn {
-        font-size: 12px;
-        padding: 6px 10px;
-    }
+    .yprint-cancel-order-btn {
+    font-size: 11px;
+    padding: 5px 10px;
+    margin-left: 8px;
+}
+
+.yprint-cancel-item-btn {
+    font-size: 10px;
+    padding: 3px 6px;
+}
         }
     </style>
 
@@ -587,14 +598,12 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
 </div>
 
 <div class="yprint-item-actions">
-    <div class="yprint-item-price">
-        <?php if ($is_cancelled): ?>
-            <span style="text-decoration: line-through;"><?php echo wp_kses_post(wc_price($item->get_total())); ?></span>
-            <br><small>Storniert</small>
-        <?php else: ?>
-            <?php echo wp_kses_post(wc_price($item->get_total())); ?>
-        <?php endif; ?>
-    </div>
+<div class="yprint-item-price">
+    <?php echo wp_kses_post(wc_price($item->get_total())); ?>
+    <?php if ($is_cancelled): ?>
+        <br><small style="color: #6c757d;">Storniert</small>
+    <?php endif; ?>
+</div>
     <?php if ($item_can_cancel): ?>
         <button class="yprint-cancel-item-btn" 
                 onclick="cancelOrderItem(<?php echo esc_js($order->get_id()); ?>, <?php echo esc_js($item_id); ?>)">
