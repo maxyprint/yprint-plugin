@@ -24,6 +24,10 @@ class YPrint_Order_Actions_Screenshot_Final {
         add_shortcode('yprint_last_order_actions', array(__CLASS__, 'render_order_actions'));
         add_action('wp_ajax_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
         add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
+        add_action('wp_ajax_yprint_reorder_design_with_size', array(__CLASS__, 'handle_reorder_design_with_size'));
+        add_action('wp_ajax_nopriv_yprint_reorder_design_with_size', array(__CLASS__, 'handle_reorder_design_with_size'));
+        add_action('wp_ajax_yprint_get_product_sizes', array(__CLASS__, 'handle_get_product_sizes'));
+        add_action('wp_ajax_nopriv_yprint_get_product_sizes', array(__CLASS__, 'handle_get_product_sizes'));
     }
 
     /**
@@ -394,6 +398,103 @@ class YPrint_Order_Actions_Screenshot_Final {
         display: inline;
     }
 }
+
+/* Size Selection Modal */
+.yprint-size-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.yprint-size-modal {
+    background: white;
+    border-radius: 12px;
+    max-width: 400px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.yprint-size-modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.yprint-size-modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.yprint-size-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s;
+}
+
+.yprint-size-modal-close:hover {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.yprint-size-modal-content {
+    padding: 20px;
+}
+
+.yprint-size-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 10px;
+}
+
+.yprint-size-option {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+    text-align: center;
+}
+
+.yprint-size-option:hover {
+    border-color: #0079FF;
+    background: #f8faff;
+}
+
+@media (max-width: 480px) {
+    .yprint-size-modal {
+        margin: 10px;
+        max-width: none;
+    }
+    
+    .yprint-size-options {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
 </style>
 
         <div id="<?php echo esc_attr($unique_id); ?>" class="<?php echo esc_attr($css_class); ?>">
@@ -580,25 +681,194 @@ if (shareDropdown) {
             }
 
             const handleReorder = (orderId, itemId, designId, button) => {
-                button.classList.add('loading');
-                button.disabled = true;
-                const originalText = button.querySelector('span').textContent;
-                button.querySelector('span').textContent = '<?php echo esc_js($adding_to_cart_text); ?>';
+    // First check if we have design_id to show size selection
+    if (designId && designId !== 'undefined' && designId !== '') {
+        showSizeSelectionModal(designId, button, true, orderId, itemId);
+    } else {
+        // Fallback: Direct reorder without size selection
+        directReorder(orderId, itemId, button);
+    }
+};
 
-                jQuery.ajax({
-                    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-                    type: 'POST',
-                    data: {
-                        action: 'yprint_reorder_item',
-                        order_id: orderId,
-                        item_id: itemId,
-                        design_id: designId,
-                        nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
-                    }
-                })
-                .done(response => {
-                    if (response.success) {
-                        button.querySelector('span').textContent = 'Hinzugefügt!';
+const directReorder = (orderId, itemId, button) => {
+    button.classList.add('loading');
+    button.disabled = true;
+    const originalText = button.querySelector('span').textContent;
+    button.querySelector('span').textContent = '<?php echo esc_js($adding_to_cart_text ?? 'Wird hinzugefügt...'); ?>';
+
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        data: {
+            action: 'yprint_reorder_item',
+            order_id: orderId,
+            item_id: itemId,
+            nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
+        }
+    })
+    .done(response => {
+        if (response.success) {
+            button.querySelector('span').textContent = 'Hinzugefügt!';
+            setTimeout(() => {
+                if (typeof refreshCartDisplay === 'function') {
+                    refreshCartDisplay();
+                }
+                window.location.hash = '#mobile-cart';
+            }, 300);
+            
+            setTimeout(() => {
+                button.querySelector('span').textContent = originalText;
+                button.classList.remove('loading');
+                button.disabled = false;
+            }, 2000);
+        } else {
+            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+            button.querySelector('span').textContent = originalText;
+            button.classList.remove('loading');
+            button.disabled = false;
+        }
+    })
+    .fail(() => {
+        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
+        button.querySelector('span').textContent = originalText;
+        button.classList.remove('loading');
+        button.disabled = false;
+    });
+};
+
+// Size selection modal function (adapted from your-designs-shortcode.php)
+const showSizeSelectionModal = (designId, button, isReorder = false, orderId = null, itemId = null) => {
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Lädt...</span>';
+    button.style.pointerEvents = 'none';
+
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        data: {
+            action: 'yprint_get_product_sizes',
+            design_id: designId,
+            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+        }
+    })
+    .done(response => {
+        if (response.success && response.data) {
+            const modalData = response.data;
+            showSizeModal(modalData, designId, button, originalContent, isReorder, orderId, itemId);
+        } else {
+            alert(response.data || 'Fehler beim Laden der Größen');
+            button.innerHTML = originalContent;
+            button.style.pointerEvents = '';
+        }
+    })
+    .fail(() => {
+        alert('Netzwerkfehler beim Laden der Größen');
+        button.innerHTML = originalContent;
+        button.style.pointerEvents = '';
+    });
+};
+
+const showSizeModal = (modalData, designId, button, originalContent, isReorder, orderId, itemId) => {
+    // Create modal HTML
+    const modalHTML = `
+        <div id="yprint-size-modal-overlay" class="yprint-size-modal-overlay">
+            <div class="yprint-size-modal">
+                <div class="yprint-size-modal-header">
+                    <h3>${isReorder ? 'Größe für Nachbestellung wählen' : 'Größe wählen'}</h3>
+                    <button class="yprint-size-modal-close">&times;</button>
+                </div>
+                <div class="yprint-size-modal-content">
+                    <div class="yprint-size-options">
+                        ${modalData.sizes.map(size => `
+                            <button class="yprint-size-option" data-size-id="${size.id}" data-size-name="${size.name}">
+                                ${size.name}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    const modal = document.getElementById('yprint-size-modal-overlay');
+    const closeBtn = modal.querySelector('.yprint-size-modal-close');
+    const sizeOptions = modal.querySelectorAll('.yprint-size-option');
+    
+    // Close modal handlers
+    const closeModal = () => {
+        modal.remove();
+        button.innerHTML = originalContent;
+        button.style.pointerEvents = '';
+    };
+    
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    
+    // Size selection handlers
+    sizeOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const sizeId = option.dataset.sizeId;
+            const sizeName = option.dataset.sizeName;
+            
+            modal.remove();
+            
+            if (isReorder) {
+                handleReorderWithSize(orderId, itemId, designId, sizeId, sizeName, button);
+            } else {
+                handleOrderWithSize(designId, sizeId, sizeName, button);
+            }
+        });
+    });
+};
+
+const handleReorderWithSize = (orderId, itemId, designId, sizeId, sizeName, button) => {
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
+    button.style.pointerEvents = 'none';
+
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        data: {
+            action: 'yprint_reorder_design_with_size',
+            order_id: orderId,
+            item_id: itemId,
+            design_id: designId,
+            size_id: sizeId,
+            size_name: sizeName,
+            nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
+        }
+    })
+    .done(response => {
+        if (response.success) {
+            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
+            setTimeout(() => {
+                if (typeof refreshCartDisplay === 'function') {
+                    refreshCartDisplay();
+                }
+                window.location.hash = '#mobile-cart';
+            }, 300);
+            
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-shopping-cart"></i><span>Nachbestellen</span>';
+                button.style.pointerEvents = '';
+            }, 2000);
+        } else {
+            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+            button.innerHTML = '<i class="fas fa-shopping-cart"></i><span>Nachbestellen</span>';
+            button.style.pointerEvents = '';
+        }
+    })
+    .fail(() => {
+        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
+        button.innerHTML = '<i class="fas fa-shopping-cart"></i><span>Nachbestellen</span>';
+        button.style.pointerEvents = '';
+    });
+};
                         
                         // Trigger cart update events
                         jQuery(document.body).trigger('added_to_cart', [[], '', button]);
@@ -698,16 +968,48 @@ window.addEventListener('resize', adjustButtonLayout);
      * @return WC_Order|false Latest order or false if none found
      */
     private static function get_latest_user_order($user_id) {
+        // Debug: Log the user ID and query
+        error_log('YPrint Debug: Looking for orders for user ID: ' . $user_id);
+        
         $orders = wc_get_orders(array(
             'customer' => $user_id,
             'limit' => 1,
             'orderby' => 'date',
             'order' => 'DESC',
-            'status' => array_keys(wc_get_order_statuses()),
-            'type' => 'shop_order'
+            'status' => 'any', // Changed from array_keys(wc_get_order_statuses()) to 'any'
+            'type' => 'shop_order',
+            'meta_query' => array(), // Ensure no meta query conflicts
+            'date_query' => array(), // Ensure no date query conflicts
         ));
-
-        return !empty($orders) ? $orders[0] : false;
+    
+        error_log('YPrint Debug: Found ' . count($orders) . ' orders for user ' . $user_id);
+        
+        if (!empty($orders)) {
+            error_log('YPrint Debug: Latest order ID: ' . $orders[0]->get_id() . ', Status: ' . $orders[0]->get_status());
+            return $orders[0];
+        }
+        
+        // Fallback: Try alternative query method
+        global $wpdb;
+        $fallback_order_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT p.ID FROM {$wpdb->posts} p 
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+             WHERE p.post_type = 'shop_order' 
+             AND pm.meta_key = '_customer_user' 
+             AND pm.meta_value = %d 
+             AND p.post_status IN ('wc-completed', 'wc-processing', 'wc-on-hold', 'wc-pending')
+             ORDER BY p.post_date DESC 
+             LIMIT 1",
+            $user_id
+        ));
+        
+        if ($fallback_order_id) {
+            error_log('YPrint Debug: Fallback found order ID: ' . $fallback_order_id);
+            return wc_get_order($fallback_order_id);
+        }
+        
+        error_log('YPrint Debug: No orders found for user ' . $user_id);
+        return false;
     }
 
     /**
@@ -868,7 +1170,142 @@ $cart_item_data['_original_meta'] = array(
         }
     }
 
+   
+    /**
+ * Handle reorder with size selection AJAX request
+ */
+public static function handle_reorder_design_with_size() {
+    check_ajax_referer('yprint_order_actions_nonce', 'nonce');
+
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
+    $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+    $size_id = isset($_POST['size_id']) ? intval($_POST['size_id']) : 0;
+    $size_name = isset($_POST['size_name']) ? sanitize_text_field($_POST['size_name']) : '';
+
+    if (!$order_id || !$item_id || !$design_id || !$size_id) {
+        wp_send_json_error('Ungültige Parameter');
+        return;
+    }
+
+    $current_user_id = get_current_user_id();
+    if (!$current_user_id) {
+        wp_send_json_error('Du musst angemeldet sein');
+        return;
+    }
+
+    if (!class_exists('WooCommerce')) {
+        wp_send_json_error('WooCommerce ist nicht aktiv');
+        return;
+    }
+
+    try {
+        global $wpdb;
+
+        // Get design data
+        $design = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}octo_user_designs WHERE id = %d AND user_id = %d",
+            $design_id,
+            $current_user_id
+        ));
+
+        if (!$design) {
+            wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
+            return;
+        }
+
+        // Get base product ID from design
+        $base_product_id = get_option('yprint_base_product_id', 3657);
+        
+        // Parse design data
+        $design_data = json_decode($design->design_data, true);
+        $preview_url = $design_data['images'][0]['url'] ?? '';
+        $final_design_url = self::get_final_design_url($design_id, $preview_url);
+
+        // Get size details
+        $size_data = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}yprint_product_sizes WHERE id = %d",
+            $size_id
+        ));
+
+        if (!$size_data) {
+            wp_send_json_error('Größe nicht gefunden');
+            return;
+        }
+
+        // Prepare cart item data (similar to your-designs-shortcode.php)
+        $cart_item_data = array(
+            'yprint_design_data' => array(
+                'design_id' => $design_id,
+                'design_name' => $design->design_name,
+                'design_image_url' => $final_design_url,
+                'preview_url' => $preview_url,
+                'created_at' => $design->created_at,
+                'template_id' => $design->template_id
+            ),
+            '_design_id' => $design_id,
+            '_design_name' => $design->design_name,
+            '_design_image_url' => $final_design_url,
+            '_design_size_id' => $size_id,
+            '_design_size_name' => $size_name,
+            '_is_design_product' => true,
+            'unique_design_key' => md5($design_id . $size_id . time())
+        );
+
+        $cart_item_key = WC()->cart->add_to_cart(
+            $base_product_id,
+            1,
+            0,
+            array(),
+            $cart_item_data
+        );
+
+        if (!$cart_item_key) {
+            wp_send_json_error('Design konnte nicht zum Warenkorb hinzugefügt werden');
+            return;
+        }
+
+        wp_send_json_success(array(
+            'message' => 'Design wurde zum Warenkorb hinzugefügt',
+            'cart_item_key' => $cart_item_key,
+            'open_cart' => true,
+            'size_selected' => $size_name
+        ));
+
+    } catch (Exception $e) {
+        wp_send_json_error('Fehler: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Get final design URL from database or fallback to preview
+ */
+private static function get_final_design_url($design_id, $preview_fallback) {
+    global $wpdb;
     
+    $design = $wpdb->get_row($wpdb->prepare(
+        "SELECT design_data FROM {$wpdb->prefix}octo_user_designs WHERE id = %d",
+        $design_id
+    ));
+    
+    if ($design && !empty($design->design_data)) {
+        $design_data = json_decode($design->design_data, true);
+        
+        // Priorität 1: Finale Design-URL aus Datenbank
+        if (!empty($design_data['final_design_url'])) {
+            return $design_data['final_design_url'];
+        }
+        
+        // Priorität 2: Original URL aus Datenbank
+        if (!empty($design_data['design_image_url'])) {
+            return $design_data['design_image_url'];
+        }
+    }
+    
+    // Fallback: Preview URL
+    return $preview_fallback;
+}
+
 }
 
 // Initialize the class
