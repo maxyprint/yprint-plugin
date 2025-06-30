@@ -423,26 +423,34 @@ add_action('wp_ajax_nopriv_yprint_stripe_process_payment', array($this, 'ajax_pr
      * @param int $order_id
      * @param array $posted_data
      */
-    public function add_order_meta($order_id, $posted_data) {
-        if (empty($_POST['payment_request_type']) || !isset($_POST['payment_method']) || 'yprint_stripe' !== $_POST['payment_method']) {
-            return;
-        }
-        
-        $order = wc_get_order($order_id);
-        
-        $payment_request_type = wc_clean(wp_unslash($_POST['payment_request_type']));
-        
-        if ('apple_pay' === $payment_request_type) {
-            $order->set_payment_method_title('Apple Pay (YPrint Stripe)');
-            $order->save();
-        } elseif ('google_pay' === $payment_request_type) {
-            $order->set_payment_method_title('Google Pay (YPrint Stripe)');
-            $order->save();
-        } elseif ('payment_request' === $payment_request_type) {
-            $order->set_payment_method_title('Payment Request (YPrint Stripe)');
-            $order->save();
-        }
+    // includes/stripe/class-yprint-stripe-payment-request.php - add_order_meta() Funktion
+public function add_order_meta($order_id, $posted_data) {
+    // KORREKTUR: Nur für echte Express/Payment Request Zahlungen
+    if (empty($_POST['payment_request_type']) || !isset($_POST['payment_method']) || 'yprint_stripe' !== $_POST['payment_method']) {
+        return;
     }
+    
+    // WICHTIG: Prüfe ob es wirklich eine Express Payment ist
+    $source = isset($_POST['source']) ? wc_clean(wp_unslash($_POST['source'])) : '';
+    if ($source !== 'express_checkout' && $source !== 'payment_request') {
+        // Nicht von Express Checkout - ignoriere payment_request_type
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    $payment_request_type = wc_clean(wp_unslash($_POST['payment_request_type']));
+    
+    if ('apple_pay' === $payment_request_type) {
+        $order->set_payment_method_title('Apple Pay (YPrint Stripe)');
+        $order->save();
+    } elseif ('google_pay' === $payment_request_type) {
+        $order->set_payment_method_title('Google Pay (YPrint Stripe)');
+        $order->save();
+    } elseif ('payment_request' === $payment_request_type) {
+        $order->set_payment_method_title('Payment Request (YPrint Stripe)');
+        $order->save();
+    }
+}
     
     /**
      * AJAX: Get cart details

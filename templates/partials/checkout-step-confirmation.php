@@ -93,23 +93,26 @@ if (!empty($yprint_selected)) {
         'phone'      => $yprint_selected['phone'] ?? '',
     ];
     
-    // Setze Rechnungsadresse: Entweder separate oder gleiche wie Shipping
-    if ($yprint_billing_different && !empty($yprint_billing)) {
-        error_log('YPrint Confirmation: Using SEPARATE BILLING ADDRESS from session');
-        $customer_data['billing'] = [
-            'first_name' => $yprint_billing['first_name'] ?? '',
-            'last_name'  => $yprint_billing['last_name'] ?? '',
-            'address_1'  => $yprint_billing['address_1'] ?? '',
-            'address_2'  => $yprint_billing['address_2'] ?? '',
-            'city'       => $yprint_billing['city'] ?? '',
-            'postcode'   => $yprint_billing['postcode'] ?? '',
-            'country'    => $yprint_billing['country'] ?? 'DE',
-            'phone'      => $yprint_billing['phone'] ?? '',
-        ];
-    } else {
-        error_log('YPrint Confirmation: Using SHIPPING AS BILLING ADDRESS from session');
-        $customer_data['billing'] = $customer_data['shipping'];
-    }
+    // templates/partials/checkout-step-confirmation.php - Rechnungsadresse Sektion
+// Setze Rechnungsadresse: Entweder separate oder gleiche wie Shipping
+if ($yprint_billing_different && !empty($yprint_billing) && !empty($yprint_billing['address_1'])) {
+    error_log('YPrint Confirmation: Using SEPARATE BILLING ADDRESS from session');
+    $customer_data['billing'] = [
+        'first_name' => $yprint_billing['first_name'] ?? '',
+        'last_name'  => $yprint_billing['last_name'] ?? '',
+        'address_1'  => $yprint_billing['address_1'] ?? '',
+        'address_2'  => $yprint_billing['address_2'] ?? '',
+        'city'       => $yprint_billing['city'] ?? '',
+        'postcode'   => $yprint_billing['postcode'] ?? '',
+        'country'    => $yprint_billing['country'] ?? 'DE',
+        'phone'      => $yprint_billing['phone'] ?? '',
+    ];
+    error_log('YPrint Confirmation: Final billing address set to: ' . $customer_data['billing']['address_1']);
+} else {
+    error_log('YPrint Confirmation: Using SHIPPING AS BILLING ADDRESS from session');
+    $customer_data['billing'] = $customer_data['shipping'];
+    error_log('YPrint Confirmation: Billing=Shipping, address: ' . $customer_data['billing']['address_1']);
+}
     
     // E-Mail und Telefon aus User-Daten oder Order
     if ( $final_order instanceof \WC_Order ) {
