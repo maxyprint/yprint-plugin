@@ -54,6 +54,7 @@ function yprint_get_email_template($title, $username, $content) {
                                 <tr>
                                     <td align="center" style="color: #1d1d1f; font-size: 15px; line-height: 1.5; padding-bottom: 10px;">
                                         <p style="margin-top: 0;">Hi <?php echo esc_html($username); ?>,</p>
+                                        <p style="margin-top: 0;">Danke für deine Bestellung!,</p>
                                         
                                         <!-- Inhalt wird hier eingefügt -->
                                         <?php 
@@ -202,14 +203,6 @@ function yprint_build_order_confirmation_content($order) {
     ?>
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; line-height: 1.6; color: <?php echo esc_attr($text_color_dark); ?>; max-width: 600px; margin: 20px auto; padding: 20px;">
 
-        <div style="text-align: center; padding: 40px 20px; background-color: #FFFFFF; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>;">
-            <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: 700; color: <?php echo esc_attr($accent_color); ?>;">
-                Vielen Dank für Ihre Bestellung!
-            </h1>
-            <p style="margin: 0; font-size: 18px; color: <?php echo esc_attr($text_color_light); ?>;">
-                Ihre Bestellung bei YPrint wurde erfolgreich bestätigt.
-            </p>
-        </div>
 
         <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px;">
             <h2 style="margin: 0 0 25px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 22px; font-weight: 600;">
