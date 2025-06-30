@@ -73,28 +73,120 @@ function woo_order_history($atts) {
             padding: 0;
         }
 
-        .yprint-order-search {
-            width: 100%;
-            padding: 16px 20px;
-            background: #f8f9fa;
-            border: none;
-            border-radius: 12px;
-            margin-bottom: 24px;
-            font-size: 16px;
-            color: #333;
-            box-sizing: border-box;
-            transition: all 0.3s ease;
-        }
+        .yprint-search-container {
+    position: relative;
+    margin-bottom: 32px;
+}
 
-        .yprint-order-search:focus {
-            outline: none;
-            background: #ffffff;
-            box-shadow: 0 0 0 2px #007cba;
-        }
+.yprint-order-search {
+    width: 100%;
+    padding: 18px 20px 18px 55px;
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid #e1e5e9;
+    border-radius: 16px;
+    font-size: 16px;
+    color: #2d3748;
+    box-sizing: border-box;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    font-weight: 400;
+}
 
-        .yprint-order-search::placeholder {
-            color: #999;
-        }
+.yprint-order-search:hover {
+    border-color: #cbd5e0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.yprint-order-search:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #007cba;
+    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1), 0 4px 16px rgba(0, 124, 186, 0.15);
+    transform: translateY(-1px);
+}
+
+.yprint-order-search::placeholder {
+    color: #a0aec0;
+    font-weight: 400;
+}
+
+.yprint-search-icon {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    color: #718096;
+    pointer-events: none;
+    transition: color 0.3s ease;
+    z-index: 1;
+}
+
+.yprint-search-container:hover .yprint-search-icon {
+    color: #4a5568;
+}
+
+.yprint-order-search:focus + .yprint-search-icon,
+.yprint-search-container:focus-within .yprint-search-icon {
+    color: #007cba;
+}
+
+.yprint-clear-search {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #e2e8f0;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: #718096;
+    transition: all 0.3s ease;
+    z-index: 1;
+}
+
+.yprint-clear-search:hover {
+    background: #cbd5e0;
+    color: #4a5568;
+    transform: translateY(-50%) scale(1.1);
+}
+
+.yprint-search-container.has-value .yprint-clear-search {
+    display: flex;
+}
+
+@media (max-width: 768px) {
+    .yprint-search-container {
+        margin-bottom: 24px;
+    }
+    
+    .yprint-order-search {
+        padding: 16px 18px 16px 50px;
+        font-size: 16px;
+        border-radius: 14px;
+    }
+    
+    .yprint-search-icon {
+        left: 18px;
+        width: 18px;
+        height: 18px;
+    }
+    
+    .yprint-clear-search {
+        right: 14px;
+        width: 22px;
+        height: 22px;
+        font-size: 13px;
+    }
+}
 
         .yprint-order-list {
             display: flex;
@@ -475,7 +567,14 @@ function woo_order_history($atts) {
     </style>
 
     <div class="yprint-order-history">
-        <input type="text" class="yprint-order-search" placeholder="Bestellungen durchsuchen..." id="orderSearch">
+        <div class="yprint-search-container">
+    <input type="text" class="yprint-order-search" placeholder="Bestellungen durchsuchen..." id="orderSearch">
+    <svg class="yprint-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="m21 21-4.35-4.35"></path>
+    </svg>
+    <button type="button" class="yprint-clear-search" id="clearSearch">×</button>
+</div>
         
         <?php if (empty($customer_orders)): ?>
             <div class="yprint-no-orders">
@@ -670,7 +769,64 @@ foreach ($order_items as $item_id => $item):
 
     <script>
     jQuery(document).ready(function($) {
-        // Search functionality
+    const $searchInput = $('#orderSearch');
+    const $clearButton = $('#clearSearch');
+    const $searchContainer = $('.yprint-search-container');
+    
+    // Search functionality with improved UX
+    $searchInput.on('input', function() {
+        const searchTerm = $(this).val().toLowerCase().trim();
+        
+        // Toggle clear button visibility
+        if (searchTerm.length > 0) {
+            $searchContainer.addClass('has-value');
+        } else {
+            $searchContainer.removeClass('has-value');
+        }
+        
+        // Filter orders
+        let visibleCount = 0;
+        $('#orderList .yprint-order-card').each(function() {
+            const searchData = $(this).data('search');
+            
+            if (searchTerm === '' || searchData.includes(searchTerm)) {
+                $(this).show();
+                visibleCount++;
+            } else {
+                $(this).hide();
+            }
+        });
+        
+        // Show no results message if needed
+        $('#noResultsMessage').remove();
+        if (searchTerm.length > 0 && visibleCount === 0) {
+            $('#orderList').after(`
+                <div id="noResultsMessage" style="text-align: center; padding: 40px 20px; color: #718096;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🔍</div>
+                    <div style="font-size: 18px; margin-bottom: 8px;">Keine Bestellungen gefunden</div>
+                    <div style="font-size: 14px;">Versuche es mit einem anderen Suchbegriff</div>
+                </div>
+            `);
+        }
+    });
+    
+    // Clear search functionality
+    $clearButton.on('click', function() {
+        $searchInput.val('').trigger('input').focus();
+    });
+    
+    // Enhanced keyboard shortcuts
+    $searchInput.on('keydown', function(e) {
+        if (e.key === 'Escape') {
+            $(this).val('').trigger('input');
+        }
+    });
+    
+    // Auto-focus with subtle animation
+    setTimeout(function() {
+        $searchInput.focus();
+    }, 300);
+});        // Search functionality
         $('#orderSearch').on('input', function() {
             const searchTerm = $(this).val().toLowerCase();
             
