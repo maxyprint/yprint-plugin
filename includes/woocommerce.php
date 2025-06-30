@@ -540,7 +540,10 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
                         </div>
 
                         <div class="yprint-order-items" id="order-items-<?php echo esc_attr($order->get_id()); ?>">
-                        <?php foreach ($order_items as $item_id => $item): 
+                        <?php 
+$item_position = 0;
+foreach ($order_items as $item_id => $item): 
+    $item_position++;
     $product = $item->get_product();
     $is_cancelled = $item->get_meta('_cancelled');
     $cancelled_date = $item->get_meta('_cancelled_date');
@@ -552,10 +555,12 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
     $design_color = $item->get_meta('_design_color');
     $design_size = $item->get_meta('_design_size');
     $design_id = $item->get_meta('_design_id');
+    $base_product_name = $item->get_name();
     
-    // Determine display name (prefer design name over product name)
-    $display_name = !empty($design_name) ? $design_name : $item->get_name();
-    $is_design_product = !empty($design_id);
+    // Determine display names
+    $is_design_product = !empty($design_id) && !empty($design_name);
+    $primary_name = $is_design_product ? $design_name : $base_product_name;
+    $secondary_name = $is_design_product ? $base_product_name : '';
 ?>
     <div class="yprint-order-item <?php echo $is_cancelled ? 'cancelled' : ''; ?>" data-item-id="<?php echo esc_attr($item_id); ?>">
         <?php if ($is_cancelled): ?>
@@ -570,10 +575,26 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
                                     </div>
                                     
                                     <div class="yprint-item-info">
-    <?php if ($is_design_product && !empty($design_name)): ?>
+    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+        <span style="background: #f8f9fa; color: #6c757d; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 500;">
+            Pos. <?php echo $item_position; ?>
+        </span>
+        <?php if ($is_cancelled): ?>
+            <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 500;">
+                STORNIERT
+            </span>
+        <?php endif; ?>
+    </div>
+    
+    <?php if ($is_design_product): ?>
         <div class="yprint-design-title"><?php echo esc_html($design_name); ?></div>
+        <div class="yprint-item-name" style="font-size: 14px; color: #6c757d;">
+            auf: <?php echo esc_html($base_product_name); ?>
+        </div>
+    <?php else: ?>
+        <div class="yprint-item-name"><?php echo esc_html($primary_name); ?></div>
     <?php endif; ?>
-    <div class="yprint-item-name"><?php echo esc_html($display_name); ?></div>
+    
     <div class="yprint-item-meta">
         Menge: <?php echo esc_html($item->get_quantity()); ?>
         <?php if (!empty($design_color)): ?>
@@ -589,7 +610,7 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
     
     <?php if ($is_cancelled): ?>
         <div class="yprint-cancelled-info">
-            <strong>Artikel storniert</strong>
+            <strong>Position <?php echo $item_position; ?> storniert</strong>
             <?php if (!empty($cancelled_date)): ?>
                 <br>am <?php echo esc_html(date('d.m.Y H:i', strtotime($cancelled_date))); ?> Uhr
             <?php endif; ?>
@@ -881,19 +902,31 @@ function yprint_cancel_order_item() {
         $item->add_meta_data('_cancelled_reason', 'Customer cancellation within 2 hours', true);
         $item->add_meta_data('_item_status', 'cancelled', true);
         $item->save();
-
-        // Trigger admin notification
-do_action('yprint_item_cancelled', $order->get_id(), $item_id, $item->get_name());
         
-        // Calculate cancelled items count and update order meta
+        // Get item position and create descriptive names
         $all_items = $order->get_items();
+        $item_position = 0;
         $cancelled_count = 0;
         $total_count = count($all_items);
         
-        foreach ($all_items as $order_item) {
+        foreach ($all_items as $order_item_id => $order_item) {
+            $item_position++;
+            if ($order_item_id == $item_id) {
+                $current_item_position = $item_position;
+            }
             if ($order_item->get_meta('_cancelled')) {
                 $cancelled_count++;
             }
+        }
+        
+        // Create descriptive item name for notes
+        $design_name = $item->get_meta('_design_name');
+        $base_product_name = $item->get_name();
+        
+        if (!empty($design_name)) {
+            $item_description = sprintf('"%s" (auf %s)', $design_name, $base_product_name);
+        } else {
+            $item_description = sprintf('"%s"', $base_product_name);
         }
         
         // Update order meta with cancellation info
@@ -910,10 +943,11 @@ do_action('yprint_item_cancelled', $order->get_id(), $item_id, $item->get_name()
             $percentage_cancelled = round(($cancelled_count / $total_count) * 100);
             $order->update_meta_data('_partial_cancellation_percentage', $percentage_cancelled);
             
-            // Add prominent order note
+            // Add prominent order note with position
             $order->add_order_note(sprintf(
-                '🚨 ARTIKEL STORNIERT: "%s" vom Kunden storniert (%d von %d Artikeln = %d%% storniert)', 
-                $item->get_name(), 
+                '🚨 ARTIKEL STORNIERT: Position %d - %s vom Kunden storniert (%d von %d Artikeln = %d%% storniert)', 
+                $current_item_position,
+                $item_description, 
                 $cancelled_count, 
                 $total_count, 
                 $percentage_cancelled
@@ -924,6 +958,9 @@ do_action('yprint_item_cancelled', $order->get_id(), $item_id, $item->get_name()
                 $order->add_order_note('⚠️ WARNUNG: Mehr als 50% der Artikel wurden storniert!');
             }
         }
+        
+        // Trigger admin notification with position info
+        do_action('yprint_item_cancelled', $order->get_id(), $item_id, $item_description, $current_item_position);
         
         // Recalculate order totals
         $order->calculate_totals();
@@ -947,10 +984,15 @@ function yprint_add_cancelled_header($order) {
 
 add_action('woocommerce_admin_order_item_values', 'yprint_display_cancelled_status', 10, 3);
 function yprint_display_cancelled_status($product, $item, $item_id) {
+    static $position_counter = 0;
+    $position_counter++;
+    
     $is_cancelled = $item->get_meta('_cancelled');
     $cancelled_date = $item->get_meta('_cancelled_date');
     
     echo '<td class="item-cancelled">';
+    echo '<div style="font-size: 11px; color: #666; margin-bottom: 4px;">Pos. ' . $position_counter . '</div>';
+    
     if ($is_cancelled) {
         echo '<span style="color: #dc3545; font-weight: bold;">❌ STORNIERT</span>';
         if ($cancelled_date) {
@@ -995,21 +1037,39 @@ function yprint_cancellation_meta_box_callback($post) {
     echo '<p><strong>' . $cancelled_count . ' von ' . $total_count . ' Artikeln storniert</strong></p>';
     echo '<p>Stornierungsrate: <strong>' . $percentage . '%</strong></p>';
     
-    // List cancelled items
-    echo '<h5>Stornierte Artikel:</h5>';
-    echo '<ul style="margin: 5px 0;">';
+    // List all items with positions and status
+    echo '<h5>Artikel-Übersicht:</h5>';
+    echo '<div style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px;">';
+    $position = 0;
     foreach ($order->get_items() as $item) {
-        if ($item->get_meta('_cancelled')) {
-            $cancelled_date = $item->get_meta('_cancelled_date');
-            echo '<li style="color: #dc3545;">';
-            echo '<strong>' . $item->get_name() . '</strong>';
-            if ($cancelled_date) {
-                echo '<br><small>Storniert am: ' . date('d.m.Y H:i', strtotime($cancelled_date)) . '</small>';
-            }
-            echo '</li>';
+        $position++;
+        $is_cancelled = $item->get_meta('_cancelled');
+        $cancelled_date = $item->get_meta('_cancelled_date');
+        $design_name = $item->get_meta('_design_name');
+        $base_product_name = $item->get_name();
+        
+        // Create display name
+        if (!empty($design_name)) {
+            $display_name = sprintf('<strong>%s</strong><br><small style="color: #666;">auf: %s</small>', $design_name, $base_product_name);
+        } else {
+            $display_name = '<strong>' . $base_product_name . '</strong>';
         }
+        
+        $status_color = $is_cancelled ? '#dc3545' : '#28a745';
+        $status_text = $is_cancelled ? '❌ STORNIERT' : '✅ Aktiv';
+        
+        echo '<div style="border-bottom: 1px solid #eee; padding: 8px 0; display: flex; justify-content: space-between; align-items: center;">';
+        echo '<div>';
+        echo '<span style="background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-right: 8px;">Pos. ' . $position . '</span>';
+        echo $display_name;
+        if ($is_cancelled && $cancelled_date) {
+            echo '<br><small style="color: #999;">Storniert: ' . date('d.m.Y H:i', strtotime($cancelled_date)) . '</small>';
+        }
+        echo '</div>';
+        echo '<div style="color: ' . $status_color . '; font-weight: bold; font-size: 12px;">' . $status_text . '</div>';
+        echo '</div>';
     }
-    echo '</ul>';
+    echo '</div>';
     echo '</div>';
 }
 
@@ -1079,22 +1139,24 @@ function yprint_highlight_cancelled_orders($classes, $class, $post_id) {
 /**
  * Send admin notification when item is cancelled
  */
-add_action('yprint_item_cancelled', 'yprint_notify_admin_item_cancellation', 10, 3);
-function yprint_notify_admin_item_cancellation($order_id, $item_id, $item_name) {
+add_action('yprint_item_cancelled', 'yprint_notify_admin_item_cancellation', 10, 4);
+function yprint_notify_admin_item_cancellation($order_id, $item_id, $item_description, $position) {
     $order = wc_get_order($order_id);
     $admin_email = get_option('admin_email');
     
-    $subject = sprintf('[%s] Artikel storniert in Bestellung #%s', get_bloginfo('name'), $order->get_order_number());
+    $subject = sprintf('[%s] Position %d storniert in Bestellung #%s', get_bloginfo('name'), $position, $order->get_order_number());
     
     $message = sprintf(
         "Ein Artikel wurde vom Kunden storniert:\n\n" .
         "Bestellung: #%s\n" .
+        "Position: %d\n" .
         "Artikel: %s\n" .
         "Kunde: %s\n" .
         "Storniert am: %s\n\n" .
         "Bestellung ansehen: %s",
         $order->get_order_number(),
-        $item_name,
+        $position,
+        $item_description,
         $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
         current_time('d.m.Y H:i'),
         admin_url('post.php?post=' . $order_id . '&action=edit')
