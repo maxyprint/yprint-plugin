@@ -1729,111 +1729,120 @@ if (voucherButton) {
             productListEl.appendChild(finalOrderNote);
         }
 
-        /**
-     * Füllt die Bestätigungsseite mit Zahlungsdaten aus dem Payment Processing
-     */
-    function populateConfirmationWithPaymentData(paymentData) {
-        console.log('Populating confirmation with payment data:', paymentData);
-        
-        // Zeige Erfolgsmeldung
-        showMessage('Zahlung erfolgreich! Ihre Bestellung wird verarbeitet.', 'success');
-        
-        // Zahlungsart basierend auf Payment Data setzen
-        const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
-        if (confirmPaymentMethodEl && paymentData.payment_method_id) {
-            // Nutze die bereits vorhandene getPaymentMethodTitle Funktion
-            let paymentMethodText = null;
-            
-            // Verwende echte Payment Method Erkennung statt hardcoded Text
-            if (typeof getPaymentMethodTitle === 'function') {
-                paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
-            }
-            
-            // Fallback falls getPaymentMethodTitle nicht verfügbar oder null zurückgibt
-            if (!paymentMethodText) {
-                paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
+/**
+ * Füllt die Bestätigungsseite mit Zahlungsdaten aus dem Payment Processing.
+ * @param {object} paymentData - Die Zahlungsdaten vom Payment Processing.
+ */
+function populateConfirmationWithPaymentData(paymentData) {
+    console.log('Populating confirmation with payment data:', paymentData);
+
+    // Zeige Erfolgsmeldung an.
+    showMessage('Zahlung erfolgreich! Ihre Bestellung wird verarbeitet.', 'success');
+
+    // Zahlungsart basierend auf Payment Data setzen.
+    const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
+    if (confirmPaymentMethodEl && paymentData.payment_method_id) {
+        let paymentMethodText = null;
+
+        // Versuche, den Titel der Zahlungsart über die vorhandene Funktion zu erhalten.
+        if (typeof getPaymentMethodTitle === 'function') {
+            paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
+        }
+
+        // Fallback, falls getPaymentMethodTitle nicht verfügbar ist oder null zurückgibt.
+        if (!paymentMethodText) {
+            paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
+        }
+        confirmPaymentMethodEl.innerHTML = paymentMethodText; // Diese Zeile wurde hier beibehalten.
+    }
+
+    // Speichere Payment Data global für spätere Payment Method Detection.
+    window.confirmationPaymentData = paymentData;
+
+    // KRITISCH: Trigger Payment Method Detection für Express Payments.
+    console.log('=== TRIGGERING PAYMENT METHOD DETECTION FOR EXPRESS PAYMENTS ===');
+    console.log('Payment Data set:', paymentData);
+
+    // Erzwinge Payment Method Detection Update via Event.
+    setTimeout(() => {
+        console.log('Dispatching yprint_payment_data_updated event');
+        window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
+            detail: { source: 'populateConfirmationWithPaymentData', paymentData: paymentData }
+        }));
+    }, 100);
+
+    // Backup-Trigger für Payment Method Detection.
+    setTimeout(() => {
+        if (typeof window.updatePaymentMethodDisplay === 'function') {
+            console.log('🔄 Direct backup call updatePaymentMethodDisplay');
+            window.updatePaymentMethodDisplay();
+        }
+        if (typeof window.attemptPaymentMethodUpdate === 'function') {
+            console.log('🔄 Direct backup call attemptPaymentMethodUpdate');
+            window.attemptPaymentMethodUpdate(1, 5);
+        }
+    }, 300);
+
+    // Setze Kundeninformationen, falls vorhanden.
+    if (paymentData.order_data && paymentData.order_data.customer_details) {
+        const customerDetails = paymentData.order_data.customer_details;
+        const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
+
+        if (confirmShippingAddressEl && customerDetails.name) {
+            const billingAddress = paymentData.order_data.billing_address;
+            const shippingAddress = paymentData.order_data.shipping_address;
+
+            let addressInfo = customerDetails.name + '<br>';
+
+            if (shippingAddress && shippingAddress.addressLine) {
+                addressInfo += shippingAddress.addressLine[0] + '<br>';
+                addressInfo += shippingAddress.postalCode + ' ' + shippingAddress.city + '<br>';
+                addressInfo += shippingAddress.country;
+            } else if (billingAddress) {
+                addressInfo += (billingAddress.line1 || '') + '<br>';
+                addressInfo += (billingAddress.postal_code || '') + ' ' + (billingAddress.city || '') + '<br>';
+                addressInfo += (billingAddress.country || '');
             }
 
-            // Speichere Payment Data global für spätere Payment Method Detection
-        window.confirmationPaymentData = paymentData;
-        
-        // KRITISCH: Trigger Payment Method Detection für Express Payments
-        console.log('=== TRIGGERING PAYMENT METHOD DETECTION FOR EXPRESS PAYMENTS ===');
-        console.log('Payment Data set:', paymentData);
-        
-        // Force Payment Method Detection Update via Event
-        setTimeout(() => {
-            console.log('Dispatching yprint_payment_data_updated event');
-            window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
-                detail: { paymentData: paymentData }
-            }));
-        }, 100);
-        
-        confirmPaymentMethodEl.innerHTML = paymentMethodText;
-        
-            
-            // Detect payment method type from payment data
-            if (paymentData.order_data && paymentData.order_data.customer_details) {
-                const customerDetails = paymentData.order_data.customer_details;
-                
-                // Set customer info if available
-                const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
-                if (confirmShippingAddressEl && customerDetails.name) {
-                    const billingAddress = paymentData.order_data.billing_address;
-                    const shippingAddress = paymentData.order_data.shipping_address;
-                    
-                    let addressInfo = customerDetails.name + '<br>';
-                    
-                    if (shippingAddress && shippingAddress.addressLine) {
-                        addressInfo += shippingAddress.addressLine[0] + '<br>';
-                        addressInfo += shippingAddress.postalCode + ' ' + shippingAddress.city + '<br>';
-                        addressInfo += shippingAddress.country;
-                    } else if (billingAddress) {
-                        addressInfo += (billingAddress.line1 || '') + '<br>';
-                        addressInfo += (billingAddress.postal_code || '') + ' ' + (billingAddress.city || '') + '<br>';
-                        addressInfo += (billingAddress.country || '');
-                    }
-                    
-                    if (customerDetails.phone) {
-                        addressInfo += '<br>Tel: ' + customerDetails.phone;
-                    }
-                    
-                    confirmShippingAddressEl.innerHTML = addressInfo;
-                }
+            if (customerDetails.phone) {
+                addressInfo += '<br>Tel: ' + customerDetails.phone;
             }
-            
-            confirmPaymentMethodEl.innerHTML = paymentMethodText;
+            confirmShippingAddressEl.innerHTML = addressInfo;
         }
-        
-        // Verstecke Rechnungsadresse da sie gleich der Lieferadresse ist (Apple Pay Standard)
-        const confirmBillingContainer = document.getElementById('confirm-billing-address-container');
-        if (confirmBillingContainer) {
-            confirmBillingContainer.classList.add('hidden');
-        }
-        
-        // Zeige Test-Mode Hinweis
-        if (paymentData.test_mode) {
-            const testModeNotice = document.createElement('div');
-            testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
-            testModeNotice.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    <span><strong>Test-Modus:</strong> Diese Zahlung wurde im Test-Modus verarbeitet. Kein echtes Geld wurde belastet.</span>
-                </div>
-            `;
-            
-            const confirmationStep = document.getElementById('step-3');
-            if (confirmationStep) {
-                confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
-            }
-        }
-        
-        // Lade und zeige Warenkorbdaten
-        loadRealCartData().then(() => {
-            updateConfirmationProductList();
-            updateConfirmationTotals();
-        });
     }
+
+    // Verstecke Rechnungsadresse, da sie gleich der Lieferadresse ist (Apple Pay Standard).
+    const confirmBillingContainer = document.getElementById('confirm-billing-address-container');
+    if (confirmBillingContainer) {
+        confirmBillingContainer.classList.add('hidden');
+    }
+
+    // Zeige Test-Modus Hinweis an.
+    if (paymentData.test_mode) {
+        const testModeNotice = document.createElement('div');
+        testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
+        testModeNotice.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <span><strong>Test-Modus:</strong> Diese Zahlung wurde im Test-Modus verarbeitet. Kein echtes Geld wurde belastet.</span>
+            </div>
+        `;
+
+        const confirmationStep = document.getElementById('step-3');
+        if (confirmationStep) {
+            confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
+        }
+    }
+
+    // Lade und zeige Warenkorbdaten
+    // HINWEIS: Hier wurden loadRealCartData() und populateConfirmation() hinzugefügt.
+    loadRealCartData().then(() => {
+        updateConfirmationProductList();
+        updateConfirmationTotals();
+        populateConfirmation(); // Hier wurde populateConfirmation() hinzugefügt.
+    });
+}
+
 
     // Globale Warenkorb-Anzeige Funktionalität
 class YPrintOrderDisplay {
