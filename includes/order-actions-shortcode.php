@@ -482,6 +482,30 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
     position: relative;
 }
 
+/* Ensure share dropdown is properly positioned */
+.yprint-last-order-action-btn.share .yprint-share-dropdown-desktop {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 8px;
+    display: none;
+    z-index: 1000;
+    min-width: 160px;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.yprint-last-order-action-btn.share .yprint-share-dropdown-desktop.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .yprint-last-order-action-btn.share:hover {
     color: #374151;
     background-color: #f3f4f6;
@@ -785,15 +809,32 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('YPrint Debug [Order Actions]: Share button dataset:', shareButton.dataset);
         
         shareButton.addEventListener('click', (e) => {
-            console.log('YPrint Debug [Order Actions]: 🎯 SHARE BUTTON CLICKED!');
-            e.preventDefault();
-            
-            if (shareDropdown) {
-                shareDropdown.classList.toggle('show');
-                shareButton.classList.toggle('show');
-                console.log('YPrint Debug [Order Actions]: Share dropdown toggled');
-            }
-        });
+    console.log('YPrint Debug [Order Actions]: 🎯 SHARE BUTTON CLICKED!');
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Close other open dropdowns first
+    document.querySelectorAll('.yprint-share-dropdown-desktop.show').forEach(dropdown => {
+        if (dropdown !== shareDropdown) {
+            dropdown.classList.remove('show');
+            dropdown.closest('.yprint-share-trigger').classList.remove('show');
+        }
+    });
+    
+    if (shareDropdown) {
+        shareDropdown.classList.toggle('show');
+        shareButton.classList.toggle('show');
+        console.log('YPrint Debug [Order Actions]: Share dropdown toggled', shareDropdown.classList.contains('show'));
+    }
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!shareButton.contains(e.target) && !shareDropdown.contains(e.target)) {
+        shareDropdown.classList.remove('show');
+        shareButton.classList.remove('show');
+    }
+});
         
         // Share option clicks - use event delegation
 if (shareDropdown) {
