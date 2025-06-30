@@ -166,29 +166,31 @@ function woo_order_history($atts) {
         }
 
         .yprint-cancel-order-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-left: 12px;
-        }
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-left: 12px;
+}
 
-        .yprint-cancel-order-btn:hover {
-            background: #c82333;
-            transform: translateY(-1px);
-        }
+.yprint-cancel-order-btn:hover {
+    background: #fff3cd;
+    color: #856404;
+    border-color: #ffeaa7;
+    transform: none;
+}
 
-        .yprint-cancel-order-btn:disabled {
-            background: #e9ecef;
-            color: #6c757d;
-            cursor: not-allowed;
-            transform: none;
-        }
+.yprint-cancel-order-btn:disabled {
+    background: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+}
 
         .yprint-order-items {
             border-top: 1px solid #f1f3f4;
@@ -278,26 +280,71 @@ function woo_order_history($atts) {
         }
 
         .yprint-cancel-item-btn {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
 
-        .yprint-cancel-item-btn:hover {
-            background: #c82333;
-        }
+.yprint-cancel-item-btn:hover {
+    background: #fff3cd;
+    color: #856404;
+    border-color: #ffeaa7;
+}
 
-        .yprint-cancel-item-btn:disabled {
-            background: #e9ecef;
-            color: #6c757d;
-            cursor: not-allowed;
-        }
+.yprint-cancel-item-btn:disabled {
+    background: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+}
+
+.yprint-order-item.cancelled {
+    opacity: 0.6;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 8px 0;
+    position: relative;
+}
+
+.yprint-order-item.cancelled * {
+    color: #6c757d !important;
+}
+
+.yprint-order-item.cancelled .yprint-item-preview {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.yprint-cancelled-label {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: #6c757d;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.yprint-cancelled-info {
+    background: #f1f3f4;
+    color: #5f6368;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    margin-top: 8px;
+    border-left: 3px solid #6c757d;
+}
 
         .yprint-expand-icon {
             margin-left: 8px;
@@ -367,37 +414,52 @@ function woo_order_history($atts) {
         }
 
         @media (max-width: 768px) {
-            .yprint-order-history {
-                padding: 0 16px;
-            }
+    .yprint-order-history {
+        padding: 0 16px;
+    }
             
-            .yprint-order-header {
-                flex-direction: column;
-                gap: 8px;
-                align-items: flex-start;
-            }
+    .yprint-order-header {
+        flex-direction: column;
+        gap: 8px;
+        align-items: flex-start;
+    }
             
-            .yprint-order-meta, .yprint-order-actions {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-            }
+    .yprint-order-meta, .yprint-order-actions {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
 
-            .yprint-order-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 12px;
-            }
+    .yprint-order-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
 
-            .yprint-item-actions {
-                width: 100%;
-                justify-content: space-between;
-            }
+    .yprint-item-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
 
-            .yprint-item-preview {
-                width: 50px;
-                height: 50px;
-            }
+    .yprint-item-preview {
+        width: 50px;
+        height: 50px;
+    }
+
+    .yprint-cancelled-label {
+        position: static;
+        display: inline-block;
+        margin-top: 8px;
+    }
+
+    .yprint-order-item.cancelled {
+        padding: 12px;
+    }
+
+    .yprint-cancel-order-btn, .yprint-cancel-item-btn {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
         }
     </style>
 
@@ -467,22 +529,27 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
                         </div>
 
                         <div class="yprint-order-items" id="order-items-<?php echo esc_attr($order->get_id()); ?>">
-                            <?php foreach ($order_items as $item_id => $item): 
-                                $product = $item->get_product();
-                                $item_can_cancel = $can_cancel && !$item->get_meta('_cancelled');
-                                
-                                // Get design data
-                                $design_name = $item->get_meta('_design_name');
-                                $design_preview = $item->get_meta('_design_preview_url');
-                                $design_color = $item->get_meta('_design_color');
-                                $design_size = $item->get_meta('_design_size');
-                                $design_id = $item->get_meta('_design_id');
-                                
-                                // Determine display name (prefer design name over product name)
-                                $display_name = !empty($design_name) ? $design_name : $item->get_name();
-                                $is_design_product = !empty($design_id);
-                            ?>
-                                <div class="yprint-order-item" data-item-id="<?php echo esc_attr($item_id); ?>">
+                        <?php foreach ($order_items as $item_id => $item): 
+    $product = $item->get_product();
+    $is_cancelled = $item->get_meta('_cancelled');
+    $cancelled_date = $item->get_meta('_cancelled_date');
+    $item_can_cancel = $can_cancel && !$is_cancelled;
+    
+    // Get design data
+    $design_name = $item->get_meta('_design_name');
+    $design_preview = $item->get_meta('_design_preview_url');
+    $design_color = $item->get_meta('_design_color');
+    $design_size = $item->get_meta('_design_size');
+    $design_id = $item->get_meta('_design_id');
+    
+    // Determine display name (prefer design name over product name)
+    $display_name = !empty($design_name) ? $design_name : $item->get_name();
+    $is_design_product = !empty($design_id);
+?>
+    <div class="yprint-order-item <?php echo $is_cancelled ? 'cancelled' : ''; ?>" data-item-id="<?php echo esc_attr($item_id); ?>">
+        <?php if ($is_cancelled): ?>
+            <div class="yprint-cancelled-label">Storniert</div>
+        <?php endif; ?>
                                     <div class="yprint-item-preview">
                                         <?php if (!empty($design_preview)): ?>
                                             <img src="<?php echo esc_url($design_preview); ?>" alt="Design Preview">
@@ -492,33 +559,49 @@ $can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $tim
                                     </div>
                                     
                                     <div class="yprint-item-info">
-                                        <?php if ($is_design_product && !empty($design_name)): ?>
-                                            <div class="yprint-design-title"><?php echo esc_html($design_name); ?></div>
-                                        <?php endif; ?>
-                                        <div class="yprint-item-name"><?php echo esc_html($display_name); ?></div>
-                                        <div class="yprint-item-meta">
-                                            Menge: <?php echo esc_html($item->get_quantity()); ?>
-                                            <?php if (!empty($design_color)): ?>
-                                                • Farbe: <?php echo esc_html($design_color); ?>
-                                            <?php endif; ?>
-                                            <?php if (!empty($design_size)): ?>
-                                                • Größe: <?php echo esc_html($design_size); ?>
-                                            <?php endif; ?>
-                                            <?php if ($product && $product->get_sku()): ?>
-                                                <br>SKU: <?php echo esc_html($product->get_sku()); ?>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="yprint-item-actions">
-                                        <div class="yprint-item-price"><?php echo wp_kses_post(wc_price($item->get_total())); ?></div>
-                                        <?php if ($item_can_cancel): ?>
-                                            <button class="yprint-cancel-item-btn" 
-                                                    onclick="cancelOrderItem(<?php echo esc_js($order->get_id()); ?>, <?php echo esc_js($item_id); ?>)">
-                                                Artikel stornieren
-                                            </button>
-                                        <?php endif; ?>
-                                    </div>
+    <?php if ($is_design_product && !empty($design_name)): ?>
+        <div class="yprint-design-title"><?php echo esc_html($design_name); ?></div>
+    <?php endif; ?>
+    <div class="yprint-item-name"><?php echo esc_html($display_name); ?></div>
+    <div class="yprint-item-meta">
+        Menge: <?php echo esc_html($item->get_quantity()); ?>
+        <?php if (!empty($design_color)): ?>
+            • Farbe: <?php echo esc_html($design_color); ?>
+        <?php endif; ?>
+        <?php if (!empty($design_size)): ?>
+            • Größe: <?php echo esc_html($design_size); ?>
+        <?php endif; ?>
+        <?php if ($product && $product->get_sku()): ?>
+            <br>SKU: <?php echo esc_html($product->get_sku()); ?>
+        <?php endif; ?>
+    </div>
+    
+    <?php if ($is_cancelled): ?>
+        <div class="yprint-cancelled-info">
+            <strong>Artikel storniert</strong>
+            <?php if (!empty($cancelled_date)): ?>
+                <br>am <?php echo esc_html(date('d.m.Y H:i', strtotime($cancelled_date))); ?> Uhr
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
+</div>
+
+<div class="yprint-item-actions">
+    <div class="yprint-item-price">
+        <?php if ($is_cancelled): ?>
+            <span style="text-decoration: line-through;"><?php echo wp_kses_post(wc_price($item->get_total())); ?></span>
+            <br><small>Storniert</small>
+        <?php else: ?>
+            <?php echo wp_kses_post(wc_price($item->get_total())); ?>
+        <?php endif; ?>
+    </div>
+    <?php if ($item_can_cancel): ?>
+        <button class="yprint-cancel-item-btn" 
+                onclick="cancelOrderItem(<?php echo esc_js($order->get_id()); ?>, <?php echo esc_js($item_id); ?>)">
+            Stornieren
+        </button>
+    <?php endif; ?>
+</div>
                                 </div>
                             <?php endforeach; ?>
                             
