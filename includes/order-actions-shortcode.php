@@ -595,8 +595,28 @@ if (shareButton) {
         
         // Desktop/fallback: toggle dropdown
 if (shareDropdown) {
-    shareDropdown.classList.toggle('show');
-    shareButton.classList.toggle('show');
+    const isVisible = shareDropdown.classList.contains('show');
+    
+    // Close all other dropdowns first
+    document.querySelectorAll('.yprint-share-dropdown-desktop.show').forEach(dropdown => {
+        if (dropdown !== shareDropdown) {
+            dropdown.classList.remove('show');
+            dropdown.closest('.yprint-last-order-action-btn').classList.remove('show');
+        }
+    });
+    
+    if (!isVisible) {
+        shareDropdown.classList.add('show');
+        shareButton.classList.add('show');
+        
+        // Position dropdown correctly
+        const rect = shareButton.getBoundingClientRect();
+        shareDropdown.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+        shareDropdown.style.right = (window.innerWidth - rect.right) + 'px';
+    } else {
+        shareDropdown.classList.remove('show');
+        shareButton.classList.remove('show');
+    }
 }
     });
 
@@ -659,6 +679,8 @@ const shareOptions = container.querySelectorAll('.yprint-share-option');
 shareOptions.forEach(option => {
     option.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation(); // Prevent event bubbling
+        
         const { platform } = option.dataset;
         const designName = shareButton.dataset.designName || 'Mein Design';
         const productUrl = shareButton.dataset.productUrl || window.location.href;
@@ -666,11 +688,15 @@ shareOptions.forEach(option => {
         const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
         const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
 
+        console.log('YPrint Debug: Share clicked:', platform, fullShareText, productUrl);
+        
         handleShare(platform, fullShareText, productUrl);
-if (shareDropdown) {
-    shareDropdown.classList.remove('show');
-    shareButton.classList.remove('show');
-}
+        
+        // Close dropdown
+        if (shareDropdown) {
+            shareDropdown.classList.remove('show');
+            shareButton.classList.remove('show');
+        }
     });
 });
 
@@ -693,10 +719,10 @@ if (shareDropdown) {
         hasDesignId: designId && designId !== 'undefined' && designId !== ''
     });
     
-    // First check if we have design_id to show size selection
+    // Check if we have design_id to show size selection (like Your Designs Shortcode)
     if (designId && designId !== 'undefined' && designId !== '') {
         console.log('YPrint Debug: Showing size selection modal');
-        showSizeSelectionModal(designId, button, true, orderId, itemId);
+        showSizeSelectionModal(designId, button, false); // Use Your Designs logic
     } else {
         console.log('YPrint Debug: Using direct reorder fallback');
         // Fallback: Direct reorder without size selection
@@ -827,19 +853,72 @@ const showSizeModal = (modalData, designId, button, originalContent, isReorder, 
     });
     
     // Size selection handlers
-    sizeOptions.forEach(option => {
-        option.addEventListener('click', () => {
-            const sizeId = option.dataset.sizeId;
-            const sizeName = option.dataset.sizeName;
+sizeOptions.forEach(option => {
+    option.addEventListener('click', () => {
+        const sizeId = option.dataset.sizeId;
+        const sizeName = option.dataset.sizeName;
+        
+        modal.remove();
+        
+        // Always use Your Designs reorder logic
+        handleYourDesignsReorder(designId, sizeId, sizeName, button);
+    });
+});
+};
+
+const handleYourDesignsReorder = (designId, sizeId, sizeName, button) => {
+    console.log('YPrint Debug: Your Designs reorder with:', {designId, sizeId, sizeName});
+    
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
+    button.style.pointerEvents = 'none';
+
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        data: {
+            action: 'yprint_reorder_design', // Use Your Designs action
+            design_id: designId,
+            size_id: sizeId,
+            size_name: sizeName,
+            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+        }
+    })
+    .done(response => {
+        console.log('YPrint Debug: Your Designs reorder response:', response);
+        if (response.success) {
+            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
             
-            modal.remove();
+            // Trigger cart update events
+            jQuery(document.body).trigger('added_to_cart', [[], '', button]);
+            jQuery(document.body).trigger('wc_fragments_refreshed');
             
-            if (isReorder) {
-                handleReorderWithSize(orderId, itemId, designId, sizeId, sizeName, button);
-            } else {
-                handleOrderWithSize(designId, sizeId, sizeName, button);
-            }
-        });
+            // Open mobile cart popup
+            setTimeout(() => {
+                if (typeof window.openYPrintCart === 'function') {
+                    window.openYPrintCart();
+                } else if (jQuery('#mobile-cart-popup').length) {
+                    jQuery(document).trigger('yprint:open-cart-popup');
+                } else {
+                    window.location.hash = '#mobile-cart';
+                }
+            }, 300);
+            
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+                button.style.pointerEvents = '';
+            }, 2000);
+        } else {
+            console.error('YPrint Debug: Your Designs reorder failed:', response.data);
+            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+            button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+            button.style.pointerEvents = '';
+        }
+    })
+    .fail(() => {
+        console.error('YPrint Debug: Your Designs reorder AJAX failed');
+        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
+        button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+        button.style.pointerEvents = '';
     });
 };
 
