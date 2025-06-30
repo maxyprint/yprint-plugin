@@ -906,8 +906,6 @@ if (class_exists('YPrint_Stripe_Checkout')) {
             </div>
         </div>
     </div>
-        </div>
-    </div>
 
     <!-- Gutscheincode -->
     <div class="mt-4">
