@@ -1753,7 +1753,7 @@ function populateConfirmationWithPaymentData(paymentData) {
         if (!paymentMethodText) {
             paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
         }
-        confirmPaymentMethodEl.innerHTML = paymentMethodText; // Diese Zeile wurde hier beibehalten.
+        confirmPaymentMethodEl.innerHTML = paymentMethodText;
     }
 
     // Speichere Payment Data global für spätere Payment Method Detection.
