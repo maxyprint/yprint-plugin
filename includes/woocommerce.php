@@ -40,9 +40,26 @@ function woo_order_history($atts) {
     $customer_email = $current_user->user_email;
     $all_statuses = array_keys(wc_get_order_statuses());
     
+    // Pagination
+    $current_page = isset($_GET['order_page']) ? max(1, intval($_GET['order_page'])) : 1;
+    $orders_per_page = 12;
+    $offset = ($current_page - 1) * $orders_per_page;
+    
+    // Get total count for pagination
+    $total_orders = wc_get_orders(array(
+        'customer' => $customer_email,
+        'limit'    => -1,
+        'type'     => 'shop_order',
+        'status'   => $all_statuses,
+        'return'   => 'ids'
+    ));
+    $total_orders_count = count($total_orders);
+    $total_pages = ceil($total_orders_count / $orders_per_page);
+    
     $customer_orders = wc_get_orders(array(
         'customer' => $customer_email,
-        'limit'    => $order_count,
+        'limit'    => $orders_per_page,
+        'offset'   => $offset,
         'type'     => 'shop_order',
         'status'   => $all_statuses,
     ));
@@ -89,8 +106,9 @@ function woo_order_history($atts) {
             background: #ffffff;
             border: 1px solid #e1e5e9;
             border-radius: 12px;
-            padding: 20px;
+            overflow: hidden;
             transition: all 0.3s ease;
+            cursor: pointer;
         }
 
         .yprint-order-card:hover {
@@ -99,10 +117,10 @@ function woo_order_history($atts) {
         }
 
         .yprint-order-header {
+            padding: 20px;
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 12px;
         }
 
         .yprint-order-number {
@@ -128,12 +146,12 @@ function woo_order_history($atts) {
         .status-cancelled { background: #f1f3f4; color: #5f6368; }
 
         .yprint-order-meta {
+            padding: 0 20px 20px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 12px;
-            padding-top: 12px;
             border-top: 1px solid #f1f3f4;
+            padding-top: 12px;
         }
 
         .yprint-order-details {
@@ -147,29 +165,127 @@ function woo_order_history($atts) {
             color: #1a1a1a;
         }
 
-        .yprint-cancel-btn {
+        .yprint-order-items {
+            border-top: 1px solid #f1f3f4;
+            background: #fafbfc;
+            padding: 20px;
+            display: none;
+        }
+
+        .yprint-order-items.expanded {
+            display: block;
+        }
+
+        .yprint-order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .yprint-order-item:last-child {
+            border-bottom: none;
+        }
+
+        .yprint-item-info {
+            flex: 1;
+        }
+
+        .yprint-item-name {
+            font-weight: 500;
+            color: #1a1a1a;
+            margin-bottom: 4px;
+        }
+
+        .yprint-item-meta {
+            font-size: 13px;
+            color: #5f6368;
+        }
+
+        .yprint-item-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .yprint-item-price {
+            font-weight: 500;
+            color: #1a1a1a;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .yprint-cancel-item-btn {
             background: #dc3545;
             color: white;
             border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.3s ease;
-            margin-left: 12px;
         }
 
-        .yprint-cancel-btn:hover {
+        .yprint-cancel-item-btn:hover {
             background: #c82333;
-            transform: translateY(-1px);
         }
 
-        .yprint-cancel-btn:disabled {
+        .yprint-cancel-item-btn:disabled {
             background: #e9ecef;
             color: #6c757d;
             cursor: not-allowed;
-            transform: none;
+        }
+
+        .yprint-expand-icon {
+            margin-left: 8px;
+            transition: transform 0.3s ease;
+            font-size: 12px;
+            color: #5f6368;
+        }
+
+        .yprint-order-card.expanded .yprint-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .yprint-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e1e5e9;
+        }
+
+        .yprint-pagination-btn {
+            padding: 8px 12px;
+            background: #ffffff;
+            border: 1px solid #e1e5e9;
+            color: #5f6368;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .yprint-pagination-btn:hover {
+            background: #f8f9fa;
+            color: #007cba;
+            text-decoration: none;
+        }
+
+        .yprint-pagination-btn.current {
+            background: #007cba;
+            color: white;
+            border-color: #007cba;
+        }
+
+        .yprint-pagination-btn:disabled {
+            background: #f8f9fa;
+            color: #ccc;
+            cursor: not-allowed;
         }
 
         .yprint-no-orders {
@@ -195,6 +311,17 @@ function woo_order_history($atts) {
                 align-items: flex-start;
                 gap: 8px;
             }
+
+            .yprint-order-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+
+            .yprint-item-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
         }
     </style>
 
@@ -216,12 +343,19 @@ function woo_order_history($atts) {
                     $time_diff_hours = ($current_time - $order_time) / 3600;
                     
                     $can_cancel = in_array($order->get_status(), array('pending', 'on-hold')) && $time_diff_hours <= 2;
+                    $order_items = $order->get_items();
                 ?>
                     <div class="yprint-order-card" 
+                         data-order-id="<?php echo esc_attr($order->get_id()); ?>"
                          data-search="<?php echo esc_attr(strtolower($order->get_order_number() . ' ' . $status_name . ' ' . $order_date->format('Y-m-d'))); ?>">
                         
-                        <div class="yprint-order-header">
-                            <h3 class="yprint-order-number">Bestellung #<?php echo esc_html($order->get_order_number()); ?></h3>
+                        <div class="yprint-order-header" onclick="toggleOrderItems(<?php echo esc_js($order->get_id()); ?>)">
+                            <div>
+                                <h3 class="yprint-order-number">
+                                    Bestellung #<?php echo esc_html($order->get_order_number()); ?>
+                                    <span class="yprint-expand-icon">▼</span>
+                                </h3>
+                            </div>
                             <span class="yprint-order-status status-<?php echo esc_attr($order->get_status()); ?>">
                                 <?php echo esc_html($status_name); ?>
                             </span>
@@ -234,19 +368,58 @@ function woo_order_history($atts) {
                                     <br><small style="color: #dc3545;">Stornierung noch <?php echo esc_html(number_format(2 - $time_diff_hours, 1)); ?> Stunden möglich</small>
                                 <?php endif; ?>
                             </div>
-                            <div style="display: flex; align-items: center;">
-                                <span class="yprint-order-total"><?php echo wp_kses_post(wc_price($order->get_total())); ?></span>
-                                <?php if ($can_cancel): ?>
-                                    <button class="yprint-cancel-btn" 
-                                            onclick="cancelOrder(<?php echo esc_js($order->get_id()); ?>)">
-                                        Stornieren
-                                    </button>
-                                <?php endif; ?>
-                            </div>
+                            <div class="yprint-order-total"><?php echo wp_kses_post(wc_price($order->get_total())); ?></div>
+                        </div>
+
+                        <div class="yprint-order-items" id="order-items-<?php echo esc_attr($order->get_id()); ?>">
+                            <?php foreach ($order_items as $item_id => $item): 
+                                $product = $item->get_product();
+                                $item_can_cancel = $can_cancel && !$item->get_meta('_cancelled');
+                            ?>
+                                <div class="yprint-order-item" data-item-id="<?php echo esc_attr($item_id); ?>">
+                                    <div class="yprint-item-info">
+                                        <div class="yprint-item-name"><?php echo esc_html($item->get_name()); ?></div>
+                                        <div class="yprint-item-meta">
+                                            Menge: <?php echo esc_html($item->get_quantity()); ?>
+                                            <?php if ($product && $product->get_sku()): ?>
+                                                • SKU: <?php echo esc_html($product->get_sku()); ?>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="yprint-item-actions">
+                                        <div class="yprint-item-price"><?php echo wp_kses_post(wc_price($item->get_total())); ?></div>
+                                        <?php if ($item_can_cancel): ?>
+                                            <button class="yprint-cancel-item-btn" 
+                                                    onclick="cancelOrderItem(<?php echo esc_js($order->get_id()); ?>, <?php echo esc_js($item_id); ?>)">
+                                                Stornieren
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
             </div>
+
+            <?php if ($total_pages > 1): ?>
+                <div class="yprint-pagination">
+                    <?php if ($current_page > 1): ?>
+                        <a href="?order_page=<?php echo ($current_page - 1); ?>" class="yprint-pagination-btn">← Zurück</a>
+                    <?php endif; ?>
+                    
+                    <?php for ($i = max(1, $current_page - 2); $i <= min($total_pages, $current_page + 2); $i++): ?>
+                        <a href="?order_page=<?php echo $i; ?>" 
+                           class="yprint-pagination-btn <?php echo $i === $current_page ? 'current' : ''; ?>">
+                           <?php echo $i; ?>
+                        </a>
+                    <?php endfor; ?>
+                    
+                    <?php if ($current_page < $total_pages): ?>
+                        <a href="?order_page=<?php echo ($current_page + 1); ?>" class="yprint-pagination-btn">Weiter →</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
@@ -268,22 +441,36 @@ function woo_order_history($atts) {
         });
     });
 
-    function cancelOrder(orderId) {
-        if (confirm('Möchtest du diese Bestellung wirklich stornieren?')) {
+    function toggleOrderItems(orderId) {
+        const orderCard = jQuery('[data-order-id="' + orderId + '"]');
+        const itemsContainer = jQuery('#order-items-' + orderId);
+        
+        if (itemsContainer.hasClass('expanded')) {
+            itemsContainer.removeClass('expanded');
+            orderCard.removeClass('expanded');
+        } else {
+            itemsContainer.addClass('expanded');
+            orderCard.addClass('expanded');
+        }
+    }
+
+    function cancelOrderItem(orderId, itemId) {
+        if (confirm('Möchtest du diesen Artikel wirklich stornieren?')) {
             jQuery.ajax({
                 url: '<?php echo admin_url('admin-ajax.php'); ?>',
                 type: 'POST',
                 data: {
-                    action: 'yprint_cancel_order',
+                    action: 'yprint_cancel_order_item',
                     order_id: orderId,
-                    security: '<?php echo wp_create_nonce('yprint-order-cancel'); ?>'
+                    item_id: itemId,
+                    security: '<?php echo wp_create_nonce('yprint-order-item-cancel'); ?>'
                 },
                 success: function(response) {
                     if (response.success) {
-                        alert('Bestellung wurde erfolgreich storniert.');
+                        alert('Artikel wurde erfolgreich storniert.');
                         location.reload();
                     } else {
-                        alert('Fehler beim Stornieren der Bestellung: ' + response.data);
+                        alert('Fehler beim Stornieren des Artikels: ' + response.data);
                     }
                 },
                 error: function() {
@@ -363,7 +550,93 @@ function yprint_cancel_order() {
 }
 add_action('wp_ajax_yprint_cancel_order', 'yprint_cancel_order');
 
-
+/**
+ * AJAX handler for cancelling individual order items
+ */
+function yprint_cancel_order_item() {
+    check_ajax_referer('yprint-order-item-cancel', 'security');
+    
+    if (!class_exists('WooCommerce')) {
+        wp_send_json_error('WooCommerce ist nicht aktiviert');
+        return;
+    }
+    
+    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+    $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
+    
+    if (!$order_id || !$item_id) {
+        wp_send_json_error('Ungültige Bestellungs- oder Artikel-ID');
+        return;
+    }
+    
+    if (!is_user_logged_in()) {
+        wp_send_json_error('Du musst angemeldet sein, um einen Artikel zu stornieren');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    
+    if (!$order) {
+        wp_send_json_error('Bestellung nicht gefunden');
+        return;
+    }
+    
+    $current_user = wp_get_current_user();
+    $current_user_email = $current_user->user_email;
+    
+    if ($order->get_billing_email() !== $current_user_email) {
+        wp_send_json_error('Du bist nicht berechtigt, Artikel dieser Bestellung zu stornieren');
+        return;
+    }
+    
+    if (!$order->has_status(array('pending', 'on-hold'))) {
+        wp_send_json_error('Artikel dieser Bestellung können nicht mehr storniert werden');
+        return;
+    }
+    
+    // 2-Stunden-Regel prüfen
+    $order_date = $order->get_date_created();
+    $now = new DateTime();
+    $order_time = $order_date->getTimestamp();
+    $current_time = $now->getTimestamp();
+    $time_diff_hours = ($current_time - $order_time) / 3600;
+    
+    if ($time_diff_hours > 2) {
+        wp_send_json_error('Artikel können nur innerhalb von 2 Stunden nach Bestellaufgabe storniert werden');
+        return;
+    }
+    
+    // Check if item exists and is not already cancelled
+    $item = $order->get_item($item_id);
+    if (!$item) {
+        wp_send_json_error('Artikel nicht gefunden');
+        return;
+    }
+    
+    if ($item->get_meta('_cancelled')) {
+        wp_send_json_error('Dieser Artikel wurde bereits storniert');
+        return;
+    }
+    
+    try {
+        // Mark item as cancelled
+        $item->add_meta_data('_cancelled', true, true);
+        $item->add_meta_data('_cancelled_date', current_time('mysql'), true);
+        $item->save();
+        
+        // Add order note
+        $order->add_order_note(sprintf('Artikel "%s" vom Kunden storniert', $item->get_name()));
+        
+        // Recalculate order totals if needed
+        $order->calculate_totals();
+        $order->save();
+        
+        wp_send_json_success('Artikel wurde erfolgreich storniert');
+    } catch (Exception $e) {
+        wp_send_json_error('Fehler beim Stornieren des Artikels: ' . $e->getMessage());
+    }
+}
+add_action('wp_ajax_yprint_cancel_order_item', 'yprint_cancel_order_item');
 
 
 
