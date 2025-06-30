@@ -30,17 +30,18 @@ function woo_order_history($atts) {
     ), $atts));
 
     ob_start();
-    $customer_id = get_current_user_id();
+    $current_user = wp_get_current_user();
     
     // If user is not logged in, show login message
-    if ($customer_id === 0) {
+    if (!$current_user->exists()) {
         return '<p>Bitte <a href="' . esc_url(get_permalink(get_option('woocommerce_myaccount_page_id'))) . '">melde dich an</a>, um deine Bestellungen zu sehen.</p>';
     }
     
+    $customer_email = $current_user->user_email;
     $all_statuses = array_keys(wc_get_order_statuses());
     
     $customer_orders = wc_get_orders(array(
-        'customer' => $customer_id,
+        'customer' => $customer_email,
         'limit'    => $order_count,
         'type'     => 'shop_order',
         'status'   => $all_statuses,
@@ -385,8 +386,10 @@ function yprint_cancel_order() {
         return;
     }
     
-    $current_user_id = get_current_user_id();
-    if ($order->get_customer_id() != $current_user_id) {
+    $current_user = wp_get_current_user();
+    $current_user_email = $current_user->user_email;
+    
+    if ($order->get_billing_email() !== $current_user_email) {
         wp_send_json_error('Du bist nicht berechtigt, diese Bestellung zu stornieren');
         return;
     }
