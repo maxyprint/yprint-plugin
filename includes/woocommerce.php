@@ -564,7 +564,6 @@ foreach ($order_items as $item_id => $item):
 ?>
     <div class="yprint-order-item <?php echo $is_cancelled ? 'cancelled' : ''; ?>" data-item-id="<?php echo esc_attr($item_id); ?>">
         <?php if ($is_cancelled): ?>
-            <div class="yprint-cancelled-label">Storniert</div>
         <?php endif; ?>
                                     <div class="yprint-item-preview">
                                         <?php if (!empty($design_preview)): ?>
