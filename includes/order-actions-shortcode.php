@@ -983,9 +983,15 @@ window.addEventListener('resize', adjustButtonLayout);
      * @return WC_Order|false Latest order or false if none found
      */
     private static function get_latest_user_order($user_id) {
-        // Verwende EXAKT die gleiche Methode wie in der funktionierenden woo_order_history Funktion
+        $current_user = wp_get_current_user();
+        if (!$current_user || !$current_user->user_email) {
+            return false;
+        }
+        
+        $user_email = $current_user->user_email;
         $all_statuses = array_keys(wc_get_order_statuses());
         
+        // Erste Methode: Nach customer_user ID suchen
         $customer_orders = wc_get_orders(array(
             'customer' => $user_id,
             'limit'    => 1,
@@ -997,6 +1003,20 @@ window.addEventListener('resize', adjustButtonLayout);
         
         if (!empty($customer_orders)) {
             return $customer_orders[0];
+        }
+        
+        // Fallback: Nach E-Mail-Adresse suchen (für Gast-Bestellungen)
+        $email_orders = wc_get_orders(array(
+            'billing_email' => $user_email,
+            'limit'    => 1,
+            'type'     => 'shop_order',
+            'status'   => $all_statuses,
+            'orderby'  => 'date',
+            'order'    => 'DESC'
+        ));
+        
+        if (!empty($email_orders)) {
+            return $email_orders[0];
         }
         
         return false;
