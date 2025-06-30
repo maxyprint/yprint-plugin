@@ -80,14 +80,14 @@ function woo_order_history($atts) {
 
 .yprint-order-search {
     width: 100%;
-    padding: 18px 20px 18px 55px;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    padding: 18px 50px 18px 60px;
+    background: #ffffff;
     border: 1px solid #e1e5e9;
-    border-radius: 16px;
+    border-radius: 24px;
     font-size: 16px;
     color: #2d3748;
     box-sizing: border-box;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     font-weight: 400;
 }
@@ -100,9 +100,8 @@ function woo_order_history($atts) {
 
 .yprint-order-search:focus {
     outline: none;
-    background: #ffffff;
-    border-color: #007cba;
-    box-shadow: 0 0 0 3px rgba(0, 124, 186, 0.1), 0 4px 16px rgba(0, 124, 186, 0.15);
+    border-color: #e1e5e9;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
     transform: translateY(-1px);
 }
 
@@ -113,32 +112,31 @@ function woo_order_history($atts) {
 
 .yprint-search-icon {
     position: absolute;
-    left: 20px;
+    left: 22px;
     top: 50%;
     transform: translateY(-50%);
     width: 20px;
     height: 20px;
-    color: #718096;
+    color: #a0aec0;
     pointer-events: none;
     transition: color 0.3s ease;
-    z-index: 1;
+    z-index: 2;
 }
 
 .yprint-search-container:hover .yprint-search-icon {
-    color: #4a5568;
+    color: #718096;
 }
 
-.yprint-order-search:focus + .yprint-search-icon,
 .yprint-search-container:focus-within .yprint-search-icon {
-    color: #007cba;
+    color: #718096;
 }
 
 .yprint-clear-search {
     position: absolute;
-    right: 16px;
+    right: 18px;
     top: 50%;
     transform: translateY(-50%);
-    background: #e2e8f0;
+    background: #f1f3f4;
     border: none;
     border-radius: 50%;
     width: 24px;
@@ -148,14 +146,14 @@ function woo_order_history($atts) {
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    color: #718096;
+    color: #a0aec0;
     transition: all 0.3s ease;
-    z-index: 1;
+    z-index: 2;
 }
 
 .yprint-clear-search:hover {
-    background: #cbd5e0;
-    color: #4a5568;
+    background: #e1e5e9;
+    color: #718096;
     transform: translateY(-50%) scale(1.1);
 }
 
@@ -169,19 +167,19 @@ function woo_order_history($atts) {
     }
     
     .yprint-order-search {
-        padding: 16px 18px 16px 50px;
+        padding: 16px 45px 16px 55px;
         font-size: 16px;
-        border-radius: 14px;
+        border-radius: 20px;
     }
     
     .yprint-search-icon {
-        left: 18px;
+        left: 20px;
         width: 18px;
         height: 18px;
     }
     
     .yprint-clear-search {
-        right: 14px;
+        right: 16px;
         width: 22px;
         height: 22px;
         font-size: 13px;
@@ -568,11 +566,11 @@ function woo_order_history($atts) {
 
     <div class="yprint-order-history">
         <div class="yprint-search-container">
-    <input type="text" class="yprint-order-search" placeholder="Bestellungen durchsuchen..." id="orderSearch">
     <svg class="yprint-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="11" cy="11" r="8"></circle>
         <path d="m21 21-4.35-4.35"></path>
     </svg>
+    <input type="text" class="yprint-order-search" placeholder="Bestellungen durchsuchen..." id="orderSearch">
     <button type="button" class="yprint-clear-search" id="clearSearch">×</button>
 </div>
         
