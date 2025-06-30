@@ -1763,6 +1763,31 @@ function populateConfirmationWithPaymentData(paymentData) {
     console.log('Payment Data set:', paymentData);
 
     // Erzwinge Payment Method Detection Update via Event.
+    console.log('🔥 Line 1736 - About to trigger events and updates');
+    
+    // Event für Payment Data Update triggen
+    const event = new CustomEvent('yprint_payment_data_updated', {
+        detail: paymentData
+    });
+    document.dispatchEvent(event);
+    console.log('✅ yprint_payment_data_updated Event dispatched');
+
+    // Force Payment Method Display Update
+    if (typeof updatePaymentMethodDisplay === 'function') {
+        console.log('✅ Calling updatePaymentMethodDisplay()');
+        updatePaymentMethodDisplay();
+    } else {
+        console.warn('⚠️ updatePaymentMethodDisplay function not available');
+    }
+
+    // Trigger Payment Method Update Attempts
+    if (typeof attemptPaymentMethodUpdate === 'function') {
+        console.log('✅ Calling attemptPaymentMethodUpdate()');
+        setTimeout(() => attemptPaymentMethodUpdate(1, 5), 50);
+    } else {
+        console.warn('⚠️ attemptPaymentMethodUpdate function not available');
+    }
+
     setTimeout(() => {
         console.log('Dispatching yprint_payment_data_updated event');
         window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
@@ -4209,6 +4234,19 @@ function updatePaymentMethodSession(paymentMethod) {
     .catch(error => {
         console.error('DEBUG: Error updating payment method session:', error);
     });
+}
+
+// Hilfsfunktion für Fallback Payment Method Text
+function getFallbackPaymentMethodText(paymentMethodId) {
+    if (paymentMethodId.startsWith('pm_') && paymentMethodId.includes('card')) {
+        return '<i class="fas fa-credit-card mr-2"></i> Kreditkarte (Stripe)';
+    } else if (paymentMethodId.includes('apple')) {
+        return '<i class="fab fa-apple-pay mr-2"></i> Apple Pay';
+    } else if (paymentMethodId.includes('sepa')) {
+        return '<i class="fas fa-university mr-2"></i> SEPA Lastschrift';
+    } else {
+        return '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
+    }
 }
 
 // Debug-Button entfernt
