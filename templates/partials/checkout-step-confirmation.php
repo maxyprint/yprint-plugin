@@ -61,7 +61,68 @@ if ( ! function_exists( 'WC' ) || ! WC()->session ) {
         error_log('YPrint Confirmation: FEHLER - Keine Order ID gefunden!');
     }
 
-    // 2. Extrahiere Adressdaten aus der Bestellung
+    // 2. Lade Adressdaten - PRIORITÄT: Session-Daten vor Order-Daten
+$customer_data = [
+    'email'    => '',
+    'phone'    => '',
+    'shipping' => [],
+    'billing'  => [],
+];
+
+// Zunächst: Versuche YPrint Session-Daten zu laden
+$yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+$yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+$yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+
+error_log('YPrint Confirmation: Session data check - Selected: ' . (!empty($yprint_selected) ? 'YES' : 'NO'));
+error_log('YPrint Confirmation: Session data check - Billing Different: ' . ($yprint_billing_different ? 'YES' : 'NO'));
+
+// Wenn Session-Daten verfügbar sind, nutze diese (AUTORITATIVE)
+if (!empty($yprint_selected)) {
+    error_log('YPrint Confirmation: Using YPRINT SESSION DATA as primary source');
+    
+    // Setze Lieferadresse aus Session
+    $customer_data['shipping'] = [
+        'first_name' => $yprint_selected['first_name'] ?? '',
+        'last_name'  => $yprint_selected['last_name'] ?? '',
+        'address_1'  => $yprint_selected['address_1'] ?? '',
+        'address_2'  => $yprint_selected['address_2'] ?? '',
+        'city'       => $yprint_selected['city'] ?? '',
+        'postcode'   => $yprint_selected['postcode'] ?? '',
+        'country'    => $yprint_selected['country'] ?? 'DE',
+        'phone'      => $yprint_selected['phone'] ?? '',
+    ];
+    
+    // Setze Rechnungsadresse: Entweder separate oder gleiche wie Shipping
+    if ($yprint_billing_different && !empty($yprint_billing)) {
+        error_log('YPrint Confirmation: Using SEPARATE BILLING ADDRESS from session');
+        $customer_data['billing'] = [
+            'first_name' => $yprint_billing['first_name'] ?? '',
+            'last_name'  => $yprint_billing['last_name'] ?? '',
+            'address_1'  => $yprint_billing['address_1'] ?? '',
+            'address_2'  => $yprint_billing['address_2'] ?? '',
+            'city'       => $yprint_billing['city'] ?? '',
+            'postcode'   => $yprint_billing['postcode'] ?? '',
+            'country'    => $yprint_billing['country'] ?? 'DE',
+            'phone'      => $yprint_billing['phone'] ?? '',
+        ];
+    } else {
+        error_log('YPrint Confirmation: Using SHIPPING AS BILLING ADDRESS from session');
+        $customer_data['billing'] = $customer_data['shipping'];
+    }
+    
+    // E-Mail und Telefon aus User-Daten oder Order
+    if ( $final_order instanceof \WC_Order ) {
+        $customer_data['email'] = $final_order->get_billing_email();
+        $customer_data['phone'] = $final_order->get_billing_phone();
+    } else if ( is_user_logged_in() ) {
+        $current_user = wp_get_current_user();
+        $customer_data['email'] = $current_user->user_email;
+    }
+    
+} else {
+    error_log('YPrint Confirmation: No session data found, using ORDER DATA as fallback');
+    // Fallback: Lade aus der Bestellung (bestehende Logik)
     if ( $final_order instanceof \WC_Order ) {
         $customer_data = [
             'email'    => $final_order->get_billing_email(),
@@ -70,6 +131,10 @@ if ( ! function_exists( 'WC' ) || ! WC()->session ) {
             'billing'  => $final_order->get_address( 'billing' ),
         ];
     }
+}
+
+error_log('YPrint Confirmation: Final shipping address: ' . ($customer_data['shipping']['address_1'] ?? 'NONE'));
+error_log('YPrint Confirmation: Final billing address: ' . ($customer_data['billing']['address_1'] ?? 'NONE'));
 
     // 3. Lade die Artikel AUS DER BESTELLUNG (nicht aus dem Cart - der ist nach Payment leer!)
     if ( $final_order instanceof \WC_Order ) {
