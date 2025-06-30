@@ -200,98 +200,109 @@ function yprint_build_order_confirmation_content($order) {
         vielen Dank für Ihre Bestellung bei YPrint! Wir haben Ihre Bestellung erhalten und werden sie schnellstmöglich bearbeiten.
     </p>
 
-    <!-- Bestelldetails -->
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f8f9fa; border-radius: 8px; overflow: hidden;">
-        <tr style="background: #0079FF; color: white;">
-            <td colspan="2" style="padding: 15px; font-weight: bold; font-size: 16px;">
-                Bestelldetails
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; font-weight: bold;">Bestellnummer:</td>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5;">#<?php echo esc_html($order->get_order_number()); ?></td>
-        </tr>
-        <tr>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; font-weight: bold;">Bestelldatum:</td>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5;"><?php echo esc_html($order->get_date_created()->format('d.m.Y H:i')); ?></td>
-        </tr>
-        <tr>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; font-weight: bold;">Status:</td>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5;"><?php echo esc_html(wc_get_order_status_name($order->get_status())); ?></td>
-        </tr>
-        <tr>
-            <td style="padding: 10px 15px; font-weight: bold;">Gesamtbetrag:</td>
-            <td style="padding: 10px 15px; font-weight: bold; color: #0079FF;"><?php echo wp_kses_post($order->get_formatted_order_total()); ?></td>
-        </tr>
-    </table>
+    <!-- Bestelldetails - Vereinfachtes Format -->
+    <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; color: #0079FF; font-size: 16px; font-weight: bold;">
+            Bestelldetails
+        </h3>
+        <p style="margin: 5px 0; color: #343434; line-height: 1.5;">
+            <strong>Bestellnummer:</strong> #<?php echo esc_html($order->get_order_number()); ?>
+        </p>
+        <p style="margin: 5px 0; color: #343434; line-height: 1.5;">
+            <strong>Bestelldatum:</strong> <?php echo esc_html($order->get_date_created()->format('d.m.Y H:i')); ?>
+        </p>
+        <p style="margin: 5px 0; color: #343434; line-height: 1.5;">
+            <strong>Status:</strong> <?php echo esc_html(wc_get_order_status_name($order->get_status())); ?>
+        </p>
+        <p style="margin: 10px 0 0 0; color: #0079FF; font-size: 18px; font-weight: bold;">
+            <strong>Gesamtbetrag:</strong> <?php echo wp_kses_post($order->get_formatted_order_total()); ?>
+        </p>
+    </div>
 
-    <!-- Bestellte Artikel -->
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-        <tr style="background: #0079FF; color: white;">
-            <td colspan="4" style="padding: 15px; font-weight: bold; font-size: 16px;">
-                Bestellte Artikel
-            </td>
-        </tr>
-        <tr style="background: #f8f9fa; font-weight: bold;">
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5;">Artikel</td>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; text-align: center;">Menge</td>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; text-align: right;">Einzelpreis</td>
-            <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; text-align: right;">Gesamt</td>
-        </tr>
+    <!-- Bestellte Artikel - Vereinfachtes Layout -->
+    <div style="background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; color: #0079FF; font-size: 16px; font-weight: bold;">
+            Bestellte Artikel
+        </h3>
         <?php
         foreach ($order->get_items() as $item_id => $item) {
             $product = $item->get_product();
             if (!$product) continue;
+            
+            // Bestimme den Artikelnamen basierend auf Design-Daten
+            $design_name = $item->get_meta('_design_name');
+            $product_name = $product->get_name();
+            
+            if (!empty($design_name)) {
+                // Format: "Design Name - gedruckt auf Produktname"
+                $display_name = esc_html($design_name) . ' - gedruckt auf ' . esc_html($product_name);
+            } else {
+                // Fallback: Nur Produktname
+                $display_name = esc_html($product_name);
+            }
+            
+            // Zusätzliche Design-Details sammeln
+            $design_details = [];
+            $design_color = $item->get_meta('_design_color');
+            $design_size = $item->get_meta('_design_size');
+            
+            if (!empty($design_color)) {
+                $design_details[] = 'Farbe: ' . esc_html($design_color);
+            }
+            if (!empty($design_size)) {
+                $design_details[] = 'Größe: ' . esc_html($design_size);
+            }
+            
+            $individual_price = $item->get_subtotal() / $item->get_quantity();
             ?>
-            <tr>
-                <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5;">
-                    <?php echo esc_html($item->get_name()); ?>
-                    <?php
-                    // Design-Details falls vorhanden
-                    $design_details = $item->get_meta('_design_details');
-                    if (!empty($design_details)) {
-                        echo '<br><small style="color: #666;">' . esc_html($design_details) . '</small>';
-                    }
-                    ?>
-                </td>
-                <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; text-align: center;"><?php echo esc_html($item->get_quantity()); ?></td>
-                <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; text-align: right;"><?php echo wp_kses_post(wc_price($item->get_subtotal() / $item->get_quantity())); ?></td>
-                <td style="padding: 10px 15px; border-bottom: 1px solid #e5e5e5; text-align: right;"><?php echo wp_kses_post(wc_price($item->get_total())); ?></td>
-            </tr>
+            <div style="border-bottom: 1px solid #e5e5e5; padding: 15px 0; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px;">
+                    <div style="flex: 1;">
+                        <p style="margin: 0; font-weight: bold; color: #343434; font-size: 14px;">
+                            <?php echo $display_name; ?>
+                        </p>
+                        <?php if (!empty($design_details)): ?>
+                        <p style="margin: 5px 0 0 0; color: #666; font-size: 12px;">
+                            <?php echo implode(' | ', $design_details); ?>
+                        </p>
+                        <?php endif; ?>
+                    </div>
+                    <div style="text-align: right; margin-left: 15px;">
+                        <p style="margin: 0; font-weight: bold; color: #343434;">
+                            <?php echo wp_kses_post(wc_price($item->get_total())); ?>
+                        </p>
+                        <p style="margin: 2px 0 0 0; color: #666; font-size: 12px;">
+                            <?php echo esc_html($item->get_quantity()); ?>x <?php echo wp_kses_post(wc_price($individual_price)); ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
             <?php
         }
         ?>
-    </table>
+    </div>
 
-    <!-- Lieferadresse -->
+    <!-- Lieferadresse - Vereinfachtes Format -->
     <?php if ($order->has_shipping_address()) : ?>
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f8f9fa; border-radius: 8px; overflow: hidden;">
-        <tr style="background: #0079FF; color: white;">
-            <td style="padding: 15px; font-weight: bold; font-size: 16px;">
-                Lieferadresse
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 15px; line-height: 1.5;">
-                <?php echo wp_kses_post($order->get_formatted_shipping_address()); ?>
-            </td>
-        </tr>
-    </table>
+    <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; color: #0079FF; font-size: 16px; font-weight: bold;">
+            Lieferadresse
+        </h3>
+        <div style="color: #343434; line-height: 1.5;">
+            <?php echo wp_kses_post($order->get_formatted_shipping_address()); ?>
+        </div>
+    </div>
     <?php endif; ?>
 
-    <!-- Rechnungsadresse -->
-    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; background: #f8f9fa; border-radius: 8px; overflow: hidden;">
-        <tr style="background: #0079FF; color: white;">
-            <td style="padding: 15px; font-weight: bold; font-size: 16px;">
-                Rechnungsadresse
-            </td>
-        </tr>
-        <tr>
-            <td style="padding: 15px; line-height: 1.5;">
-                <?php echo wp_kses_post($order->get_formatted_billing_address()); ?>
-            </td>
-        </tr>
-    </table>
+    <!-- Rechnungsadresse - Vereinfachtes Format -->
+    <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin-top: 0; margin-bottom: 15px; color: #0079FF; font-size: 16px; font-weight: bold;">
+            Rechnungsadresse
+        </h3>
+        <div style="color: #343434; line-height: 1.5;">
+            <?php echo wp_kses_post($order->get_formatted_billing_address()); ?>
+        </div>
+    </div>
 
     <p style="margin-top: 30px; color: #343434; line-height: 1.5;">
         <strong>Was passiert als nächstes?</strong><br>
