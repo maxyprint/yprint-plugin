@@ -555,7 +555,7 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
 
         <script type="text/javascript">
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('YPrint Debug [Order Actions]: DOMContentLoaded fired');
+    console.log('YPrint Debug [Order Actions]: ===== INITIALIZATION START =====');
     const container = document.getElementById('<?php echo esc_js($unique_id); ?>');
     
     if (!container) {
@@ -564,714 +564,371 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     
-    console.log('YPrint Debug [Order Actions]: Container found successfully:', container);
+    console.log('YPrint Debug [Order Actions]: ✅ Container found successfully:', container);
     console.log('YPrint Debug [Order Actions]: Container innerHTML length:', container.innerHTML.length);
+    console.log('YPrint Debug [Order Actions]: Container classes:', container.className);
 
-            // Unified Share Functionality
-const shareButton = container.querySelector('.yprint-share-trigger');
-const shareDropdown = container.querySelector('.yprint-share-dropdown-desktop');
-
-if (shareButton) {
-    shareButton.addEventListener('click', async (e) => {
-        e.preventDefault();
-        
-        const designName = shareButton.dataset.designName || 'Mein Design';
-        const designImage = shareButton.dataset.designImage || '';
-        const productUrl = shareButton.dataset.productUrl || window.location.href;
-        const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
-        const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
-        
-        // Try native share first (mobile)
-        if (navigator.share && window.matchMedia('(max-width: 600px)').matches) {
-            try {
-                await navigator.share({
-                    title: shareTitle,
-                    text: `${shareTitle}: "${designName}" - ${shareText}`,
-                    url: productUrl,
-                });
-                return;
-            } catch (error) {
-                console.log('Native share failed, falling back to dropdown');
-            }
-        }
-        
-        // Desktop/fallback: toggle dropdown
-if (shareDropdown) {
-    const isVisible = shareDropdown.classList.contains('show');
+    // =================================================================
+    // REORDER BUTTON FUNCTIONALITY
+    // =================================================================
+    console.log('YPrint Debug [Order Actions]: Setting up reorder button...');
+    const reorderBtn = container.querySelector('.yprint-reorder-btn');
+    console.log('YPrint Debug [Order Actions]: Reorder button search result:', reorderBtn);
     
-    // Close all other dropdowns first
-    document.querySelectorAll('.yprint-share-dropdown-desktop.show').forEach(dropdown => {
-        if (dropdown !== shareDropdown) {
-            dropdown.classList.remove('show');
-            dropdown.closest('.yprint-last-order-action-btn').classList.remove('show');
-        }
-    });
-    
-    if (!isVisible) {
-        shareDropdown.classList.add('show');
-        shareButton.classList.add('show');
+    if (reorderBtn) {
+        console.log('YPrint Debug [Order Actions]: ✅ Reorder button found!');
+        console.log('YPrint Debug [Order Actions]: Button dataset:', reorderBtn.dataset);
+        console.log('YPrint Debug [Order Actions]: Button classes:', reorderBtn.className);
+        console.log('YPrint Debug [Order Actions]: Button innerHTML:', reorderBtn.innerHTML);
         
-        // Position dropdown correctly
-        const rect = shareButton.getBoundingClientRect();
-        shareDropdown.style.top = (rect.bottom + window.scrollY + 5) + 'px';
-        shareDropdown.style.right = (window.innerWidth - rect.right) + 'px';
-    } else {
-        shareDropdown.classList.remove('show');
-        shareButton.classList.remove('show');
-    }
-}
-    });
-
-    // Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-    if (!shareButton.contains(e.target) && shareDropdown) {
-        shareDropdown.classList.remove('show');
-        shareButton.classList.remove('show');
-    }
-});
-}
-
-const handleShare = (platform, text, url) => {
-    const encodedText = encodeURIComponent(text);
-    const encodedUrl = encodeURIComponent(url);
-    let shareUrl = '';
-
-    switch (platform) {
-        case 'whatsapp':
-            shareUrl = `https://wa.me/?text=${encodedText}%20${encodedUrl}`;
-            break;
-        case 'facebook':
-            shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`;
-            break;
-        case 'twitter':
-            shareUrl = `https://twitter.com/intent/tweet?text=${encodedText}&url=${encodedUrl}`;
-            break;
-        case 'telegram':
-            shareUrl = `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}`;
-            break;
-        case 'copy':
-            navigator.clipboard.writeText(`${text} ${url}`).then(() => {
-                // Create a temporary notification
-                const notification = document.createElement('div');
-                notification.textContent = 'Link kopiert!';
-                notification.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    background: #111827;
-                    color: white;
-                    padding: 12px 20px;
-                    border-radius: 8px;
-                    z-index: 10000;
-                    font-size: 14px;
-                `;
-                document.body.appendChild(notification);
-                setTimeout(() => notification.remove(), 2000);
+        reorderBtn.addEventListener('click', (e) => {
+            console.log('YPrint Debug [Order Actions]: 🎯 REORDER BUTTON CLICKED!');
+            console.log('YPrint Debug [Order Actions]: Click event details:', {
+                target: e.target,
+                currentTarget: e.currentTarget,
+                type: e.type,
+                timeStamp: e.timeStamp
             });
-            return;
-    }
-
-    if (shareUrl) {
-        window.open(shareUrl, '_blank', 'width=600,height=400');
-    }
-};
-
-// Share Options
-const shareOptions = container.querySelectorAll('.yprint-share-option');
-shareOptions.forEach(option => {
-    option.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation(); // Prevent event bubbling
-        
-        const { platform } = option.dataset;
-        const designName = shareButton.dataset.designName || 'Mein Design';
-        const productUrl = shareButton.dataset.productUrl || window.location.href;
-        const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
-        const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
-        const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
-
-        console.log('YPrint Debug: Share clicked:', platform, fullShareText, productUrl);
-        
-        handleShare(platform, fullShareText, productUrl);
-        
-        // Close dropdown
-        if (shareDropdown) {
-            shareDropdown.classList.remove('show');
-            shareButton.classList.remove('show');
-        }
-    });
-});
-
-            // Reorder Button with extensive debugging
-const reorderBtn = container.querySelector('.yprint-reorder-btn');
-console.log('YPrint Debug [Order Actions]: Searching for reorder button with selector .yprint-reorder-btn');
-console.log('YPrint Debug [Order Actions]: Reorder button found:', reorderBtn);
-
-if (reorderBtn) {
-    console.log('YPrint Debug [Order Actions]: Reorder button dataset:', reorderBtn.dataset);
-    console.log('YPrint Debug [Order Actions]: Button classes:', reorderBtn.className);
-    console.log('YPrint Debug [Order Actions]: Button innerHTML:', reorderBtn.innerHTML);
-    
-    reorderBtn.addEventListener('click', (e) => {
-        console.log('YPrint Debug [Order Actions]: Reorder button clicked!');
-        console.log('YPrint Debug [Order Actions]: Click event:', e);
-        console.log('YPrint Debug [Order Actions]: Event target:', e.target);
-        console.log('YPrint Debug [Order Actions]: Current target:', e.currentTarget);
-        
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const { orderId, itemId, designId } = e.currentTarget.dataset;
-        console.log('YPrint Debug [Order Actions]: Extracted data from button:', {
-            orderId: orderId,
-            itemId: itemId, 
-            designId: designId,
-            hasOrderId: !!orderId,
-            hasItemId: !!itemId,
-            hasDesignId: !!designId
+            
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const { orderId, itemId, designId } = e.currentTarget.dataset;
+            console.log('YPrint Debug [Order Actions]: Extracted button data:', {
+                orderId: orderId,
+                itemId: itemId,
+                designId: designId,
+                hasOrderId: !!orderId,
+                hasItemId: !!itemId,
+                hasDesignId: !!designId && designId !== 'undefined' && designId !== ''
+            });
+            
+            handleReorder(orderId, itemId, designId, e.currentTarget);
         });
         
-        handleReorder(orderId, itemId, designId, e.currentTarget);
-    });
-    
-    console.log('YPrint Debug [Order Actions]: Click event listener added to reorder button');
-} else {
-    console.error('YPrint Debug [Order Actions]: Reorder button NOT found!');
-    console.log('YPrint Debug [Order Actions]: Available buttons in container:', container.querySelectorAll('button'));
-    console.log('YPrint Debug [Order Actions]: Available elements with class containing "reorder":', container.querySelectorAll('[class*="reorder"]'));
-}
-
-            const handleReorder = (orderId, itemId, designId, button) => {
-    console.log('YPrint Debug [Order Actions]: ===== HANDLE REORDER START =====');
-    console.log('YPrint Debug [Order Actions]: Function called with parameters:', {
-        orderId: orderId,
-        itemId: itemId,
-        designId: designId,
-        button: button
-    });
-    
-    console.log('YPrint Debug [Order Actions]: Parameter validation:', {
-        orderIdValid: !!orderId && orderId !== 'undefined',
-        itemIdValid: !!itemId && itemId !== 'undefined', 
-        designIdValid: !!designId && designId !== 'undefined' && designId !== '',
-        buttonValid: !!button
-    });
-    
-    // Always use Your Designs logic if design_id is available
-    if (designId && designId !== 'undefined' && designId !== '') {
-        console.log('YPrint Debug [Order Actions]: ✅ Design ID available - using Your Designs reorder logic');
-        console.log('YPrint Debug [Order Actions]: Calling showSizeSelectionModal with designId:', designId);
-        showSizeSelectionModal(designId, button);
+        console.log('YPrint Debug [Order Actions]: ✅ Reorder click event listener registered');
     } else {
-        console.log('YPrint Debug [Order Actions]: ⚠️ No valid design ID - using direct reorder fallback');
-        console.log('YPrint Debug [Order Actions]: Calling directReorder with orderId:', orderId, 'itemId:', itemId);
-        directReorder(orderId, itemId, button);
+        console.error('YPrint Debug [Order Actions]: ❌ Reorder button NOT found!');
+        console.log('YPrint Debug [Order Actions]: Available buttons:', container.querySelectorAll('button'));
+        console.log('YPrint Debug [Order Actions]: Elements with "reorder" class:', container.querySelectorAll('[class*="reorder"]'));
+        console.log('YPrint Debug [Order Actions]: Elements with "yprint-reorder-btn" class:', container.querySelectorAll('.yprint-reorder-btn'));
     }
-    console.log('YPrint Debug [Order Actions]: ===== HANDLE REORDER END =====');
-};
 
-const directReorder = (orderId, itemId, button) => {
-    button.classList.add('loading');
-    button.disabled = true;
-    const originalText = button.querySelector('span').textContent;
-    button.querySelector('span').textContent = '<?php echo esc_js($adding_to_cart_text ?? 'Wird hinzugefügt...'); ?>';
-
-    jQuery.ajax({
-        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-        type: 'POST',
-        data: {
-            action: 'yprint_reorder_item',
-            order_id: orderId,
-            item_id: itemId,
-            nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
-        }
-    })
-    .done(response => {
-    console.log('YPrint Debug: AJAX response received:', response);
-    if (response.success) {
-        console.log('YPrint Debug: Reorder successful');
-        button.querySelector('span').textContent = 'Hinzugefügt!';
-        setTimeout(() => {
-            if (typeof refreshCartDisplay === 'function') {
-                refreshCartDisplay();
-            }
-            window.location.hash = '#mobile-cart';
-        }, 300);
+    // =================================================================
+    // SHARE BUTTON FUNCTIONALITY
+    // =================================================================
+    console.log('YPrint Debug [Order Actions]: Setting up share button...');
+    const shareButton = container.querySelector('.yprint-share-trigger');
+    const shareDropdown = container.querySelector('.yprint-share-dropdown-desktop');
+    
+    console.log('YPrint Debug [Order Actions]: Share button found:', !!shareButton);
+    console.log('YPrint Debug [Order Actions]: Share dropdown found:', !!shareDropdown);
+    
+    if (shareButton) {
+        console.log('YPrint Debug [Order Actions]: Share button dataset:', shareButton.dataset);
         
-        setTimeout(() => {
-            button.querySelector('span').textContent = originalText;
-            button.classList.remove('loading');
-            button.disabled = false;
-        }, 2000);
-    } else {
-        console.error('YPrint Debug: Reorder failed:', response.data);
-        alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
-        button.querySelector('span').textContent = originalText;
-        button.classList.remove('loading');
-        button.disabled = false;
+        shareButton.addEventListener('click', (e) => {
+            console.log('YPrint Debug [Order Actions]: 🎯 SHARE BUTTON CLICKED!');
+            e.preventDefault();
+            
+            if (shareDropdown) {
+                shareDropdown.classList.toggle('show');
+                shareButton.classList.toggle('show');
+                console.log('YPrint Debug [Order Actions]: Share dropdown toggled');
+            }
+        });
+        
+        // Share option clicks
+        const shareOptions = container.querySelectorAll('.yprint-share-option');
+        console.log('YPrint Debug [Order Actions]: Found share options:', shareOptions.length);
+        
+        shareOptions.forEach(option => {
+            option.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const { platform } = option.dataset;
+                const designName = shareButton.dataset.designName || 'Mein Design';
+                const productUrl = shareButton.dataset.productUrl || window.location.href;
+                const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
+                const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
+                const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
+
+                console.log('YPrint Debug [Order Actions]: Share option clicked:', platform);
+                handleShare(platform, fullShareText, productUrl);
+                
+                if (shareDropdown) {
+                    shareDropdown.classList.remove('show');
+                    shareButton.classList.remove('show');
+                }
+            });
+        });
     }
-})
-    .fail(() => {
-        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
-        button.querySelector('span').textContent = originalText;
-        button.classList.remove('loading');
-        button.disabled = false;
-    });
-};
 
-// Size selection modal function (adapted from your-designs-shortcode.php)
-const showSizeSelectionModal = (designId, button) => {
-    console.log('YPrint Debug [Order Actions]: ===== SIZE SELECTION MODAL START =====');
-    console.log('YPrint Debug [Order Actions]: Modal called with:', {
-        designId: designId,
-        button: button,
-        buttonContent: button ? button.innerHTML : 'null'
-    });
+    // =================================================================
+    // MAIN FUNCTIONS
+    // =================================================================
     
-    const originalContent = button.innerHTML;
-    console.log('YPrint Debug [Order Actions]: Original button content saved:', originalContent);
-    
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Lädt...</span>';
-    button.style.pointerEvents = 'none';
-    console.log('YPrint Debug [Order Actions]: Button updated to loading state');
-
-    const ajaxData = {
-        action: 'yprint_get_product_sizes',
-        design_id: designId,
-        nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-    };
-    
-    console.log('YPrint Debug [Order Actions]: Sending AJAX request with data:', ajaxData);
-    console.log('YPrint Debug [Order Actions]: AJAX URL:', '<?php echo esc_url(admin_url('admin-ajax.php')); ?>');
-
-    jQuery.ajax({
-        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-        type: 'POST',
-        data: ajaxData
-    })
-    .done(response => {
-    console.log('YPrint Debug [Order Actions]: AJAX response received:', response);
-    console.log('YPrint Debug [Order Actions]: Response type:', typeof response);
-    console.log('YPrint Debug [Order Actions]: Response success:', response.success);
-    console.log('YPrint Debug [Order Actions]: Response data:', response.data);
-    
-    if (response.success && response.data) {
-        console.log('YPrint Debug [Order Actions]: ✅ Valid response - creating modal');
-        const modalData = response.data;
-        console.log('YPrint Debug [Order Actions]: Modal data:', modalData);
-        console.log('YPrint Debug [Order Actions]: Available sizes:', modalData.sizes);
-        showSizeModal(modalData, designId, button, originalContent);
-    } else {
-        console.error('YPrint Debug [Order Actions]: ❌ Invalid response or no data');
-        console.log('YPrint Debug [Order Actions]: Error message:', response.data);
-        alert(response.data || 'Fehler beim Laden der Größen');
-        button.innerHTML = originalContent;
-        button.style.pointerEvents = '';
+    function handleReorder(orderId, itemId, designId, button) {
+        console.log('YPrint Debug [Order Actions]: ===== HANDLE REORDER START =====');
+        console.log('YPrint Debug [Order Actions]: Parameters:', {
+            orderId: orderId,
+            itemId: itemId,
+            designId: designId,
+            button: button
+        });
+        
+        console.log('YPrint Debug [Order Actions]: Parameter validation:', {
+            orderIdValid: !!orderId && orderId !== 'undefined',
+            itemIdValid: !!itemId && itemId !== 'undefined', 
+            designIdValid: !!designId && designId !== 'undefined' && designId !== '',
+            buttonValid: !!button
+        });
+        
+        if (designId && designId !== 'undefined' && designId !== '') {
+            console.log('YPrint Debug [Order Actions]: ✅ Design ID available - using Your Designs logic');
+            showSizeSelectionModal(designId, button);
+        } else {
+            console.log('YPrint Debug [Order Actions]: ⚠️ No design ID - using direct reorder');
+            directReorder(orderId, itemId, button);
+        }
+        
+        console.log('YPrint Debug [Order Actions]: ===== HANDLE REORDER END =====');
     }
-})
-.fail((xhr, status, error) => {
-    console.error('YPrint Debug [Order Actions]: ❌ AJAX request failed');
-    console.log('YPrint Debug [Order Actions]: XHR:', xhr);
-    console.log('YPrint Debug [Order Actions]: Status:', status);
-    console.log('YPrint Debug [Order Actions]: Error:', error);
-    console.log('YPrint Debug [Order Actions]: Response text:', xhr.responseText);
-    alert('Netzwerkfehler beim Laden der Größen');
-    button.innerHTML = originalContent;
-    button.style.pointerEvents = '';
-});
-};
-
-const showSizeModal = (modalData, designId, button, originalContent) => {
-    // Use the exact same modal structure as Your Designs Shortcode
-    const modalHTML = `
-        <div id="yprint-size-modal-overlay" class="yprint-size-modal-overlay">
-            <div class="yprint-size-modal">
-                <div class="yprint-size-modal-header">
-                    <h3>Größe für Nachbestellung wählen</h3>
-                    <button class="yprint-size-modal-close">&times;</button>
-                </div>
-                <div class="yprint-size-modal-content">
-                    <div class="yprint-size-options">
-                        ${modalData.sizes.map(size => `
-                            <button class="yprint-size-option" data-size-id="${size.id}" data-size-name="${size.name}">
-                                ${size.name}
-                            </button>
-                        `).join('')}
+    
+    function showSizeSelectionModal(designId, button) {
+        console.log('YPrint Debug [Order Actions]: ===== SIZE MODAL START =====');
+        console.log('YPrint Debug [Order Actions]: Design ID:', designId);
+        
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Lädt...</span>';
+        button.style.pointerEvents = 'none';
+        
+        const ajaxData = {
+            action: 'yprint_get_product_sizes',
+            design_id: designId,
+            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+        };
+        
+        console.log('YPrint Debug [Order Actions]: AJAX request data:', ajaxData);
+        
+        jQuery.ajax({
+            url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+            type: 'POST',
+            data: ajaxData
+        })
+        .done(response => {
+            console.log('YPrint Debug [Order Actions]: Size AJAX response:', response);
+            
+            if (response.success && response.data) {
+                console.log('YPrint Debug [Order Actions]: ✅ Creating size modal');
+                showSizeModal(response.data, designId, button, originalContent);
+            } else {
+                console.error('YPrint Debug [Order Actions]: ❌ Size request failed:', response.data);
+                alert(response.data || 'Fehler beim Laden der Größen');
+                button.innerHTML = originalContent;
+                button.style.pointerEvents = '';
+            }
+        })
+        .fail((xhr, status, error) => {
+            console.error('YPrint Debug [Order Actions]: ❌ Size AJAX failed:', {xhr, status, error});
+            alert('Netzwerkfehler beim Laden der Größen');
+            button.innerHTML = originalContent;
+            button.style.pointerEvents = '';
+        });
+    }
+    
+    function showSizeModal(modalData, designId, button, originalContent) {
+        console.log('YPrint Debug [Order Actions]: Creating modal with sizes:', modalData.sizes);
+        
+        const modalHTML = `
+            <div id="yprint-size-modal-overlay" class="yprint-size-modal-overlay">
+                <div class="yprint-size-modal">
+                    <div class="yprint-size-modal-header">
+                        <h3>Größe für Nachbestellung wählen</h3>
+                        <button class="yprint-size-modal-close">&times;</button>
+                    </div>
+                    <div class="yprint-size-modal-content">
+                        <div class="yprint-size-options">
+                            ${modalData.sizes.map(size => `
+                                <button class="yprint-size-option" data-size-id="${size.id}" data-size-name="${size.name}">
+                                    ${size.name}
+                                </button>
+                            `).join('')}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    `;
-    
-    document.body.insertAdjacentHTML('beforeend', modalHTML);
-    
-    const modal = document.getElementById('yprint-size-modal-overlay');
-    const closeBtn = modal.querySelector('.yprint-size-modal-close');
-    const sizeOptions = modal.querySelectorAll('.yprint-size-option');
-    
-    const closeModal = () => {
-        modal.remove();
-        button.innerHTML = originalContent;
-        button.style.pointerEvents = '';
-    };
-    
-    closeBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeModal();
-    });
-    
-    // Use exact Your Designs reorder logic
-    sizeOptions.forEach(option => {
-        option.addEventListener('click', () => {
-            const selectedSize = option.dataset.sizeName;
-            modal.remove();
-            proceedWithReorder(designId, selectedSize, button);
-        });
-    });
-};
-
-const proceedWithReorder = (designId, selectedSize, button) => {
-    console.log('YPrint Debug [Order Actions]: ===== PROCEED WITH REORDER START =====');
-    console.log('YPrint Debug [Order Actions]: Reorder parameters:', {
-        designId: designId,
-        selectedSize: selectedSize,
-        button: button
-    });
-    
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
-    button.style.pointerEvents = 'none';
-    console.log('YPrint Debug [Order Actions]: Button set to loading state');
-
-    const reorderData = {
-        action: 'yprint_reorder_design', // Use Your Designs AJAX action
-        design_id: designId,
-        selected_size: selectedSize,
-        nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-    };
-    
-    console.log('YPrint Debug [Order Actions]: Sending reorder AJAX with data:', reorderData);
-
-    jQuery.ajax({
-        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-        type: 'POST',
-        data: reorderData
-    })
-    .done(function(response) {
-        console.log('YPrint Debug [Order Actions]: Reorder AJAX response:', response);
-        console.log('YPrint Debug [Order Actions]: Response success:', response.success);
+        `;
         
-        if (response.success) {
-            console.log('YPrint Debug [Order Actions]: ✅ Reorder successful!');
-            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
-            
-            // Trigger cart update events (same as Your Designs)
-            console.log('YPrint Debug [Order Actions]: Triggering cart update events');
-            jQuery(document.body).trigger('added_to_cart', [[], '', button]);
-            jQuery(document.body).trigger('wc_fragments_refreshed');
-            
-            // Open mobile cart popup with multiple fallback methods
-            setTimeout(() => {
-                console.log('YPrint Debug [Order Actions]: Attempting to open cart popup');
-                if (typeof window.openYPrintCart === 'function') {
-                    console.log('YPrint Debug [Order Actions]: Using window.openYPrintCart()');
-                    window.openYPrintCart();
-                } else if (jQuery('#mobile-cart-popup').length) {
-                    console.log('YPrint Debug [Order Actions]: Using jQuery trigger method');
-                    jQuery(document).trigger('yprint:open-cart-popup');
-                } else {
-                    const mobileCartPopup = document.getElementById('mobile-cart-popup');
-                    if (mobileCartPopup) {
-                        console.log('YPrint Debug [Order Actions]: Using direct popup manipulation');
-                        mobileCartPopup.classList.add('open');
-                        document.body.classList.add('cart-popup-open');
-                        mobileCartPopup.setAttribute('aria-hidden', 'false');
-                    } else {
-                        console.log('YPrint Debug [Order Actions]: Using hash navigation fallback');
-                        window.location.hash = '#mobile-cart';
-                    }
-                }
-            }, 300);
-            
-            // Reset button after 2 seconds
-            setTimeout(() => {
-                console.log('YPrint Debug [Order Actions]: Resetting button to original state');
-                button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
-                button.style.pointerEvents = '';
-            }, 2000);
-        } else {
-            console.error('YPrint Debug [Order Actions]: ❌ Reorder failed:', response.data);
-            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
-            button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        const modal = document.getElementById('yprint-size-modal-overlay');
+        const closeBtn = modal.querySelector('.yprint-size-modal-close');
+        const sizeOptions = modal.querySelectorAll('.yprint-size-option');
+        
+        const closeModal = () => {
+            modal.remove();
+            button.innerHTML = originalContent;
             button.style.pointerEvents = '';
-        }
-    })
-    .fail(function(xhr, status, error) {
-        console.error('YPrint Debug [Order Actions]: ❌ Reorder AJAX failed');
-        console.log('YPrint Debug [Order Actions]: XHR:', xhr);
-        console.log('YPrint Debug [Order Actions]: Status:', status);
-        console.log('YPrint Debug [Order Actions]: Error:', error);
-        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
-        button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
-        button.style.pointerEvents = '';
-    });
+        };
+        
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        
+        sizeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const selectedSize = option.dataset.sizeName;
+                console.log('YPrint Debug [Order Actions]: Size selected:', selectedSize);
+                modal.remove();
+                proceedWithReorder(designId, selectedSize, button);
+            });
+        });
+    }
     
-    console.log('YPrint Debug [Order Actions]: ===== PROCEED WITH REORDER END =====');
-};
+    function proceedWithReorder(designId, selectedSize, button) {
+        console.log('YPrint Debug [Order Actions]: ===== PROCEED WITH REORDER =====');
+        console.log('YPrint Debug [Order Actions]: Design ID:', designId, 'Size:', selectedSize);
+        
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
+        button.style.pointerEvents = 'none';
 
-// Share Button Debugging
-const shareButton = container.querySelector('.yprint-share-trigger');
-console.log('YPrint Debug [Order Actions]: Share button found:', shareButton);
-
-if (shareButton) {
-    console.log('YPrint Debug [Order Actions]: Share button dataset:', shareButton.dataset);
-    console.log('YPrint Debug [Order Actions]: Share dropdown found:', container.querySelector('.yprint-share-dropdown-desktop'));
-} else {
-    console.error('YPrint Debug [Order Actions]: Share button NOT found!');
-    console.log('YPrint Debug [Order Actions]: Available share elements:', container.querySelectorAll('[class*="share"]'));
-}
-
-const proceedWithReorder = (designId, selectedSize, button) => {
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
-    button.style.pointerEvents = 'none';
-
-    jQuery.ajax({
-        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-        type: 'POST',
-        data: {
-            action: 'yprint_reorder_design', // Use Your Designs AJAX action
+        const reorderData = {
+            action: 'yprint_reorder_design',
             design_id: designId,
             selected_size: selectedSize,
             nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-        }
-    })
-    .done(function(response) {
-        if (response.success) {
-            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
+        };
+        
+        console.log('YPrint Debug [Order Actions]: Reorder AJAX data:', reorderData);
+
+        jQuery.ajax({
+            url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+            type: 'POST',
+            data: reorderData
+        })
+        .done(function(response) {
+            console.log('YPrint Debug [Order Actions]: ✅ Reorder response:', response);
             
-            // Trigger cart update events (same as Your Designs)
-            jQuery(document.body).trigger('added_to_cart', [[], '', button]);
-            jQuery(document.body).trigger('wc_fragments_refreshed');
-            
-            // Open mobile cart popup with multiple fallback methods
-            setTimeout(() => {
-                if (typeof window.openYPrintCart === 'function') {
-                    window.openYPrintCart();
-                } else if (jQuery('#mobile-cart-popup').length) {
-                    jQuery(document).trigger('yprint:open-cart-popup');
-                } else {
-                    const mobileCartPopup = document.getElementById('mobile-cart-popup');
-                    if (mobileCartPopup) {
-                        mobileCartPopup.classList.add('open');
-                        document.body.classList.add('cart-popup-open');
-                        mobileCartPopup.setAttribute('aria-hidden', 'false');
+            if (response.success) {
+                button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
+                
+                jQuery(document.body).trigger('added_to_cart', [[], '', button]);
+                jQuery(document.body).trigger('wc_fragments_refreshed');
+                
+                setTimeout(() => {
+                    if (typeof window.openYPrintCart === 'function') {
+                        window.openYPrintCart();
                     } else {
                         window.location.hash = '#mobile-cart';
                     }
-                }
-            }, 300);
-            
-            // Reset button after 2 seconds
-            setTimeout(() => {
+                }, 300);
+                
+                setTimeout(() => {
+                    button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+                    button.style.pointerEvents = '';
+                }, 2000);
+            } else {
+                console.error('YPrint Debug [Order Actions]: ❌ Reorder failed:', response.data);
+                alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
                 button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
                 button.style.pointerEvents = '';
-            }, 2000);
-        } else {
-            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+            }
+        })
+        .fail(function(xhr, status, error) {
+            console.error('YPrint Debug [Order Actions]: ❌ Reorder AJAX failed:', {xhr, status, error});
+            alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
             button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
             button.style.pointerEvents = '';
-        }
-    })
-    .fail(function() {
-        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
-        button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
-        button.style.pointerEvents = '';
-    });
-};
-
-const handleYourDesignsReorder = (designId, sizeId, sizeName, button) => {
-    console.log('YPrint Debug: Your Designs reorder with:', {designId, sizeId, sizeName});
-    
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
-    button.style.pointerEvents = 'none';
-
-    jQuery.ajax({
-        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-        type: 'POST',
-        data: {
-            action: 'yprint_reorder_design', // Use Your Designs action
-            design_id: designId,
-            size_id: sizeId,
-            size_name: sizeName,
-            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-        }
-    })
-    .done(response => {
-        console.log('YPrint Debug: Your Designs reorder response:', response);
-        if (response.success) {
-            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
-            
-            // Trigger cart update events
-            jQuery(document.body).trigger('added_to_cart', [[], '', button]);
-            jQuery(document.body).trigger('wc_fragments_refreshed');
-            
-            // Open mobile cart popup
-            setTimeout(() => {
-                if (typeof window.openYPrintCart === 'function') {
-                    window.openYPrintCart();
-                } else if (jQuery('#mobile-cart-popup').length) {
-                    jQuery(document).trigger('yprint:open-cart-popup');
-                } else {
-                    window.location.hash = '#mobile-cart';
-                }
-            }, 300);
-            
-            setTimeout(() => {
-                button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
-                button.style.pointerEvents = '';
-            }, 2000);
-        } else {
-            console.error('YPrint Debug: Your Designs reorder failed:', response.data);
-            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
-            button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
-            button.style.pointerEvents = '';
-        }
-    })
-    .fail(() => {
-        console.error('YPrint Debug: Your Designs reorder AJAX failed');
-        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
-        button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
-        button.style.pointerEvents = '';
-    });
-};
-
-const handleReorderWithSize = (orderId, itemId, designId, sizeId, sizeName, button) => {
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
-    button.style.pointerEvents = 'none';
-
-    console.log('YPrint Debug: Starting direct reorder AJAX call');
-jQuery.ajax({
-    url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-    type: 'POST',
-    data: {
-        action: 'yprint_reorder_item',
-        order_id: orderId,
-        item_id: itemId,
-        nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
+        });
     }
-})
-    .done(response => {
-        if (response.success) {
-            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
-            setTimeout(() => {
-                if (typeof refreshCartDisplay === 'function') {
-                    refreshCartDisplay();
-                }
-                window.location.hash = '#mobile-cart';
-            }, 300);
+    
+    function directReorder(orderId, itemId, button) {
+        console.log('YPrint Debug [Order Actions]: Direct reorder for order:', orderId, 'item:', itemId);
+        
+        button.classList.add('loading');
+        button.disabled = true;
+        const originalText = button.querySelector('span').textContent;
+        button.querySelector('span').textContent = 'Wird hinzugefügt...';
+
+        jQuery.ajax({
+            url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+            type: 'POST',
+            data: {
+                action: 'yprint_reorder_item',
+                order_id: orderId,
+                item_id: itemId,
+                nonce: '<?php echo wp_create_nonce('yprint_order_actions_nonce'); ?>'
+            }
+        })
+        .done(response => {
+            console.log('YPrint Debug [Order Actions]: Direct reorder response:', response);
             
-            setTimeout(() => {
-                button.innerHTML = '<i class="fas fa-shopping-cart"></i><span>Nachbestellen</span>';
-                button.style.pointerEvents = '';
-            }, 2000);
-        } else {
-            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
-            button.innerHTML = '<i class="fas fa-shopping-cart"></i><span>Nachbestellen</span>';
-            button.style.pointerEvents = '';
-        }
-    })
-    .fail(() => {
-        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
-        button.innerHTML = '<i class="fas fa-shopping-cart"></i><span>Nachbestellen</span>';
-        button.style.pointerEvents = '';
-    });
-};
-                        
-                        // Trigger cart update events
-                        jQuery(document.body).trigger('added_to_cart', [[], '', button]);
-                        jQuery(document.body).trigger('wc_fragments_refreshed');
-                        
-                        // Open mobile cart popup with multiple fallback methods
-                        setTimeout(() => {
-                            // Method 1: Try YPrint global function
-                            if (typeof window.openYPrintCart === 'function') {
-                                window.openYPrintCart();
-                                return;
-                            }
-                            
-                            // Method 2: Try jQuery trigger
-                            if (jQuery('#mobile-cart-popup').length) {
-                                jQuery(document).trigger('yprint:open-cart-popup');
-                                return;
-                            }
-                            
-                            // Method 3: Direct popup manipulation
-                            const mobileCartPopup = document.getElementById('mobile-cart-popup');
-                            if (mobileCartPopup) {
-                                mobileCartPopup.classList.add('open');
-                                document.body.classList.add('cart-popup-open');
-                                mobileCartPopup.setAttribute('aria-hidden', 'false');
-                                return;
-                            }
-                            
-                            // Method 4: Hash navigation fallback
-                            window.location.hash = '#mobile-cart';
-                        }, 300);
-                        
-                        setTimeout(() => {
-                            button.querySelector('span').textContent = originalText;
-                            button.classList.remove('loading');
-                            button.disabled = false;
-                        }, 2000);
-                    } else {
-                        alert(response.data || 'Fehler beim Hinzufügen');
-                        button.querySelector('span').textContent = originalText;
-                        button.classList.remove('loading');
-                        button.disabled = false;
-                    }
-                })
-                .fail(() => {
-                    alert('<?php echo esc_js($error_adding_text); ?>');
+            if (response.success) {
+                button.querySelector('span').textContent = 'Hinzugefügt!';
+                setTimeout(() => window.location.hash = '#mobile-cart', 300);
+                
+                setTimeout(() => {
                     button.querySelector('span').textContent = originalText;
                     button.classList.remove('loading');
                     button.disabled = false;
-                });
-            };
-        });
-
-        // Dynamic layout adjustment based on available space
-const adjustButtonLayout = () => {
-    const buttonsContainer = container.querySelector('.yprint-last-order-actions-buttons');
-    const buttons = container.querySelectorAll('.yprint-last-order-action-btn');
-    
-    if (!buttonsContainer || buttons.length === 0) return;
-    
-    const containerWidth = buttonsContainer.offsetWidth;
-    const buttonCount = buttons.length;
-    
-    // Calculate if we need to hide text (rough calculation)
-    const minWidthPerButton = 120; // Width needed for icon + text
-    const totalNeededWidth = buttonCount * minWidthPerButton;
-    
-    buttons.forEach(button => {
-        const span = button.querySelector('span');
-        if (span) {
-            if (containerWidth < totalNeededWidth) {
-                span.style.display = 'none';
-                button.style.padding = '8px';
-                button.style.minWidth = '40px';
+                }, 2000);
             } else {
-                span.style.display = 'inline';
-                button.style.padding = '8px 10px';
-                button.style.minWidth = 'auto';
+                alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+                button.querySelector('span').textContent = originalText;
+                button.classList.remove('loading');
+                button.disabled = false;
             }
+        })
+        .fail(() => {
+            alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
+            button.querySelector('span').textContent = originalText;
+            button.classList.remove('loading');
+            button.disabled = false;
+        });
+    }
+    
+    function handleShare(platform, text, url) {
+        console.log('YPrint Debug [Order Actions]: Share to platform:', platform);
+        
+        let shareUrl = '';
+        switch(platform) {
+            case 'whatsapp':
+                shareUrl = `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
+                break;
+            case 'facebook':
+                shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+                break;
+            case 'twitter':
+                shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+                break;
+            case 'telegram':
+                shareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+                break;
+            case 'copy':
+                navigator.clipboard.writeText(url).then(() => {
+                    const notification = document.createElement('div');
+                    notification.textContent = 'Link kopiert!';
+                    notification.style.cssText = `
+                        position: fixed; top: 20px; right: 20px; background: #111827; color: white;
+                        padding: 12px 20px; border-radius: 8px; z-index: 10000; font-size: 14px;
+                    `;
+                    document.body.appendChild(notification);
+                    setTimeout(() => notification.remove(), 2000);
+                });
+                return;
         }
-    });
-};
+        
+        if (shareUrl) {
+            window.open(shareUrl, '_blank', 'width=600,height=400');
+        }
+    }
 
-// Call on load and resize
-adjustButtonLayout();
-window.addEventListener('resize', adjustButtonLayout);
-        </script>
+    console.log('YPrint Debug [Order Actions]: ===== INITIALIZATION COMPLETE =====');
+});
+</script>
 
         <?php
         return ob_get_clean();
