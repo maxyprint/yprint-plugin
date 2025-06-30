@@ -1752,31 +1752,31 @@ function populateConfirmationWithPaymentData(paymentData) {
         // Schritt 2: Payment Method Element Update (mit Fehlerbehandlung)
         console.log('📝 Step 2: Attempting to update payment method display');
         try {
-            const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
-            if (confirmPaymentMethodEl && paymentData.payment_method_id) {
-                let paymentMethodText = null;
+            const confirmPaymentMethodEl = document.getElementById('dynamic-payment-method-display');
+if (confirmPaymentMethodEl && paymentData.payment_method_id) {
+    let paymentMethodText = null;
 
-                // Sichere Verwendung von getPaymentMethodTitle
-                try {
-                    if (typeof getPaymentMethodTitle === 'function') {
-                        paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
-                        console.log('✅ getPaymentMethodTitle result:', paymentMethodText);
-                    }
-                } catch (error) {
-                    console.error('❌ Error in getPaymentMethodTitle:', error);
-                }
+    // Sichere Verwendung von getPaymentMethodTitle
+    try {
+        if (typeof getPaymentMethodTitle === 'function') {
+            paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
+            console.log('✅ getPaymentMethodTitle result:', paymentMethodText);
+        }
+    } catch (error) {
+        console.error('❌ Error in getPaymentMethodTitle:', error);
+    }
 
-                // Fallback
-                if (!paymentMethodText) {
-                    paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
-                    console.log('✅ Using fallback payment method text');
-                }
-                
-                confirmPaymentMethodEl.innerHTML = paymentMethodText;
-                console.log('✅ Payment method element updated');
-            } else {
-                console.warn('⚠️ confirm-payment-method element not found or no payment_method_id');
-            }
+    // Fallback
+    if (!paymentMethodText) {
+        paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
+        console.log('✅ Using fallback payment method text');
+    }
+    
+    confirmPaymentMethodEl.innerHTML = paymentMethodText;
+    console.log('✅ Payment method element updated');
+} else {
+    console.warn('⚠️ dynamic-payment-method-display element not found or no payment_method_id');
+}
         } catch (error) {
             console.error('❌ Error updating payment method element:', error);
         }
@@ -1808,12 +1808,12 @@ function populateConfirmationWithPaymentData(paymentData) {
                 console.log('✅ Calling updatePaymentMethodDisplay()');
                 updatePaymentMethodDisplay();
             } else {
-                console.warn('⚠️ updatePaymentMethodDisplay function not available');
+                console.log('🔄 updatePaymentMethodDisplay function loading - will retry via backup events');
             }
         } catch (error) {
             console.error('❌ Error in updatePaymentMethodDisplay:', error);
         }
-
+        
         try {
             // Trigger Payment Method Update Attempts
             if (typeof attemptPaymentMethodUpdate === 'function') {
@@ -1826,7 +1826,7 @@ function populateConfirmationWithPaymentData(paymentData) {
                     }
                 }, 50);
             } else {
-                console.warn('⚠️ attemptPaymentMethodUpdate function not available');
+                console.log('🔄 attemptPaymentMethodUpdate function loading - will retry via backup events');
             }
         } catch (error) {
             console.error('❌ Error setting up attemptPaymentMethodUpdate:', error);

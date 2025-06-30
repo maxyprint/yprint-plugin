@@ -761,11 +761,11 @@ function getUniversalPaymentMethodDisplay(paymentMethodDetails) {
         console.log('✅ Alternative payment method detected:', primaryType);
     }
 
-    // Baue finalen Display String
-    const finalDisplay = `<i class="${iconClass} mr-2"></i> ${displayName} (Stripe)`;
-    console.log('✅ Final payment display:', finalDisplay);
-    
-    return finalDisplay;
+    // Baue finalen Display String (ohne doppeltes "(Stripe)")
+const finalDisplay = `<i class="${iconClass} mr-2"></i> ${displayName}`;
+console.log('✅ Final payment display:', finalDisplay);
+
+return finalDisplay;
 }
 
     function getPaymentMethodTitle() {
