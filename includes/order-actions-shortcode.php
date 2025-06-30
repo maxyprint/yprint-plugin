@@ -85,63 +85,67 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
 
 <style>
 
-    /* Your Designs Size Dropdown Styles */
+    /* Exakte Your Designs Size Dropdown Styles */
 .yprint-size-dropdown {
     position: fixed;
     background: white;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 200px;
     z-index: 999999;
     opacity: 0;
+    visibility: hidden;
     transform: translateY(-10px);
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+    padding: 12px;
+    min-width: 180px;
+    max-width: 250px;
+    white-space: nowrap;
+    pointer-events: none;
     font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
 }
 
 .yprint-size-dropdown.show {
-    opacity: 1;
-    transform: translateY(0);
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+    pointer-events: auto;
 }
 
 .yprint-size-dropdown-header {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f0f0f0;
-    background: #f9f9f9;
-    border-radius: 8px 8px 0 0;
+    margin-bottom: 8px;
+    text-align: center;
 }
 
 .yprint-size-dropdown-title {
+    font-size: 12px;
     font-weight: 600;
-    font-size: 14px;
-    color: #333;
+    margin: 0;
+    color: #374151;
 }
 
-.yprint-size-dropdown-content {
-    padding: 12px;
-}
-
-.yprint-size-options-grid {
+.yprint-size-options {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 8px 0;
 }
 
 .yprint-size-option {
-    padding: 8px;
-    border: 1px solid #ddd;
+    padding: 8px 4px;
+    border: 1px solid #e5e7eb;
     border-radius: 4px;
     text-align: center;
     cursor: pointer;
-    font-size: 14px;
-    background: white;
     transition: all 0.2s ease;
+    background: white;
+    font-weight: 500;
+    font-size: 11px;
+    line-height: 1;
 }
 
 .yprint-size-option:hover:not(.disabled) {
     border-color: #0079FF;
-    background: #f0f8ff;
+    background: #f3f9ff;
 }
 
 .yprint-size-option.selected {
@@ -152,48 +156,89 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
 
 .yprint-size-option.disabled {
     background: #f5f5f5;
-    color: #999;
+    color: #9ca3af;
+    border-color: #e5e7eb;
     cursor: not-allowed;
+    text-decoration: line-through;
     opacity: 0.6;
 }
 
-.yprint-size-dropdown-footer {
-    padding: 12px 16px;
-    border-top: 1px solid #f0f0f0;
-    background: #f9f9f9;
-    border-radius: 0 0 8px 8px;
+.yprint-size-dropdown-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
 }
 
-.yprint-size-confirm-btn {
-    width: 100%;
-    padding: 10px;
+.yprint-size-dropdown-btn {
+    flex: 1;
+    padding: 6px 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 11px;
+    transition: all 0.2s ease;
+}
+
+.yprint-size-dropdown-btn.cancel {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.yprint-size-dropdown-btn.cancel:hover {
+    background: #e5e7eb;
+}
+
+.yprint-size-dropdown-btn.confirm {
     background: #0079FF;
     color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background 0.2s ease;
 }
 
-.yprint-size-confirm-btn:hover:not(:disabled) {
-    background: #0066DD;
+.yprint-size-dropdown-btn.confirm:hover {
+    background: #0056b3;
 }
 
-.yprint-size-confirm-btn:disabled {
-    background: #ccc;
+.yprint-size-dropdown-btn:disabled {
+    background: #ffffff;
+    color: #9ca3af;
     cursor: not-allowed;
 }
 
-.yprint-size-loading, .yprint-size-error {
-    padding: 20px;
+.yprint-size-loading {
     text-align: center;
-    color: #666;
-    font-size: 14px;
+    padding: 12px;
+    color: #6B7280;
+    font-size: 11px;
 }
 
 .yprint-size-error {
-    color: #d32f2f;
+    text-align: center;
+    padding: 12px;
+    color: #dc2626;
+    font-size: 11px;
+}
+
+/* Mobile Anpassungen */
+@media (max-width: 768px) {
+    .yprint-size-dropdown {
+        min-width: 160px;
+        padding: 10px;
+    }
+
+    .yprint-size-options {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+    }
+
+    .yprint-size-option {
+        padding: 6px 4px;
+        font-size: 10px;
+    }
+
+    .yprint-size-dropdown-btn {
+        font-size: 10px;
+        padding: 5px 6px;
+    }
 }
 
 .yprint-last-order-actions {
@@ -883,30 +928,37 @@ function createSizeDropdown(designId, button) {
     });
     
     dropdown.innerHTML = `
-        <div class="yprint-size-dropdown-header">
-            <div class="yprint-size-dropdown-title">Größe wählen</div>
-        </div>
-        <div class="yprint-size-dropdown-content">
-            <div class="yprint-size-loading">Lädt Größen...</div>
-        </div>
-        <div class="yprint-size-dropdown-footer">
-            <button class="yprint-size-confirm-btn" disabled data-design-id="${designId}">
-                Hinzufügen
-            </button>
-        </div>
-    `;
+    <div class="yprint-size-dropdown-header">
+        <div class="yprint-size-dropdown-title">Größe wählen</div>
+    </div>
+    <div class="yprint-size-dropdown-content">
+        <div class="yprint-size-loading">Lädt Größen...</div>
+    </div>
+    <div class="yprint-size-dropdown-actions">
+        <button class="yprint-size-dropdown-btn cancel">Abbrechen</button>
+        <button class="yprint-size-dropdown-btn confirm" disabled data-design-id="${designId}">Bestätigen</button>
+    </div>
+`;
     
-    // Add confirm button functionality
-    const confirmBtn = dropdown.querySelector('.yprint-size-confirm-btn');
-    confirmBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const selectedSize = this.getAttribute('data-selected-size');
-        if (selectedSize) {
-            console.log('YPrint Debug [Order Actions]: Size confirmed:', selectedSize);
-            closeDropdown(dropdown);
-            proceedWithReorder(designId, selectedSize, button);
-        }
-    });
+    // Add button functionality
+const confirmBtn = dropdown.querySelector('.yprint-size-dropdown-btn.confirm');
+const cancelBtn = dropdown.querySelector('.yprint-size-dropdown-btn.cancel');
+
+confirmBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const selectedSize = this.getAttribute('data-selected-size');
+    if (selectedSize) {
+        console.log('YPrint Debug [Order Actions]: Size confirmed:', selectedSize);
+        closeDropdown(dropdown);
+        proceedWithReorder(designId, selectedSize, button);
+    }
+});
+
+cancelBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    console.log('YPrint Debug [Order Actions]: Size selection cancelled');
+    closeDropdown(dropdown);
+});
     
     return dropdown;
 }
@@ -914,8 +966,8 @@ function createSizeDropdown(designId, button) {
 function loadSizesIntoDropdown(sizes, content, dropdown) {
     console.log('YPrint Debug [Order Actions]: Loading sizes:', sizes);
     
-    const confirmBtn = dropdown.querySelector('.yprint-size-confirm-btn');
-    let html = '<div class="yprint-size-options-grid">';
+    const confirmBtn = dropdown.querySelector('.yprint-size-dropdown-btn.confirm');
+    let html = '<div class="yprint-size-options">';
     
     sizes.forEach(size => {
         const isDisabled = size.out_of_stock;
