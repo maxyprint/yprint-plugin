@@ -54,7 +54,7 @@ function yprint_get_email_template($title, $username, $content) {
                                 <tr>
                                     <td align="center" style="color: #1d1d1f; font-size: 15px; line-height: 1.5; padding-bottom: 10px;">
                                         <p style="margin-top: 0;">Hi <?php echo esc_html($username); ?>,</p>
-                                        <p style="margin-top: 0;">Danke für deine Bestellung!,</p>
+                                        <p style="margin-top: 0;">danke für deine Bestellung!</p>
                                         
                                         <!-- Inhalt wird hier eingefügt -->
                                         <?php 
