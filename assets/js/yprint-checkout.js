@@ -1810,8 +1810,27 @@ function populateConfirmationWithPaymentData(paymentData) {
     // Setze Kundeninformationen, falls vorhanden.
     if (paymentData.order_data && paymentData.order_data.customer_details) {
         const customerDetails = paymentData.order_data.customer_details;
-        const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
+        
+        // Email setzen
+        const confirmEmailEl = document.getElementById('confirm-email');
+        if (confirmEmailEl && customerDetails.email) {
+            confirmEmailEl.textContent = customerDetails.email;
+        }
+        
+        // Name setzen
+        const confirmNameEl = document.getElementById('confirm-name');
+        if (confirmNameEl && customerDetails.name) {
+            confirmNameEl.textContent = customerDetails.name;
+        }
+        
+        // Telefon setzen (falls vorhanden)
+        const confirmPhoneEl = document.getElementById('confirm-phone');
+        if (confirmPhoneEl && customerDetails.phone) {
+            confirmPhoneEl.textContent = customerDetails.phone;
+        }
 
+        // Lieferadresse setzen
+        const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
         if (confirmShippingAddressEl && customerDetails.name) {
             const billingAddress = paymentData.order_data.billing_address;
             const shippingAddress = paymentData.order_data.shipping_address;
@@ -1835,22 +1854,52 @@ function populateConfirmationWithPaymentData(paymentData) {
         }
     }
 
+    // Setze Adressen, falls vorhanden.
+    if (paymentData.order_data) {
+        const orderData = paymentData.order_data;
+        
+        // Rechnungsadresse setzen
+        if (orderData.billing_address) {
+            const billingAddr = orderData.billing_address;
+            const confirmBillingEl = document.getElementById('confirm-billing-address');
+            if (confirmBillingEl) {
+                const addressParts = [];
+                if (billingAddr.line1) addressParts.push(billingAddr.line1);
+                if (billingAddr.line2) addressParts.push(billingAddr.line2);
+                if (billingAddr.postal_code && billingAddr.city) {
+                    addressParts.push(`${billingAddr.postal_code} ${billingAddr.city}`);
+                }
+                if (billingAddr.country) addressParts.push(billingAddr.country);
+                
+                confirmBillingEl.innerHTML = addressParts.join('<br>');
+            }
+        }
+    }
+
     // Verstecke Rechnungsadresse, da sie gleich der Lieferadresse ist (Apple Pay Standard).
     const confirmBillingContainer = document.getElementById('confirm-billing-address-container');
     if (confirmBillingContainer) {
         confirmBillingContainer.classList.add('hidden');
     }
 
+    // Setze Order ID, falls vorhanden.
+    if (paymentData.order_id) {
+        const confirmOrderIdEl = document.getElementById('confirm-order-id');
+        if (confirmOrderIdEl) {
+            confirmOrderIdEl.textContent = `#${paymentData.order_id}`;
+        }
+        
+        // Speichere Order ID für Button-Erstellung
+        sessionStorage.setItem('yprint_order_id', paymentData.order_id);
+    }
+
     // Zeige Test-Modus Hinweis an, falls im Test-Modus.
-    // Bevorzugt paymentData.order_data.livemode für die Prüfung, falls vorhanden
-    // Sonst Fallback auf paymentData.test_mode (alte Implementierung)
     const isTestMode = (paymentData.order_data && !paymentData.order_data.livemode) || paymentData.test_mode;
 
     if (isTestMode) {
         const testModeNotice = document.createElement('div');
-        testModeNotice.className = 'mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'; // Original-Klassen
+        testModeNotice.className = 'mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg';
         
-        // Prüfe, ob eine der beiden Test-Modus-Nachrichten bevorzugt wird oder ob beide angezeigt werden sollen
         if (paymentData.order_data && !paymentData.order_data.livemode) {
              testModeNotice.innerHTML = `
                 <div class="flex items-center">
@@ -1859,8 +1908,7 @@ function populateConfirmationWithPaymentData(paymentData) {
                 </div>
             `;
         } else if (paymentData.test_mode) {
-            // Wenn nur paymentData.test_mode vorhanden ist oder bevorzugt wird
-            testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4'; // Andere Klassen für diesen Fall
+            testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
             testModeNotice.innerHTML = `
                 <div class="flex items-center">
                     <i class="fas fa-exclamation-triangle mr-2"></i>
@@ -1869,11 +1917,10 @@ function populateConfirmationWithPaymentData(paymentData) {
             `;
         }
        
-        const confirmationContainer = document.querySelector('#step-3 .checkout-step-content'); // Ursprünglicher Selektor
+        const confirmationContainer = document.querySelector('#step-3 .checkout-step-content');
         if (confirmationContainer) {
             confirmationContainer.appendChild(testModeNotice);
         } else {
-             // Fallback für den Fall, dass der erste Container nicht gefunden wird
             const confirmationStep = document.getElementById('step-3');
             if (confirmationStep) {
                 confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
@@ -1881,9 +1928,17 @@ function populateConfirmationWithPaymentData(paymentData) {
         }
     }
 
+    // Trigger checkout completion Event
+    const completionEvent = new CustomEvent('yprint_checkout_completed', {
+        detail: {
+            order_id: paymentData.order_id,
+            payment_method_id: paymentData.payment_method_id,
+            source: 'express_checkout'
+        }
+    });
+    document.dispatchEvent(completionEvent);
+
     // Lade und zeige Warenkorbdaten
-    // HINWEIS: Hier wurden loadRealCartData() und populateConfirmation() hinzugefügt.
-    // Es wird angenommen, dass diese Funktionen global verfügbar sind oder importiert wurden.
     if (typeof loadRealCartData === 'function') {
         loadRealCartData().then(() => {
             if (typeof updateConfirmationProductList === 'function') {
@@ -1897,7 +1952,7 @@ function populateConfirmationWithPaymentData(paymentData) {
             }
         });
     }
-
+    
     console.log('=== populateConfirmationWithPaymentData COMPLETED ===');
 }
 
