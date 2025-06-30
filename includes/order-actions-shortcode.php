@@ -664,6 +664,44 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
         grid-template-columns: repeat(3, 1fr);
     }
 }
+
+/* Fixed positioned share dropdown */
+.yprint-share-dropdown-fixed {
+    position: fixed !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    padding: 8px !important;
+    z-index: 999999 !important;
+    min-width: 180px !important;
+}
+
+.yprint-share-dropdown-fixed .yprint-share-option {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    color: #374151 !important;
+    text-decoration: none !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+}
+
+.yprint-share-dropdown-fixed .yprint-share-option:hover {
+    background-color: #f8fafc !important;
+    color: #111827 !important;
+    transform: translateX(2px) !important;
+}
+
+.yprint-share-dropdown-fixed .yprint-share-option i {
+    font-size: 16px !important;
+    width: 18px !important;
+    text-align: center !important;
+}
 </style>
 
         <div id="<?php echo esc_attr($unique_id); ?>" class="<?php echo esc_attr($css_class); ?>">
@@ -803,55 +841,128 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Close ALL other dropdowns first
-    document.querySelectorAll('.yprint-share-dropdown-desktop').forEach(dropdown => {
-        if (dropdown !== shareDropdown) {
-            dropdown.classList.remove('show');
-            const otherButton = dropdown.closest('.yprint-share-trigger');
-            if (otherButton) otherButton.classList.remove('show');
+    // Close ALL existing dropdowns
+    document.querySelectorAll('.yprint-share-dropdown-fixed').forEach(dropdown => {
+        dropdown.remove();
+    });
+    
+    // Remove show class from all share buttons
+    document.querySelectorAll('.yprint-share-trigger.show').forEach(btn => {
+        btn.classList.remove('show');
+    });
+    
+    // Check if this dropdown is already open
+    if (shareButton.classList.contains('show')) {
+        shareButton.classList.remove('show');
+        console.log('YPrint Debug [Order Actions]: Share dropdown CLOSED');
+        return;
+    }
+    
+    // Create new dropdown in body with fixed positioning
+    createAndShowShareDropdown(shareButton);
+});
+
+function createAndShowShareDropdown(button) {
+    const dropdown = document.createElement('div');
+    dropdown.className = 'yprint-share-dropdown-fixed';
+    
+    // Get button position
+    const buttonRect = button.getBoundingClientRect();
+    console.log('YPrint Debug [Order Actions]: Button position:', buttonRect);
+    
+    // Position dropdown
+    dropdown.style.cssText = `
+        position: fixed !important;
+        top: ${buttonRect.bottom + 8}px !important;
+        right: ${window.innerWidth - buttonRect.right}px !important;
+        background: #ffffff !important;
+        border: 1px solid #e5e7eb !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+        padding: 8px !important;
+        z-index: 999999 !important;
+        min-width: 180px !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateY(-10px) scale(0.95) !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    `;
+    
+    dropdown.innerHTML = `
+        <a href="#" class="yprint-share-option" data-platform="whatsapp">
+            <i class="fab fa-whatsapp"></i>
+            <span>WhatsApp</span>
+        </a>
+        <a href="#" class="yprint-share-option" data-platform="facebook">
+            <i class="fab fa-facebook"></i>
+            <span>Facebook</span>
+        </a>
+        <a href="#" class="yprint-share-option" data-platform="twitter">
+            <i class="fab fa-twitter"></i>
+            <span>Twitter</span>
+        </a>
+        <a href="#" class="yprint-share-option" data-platform="telegram">
+            <i class="fab fa-telegram"></i>
+            <span>Telegram</span>
+        </a>
+        <a href="#" class="yprint-share-option" data-platform="copy">
+            <i class="fas fa-copy"></i>
+            <span>Link kopieren</span>
+        </a>
+    `;
+    
+    // Add click handlers for share options
+    dropdown.addEventListener('click', (e) => {
+        const shareOption = e.target.closest('.yprint-share-option');
+        if (shareOption) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const { platform } = shareOption.dataset;
+            const designName = button.dataset.designName || 'Mein Design';
+            const productUrl = button.dataset.productUrl || window.location.href;
+            const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
+            const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
+            const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
+
+            console.log('YPrint Debug [Order Actions]: Share platform:', platform);
+            handleShare(platform, fullShareText, productUrl);
+            
+            // Close dropdown
+            dropdown.remove();
+            button.classList.remove('show');
         }
     });
     
-    if (shareDropdown) {
-        const isCurrentlyOpen = shareDropdown.classList.contains('show');
-        
-        if (isCurrentlyOpen) {
-            // Close dropdown
-            shareDropdown.classList.remove('show');
-            shareButton.classList.remove('show');
-            console.log('YPrint Debug [Order Actions]: Share dropdown CLOSED');
-        } else {
-            // Open dropdown  
-            shareDropdown.classList.add('show');
-            shareButton.classList.add('show');
-            console.log('YPrint Debug [Order Actions]: Share dropdown OPENED');
-            
-            // Debug: Check if dropdown is actually visible
-            setTimeout(() => {
-                const computedStyle = window.getComputedStyle(shareDropdown);
-                console.log('YPrint Debug [Order Actions]: Dropdown computed styles:', {
-                    display: computedStyle.display,
-                    opacity: computedStyle.opacity,
-                    visibility: computedStyle.visibility,
-                    transform: computedStyle.transform,
-                    position: computedStyle.position,
-                    zIndex: computedStyle.zIndex
-                });
-            }, 100);
-        }
-    } else {
-        console.error('YPrint Debug [Order Actions]: ❌ shareDropdown not found!');
-    }
-});
+    // Append to body
+    document.body.appendChild(dropdown);
+    button.classList.add('show');
+    
+    // Show with animation
+    requestAnimationFrame(() => {
+        dropdown.style.opacity = '1';
+        dropdown.style.visibility = 'visible';
+        dropdown.style.transform = 'translateY(0) scale(1)';
+    });
+    
+    console.log('YPrint Debug [Order Actions]: Fixed dropdown created and positioned');
+    console.log('YPrint Debug [Order Actions]: Dropdown final position:', {
+        top: dropdown.style.top,
+        right: dropdown.style.right,
+        zIndex: dropdown.style.zIndex
+    });
+}
 
-// Global click handler to close dropdown
+// Global click handler to close fixed dropdown
 const globalClickHandler = (e) => {
-    if (shareButton && shareDropdown) {
-        if (!shareButton.contains(e.target) && !shareDropdown.contains(e.target)) {
-            shareDropdown.classList.remove('show');
-            shareButton.classList.remove('show');
-            console.log('YPrint Debug [Order Actions]: Share dropdown closed by outside click');
-        }
+    if (!e.target.closest('.yprint-share-trigger') && !e.target.closest('.yprint-share-dropdown-fixed')) {
+        document.querySelectorAll('.yprint-share-dropdown-fixed').forEach(dropdown => {
+            dropdown.remove();
+        });
+        document.querySelectorAll('.yprint-share-trigger.show').forEach(btn => {
+            btn.classList.remove('show');
+        });
+        console.log('YPrint Debug [Order Actions]: Share dropdown closed by outside click');
     }
 };
 
