@@ -2059,4 +2059,104 @@ if (!$valid_nonce) {
 add_action('wp_ajax_yprint_get_payment_method_details', 'yprint_get_payment_method_details_callback');
 add_action('wp_ajax_nopriv_yprint_get_payment_method_details', 'yprint_get_payment_method_details_callback');
 
+/**
+ * Automatische Bestellbestätigung über WooCommerce Hooks
+ * Fallback für Zahlungsarten, die nicht über Stripe Webhooks abgewickelt werden
+ */
+add_action('woocommerce_payment_complete', 'yprint_automatic_order_confirmation_on_payment', 10, 1);
+function yprint_automatic_order_confirmation_on_payment($order_id) {
+    error_log('=== YPRINT AUTO EMAIL: Payment Complete Hook ausgelöst ===');
+    error_log('YPrint Auto Email: Order ID: ' . $order_id);
+    
+    $order = wc_get_order($order_id);
+    
+    if (!$order) {
+        error_log('YPrint Auto Email: FEHLER - Order nicht gefunden für ID: ' . $order_id);
+        return;
+    }
+    
+    error_log('YPrint Auto Email: Order gefunden - ' . $order->get_order_number());
+    error_log('YPrint Auto Email: Payment Method: ' . $order->get_payment_method());
+    error_log('YPrint Auto Email: Order Status: ' . $order->get_status());
+    
+    // Prüfe ob E-Mail bereits gesendet wurde (verhindert Duplikate)
+    $email_already_sent = $order->get_meta('_yprint_confirmation_email_sent');
+    if ($email_already_sent === 'yes') {
+        error_log('YPrint Auto Email: E-Mail bereits gesendet - überspringe');
+        return;
+    }
+    
+    // Sende Bestellbestätigung
+    if (function_exists('yprint_send_order_confirmation_email')) {
+        error_log('YPrint Auto Email: Sende Bestellbestätigung...');
+        $email_sent = yprint_send_order_confirmation_email($order);
+        
+        if ($email_sent) {
+            error_log('YPrint Auto Email: Bestellbestätigung erfolgreich gesendet');
+            // Zusätzliche Order Note
+            $order->add_order_note('Automatische Bestellbestätigung per E-Mail versendet.', 0, false);
+        } else {
+            error_log('YPrint Auto Email: FEHLER beim Senden der Bestellbestätigung');
+        }
+    } else {
+        error_log('YPrint Auto Email: FEHLER - yprint_send_order_confirmation_email Funktion nicht verfügbar');
+    }
+    
+    error_log('=== YPRINT AUTO EMAIL: Payment Complete Hook beendet ===');
+}
+
+/**
+ * Zusätzlicher Hook für Order Status Änderungen
+ * Für den Fall, dass eine Bestellung manuell auf "processing" gesetzt wird
+ */
+add_action('woocommerce_order_status_changed', 'yprint_automatic_order_confirmation_on_status_change', 10, 3);
+function yprint_automatic_order_confirmation_on_status_change($order_id, $old_status, $new_status) {
+    error_log('=== YPRINT AUTO EMAIL: Status Change Hook ausgelöst ===');
+    error_log('YPrint Auto Email Status: Order ID: ' . $order_id);
+    error_log('YPrint Auto Email Status: Status geändert von "' . $old_status . '" zu "' . $new_status . '"');
+    
+    // Trigger nur bei Status-Wechsel zu "processing" oder "completed"
+    $trigger_statuses = array('processing', 'completed');
+    if (!in_array($new_status, $trigger_statuses)) {
+        error_log('YPrint Auto Email Status: Status löst keine E-Mail aus - beende');
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    
+    if (!$order) {
+        error_log('YPrint Auto Email Status: FEHLER - Order nicht gefunden');
+        return;
+    }
+    
+    // Nur senden wenn Bestellung bezahlt ist (außer bei manueller Freigabe)
+    if (!$order->is_paid() && $new_status !== 'processing') {
+        error_log('YPrint Auto Email Status: Bestellung noch nicht bezahlt - überspringe');
+        return;
+    }
+    
+    // Prüfe ob E-Mail bereits gesendet wurde
+    $email_already_sent = $order->get_meta('_yprint_confirmation_email_sent');
+    if ($email_already_sent === 'yes') {
+        error_log('YPrint Auto Email Status: E-Mail bereits gesendet - überspringe');
+        return;
+    }
+    
+    // Sende Bestellbestätigung
+    if (function_exists('yprint_send_order_confirmation_email')) {
+        error_log('YPrint Auto Email Status: Sende Bestellbestätigung für Statuswechsel...');
+        $email_sent = yprint_send_order_confirmation_email($order);
+        
+        if ($email_sent) {
+            error_log('YPrint Auto Email Status: Bestellbestätigung erfolgreich gesendet');
+            // Zusätzliche Order Note
+            $order->add_order_note('Bestellbestätigung per E-Mail versendet (Status: ' . $new_status . ').', 0, false);
+        } else {
+            error_log('YPrint Auto Email Status: FEHLER beim Senden der Bestellbestätigung');
+        }
+    }
+    
+    error_log('=== YPRINT AUTO EMAIL: Status Change Hook beendet ===');
+}
+
 ?>

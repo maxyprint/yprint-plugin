@@ -196,35 +196,44 @@ class YPrint_Stripe_Webhook_Handler {
     }
 
     /**
-     * Process payment intent succeeded event
-     *
-     * @param object $payment_intent The payment intent object
-     */
-    private function process_payment_intent_succeeded($payment_intent) {
-        error_log('Processing payment intent succeeded: ' . $payment_intent->id);
-        
-        // Find the order by metadata
-        $order = $this->get_order_from_intent($payment_intent);
-        
-        if (!$order) {
-            error_log('Could not find order for payment intent: ' . $payment_intent->id);
-            return;
-        }
-        
-        // Check if payment is already completed
-        if ($order->is_paid()) {
-            error_log('Order already paid: ' . $order->get_id());
-            return;
-        }
-        
-        // Complete the payment
-        $order->payment_complete($payment_intent->id);
-        $order->add_order_note(
-            sprintf(__('Stripe payment completed (Payment Intent ID: %s)', 'yprint-plugin'), $payment_intent->id)
-        );
-        
-        error_log('Payment completed for order: ' . $order->get_id());
+ * Process payment intent succeeded event
+ *
+ * @param object $payment_intent The payment intent object
+ */
+private function process_payment_intent_succeeded($payment_intent) {
+    error_log('Processing payment intent succeeded: ' . $payment_intent->id);
+    
+    // Find the order by metadata
+    $order = $this->get_order_from_intent($payment_intent);
+    
+    if (!$order) {
+        error_log('Could not find order for payment intent: ' . $payment_intent->id);
+        return;
     }
+    
+    // Check if payment is already completed
+    if ($order->is_paid()) {
+        error_log('Order already paid: ' . $order->get_id());
+        return;
+    }
+    
+    // Complete the payment
+    $order->payment_complete($payment_intent->id);
+    $order->add_order_note(
+        sprintf(__('Stripe payment completed (Payment Intent ID: %s)', 'yprint-plugin'), $payment_intent->id)
+    );
+    
+    error_log('Payment completed for order: ' . $order->get_id());
+    
+    // Automatische Bestellbestätigung senden
+    if (function_exists('yprint_send_order_confirmation_email')) {
+        error_log('YPrint Webhook: Sende Bestellbestätigung für Order ' . $order->get_id());
+        $email_sent = yprint_send_order_confirmation_email($order);
+        error_log('YPrint Webhook: Bestellbestätigung gesendet: ' . ($email_sent ? 'ERFOLG' : 'FEHLER'));
+    } else {
+        error_log('YPrint Webhook: FEHLER - yprint_send_order_confirmation_email Funktion nicht gefunden');
+    }
+}
 
     /**
      * Process payment intent failed event
