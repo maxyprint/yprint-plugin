@@ -1728,7 +1728,6 @@ if (voucherButton) {
             `;
             productListEl.appendChild(finalOrderNote);
         }
-
 /**
  * Füllt die Bestätigungsseite mit Zahlungsdaten aus dem Payment Processing.
  * @param {object} paymentData - Die Zahlungsdaten vom Payment Processing.
@@ -1817,30 +1816,64 @@ function populateConfirmationWithPaymentData(paymentData) {
         confirmBillingContainer.classList.add('hidden');
     }
 
-    // Zeige Test-Modus Hinweis an.
-    if (paymentData.test_mode) {
-        const testModeNotice = document.createElement('div');
-        testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
-        testModeNotice.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                <span><strong>Test-Modus:</strong> Diese Zahlung wurde im Test-Modus verarbeitet. Kein echtes Geld wurde belastet.</span>
-            </div>
-        `;
+    // Zeige Test-Modus Hinweis an, falls im Test-Modus.
+    // Bevorzugt paymentData.order_data.livemode für die Prüfung, falls vorhanden
+    // Sonst Fallback auf paymentData.test_mode (alte Implementierung)
+    const isTestMode = (paymentData.order_data && !paymentData.order_data.livemode) || paymentData.test_mode;
 
-        const confirmationStep = document.getElementById('step-3');
-        if (confirmationStep) {
-            confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
+    if (isTestMode) {
+        const testModeNotice = document.createElement('div');
+        testModeNotice.className = 'mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'; // Original-Klassen
+        
+        // Prüfe, ob eine der beiden Test-Modus-Nachrichten bevorzugt wird oder ob beide angezeigt werden sollen
+        if (paymentData.order_data && !paymentData.order_data.livemode) {
+             testModeNotice.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                    <span class="text-sm text-yellow-800 font-medium">Test-Modus: Diese Zahlung wurde im Test-Modus verarbeitet.</span>
+                </div>
+            `;
+        } else if (paymentData.test_mode) {
+            // Wenn nur paymentData.test_mode vorhanden ist oder bevorzugt wird
+            testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4'; // Andere Klassen für diesen Fall
+            testModeNotice.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <span><strong>Test-Modus:</strong> Diese Zahlung wurde im Test-Modus verarbeitet. Kein echtes Geld wurde belastet.</span>
+                </div>
+            `;
+        }
+       
+        const confirmationContainer = document.querySelector('#step-3 .checkout-step-content'); // Ursprünglicher Selektor
+        if (confirmationContainer) {
+            confirmationContainer.appendChild(testModeNotice);
+        } else {
+             // Fallback für den Fall, dass der erste Container nicht gefunden wird
+            const confirmationStep = document.getElementById('step-3');
+            if (confirmationStep) {
+                confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
+            }
         }
     }
 
     // Lade und zeige Warenkorbdaten
     // HINWEIS: Hier wurden loadRealCartData() und populateConfirmation() hinzugefügt.
-    loadRealCartData().then(() => {
-        updateConfirmationProductList();
-        updateConfirmationTotals();
-        populateConfirmation(); // Hier wurde populateConfirmation() hinzugefügt.
-    });
+    // Es wird angenommen, dass diese Funktionen global verfügbar sind oder importiert wurden.
+    if (typeof loadRealCartData === 'function') {
+        loadRealCartData().then(() => {
+            if (typeof updateConfirmationProductList === 'function') {
+                updateConfirmationProductList();
+            }
+            if (typeof updateConfirmationTotals === 'function') {
+                updateConfirmationTotals();
+            }
+            if (typeof populateConfirmation === 'function') {
+                populateConfirmation();
+            }
+        });
+    }
+
+    console.log('=== populateConfirmationWithPaymentData COMPLETED ===');
 }
 
 
