@@ -278,9 +278,6 @@ function yprint_user_settings_shortcode() {
                         case 'shipping':
                             echo do_shortcode('[yprint_shipping_settings]');
                             break;
-                        case 'notifications':
-                            echo do_shortcode('[yprint_notification_settings]');
-                            break;
                         case 'privacy':
                             echo do_shortcode('[yprint_privacy_settings]');
                             break;
@@ -3883,7 +3880,6 @@ $tabs = array(
     'personal' => array('title' => 'Persönliche Daten', 'icon' => 'user'),
     'billing' => array('title' => 'Rechnungsadresse', 'icon' => 'file-invoice'),
     'shipping' => array('title' => 'Lieferadressen', 'icon' => 'shipping-fast'),
-    'notifications' => array('title' => 'Benachrichtigungen', 'icon' => 'bell'),
     'privacy' => array('title' => 'Datenschutz', 'icon' => 'shield-alt'),
 );
 
@@ -3942,9 +3938,6 @@ if ($message) {
                     break;
                 case 'checkout':
                     echo do_shortcode('[yprint_checkout_preferences]');
-                    break;
-                case 'notifications':
-                    echo do_shortcode('[yprint_notification_settings]');
                     break;
                 case 'privacy':
                     echo do_shortcode('[yprint_privacy_settings]');
