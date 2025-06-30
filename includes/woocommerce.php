@@ -80,12 +80,12 @@ function woo_order_history($atts) {
 
 .yprint-order-search {
     width: 100%;
-    padding: 18px 50px 18px 60px;
+    padding: 18px 50px 18px 55px;
     background: #ffffff;
     border: 1px solid #e1e5e9;
     border-radius: 24px;
     font-size: 16px;
-    color: #e0e0e0e0;
+    color: #333333;
     box-sizing: border-box;
     transition: all 0.3s ease;
     font-weight: 400;
@@ -107,16 +107,15 @@ function woo_order_history($atts) {
 .yprint-order-search::placeholder {
     color: #a0aec0;
     font-weight: 400;
-    left: 15;
 }
 
 .yprint-search-icon {
     position: absolute;
-    left: 22px;
+    left: 20px;
     top: 50%;
     transform: translateY(-50%);
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     color: #a0aec0;
     pointer-events: none;
     transition: color 0.3s ease;
