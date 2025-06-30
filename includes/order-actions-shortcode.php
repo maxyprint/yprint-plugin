@@ -968,47 +968,69 @@ window.addEventListener('resize', adjustButtonLayout);
      * @return WC_Order|false Latest order or false if none found
      */
     private static function get_latest_user_order($user_id) {
-        // Debug: Log the user ID and query
-        error_log('YPrint Debug: Looking for orders for user ID: ' . $user_id);
+        error_log('YPrint Debug: === STARTING ORDER SEARCH ===');
+        error_log('YPrint Debug: User ID: ' . $user_id);
+        error_log('YPrint Debug: WooCommerce active: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
         
-        $orders = wc_get_orders(array(
+        // Verwende die EXAKT GLEICHE Methode wie in der funktionierenden woo_order_history Funktion
+        $all_statuses = array_keys(wc_get_order_statuses());
+        error_log('YPrint Debug: Available order statuses: ' . implode(', ', $all_statuses));
+        
+        $customer_orders = wc_get_orders(array(
             'customer' => $user_id,
-            'limit' => 1,
-            'orderby' => 'date',
-            'order' => 'DESC',
-            'status' => 'any', // Changed from array_keys(wc_get_order_statuses()) to 'any'
-            'type' => 'shop_order',
-            'meta_query' => array(), // Ensure no meta query conflicts
-            'date_query' => array(), // Ensure no date query conflicts
+            'limit'    => 1,
+            'type'     => 'shop_order',
+            'status'   => $all_statuses,
+            'orderby'  => 'date',
+            'order'    => 'DESC'
         ));
-    
-        error_log('YPrint Debug: Found ' . count($orders) . ' orders for user ' . $user_id);
         
-        if (!empty($orders)) {
-            error_log('YPrint Debug: Latest order ID: ' . $orders[0]->get_id() . ', Status: ' . $orders[0]->get_status());
-            return $orders[0];
+        error_log('YPrint Debug: Found ' . count($customer_orders) . ' orders with wc_get_orders()');
+        
+        if (!empty($customer_orders)) {
+            $order = $customer_orders[0];
+            error_log('YPrint Debug: SUCCESS - Order ID: ' . $order->get_id() . ', Status: ' . $order->get_status() . ', Date: ' . $order->get_date_created()->format('Y-m-d H:i:s'));
+            return $order;
         }
         
-        // Fallback: Try alternative query method
+        // ERWEITERTE DIAGNOSE bei Fehlschlag
         global $wpdb;
-        $fallback_order_id = $wpdb->get_var($wpdb->prepare(
+        
+        $total_orders = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'shop_order'");
+        error_log('YPrint Debug: Total orders in database: ' . $total_orders);
+        
+        $user_orders_count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->posts} p 
+             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+             WHERE p.post_type = 'shop_order' 
+             AND pm.meta_key = '_customer_user' 
+             AND pm.meta_value = %d",
+            $user_id
+        ));
+        error_log('YPrint Debug: Orders for user ' . $user_id . ': ' . $user_orders_count);
+        
+        // Direkte Order-Suche ohne Status-Filter
+        $any_user_order = $wpdb->get_var($wpdb->prepare(
             "SELECT p.ID FROM {$wpdb->posts} p 
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
              WHERE p.post_type = 'shop_order' 
              AND pm.meta_key = '_customer_user' 
              AND pm.meta_value = %d 
-             AND p.post_status IN ('wc-completed', 'wc-processing', 'wc-on-hold', 'wc-pending')
              ORDER BY p.post_date DESC 
              LIMIT 1",
             $user_id
         ));
         
-        if ($fallback_order_id) {
-            error_log('YPrint Debug: Fallback found order ID: ' . $fallback_order_id);
-            return wc_get_order($fallback_order_id);
+        if ($any_user_order) {
+            error_log('YPrint Debug: Found order without status filter: ' . $any_user_order);
+            $order = wc_get_order($any_user_order);
+            if ($order) {
+                error_log('YPrint Debug: FALLBACK SUCCESS - Order loaded: ' . $order->get_id());
+                return $order;
+            }
         }
         
-        error_log('YPrint Debug: No orders found for user ' . $user_id);
+        error_log('YPrint Debug: === NO ORDERS FOUND ===');
         return false;
     }
 
@@ -1170,112 +1192,6 @@ $cart_item_data['_original_meta'] = array(
         }
     }
 
-   
-    /**
- * Handle reorder with size selection AJAX request
- */
-public static function handle_reorder_design_with_size() {
-    check_ajax_referer('yprint_order_actions_nonce', 'nonce');
-
-    $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
-    $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
-    $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
-    $size_id = isset($_POST['size_id']) ? intval($_POST['size_id']) : 0;
-    $size_name = isset($_POST['size_name']) ? sanitize_text_field($_POST['size_name']) : '';
-
-    if (!$order_id || !$item_id || !$design_id || !$size_id) {
-        wp_send_json_error('Ungültige Parameter');
-        return;
-    }
-
-    $current_user_id = get_current_user_id();
-    if (!$current_user_id) {
-        wp_send_json_error('Du musst angemeldet sein');
-        return;
-    }
-
-    if (!class_exists('WooCommerce')) {
-        wp_send_json_error('WooCommerce ist nicht aktiv');
-        return;
-    }
-
-    try {
-        global $wpdb;
-
-        // Get design data
-        $design = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}octo_user_designs WHERE id = %d AND user_id = %d",
-            $design_id,
-            $current_user_id
-        ));
-
-        if (!$design) {
-            wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
-            return;
-        }
-
-        // Get base product ID from design
-        $base_product_id = get_option('yprint_base_product_id', 3657);
-        
-        // Parse design data
-        $design_data = json_decode($design->design_data, true);
-        $preview_url = $design_data['images'][0]['url'] ?? '';
-        $final_design_url = self::get_final_design_url($design_id, $preview_url);
-
-        // Get size details
-        $size_data = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$wpdb->prefix}yprint_product_sizes WHERE id = %d",
-            $size_id
-        ));
-
-        if (!$size_data) {
-            wp_send_json_error('Größe nicht gefunden');
-            return;
-        }
-
-        // Prepare cart item data (similar to your-designs-shortcode.php)
-        $cart_item_data = array(
-            'yprint_design_data' => array(
-                'design_id' => $design_id,
-                'design_name' => $design->design_name,
-                'design_image_url' => $final_design_url,
-                'preview_url' => $preview_url,
-                'created_at' => $design->created_at,
-                'template_id' => $design->template_id
-            ),
-            '_design_id' => $design_id,
-            '_design_name' => $design->design_name,
-            '_design_image_url' => $final_design_url,
-            '_design_size_id' => $size_id,
-            '_design_size_name' => $size_name,
-            '_is_design_product' => true,
-            'unique_design_key' => md5($design_id . $size_id . time())
-        );
-
-        $cart_item_key = WC()->cart->add_to_cart(
-            $base_product_id,
-            1,
-            0,
-            array(),
-            $cart_item_data
-        );
-
-        if (!$cart_item_key) {
-            wp_send_json_error('Design konnte nicht zum Warenkorb hinzugefügt werden');
-            return;
-        }
-
-        wp_send_json_success(array(
-            'message' => 'Design wurde zum Warenkorb hinzugefügt',
-            'cart_item_key' => $cart_item_key,
-            'open_cart' => true,
-            'size_selected' => $size_name
-        ));
-
-    } catch (Exception $e) {
-        wp_send_json_error('Fehler: ' . $e->getMessage());
-    }
-}
 
 /**
  * Get final design URL from database or fallback to preview
@@ -1305,6 +1221,136 @@ private static function get_final_design_url($design_id, $preview_fallback) {
     // Fallback: Preview URL
     return $preview_fallback;
 }
+
+/**
+     * Handle get product sizes AJAX request (from your-designs-shortcode.php)
+     */
+    public static function handle_get_product_sizes() {
+        check_ajax_referer('yprint_design_actions_nonce', 'nonce');
+
+        $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+        
+        if (!$design_id) {
+            wp_send_json_error('Ungültige Design-ID');
+            return;
+        }
+
+        try {
+            global $wpdb;
+            
+            // Get sizes from database
+            $sizes = $wpdb->get_results(
+                "SELECT id, name FROM {$wpdb->prefix}yprint_product_sizes ORDER BY sort_order ASC"
+            );
+            
+            if (empty($sizes)) {
+                wp_send_json_error('Keine Größen verfügbar');
+                return;
+            }
+
+            wp_send_json_success(array(
+                'sizes' => $sizes,
+                'design_id' => $design_id
+            ));
+
+        } catch (Exception $e) {
+            wp_send_json_error('Fehler beim Laden der Größen: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Handle reorder with size selection AJAX request
+     */
+    public static function handle_reorder_design_with_size() {
+        check_ajax_referer('yprint_order_actions_nonce', 'nonce');
+
+        $order_id = isset($_POST['order_id']) ? intval($_POST['order_id']) : 0;
+        $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
+        $design_id = isset($_POST['design_id']) ? intval($_POST['design_id']) : 0;
+        $size_id = isset($_POST['size_id']) ? intval($_POST['size_id']) : 0;
+        $size_name = isset($_POST['size_name']) ? sanitize_text_field($_POST['size_name']) : '';
+
+        if (!$order_id || !$item_id || !$design_id || !$size_id) {
+            wp_send_json_error('Ungültige Parameter');
+            return;
+        }
+
+        $current_user_id = get_current_user_id();
+        if (!$current_user_id) {
+            wp_send_json_error('Du musst angemeldet sein');
+            return;
+        }
+
+        if (!class_exists('WooCommerce')) {
+            wp_send_json_error('WooCommerce ist nicht aktiv');
+            return;
+        }
+
+        try {
+            global $wpdb;
+
+            // Get design data
+            $design = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}octo_user_designs WHERE id = %d AND user_id = %d",
+                $design_id,
+                $current_user_id
+            ));
+
+            if (!$design) {
+                wp_send_json_error('Design nicht gefunden oder keine Berechtigung');
+                return;
+            }
+
+            // Get base product ID
+            $base_product_id = get_option('yprint_base_product_id', 3657);
+            
+            // Parse design data
+            $design_data = json_decode($design->design_data, true);
+            $preview_url = $design_data['images'][0]['url'] ?? '';
+
+            // Prepare cart item data (similar to your-designs-shortcode.php)
+            $cart_item_data = array(
+                'yprint_design_data' => array(
+                    'design_id' => $design_id,
+                    'design_name' => $design->design_name,
+                    'design_image_url' => $preview_url,
+                    'preview_url' => $preview_url,
+                    'created_at' => $design->created_at,
+                    'template_id' => $design->template_id
+                ),
+                '_design_id' => $design_id,
+                '_design_name' => $design->design_name,
+                '_design_image_url' => $preview_url,
+                '_design_size_id' => $size_id,
+                '_design_size_name' => $size_name,
+                '_is_design_product' => true,
+                'unique_design_key' => md5($design_id . $size_id . time())
+            );
+
+            $cart_item_key = WC()->cart->add_to_cart(
+                $base_product_id,
+                1,
+                0,
+                array(),
+                $cart_item_data
+            );
+
+            if (!$cart_item_key) {
+                wp_send_json_error('Design konnte nicht zum Warenkorb hinzugefügt werden');
+                return;
+            }
+
+            wp_send_json_success(array(
+                'message' => 'Design wurde zum Warenkorb hinzugefügt',
+                'cart_item_key' => $cart_item_key,
+                'open_cart' => true,
+                'size_selected' => $size_name
+            ));
+
+        } catch (Exception $e) {
+            wp_send_json_error('Fehler: ' . $e->getMessage());
+        }
+    }
 
 }
 
