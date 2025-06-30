@@ -460,7 +460,7 @@ function woo_order_history($atts) {
 .yprint-order-search {
     width: 100%;
     height: 50px;
-    padding: 0 20px 0 50px;
+    padding: 0 20px 0 65px;
     border: 2px solid #e1e5e9;
     border-radius: 25px;
     font-size: 16px;
@@ -519,7 +519,7 @@ function woo_order_history($atts) {
 @media (max-width: 768px) {
     .yprint-order-search {
         height: 45px;
-        padding: 0 18px 0 45px;
+        padding: 0 18px 0 55px;
         font-size: 16px;
         border-radius: 22px;
     }
