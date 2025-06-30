@@ -450,6 +450,94 @@ function woo_order_history($atts) {
         }
 </style>
 
+<style>
+/* Sauberes Suchleisten-CSS */
+.yprint-search-container {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.yprint-order-search {
+    width: 100%;
+    height: 50px;
+    padding: 0 20px 0 50px;
+    border: 2px solid #e1e5e9;
+    border-radius: 25px;
+    font-size: 16px;
+    color: #333;
+    background: #fff;
+    outline: none;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.yprint-order-search:focus {
+    border-color: #cbd5e0;
+}
+
+.yprint-order-search::placeholder {
+    color: #999;
+}
+
+.yprint-search-icon {
+    position: absolute;
+    left: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    color: #999;
+    pointer-events: none;
+}
+
+.yprint-clear-search {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: #f1f1f1;
+    border-radius: 50%;
+    color: #666;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.yprint-clear-search:hover {
+    background: #e1e1e1;
+}
+
+.yprint-search-container.has-value .yprint-clear-search {
+    display: flex;
+}
+
+@media (max-width: 768px) {
+    .yprint-order-search {
+        height: 45px;
+        padding: 0 18px 0 45px;
+        font-size: 16px;
+        border-radius: 22px;
+    }
+    
+    .yprint-search-icon {
+        left: 16px;
+        width: 16px;
+        height: 16px;
+    }
+    
+    .yprint-clear-search {
+        right: 13px;
+        width: 18px;
+        height: 18px;
+    }
+}
+</style>
+
     <div class="yprint-order-history">
         <div class="yprint-search-container">
     <svg class="yprint-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
