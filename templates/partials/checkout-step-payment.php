@@ -846,26 +846,6 @@ if (class_exists('YPrint_Stripe_Checkout')) {
             </div>
         </div>
     </div>
-
-    <!-- Rechnungsadresse Sektion -->
-    <div class="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h3 class="text-lg font-semibold mb-4">
-            <i class="fas fa-file-invoice mr-2"></i>
-            <?php esc_html_e('Rechnungsadresse', 'yprint-checkout'); ?>
-        </h3>
-        
-        <!-- Billing Address Button/Status Container -->
-        <div id="billing-address-container">
-            <!-- Initial: Button zum Hinzufügen -->
-            <div id="add-billing-button-container" class="mb-4">
-                <button type="button" id="add-billing-address-btn" class="btn btn-outline w-full md:w-auto flex items-center justify-center">
-                    <i class="fas fa-plus mr-2"></i>
-                    <?php esc_html_e('Abweichende Rechnungsadresse hinzufügen', 'yprint-checkout'); ?>
-                </button>
-                <p class="text-sm text-gray-600 mt-2">
-                    <?php esc_html_e('Standardmäßig wird die Lieferadresse als Rechnungsadresse verwendet.', 'yprint-checkout'); ?>
-                </p>
-            </div>
             
             <!-- Redundanter Bereich entfernt - korrekte Rechnungsadresse-Sektion folgt weiter unten -->
             <!-- Rechnungsadresse-Sektion -->
