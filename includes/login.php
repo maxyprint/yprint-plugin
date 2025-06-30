@@ -34,50 +34,126 @@ function yprint_login_form_shortcode() {
     ob_start();
     ?>
     <style>
-        /* Grundstil für Loginform */
+        /* Moderner Login Container */
+        .yprint-login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f9fafb;
+            font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .yprint-login-card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+        }
+        
+        .yprint-login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .yprint-login-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 8px 0;
+        }
+        
+        .yprint-login-subtitle {
+            font-size: 15px;
+            color: #6b7280;
+            margin: 0;
+        }
+        
+        /* Reset WordPress Form Styles */
         #loginform {
             margin: 0 !important;
             padding: 0 !important;
+            background: none !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Input Field Container */
+        .yprint-input-group {
+            margin-bottom: 24px;
+            position: relative;
         }
         
         /* Eingabefelder */
         #loginform input[type="text"],
         #loginform input[type="password"],
         #loginform input[type="email"] {
-            font-family: 'Roboto' !important;
-            background-color: #f1f1f1 !important;
-            border-radius: 10px !important;
-            border: 1px solid #000000 !important;
-            text-align: center !important;
-            padding: 10px !important;
-            height: 40px !important;
-            width: 400px !important;
-            margin: 0px !important;
-            color: #333 !important;
+            width: 100% !important;
+            height: 52px !important;
+            padding: 16px 20px !important;
+            font-family: inherit !important;
+            font-size: 16px !important;
+            font-weight: 400 !important;
+            line-height: 1.5 !important;
+            color: #111827 !important;
+            background-color: #f3f4f6 !important;
+            border: 2px solid #e5e7eb !important;
+            border-radius: 12px !important;
+            outline: none !important;
+            transition: all 0.3s ease !important;
+            text-align: left !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+        }
+        
+        #loginform input[type="text"]:focus,
+        #loginform input[type="password"]:focus,
+        #loginform input[type="email"]:focus {
+            background-color: #ffffff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
         }
         
         /* Platzhaltertext */
         #loginform input::placeholder {
-            color: #333 !important;
-            font-weight: normal !important;
+            color: #9ca3af !important;
+            font-weight: 400 !important;
         }
         
         /* Submit-Button */
         #loginform input[type="submit"] {
-            width: 155px !important;
-            height: 35px !important;
-            font-family: 'Roboto' !important;
-            font-size: 20px !important;
-            font-weight: bold !important;
-            color: white !important;
-            background-color: #0079FF !important;
-            border: 1px solid #707070 !important;
-            text-transform: lowercase !important;
+            width: 100% !important;
+            height: 52px !important;
+            padding: 16px 24px !important;
+            font-family: inherit !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: #ffffff !important;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            border: none !important;
+            border-radius: 12px !important;
             cursor: pointer !important;
-            line-height: 1px !important;
-            margin-top: 20px !important;
-            margin-bottom: -15px !important;
-            border-radius: 0px !important;
+            transition: all 0.3s ease !important;
+            margin-top: 8px !important;
+            margin-bottom: 0 !important;
+            text-transform: none !important;
+            line-height: 1.5 !important;
+        }
+        
+        #loginform input[type="submit"]:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+        }
+        
+        #loginform input[type="submit"]:active {
+            transform: translateY(0) !important;
         }
         
         /* Verstecken unnötiger Elemente */
@@ -86,62 +162,52 @@ function yprint_login_form_shortcode() {
             display: none !important;
         }
         
-        /* E-Mail-Hinweis */
+        /* E-Mail-Hinweis - moderner Stil */
         #email-hint {
             position: absolute;
-            top: -40px;
+            top: -45px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: #fff9c4;
-            border: 1px solid #ffc107;
-            border-radius: 5px;
-            padding: 8px 12px;
-            font-size: 14px;
-            color: #333;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #92400e;
             display: none;
-            z-index: 10;
+            z-index: 20;
             text-align: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
             max-width: 90%;
+            white-space: nowrap;
         }
         
         #email-hint:after {
             content: '';
             position: absolute;
-            bottom: -8px;
+            bottom: -6px;
             left: 50%;
             transform: translateX(-50%);
-            border-left: 8px solid transparent;
-            border-right: 8px solid transparent;
-            border-top: 8px solid #fff9c4;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 6px solid #fde68a;
         }
         
-        #email-hint:before {
-            content: '';
-            position: absolute;
-            bottom: -9px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-left: 9px solid transparent;
-            border-right: 9px solid transparent;
-            border-top: 9px solid #ffc107;
-        }
-        
-        /* Neue Passwortfeld-Struktur */
+        /* Passwort Container */
         .password-container {
             position: relative;
-            margin-bottom: 20px;
             width: 100%;
         }
         
-        /* Augen-Icon für Passwort-Toggle */
+        /* Augen-Icon für Passwort-Toggle - moderner Stil */
         #eye-toggle {
             position: absolute;
-            right: -45px; /* Position außerhalb des Felds */
+            right: 16px;
             top: 50%;
             transform: translateY(-50%);
-            width: 40px;
-            height: 40px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -149,38 +215,100 @@ function yprint_login_form_shortcode() {
             border: none;
             cursor: pointer;
             z-index: 10;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+        
+        #eye-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.05);
         }
         
         #eye-toggle i {
-            font-size: 24px;
-            color: #666;
+            font-size: 18px;
+            color: #6b7280;
+            transition: color 0.2s ease;
         }
         
-        /* Mobile Wrapper */
-        .yprint-login-mobile-wrapper {
-            width: 100%;
-            display: block;
-            position: relative;
+        #eye-toggle:hover i {
+            color: #3b82f6;
         }
         
-        @media screen and (max-width: 767px) {
-            .yprint-login-mobile-wrapper {
-                padding: 0 10%;
+        /* Mobile Responsive */
+        @media screen and (max-width: 480px) {
+            .yprint-login-container {
+                padding: 16px;
+                min-height: 100vh;
+            }
+            
+            .yprint-login-card {
+                padding: 24px;
+                border-radius: 16px;
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            }
+            
+            .yprint-login-title {
+                font-size: 22px;
+            }
+            
+            .yprint-login-subtitle {
+                font-size: 14px;
             }
             
             #loginform input[type="text"],
             #loginform input[type="password"],
-            #loginform input[type="email"] {
-                width: 100% !important;
-                max-width: 100% !important;
+            #loginform input[type="email"],
+            #loginform input[type="submit"] {
+                height: 48px !important;
+                font-size: 16px !important;
             }
             
-            /* Mobile-spezifische Position für das Augen-Icon */
-            #eye-toggle {
-                right: -35px; /* Anpassung für Mobile */
+            #email-hint {
+                font-size: 12px;
+                padding: 10px 14px;
+                white-space: normal;
+                max-width: 95%;
+            }
+        }
+        
+        @media screen and (max-width: 320px) {
+            .yprint-login-card {
+                padding: 20px;
+            }
+            
+            #loginform input[type="text"],
+            #loginform input[type="password"],
+            #loginform input[type="email"],
+            #loginform input[type="submit"] {
+                height: 44px !important;
+                padding: 12px 16px !important;
             }
         }
     </style>
+    
+    <div class="yprint-login-container">
+        <div class="yprint-login-card">
+            <div class="yprint-login-header">
+                <h1 class="yprint-login-title">Willkommen zurück!</h1>
+                <p class="yprint-login-subtitle">Bitte melde dich an, um fortzufahren</p>
+            </div>
+            
+            <div class="yprint-login-form">
+                <?php
+                // Standard WordPress Login-Formular
+                $args = array(
+                    'redirect' => home_url('/dashboard'),
+                    'label_username' => '',
+                    'label_password' => '',
+                    'label_remember' => '',
+                    'value_username' => '',
+                    'value_remember' => false,
+                );
+                
+                wp_login_form($args);
+                ?>
+            </div>
+        </div>
+    </div>
     
     <div class="yprint-login-mobile-wrapper">
     <?php
@@ -199,106 +327,78 @@ function yprint_login_form_shortcode() {
     </div>
     
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var usernameField = document.querySelector('input[name="log"]');
-            var passwordField = document.querySelector('input[name="pwd"]');
+    document.addEventListener('DOMContentLoaded', function() {
+        var usernameField = document.querySelector('input[name="log"]');
+        var passwordField = document.querySelector('input[name="pwd"]');
+        
+        // Username-Feld anpassen
+        if (usernameField) {
+            usernameField.setAttribute('placeholder', 'Benutzername');
             
-            // Username-Feld anpassen
-            if (usernameField) {
-                usernameField.setAttribute('placeholder', 'Username');
+            // Username-Wrapper erstellen mit neuer Klasse
+            var usernameWrapper = document.createElement('div');
+            usernameWrapper.className = 'yprint-input-group';
+            
+            // Das original Benutzernamenfeld in den Wrapper verschieben
+            usernameField.parentNode.insertBefore(usernameWrapper, usernameField);
+            usernameWrapper.appendChild(usernameField);
+            
+            // Hinweis-Element erstellen
+            var emailHint = document.createElement('div');
+            emailHint.id = 'email-hint';
+            emailHint.innerHTML = 'Bitte beachte: Hier wird dein Benutzername benötigt, nicht deine E-Mail-Adresse.';
+            usernameWrapper.appendChild(emailHint);
+            
+            // Input-Event für den Benutzernamen
+            usernameField.addEventListener('input', function() {
+                if (this.value.includes('@')) {
+                    emailHint.style.display = 'block';
+                } else {
+                    emailHint.style.display = 'none';
+                }
+            });
+        }
+        
+        // Passwort-Feld anpassen
+        if (passwordField) {
+            passwordField.setAttribute('placeholder', 'Passwort');
+            
+            // Container für Passwortfeld erstellen mit neuer Klasse
+            var passwordContainer = document.createElement('div');
+            passwordContainer.className = 'yprint-input-group password-container';
+            
+            // Passwortfeld in Container verschieben
+            passwordField.parentNode.insertBefore(passwordContainer, passwordField);
+            passwordContainer.appendChild(passwordField);
+            
+            // Augen-Icon erstellen mit modernem Design
+            var eyeToggle = document.createElement('button');
+            eyeToggle.type = 'button';
+            eyeToggle.id = 'eye-toggle';
+            eyeToggle.innerHTML = '<i class="eicon-eye"></i>';
+            eyeToggle.setAttribute('aria-label', 'Passwort anzeigen/verstecken');
+            passwordContainer.appendChild(eyeToggle);
+            
+            // Icon-Funktionalität mit neuen Farben
+            function togglePassword(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 
-                // Username-Wrapper erstellen
-                var usernameWrapper = document.createElement('div');
-                usernameWrapper.style.position = 'relative';
-                usernameWrapper.style.marginBottom = '20px';
-                
-                // Das original Benutzernamenfeld in den Wrapper verschieben
-                usernameField.parentNode.insertBefore(usernameWrapper, usernameField);
-                usernameWrapper.appendChild(usernameField);
-                
-                // Hinweis-Element erstellen
-                var emailHint = document.createElement('div');
-                emailHint.id = 'email-hint';
-                emailHint.innerHTML = 'Bitte beachte: Hier wird dein Benutzername benötigt, nicht deine E-Mail-Adresse.';
-                usernameWrapper.appendChild(emailHint);
-                
-                // Input-Event für den Benutzernamen
-                usernameField.addEventListener('input', function() {
-                    if (this.value.includes('@')) {
-                        emailHint.style.display = 'block';
-                    } else {
-                        emailHint.style.display = 'none';
-                    }
-                });
+                if (passwordField.type === 'password') {
+                    passwordField.type = 'text';
+                    eyeToggle.querySelector('i').style.color = '#3b82f6';
+                } else {
+                    passwordField.type = 'password';
+                    eyeToggle.querySelector('i').style.color = '#6b7280';
+                }
             }
             
-            // Passwort-Feld anpassen
-            if (passwordField) {
-                passwordField.setAttribute('placeholder', 'Password');
-                
-                // Container für Passwortfeld erstellen
-                var passwordContainer = document.createElement('div');
-                passwordContainer.className = 'password-container';
-                
-                // Passwortfeld in Container verschieben
-                passwordField.parentNode.insertBefore(passwordContainer, passwordField);
-                passwordContainer.appendChild(passwordField);
-                
-                // Augen-Icon erstellen - jetzt standardmäßig sichtbar
-                var eyeToggle = document.createElement('div');
-                eyeToggle.id = 'eye-toggle';
-                eyeToggle.innerHTML = '<i class="eicon-eye"></i>';
-                passwordContainer.appendChild(eyeToggle);
-                
-                // Icon-Funktionalität
-                eyeToggle.addEventListener('click', function(e) {
-                    e.preventDefault(); // Wichtig für Mobile
-                    e.stopPropagation(); // Verhindert Bubblen
-                    
-                    if (passwordField.type === 'password') {
-                        passwordField.type = 'text';
-                        this.querySelector('i').style.color = '#0079FF';
-                    } else {
-                        passwordField.type = 'password';
-                        this.querySelector('i').style.color = '#666';
-                    }
-                });
-                
-                // Spezifisch für Touch-Geräte
-                eyeToggle.addEventListener('touchstart', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    if (passwordField.type === 'password') {
-                        passwordField.type = 'text';
-                        this.querySelector('i').style.color = '#0079FF';
-                    } else {
-                        passwordField.type = 'password';
-                        this.querySelector('i').style.color = '#666';
-                    }
-                });
-                
-                // Auch ein normales "touch" Event hinzufügen für ältere Mobilgeräte
-                eyeToggle.addEventListener('touch', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    if (passwordField.type === 'password') {
-                        passwordField.type = 'text';
-                        this.querySelector('i').style.color = '#0079FF';
-                    } else {
-                        passwordField.type = 'password';
-                        this.querySelector('i').style.color = '#666';
-                    }
-                });
-                
-                // Füge einen Fokus-Event hinzu, der sicherstellt, dass das Icon auch auf Mobile funktioniert
-                passwordField.addEventListener('click', function() {
-                    // Nichts tun, aber das Event abfangen
-                });
-            }
-        });
-    </script>
+            // Event Listeners für alle Geräte
+            eyeToggle.addEventListener('click', togglePassword);
+            eyeToggle.addEventListener('touchstart', togglePassword);
+        }
+    });
+</script>
     <?php
     return ob_get_clean();
 }
