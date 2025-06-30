@@ -580,9 +580,6 @@ foreach ($order_items as $item_id => $item):
             Pos. <?php echo $item_position; ?>
         </span>
         <?php if ($is_cancelled): ?>
-            <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 500;">
-                STORNIERT
-            </span>
         <?php endif; ?>
     </div>
     
