@@ -84,6 +84,118 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
         ?>
 
 <style>
+
+    /* Your Designs Size Dropdown Styles */
+.yprint-size-dropdown {
+    position: fixed;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 200px;
+    z-index: 999999;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.2s ease;
+    font-family: system-ui, 'Segoe UI', Roboto, Helvetica, sans-serif;
+}
+
+.yprint-size-dropdown.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.yprint-size-dropdown-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    background: #f9f9f9;
+    border-radius: 8px 8px 0 0;
+}
+
+.yprint-size-dropdown-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+}
+
+.yprint-size-dropdown-content {
+    padding: 12px;
+}
+
+.yprint-size-options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+    gap: 8px;
+}
+
+.yprint-size-option {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.yprint-size-option:hover:not(.disabled) {
+    border-color: #0079FF;
+    background: #f0f8ff;
+}
+
+.yprint-size-option.selected {
+    border-color: #0079FF;
+    background: #0079FF;
+    color: white;
+}
+
+.yprint-size-option.disabled {
+    background: #f5f5f5;
+    color: #999;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.yprint-size-dropdown-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #f0f0f0;
+    background: #f9f9f9;
+    border-radius: 0 0 8px 8px;
+}
+
+.yprint-size-confirm-btn {
+    width: 100%;
+    padding: 10px;
+    background: #0079FF;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background 0.2s ease;
+}
+
+.yprint-size-confirm-btn:hover:not(:disabled) {
+    background: #0066DD;
+}
+
+.yprint-size-confirm-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.yprint-size-loading, .yprint-size-error {
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+}
+
+.yprint-size-error {
+    color: #d32f2f;
+}
+
 .yprint-last-order-actions {
     background-color: #ffffff;
     padding: 24px;
@@ -638,31 +750,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Share option clicks
-        const shareOptions = container.querySelectorAll('.yprint-share-option');
-        console.log('YPrint Debug [Order Actions]: Found share options:', shareOptions.length);
+        // Share option clicks - use event delegation
+if (shareDropdown) {
+    shareDropdown.addEventListener('click', (e) => {
+        console.log('YPrint Debug [Order Actions]: Share dropdown clicked:', e.target);
         
-        shareOptions.forEach(option => {
-            option.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const { platform } = option.dataset;
-                const designName = shareButton.dataset.designName || 'Mein Design';
-                const productUrl = shareButton.dataset.productUrl || window.location.href;
-                const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
-                const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
-                const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
+        const shareOption = e.target.closest('.yprint-share-option');
+        if (shareOption) {
+            console.log('YPrint Debug [Order Actions]: 🎯 SHARE OPTION CLICKED!');
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const { platform } = shareOption.dataset;
+            const designName = shareButton.dataset.designName || 'Mein Design';
+            const productUrl = shareButton.dataset.productUrl || window.location.href;
+            const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
+            const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
+            const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
 
-                console.log('YPrint Debug [Order Actions]: Share option clicked:', platform);
-                handleShare(platform, fullShareText, productUrl);
-                
-                if (shareDropdown) {
-                    shareDropdown.classList.remove('show');
-                    shareButton.classList.remove('show');
-                }
-            });
-        });
+            console.log('YPrint Debug [Order Actions]: Share platform:', platform);
+            handleShare(platform, fullShareText, productUrl);
+            
+            shareDropdown.classList.remove('show');
+            shareButton.classList.remove('show');
+        }
+    });
+    
+    console.log('YPrint Debug [Order Actions]: ✅ Share dropdown event delegation registered');
+}
     }
 
     // =================================================================
@@ -697,96 +812,177 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     function showSizeSelectionModal(designId, button) {
-        console.log('YPrint Debug [Order Actions]: ===== SIZE MODAL START =====');
-        console.log('YPrint Debug [Order Actions]: Design ID:', designId);
-        
-        const originalContent = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Lädt...</span>';
-        button.style.pointerEvents = 'none';
-        
-        const ajaxData = {
+    console.log('YPrint Debug [Order Actions]: ===== SIZE DROPDOWN START =====');
+    console.log('YPrint Debug [Order Actions]: Design ID:', designId);
+    
+    // Close all other dropdowns first
+    closeAllSizeDropdowns();
+    
+    // Create the dropdown exactly like Your Designs
+    const dropdown = createSizeDropdown(designId, button);
+    document.body.appendChild(dropdown);
+    
+    // Show dropdown with animation
+    requestAnimationFrame(() => {
+        dropdown.classList.add('show');
+    });
+    
+    // Make AJAX call to load sizes
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        dataType: 'json',
+        timeout: 10000,
+        data: {
             action: 'yprint_get_product_sizes',
             design_id: designId,
             nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
-        };
+        }
+    })
+    .done(function(response) {
+        console.log('YPrint Debug [Order Actions]: Size AJAX response:', response);
         
-        console.log('YPrint Debug [Order Actions]: AJAX request data:', ajaxData);
+        const content = dropdown.querySelector('.yprint-size-dropdown-content');
+        if (!content) {
+            console.error('YPrint Debug [Order Actions]: Content element not found!');
+            return;
+        }
         
-        jQuery.ajax({
-            url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
-            type: 'POST',
-            data: ajaxData
-        })
-        .done(response => {
-            console.log('YPrint Debug [Order Actions]: Size AJAX response:', response);
-            
-            if (response.success && response.data) {
-                console.log('YPrint Debug [Order Actions]: ✅ Creating size modal');
-                showSizeModal(response.data, designId, button, originalContent);
-            } else {
-                console.error('YPrint Debug [Order Actions]: ❌ Size request failed:', response.data);
-                alert(response.data || 'Fehler beim Laden der Größen');
-                button.innerHTML = originalContent;
-                button.style.pointerEvents = '';
-            }
-        })
-        .fail((xhr, status, error) => {
-            console.error('YPrint Debug [Order Actions]: ❌ Size AJAX failed:', {xhr, status, error});
-            alert('Netzwerkfehler beim Laden der Größen');
-            button.innerHTML = originalContent;
-            button.style.pointerEvents = '';
-        });
-    }
+        if (response.success && response.data && response.data.sizes) {
+            console.log('YPrint Debug [Order Actions]: ✅ Loading sizes into dropdown');
+            loadSizesIntoDropdown(response.data.sizes, content, dropdown);
+        } else {
+            content.innerHTML = '<div class="yprint-size-error">Keine Größen verfügbar</div>';
+        }
+    })
+    .fail(function(xhr, status, error) {
+        console.error('YPrint Debug [Order Actions]: ❌ Size AJAX failed:', {xhr, status, error});
+        const content = dropdown.querySelector('.yprint-size-dropdown-content');
+        if (content) {
+            content.innerHTML = '<div class="yprint-size-error">Fehler beim Laden der Größen</div>';
+        }
+    });
+}
+
+function createSizeDropdown(designId, button) {
+    const dropdown = document.createElement('div');
+    dropdown.className = 'yprint-size-dropdown';
+    dropdown.setAttribute('data-design-id', designId);
     
-    function showSizeModal(modalData, designId, button, originalContent) {
-        console.log('YPrint Debug [Order Actions]: Creating modal with sizes:', modalData.sizes);
+    // Get button position for fixed positioning
+    const buttonRect = button.getBoundingClientRect();
+    
+    dropdown.style.position = 'fixed';
+    dropdown.style.top = (buttonRect.bottom + 4) + 'px';
+    dropdown.style.left = buttonRect.left + 'px';
+    dropdown.style.zIndex = '999999';
+    
+    // Prevent event bubbling
+    dropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+    
+    dropdown.innerHTML = `
+        <div class="yprint-size-dropdown-header">
+            <div class="yprint-size-dropdown-title">Größe wählen</div>
+        </div>
+        <div class="yprint-size-dropdown-content">
+            <div class="yprint-size-loading">Lädt Größen...</div>
+        </div>
+        <div class="yprint-size-dropdown-footer">
+            <button class="yprint-size-confirm-btn" disabled data-design-id="${designId}">
+                Hinzufügen
+            </button>
+        </div>
+    `;
+    
+    // Add confirm button functionality
+    const confirmBtn = dropdown.querySelector('.yprint-size-confirm-btn');
+    confirmBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const selectedSize = this.getAttribute('data-selected-size');
+        if (selectedSize) {
+            console.log('YPrint Debug [Order Actions]: Size confirmed:', selectedSize);
+            closeDropdown(dropdown);
+            proceedWithReorder(designId, selectedSize, button);
+        }
+    });
+    
+    return dropdown;
+}
+
+function loadSizesIntoDropdown(sizes, content, dropdown) {
+    console.log('YPrint Debug [Order Actions]: Loading sizes:', sizes);
+    
+    const confirmBtn = dropdown.querySelector('.yprint-size-confirm-btn');
+    let html = '<div class="yprint-size-options-grid">';
+    
+    sizes.forEach(size => {
+        const isDisabled = size.out_of_stock;
+        const disabledClass = isDisabled ? ' disabled' : '';
         
-        const modalHTML = `
-            <div id="yprint-size-modal-overlay" class="yprint-size-modal-overlay">
-                <div class="yprint-size-modal">
-                    <div class="yprint-size-modal-header">
-                        <h3>Größe für Nachbestellung wählen</h3>
-                        <button class="yprint-size-modal-close">&times;</button>
-                    </div>
-                    <div class="yprint-size-modal-content">
-                        <div class="yprint-size-options">
-                            ${modalData.sizes.map(size => `
-                                <button class="yprint-size-option" data-size-id="${size.id}" data-size-name="${size.name}">
-                                    ${size.name}
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
+        html += `
+            <div class="yprint-size-option${disabledClass}" 
+                 data-size="${size.size}">
+                ${size.size}
             </div>
         `;
-        
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
-        
-        const modal = document.getElementById('yprint-size-modal-overlay');
-        const closeBtn = modal.querySelector('.yprint-size-modal-close');
-        const sizeOptions = modal.querySelectorAll('.yprint-size-option');
-        
-        const closeModal = () => {
-            modal.remove();
-            button.innerHTML = originalContent;
-            button.style.pointerEvents = '';
+    });
+    
+    html += '</div>';
+    console.log('YPrint Debug [Order Actions]: Generated HTML:', html);
+    content.innerHTML = html;
+    
+    // Add click listeners to size options
+    const sizeOptions = content.querySelectorAll('.yprint-size-option:not(.disabled)');
+    console.log('YPrint Debug [Order Actions]: Found clickable size options:', sizeOptions.length);
+    
+    sizeOptions.forEach(option => {
+        option.onclick = function(e) {
+            e.stopPropagation();
+            console.log('YPrint Debug [Order Actions]: Size option clicked:', this.dataset.size);
+            selectSize(this, confirmBtn);
         };
-        
-        closeBtn.addEventListener('click', closeModal);
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
-        });
-        
-        sizeOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                const selectedSize = option.dataset.sizeName;
-                console.log('YPrint Debug [Order Actions]: Size selected:', selectedSize);
-                modal.remove();
-                proceedWithReorder(designId, selectedSize, button);
-            });
-        });
+    });
+}
+
+function selectSize(element, confirmBtn) {
+    // Remove previous selection
+    element.closest('.yprint-size-dropdown').querySelectorAll('.yprint-size-option.selected').forEach(el => {
+        el.classList.remove('selected');
+    });
+    
+    // Select current
+    element.classList.add('selected');
+    
+    // Enable confirm button
+    const selectedSize = element.getAttribute('data-size');
+    console.log('YPrint Debug [Order Actions]: Size selected:', selectedSize);
+    confirmBtn.disabled = false;
+    confirmBtn.setAttribute('data-selected-size', selectedSize);
+}
+
+function closeDropdown(dropdown) {
+    const designId = dropdown.getAttribute('data-design-id');
+    const button = document.querySelector(`[data-design-id="${designId}"].reorder`);
+    if (button) {
+        button.classList.remove('dropdown-open');
     }
+    
+    dropdown.classList.remove('show');
+    setTimeout(() => {
+        if (dropdown.parentElement) {
+            dropdown.parentElement.removeChild(dropdown);
+        }
+    }, 200);
+}
+
+function closeAllSizeDropdowns() {
+    document.querySelectorAll('.yprint-size-dropdown').forEach(dropdown => {
+        closeDropdown(dropdown);
+    });
+}
+    
     
     function proceedWithReorder(designId, selectedSize, button) {
         console.log('YPrint Debug [Order Actions]: ===== PROCEED WITH REORDER =====');
