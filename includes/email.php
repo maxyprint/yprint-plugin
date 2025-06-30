@@ -193,163 +193,156 @@ function yprint_send_order_confirmation_email($order) {
  * @param WC_Order $order Das WooCommerce Bestellobjekt
  * @return string Der HTML-Inhalt
  */
-/**
- * Erstellt den HTML-Inhalt für die Bestellbestätigungsmail
- *
- * @param WC_Order $order Das WooCommerce Bestellobjekt
- * @return string Der HTML-Inhalt
- */
 function yprint_build_order_confirmation_content($order) {
     ob_start();
+    $accent_color = '#007BFF'; // A clean, modern blue
+    $text_color_dark = '#333333';
+    $text_color_light = '#666666';
+    $border_color = '#EEEEEE';
     ?>
-    <!-- Hero Bereich -->
-    <div style="background: linear-gradient(135deg, #0079FF 0%, #0066DD 100%); border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 30px; color: white;">
-        <h1 style="margin: 0 0 10px 0; font-size: 28px; font-weight: 700; color: white;">
-            🎉 Bestellung bestätigt!
-        </h1>
-        <p style="margin: 0; font-size: 16px; opacity: 0.9; line-height: 1.5;">
-            Vielen Dank für Ihre Bestellung bei YPrint! Wir werden Ihr Design jetzt für Sie drucken.
-        </p>
-    </div>
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; line-height: 1.6; color: <?php echo esc_attr($text_color_dark); ?>; max-width: 600px; margin: 20px auto; padding: 20px;">
 
-    <!-- Bestelldetails -->
-    <div style="background: linear-gradient(135deg, #f8fffe 0%, #f0f9ff 100%); border-left: 4px solid #0079FF; border-radius: 8px; padding: 25px; margin: 25px 0; box-shadow: 0 2px 8px rgba(0,121,255,0.1);">
-        <h2 style="margin: 0 0 20px 0; color: #1a1a1a; font-size: 20px; font-weight: 600; display: flex; align-items: center;">
-            📋 Ihre Bestelldetails
-        </h2>
-        <div style="display: grid; gap: 12px;">
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,121,255,0.1);">
-                <span style="color: #666; font-weight: 500;">Bestellnummer</span>
-                <span style="color: #1a1a1a; font-weight: 700;">#<?php echo esc_html($order->get_order_number()); ?></span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,121,255,0.1);">
-                <span style="color: #666; font-weight: 500;">Bestelldatum</span>
-                <span style="color: #1a1a1a; font-weight: 600;"><?php echo esc_html($order->get_date_created()->format('d.m.Y H:i')); ?></span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(0,121,255,0.1);">
-                <span style="color: #666; font-weight: 500;">Status</span>
-                <span style="background: #22c55e; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;"><?php echo esc_html(wc_get_order_status_name($order->get_status())); ?></span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 15px 0 5px 0; border-top: 2px solid #0079FF; margin-top: 10px;">
-                <span style="color: #1a1a1a; font-weight: 700; font-size: 16px;">Gesamtbetrag</span>
-                <span style="color: #0079FF; font-weight: 700; font-size: 20px;"><?php echo wp_kses_post($order->get_formatted_order_total()); ?></span>
-            </div>
+        <div style="text-align: center; padding: 40px 20px; background-color: #FFFFFF; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>;">
+            <h1 style="margin: 0 0 10px 0; font-size: 32px; font-weight: 700; color: <?php echo esc_attr($accent_color); ?>;">
+                Vielen Dank für Ihre Bestellung!
+            </h1>
+            <p style="margin: 0; font-size: 18px; color: <?php echo esc_attr($text_color_light); ?>;">
+                Ihre Bestellung bei YPrint wurde erfolgreich bestätigt.
+            </p>
         </div>
-    </div>
 
-    <!-- Bestellte Artikel -->
-    <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 25px; margin: 25px 0; box-shadow: 0 1px 6px rgba(0,0,0,0.05);">
-        <h2 style="margin: 0 0 20px 0; color: #1a1a1a; font-size: 20px; font-weight: 600; display: flex; align-items: center;">
-            🛍️ Ihre bestellten Artikel
-        </h2>
-        <?php
-        foreach ($order->get_items() as $item_id => $item) {
-            $product = $item->get_product();
-            if (!$product) continue;
-            
-            // Bestimme den Artikelnamen basierend auf Design-Daten
-            $design_name = $item->get_meta('_design_name');
-            $product_name = $product->get_name();
-            
-            if (!empty($design_name)) {
-                $display_name = esc_html($design_name) . ' - gedruckt auf ' . esc_html($product_name);
-            } else {
-                $display_name = esc_html($product_name);
-            }
-            
-            // Design-Details sammeln
-            $design_details = [];
-            $design_color = $item->get_meta('_design_color');
-            $design_size = $item->get_meta('_design_size');
-            
-            if (!empty($design_color)) {
-                $design_details[] = $design_color;
-            }
-            if (!empty($design_size)) {
-                $design_details[] = 'Größe ' . $design_size;
-            }
-            
-            $individual_price = $item->get_subtotal() / $item->get_quantity();
-            ?>
-            <div style="background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%); border-radius: 8px; padding: 20px; margin-bottom: 15px; border-left: 4px solid #0079FF;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="flex: 1;">
-                        <h3 style="margin: 0 0 8px 0; color: #1a1a1a; font-size: 16px; font-weight: 600; line-height: 1.4;">
-                            <?php echo $display_name; ?>
-                        </h3>
-                        <?php if (!empty($design_details)): ?>
-                        <div style="margin-bottom: 8px;">
-                            <?php foreach ($design_details as $detail): ?>
-                            <span style="background: #0079FF; color: white; padding: 4px 10px; border-radius: 15px; font-size: 11px; font-weight: 600; margin-right: 8px; display: inline-block;">
-                                <?php echo esc_html($detail); ?>
-                            </span>
-                            <?php endforeach; ?>
+        <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px;">
+            <h2 style="margin: 0 0 25px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 22px; font-weight: 600;">
+                Ihre Bestelldetails
+            </h2>
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="font-size: 16px;">
+                <tr>
+                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($text_color_light); ?>;">Bestellnummer:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; text-align: right; color: <?php echo esc_attr($text_color_dark); ?>; font-weight: 600;">#<?php echo esc_html($order->get_order_number()); ?></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($text_color_light); ?>;">Bestelldatum:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; text-align: right; color: <?php echo esc_attr($text_color_dark); ?>;"><?php echo esc_html($order->get_date_created()->format('d.m.Y H:i')); ?></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($text_color_light); ?>;">Status:</td>
+                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; text-align: right;">
+                        <span style="background-color: #D4EDDA; color: #155724; padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;"><?php echo esc_html(wc_get_order_status_name($order->get_status())); ?></span>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 15px 0 5px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-weight: 700; font-size: 18px;">Gesamtbetrag:</td>
+                    <td style="padding: 15px 0 5px 0; text-align: right; color: <?php echo esc_attr($accent_color); ?>; font-weight: 700; font-size: 24px;"><?php echo wp_kses_post($order->get_formatted_order_total()); ?></td>
+                </tr>
+            </table>
+        </div>
+
+        <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px;">
+            <h2 style="margin: 0 0 25px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 22px; font-weight: 600;">
+                Ihre bestellten Artikel
+            </h2>
+            <?php
+            foreach ($order->get_items() as $item_id => $item) {
+                $product = $item->get_product();
+                if (!$product) continue;
+
+                // Bestimme den Artikelnamen basierend auf Design-Daten
+                $design_name = $item->get_meta('_design_name');
+                $product_name = $product->get_name();
+
+                if (!empty($design_name)) {
+                    $display_name = esc_html($design_name) . ' - gedruckt auf ' . esc_html($product_name);
+                } else {
+                    $display_name = esc_html($product_name);
+                }
+
+                // Design-Details sammeln
+                $design_details = [];
+                $design_color = $item->get_meta('_design_color');
+                $design_size = $item->get_meta('_design_size');
+
+                if (!empty($design_color)) {
+                    $design_details[] = $design_color;
+                }
+                if (!empty($design_size)) {
+                    $design_details[] = 'Größe ' . $design_size;
+                }
+
+                $individual_price = $item->get_subtotal() / $item->get_quantity();
+                ?>
+                <div style="border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; padding-bottom: 20px; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <h3 style="margin: 0 0 5px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 17px; font-weight: 600; line-height: 1.4;">
+                                <?php echo $display_name; ?>
+                            </h3>
+                            <?php if (!empty($design_details)): ?>
+                            <div style="margin-bottom: 8px;">
+                                <?php foreach ($design_details as $detail): ?>
+                                <span style="background-color: <?php echo esc_attr($accent_color); ?>; color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: 500; margin-right: 8px; display: inline-block;">
+                                    <?php echo esc_html($detail); ?>
+                                </span>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+                            <p style="margin: 0; color: <?php echo esc_attr($text_color_light); ?>; font-size: 14px;">
+                                Menge: <?php echo esc_html($item->get_quantity()); ?> × <?php echo wp_kses_post(wc_price($individual_price)); ?>
+                            </p>
                         </div>
-                        <?php endif; ?>
-                        <p style="margin: 0; color: #666; font-size: 13px; font-weight: 500;">
-                            Menge: <?php echo esc_html($item->get_quantity()); ?> × <?php echo wp_kses_post(wc_price($individual_price)); ?>
-                        </p>
-                    </div>
-                    <div style="text-align: right; margin-left: 20px;">
-                        <div style="background: #0079FF; color: white; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 16px;">
-                            <?php echo wp_kses_post(wc_price($item->get_total())); ?>
+                        <div style="text-align: right; margin-left: 20px;">
+                            <div style="color: <?php echo esc_attr($text_color_dark); ?>; font-weight: 700; font-size: 18px;">
+                                <?php echo wp_kses_post(wc_price($item->get_total())); ?>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <?php
-        }
-        ?>
-    </div>
+                <?php
+            }
+            ?>
+        </div>
 
-    <!-- Adress-Container -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 25px 0;">
-        <!-- Lieferadresse -->
-        <?php if ($order->has_shipping_address()) : ?>
-        <div style="background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-left: 4px solid #22c55e; border-radius: 8px; padding: 20px;">
-            <h3 style="margin: 0 0 15px 0; color: #1a1a1a; font-size: 16px; font-weight: 600; display: flex; align-items: center;">
-                🚚 Lieferadresse
-            </h3>
-            <div style="color: #374151; line-height: 1.6; font-size: 14px;">
-                <?php echo wp_kses_post($order->get_formatted_shipping_address()); ?>
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; margin-top: 20px;">
+            <?php if ($order->has_shipping_address()) : ?>
+            <div style="background-color: #FFFFFF; padding: 25px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px; width: 48%; box-sizing: border-box; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 18px; font-weight: 600;">
+                    Lieferadresse
+                </h3>
+                <div style="color: <?php echo esc_attr($text_color_light); ?>; line-height: 1.6; font-size: 15px;">
+                    <?php echo wp_kses_post($order->get_formatted_shipping_address()); ?>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div style="background-color: #FFFFFF; padding: 25px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px; width: 48%; box-sizing: border-box; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 18px; font-weight: 600;">
+                    Rechnungsadresse
+                </h3>
+                <div style="color: <?php echo esc_attr($text_color_light); ?>; line-height: 1.6; font-size: 15px;">
+                    <?php echo wp_kses_post($order->get_formatted_billing_address()); ?>
+                </div>
             </div>
         </div>
-        <?php endif; ?>
 
-        <!-- Rechnungsadresse -->
-        <div style="background: linear-gradient(135deg, #fef7ff 0%, #fdf4ff 100%); border-left: 4px solid #a855f7; border-radius: 8px; padding: 20px;">
-            <h3 style="margin: 0 0 15px 0; color: #1a1a1a; font-size: 16px; font-weight: 600; display: flex; align-items: center;">
-                🧾 Rechnungsadresse
+        <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px; text-align: center;">
+            <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 20px; font-weight: 700;">
+                Was passiert als Nächstes?
             </h3>
-            <div style="color: #374151; line-height: 1.6; font-size: 14px;">
-                <?php echo wp_kses_post($order->get_formatted_billing_address()); ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Was passiert als nächstes -->
-    <div style="background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%); border-radius: 12px; padding: 25px; margin: 30px 0; text-align: center; border: 1px solid #fb923c;">
-        <h3 style="margin: 0 0 15px 0; color: #ea580c; font-size: 18px; font-weight: 700;">
-            ⏰ Was passiert als nächstes?
-        </h3>
-        <p style="margin: 0 0 15px 0; color: #9a3412; line-height: 1.6; font-size: 15px;">
-            Wir werden Ihre Bestellung innerhalb der <strong>nächsten 24 Stunden</strong> bearbeiten und Ihnen eine Versandbestätigung mit Tracking-Informationen senden.
-        </p>
-        <div style="background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <p style="margin: 0; color: #374151; font-size: 14px; line-height: 1.5;">
-                <strong>Fragen?</strong> Kontaktieren Sie uns jederzeit unter Angabe Ihrer Bestellnummer <span style="background: #0079FF; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">#<?php echo esc_html($order->get_order_number()); ?></span>
+            <p style="margin: 0 0 20px 0; color: <?php echo esc_attr($text_color_light); ?>; line-height: 1.6; font-size: 16px;">
+                Wir bearbeiten Ihre Bestellung innerhalb der <strong>nächsten 24 Stunden</strong> und senden Ihnen eine Versandbestätigung mit Tracking-Informationen.
+            </p>
+            <p style="margin: 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 15px; line-height: 1.5;">
+                Haben Sie Fragen? Kontaktieren Sie uns jederzeit unter Angabe Ihrer Bestellnummer <strong style="color: <?php echo esc_attr($accent_color); ?>;">#<?php echo esc_html($order->get_order_number()); ?></strong>.
             </p>
         </div>
-    </div>
 
-    <!-- Dankesnachricht -->
-    <div style="background: linear-gradient(135deg, #1a1a1a 0%, #374151 100%); border-radius: 12px; padding: 30px; text-align: center; color: white; margin: 30px 0;">
-        <h3 style="margin: 0 0 10px 0; font-size: 20px; font-weight: 700; color: white;">
-            Vielen Dank für Ihr Vertrauen! 🙏
-        </h3>
-        <p style="margin: 0; opacity: 0.9; font-size: 16px; line-height: 1.5;">
-            Ihr <span style="background: #0079FF; padding: 4px 8px; border-radius: 4px; font-weight: 600;">YPrint</span> Team
-        </p>
+        <div style="text-align: center; padding: 30px 20px; margin-top: 30px; border-top: 1px solid <?php echo esc_attr($border_color); ?>;">
+            <p style="margin: 0; font-size: 16px; color: <?php echo esc_attr($text_color_light); ?>;">
+                Vielen Dank für Ihr Vertrauen!
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 600; color: <?php echo esc_attr($accent_color); ?>;">
+                Ihr YPrint Team
+            </p>
+        </div>
     </div>
     <?php
     return ob_get_clean();
