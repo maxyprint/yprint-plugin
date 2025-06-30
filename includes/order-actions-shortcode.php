@@ -22,12 +22,10 @@ class YPrint_Order_Actions_Screenshot_Final {
      */
     public static function init() {
         add_shortcode('yprint_last_order_actions', array(__CLASS__, 'render_order_actions'));
-        add_action('wp_ajax_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
-        add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
-        add_action('wp_ajax_yprint_reorder_design_with_size', array(__CLASS__, 'handle_reorder_design_with_size'));
-        add_action('wp_ajax_nopriv_yprint_reorder_design_with_size', array(__CLASS__, 'handle_reorder_design_with_size'));
-        add_action('wp_ajax_yprint_get_product_sizes', array(__CLASS__, 'handle_get_product_sizes'));
-        add_action('wp_ajax_nopriv_yprint_get_product_sizes', array(__CLASS__, 'handle_get_product_sizes'));
+        // Nur als Fallback für Bestellungen ohne design_id beibehalten
+add_action('wp_ajax_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
+add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorder'));
+// Alle anderen werden von Your_Designs übernommen
     }
 
     /**
@@ -719,10 +717,10 @@ shareOptions.forEach(option => {
         hasDesignId: designId && designId !== 'undefined' && designId !== ''
     });
     
-    // Check if we have design_id to show size selection (like Your Designs Shortcode)
+    // Always use Your Designs logic if design_id is available
     if (designId && designId !== 'undefined' && designId !== '') {
-        console.log('YPrint Debug: Showing size selection modal');
-        showSizeSelectionModal(designId, button, false); // Use Your Designs logic
+        console.log('YPrint Debug: Using Your Designs reorder logic');
+        showSizeSelectionModal(designId, button);
     } else {
         console.log('YPrint Debug: Using direct reorder fallback');
         // Fallback: Direct reorder without size selection
@@ -811,13 +809,13 @@ const showSizeSelectionModal = (designId, button, isReorder = false, orderId = n
     });
 };
 
-const showSizeModal = (modalData, designId, button, originalContent, isReorder, orderId, itemId) => {
-    // Create modal HTML
+const showSizeModal = (modalData, designId, button, originalContent) => {
+    // Use the exact same modal structure as Your Designs Shortcode
     const modalHTML = `
         <div id="yprint-size-modal-overlay" class="yprint-size-modal-overlay">
             <div class="yprint-size-modal">
                 <div class="yprint-size-modal-header">
-                    <h3>${isReorder ? 'Größe für Nachbestellung wählen' : 'Größe wählen'}</h3>
+                    <h3>Größe für Nachbestellung wählen</h3>
                     <button class="yprint-size-modal-close">&times;</button>
                 </div>
                 <div class="yprint-size-modal-content">
@@ -833,14 +831,12 @@ const showSizeModal = (modalData, designId, button, originalContent, isReorder, 
         </div>
     `;
     
-    // Add modal to DOM
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
     const modal = document.getElementById('yprint-size-modal-overlay');
     const closeBtn = modal.querySelector('.yprint-size-modal-close');
     const sizeOptions = modal.querySelectorAll('.yprint-size-option');
     
-    // Close modal handlers
     const closeModal = () => {
         modal.remove();
         button.innerHTML = originalContent;
@@ -852,18 +848,72 @@ const showSizeModal = (modalData, designId, button, originalContent, isReorder, 
         if (e.target === modal) closeModal();
     });
     
-    // Size selection handlers
-sizeOptions.forEach(option => {
-    option.addEventListener('click', () => {
-        const sizeId = option.dataset.sizeId;
-        const sizeName = option.dataset.sizeName;
-        
-        modal.remove();
-        
-        // Always use Your Designs reorder logic
-        handleYourDesignsReorder(designId, sizeId, sizeName, button);
+    // Use exact Your Designs reorder logic
+    sizeOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const selectedSize = option.dataset.sizeName;
+            modal.remove();
+            proceedWithReorder(designId, selectedSize, button);
+        });
     });
-});
+};
+
+const proceedWithReorder = (designId, selectedSize, button) => {
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Wird hinzugefügt...</span>';
+    button.style.pointerEvents = 'none';
+
+    jQuery.ajax({
+        url: '<?php echo esc_url(admin_url('admin-ajax.php')); ?>',
+        type: 'POST',
+        data: {
+            action: 'yprint_reorder_design', // Use Your Designs AJAX action
+            design_id: designId,
+            selected_size: selectedSize,
+            nonce: '<?php echo wp_create_nonce('yprint_design_actions_nonce'); ?>'
+        }
+    })
+    .done(function(response) {
+        if (response.success) {
+            button.innerHTML = '<i class="fas fa-check"></i><span>Hinzugefügt!</span>';
+            
+            // Trigger cart update events (same as Your Designs)
+            jQuery(document.body).trigger('added_to_cart', [[], '', button]);
+            jQuery(document.body).trigger('wc_fragments_refreshed');
+            
+            // Open mobile cart popup with multiple fallback methods
+            setTimeout(() => {
+                if (typeof window.openYPrintCart === 'function') {
+                    window.openYPrintCart();
+                } else if (jQuery('#mobile-cart-popup').length) {
+                    jQuery(document).trigger('yprint:open-cart-popup');
+                } else {
+                    const mobileCartPopup = document.getElementById('mobile-cart-popup');
+                    if (mobileCartPopup) {
+                        mobileCartPopup.classList.add('open');
+                        document.body.classList.add('cart-popup-open');
+                        mobileCartPopup.setAttribute('aria-hidden', 'false');
+                    } else {
+                        window.location.hash = '#mobile-cart';
+                    }
+                }
+            }, 300);
+            
+            // Reset button after 2 seconds
+            setTimeout(() => {
+                button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+                button.style.pointerEvents = '';
+            }, 2000);
+        } else {
+            alert(response.data || 'Fehler beim Hinzufügen zum Warenkorb');
+            button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+            button.style.pointerEvents = '';
+        }
+    })
+    .fail(function() {
+        alert('Netzwerkfehler beim Hinzufügen zum Warenkorb');
+        button.innerHTML = '<i class="fas fa-redo-alt"></i><span>Reorder</span>';
+        button.style.pointerEvents = '';
+    });
 };
 
 const handleYourDesignsReorder = (designId, sizeId, sizeName, button) => {
