@@ -77,6 +77,19 @@ require_once YPRINT_PLUGIN_DIR . 'includes/mobile-cart-popup.php';
 
 require_once YPRINT_PLUGIN_DIR . 'includes/yprint-order-debug-tracker.php';
 
+// Include the design share page
+require_once plugin_dir_path(__FILE__) . 'includes/design-share-page.php';
+
+// Flush rewrite rules on plugin activation
+register_activation_hook(__FILE__, function() {
+    YPrint_Design_Share_Page::add_rewrite_rules();
+    flush_rewrite_rules();
+});
+
+// Flush rewrite rules on plugin deactivation
+register_deactivation_hook(__FILE__, function() {
+    flush_rewrite_rules();
+});
 
 // Initialize Cart Data Manager early
 add_action('init', function() {

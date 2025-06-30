@@ -730,10 +730,21 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
                     <i class="far fa-comment-dots"></i>
                     <span><?php _e('Feedback', 'yprint-plugin'); ?></span>
                 </a>
-                <button class="yprint-last-order-action-btn share yprint-share-trigger"
+                <?php
+// Generate share URL for design
+$share_url = '';
+if (!empty($design_data['design_id'])) {
+    $share_url = home_url("/design-share/{$design_data['design_id']}/");
+} else {
+    $share_url = $product_url; // Fallback to product URL
+}
+?>
+<button class="yprint-last-order-action-btn share yprint-share-trigger"
         data-design-name="<?php echo esc_attr($design_name); ?>"
         data-design-image="<?php echo esc_attr($design_image); ?>"
-        data-product-url="<?php echo esc_attr($product_url); ?>">
+        data-product-url="<?php echo esc_attr($product_url); ?>"
+        data-share-url="<?php echo esc_attr($share_url); ?>"
+        data-design-id="<?php echo esc_attr($design_data['design_id'] ?? ''); ?>">
     <i class="fas fa-share-alt"></i>
     <span><?php _e('Share', 'yprint-plugin'); ?></span>
     <div class="yprint-share-dropdown-desktop">
@@ -920,13 +931,16 @@ function createAndShowShareDropdown(button) {
             
             const { platform } = shareOption.dataset;
             const designName = button.dataset.designName || 'Mein Design';
-            const productUrl = button.dataset.productUrl || window.location.href;
-            const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
-            const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
-            const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
+const shareUrl = button.dataset.shareUrl || button.dataset.productUrl || window.location.href;
+const designId = button.dataset.designId || '';
+const shareTitle = '<?php echo esc_js(__('Schau dir mein Design an!', 'yprint-plugin')); ?>';
+const shareText = '<?php echo esc_js(__('Individuelles Design erstellt', 'yprint-plugin')); ?>';
+const fullShareText = `${shareTitle}: "${designName}" - ${shareText}`;
 
-            console.log('YPrint Debug [Order Actions]: Share platform:', platform);
-            handleShare(platform, fullShareText, productUrl);
+console.log('YPrint Debug [Order Actions]: Share platform:', platform);
+console.log('YPrint Debug [Order Actions]: Share URL:', shareUrl);
+console.log('YPrint Debug [Order Actions]: Design ID:', designId);
+handleShare(platform, fullShareText, shareUrl);
             
             // Close dropdown
             dropdown.remove();
