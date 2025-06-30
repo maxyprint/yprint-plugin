@@ -416,94 +416,9 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
     100% { transform: rotate(360deg); }
 }
 
-/* Share dropdown for desktop */
-.yprint-share-dropdown-desktop {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    padding: 8px;
-    display: none;
-    z-index: 1000;
-    min-width: 160px;
-}
-
-@media (max-width: 480px) {
-    .yprint-share-dropdown-desktop {
-        right: 0;
-        left: auto;
-        min-width: 140px;
-    }
-}
-
-.yprint-share-dropdown-desktop.show {
-    display: block;
-}
-
-.yprint-share-option {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    color: #374151;
-    text-decoration: none;
-    border-radius: 6px;
-    font-size: 14px;
-    transition: all 0.2s ease;
-}
-
-.yprint-share-option:hover {
-    background-color: #f3f4f6;
-    color: #111827;
-    transform: translateX(2px);
-}
-
-.yprint-share-option:active {
-    background-color: #e5e7eb;
-    transform: translateX(0);
-}
-
-.yprint-share-option i {
-    font-size: 16px;
-    width: 16px;
-    text-align: center;
-    transition: all 0.2s ease;
-}
-
-.yprint-share-option:hover i {
-    transform: scale(1.1);
-}
-
 /* Position relative for share button container */
 .yprint-last-order-action-btn.share {
-    position: relative;
-}
-
-/* Ensure share dropdown is properly positioned */
-.yprint-last-order-action-btn.share .yprint-share-dropdown-desktop {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    padding: 8px;
-    display: none;
-    z-index: 1000;
-    min-width: 160px;
-    opacity: 0;
-    transform: translateY(-10px);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.yprint-last-order-action-btn.share .yprint-share-dropdown-desktop.show {
-    display: block;
-    opacity: 1;
-    transform: translateY(0);
+    position: relative !important;
 }
 
 .yprint-last-order-action-btn.share:hover {
@@ -513,8 +428,83 @@ add_action('wp_ajax_nopriv_yprint_reorder_item', array(__CLASS__, 'handle_reorde
 }
 
 .yprint-last-order-action-btn.share.show {
-    background-color: #e5e7eb;
-    color: #374151;
+    background-color: #e5e7eb !important;
+    color: #374151 !important;
+}
+
+/* Share dropdown styling - FIXED VERSION */
+.yprint-share-dropdown-desktop {
+    position: absolute !important;
+    top: calc(100% + 8px) !important;
+    right: 0 !important;
+    background: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+    padding: 8px !important;
+    z-index: 999999 !important;
+    min-width: 180px !important;
+    
+    /* Animation states */
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transform: translateY(-10px) scale(0.95) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    
+    /* Prevent interference */
+    pointer-events: none !important;
+}
+
+.yprint-share-dropdown-desktop.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) scale(1) !important;
+    pointer-events: auto !important;
+}
+
+.yprint-share-option {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    color: #374151 !important;
+    text-decoration: none !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    transition: all 0.15s ease !important;
+    cursor: pointer !important;
+}
+
+.yprint-share-option:hover {
+    background-color: #f8fafc !important;
+    color: #111827 !important;
+    transform: translateX(2px) !important;
+}
+
+.yprint-share-option:active {
+    background-color: #e2e8f0 !important;
+    transform: translateX(0) !important;
+}
+
+.yprint-share-option i {
+    font-size: 16px !important;
+    width: 18px !important;
+    text-align: center !important;
+    transition: transform 0.15s ease !important;
+}
+
+.yprint-share-option:hover i {
+    transform: scale(1.1) !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+    .yprint-share-dropdown-desktop {
+        right: 0 !important;
+        left: auto !important;
+        min-width: 160px !important;
+    }
 }
 
 /* Medium screens - hide text when space gets tight */
@@ -813,28 +803,59 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Close other open dropdowns first
-    document.querySelectorAll('.yprint-share-dropdown-desktop.show').forEach(dropdown => {
+    // Close ALL other dropdowns first
+    document.querySelectorAll('.yprint-share-dropdown-desktop').forEach(dropdown => {
         if (dropdown !== shareDropdown) {
             dropdown.classList.remove('show');
-            dropdown.closest('.yprint-share-trigger').classList.remove('show');
+            const otherButton = dropdown.closest('.yprint-share-trigger');
+            if (otherButton) otherButton.classList.remove('show');
         }
     });
     
     if (shareDropdown) {
-        shareDropdown.classList.toggle('show');
-        shareButton.classList.toggle('show');
-        console.log('YPrint Debug [Order Actions]: Share dropdown toggled', shareDropdown.classList.contains('show'));
+        const isCurrentlyOpen = shareDropdown.classList.contains('show');
+        
+        if (isCurrentlyOpen) {
+            // Close dropdown
+            shareDropdown.classList.remove('show');
+            shareButton.classList.remove('show');
+            console.log('YPrint Debug [Order Actions]: Share dropdown CLOSED');
+        } else {
+            // Open dropdown  
+            shareDropdown.classList.add('show');
+            shareButton.classList.add('show');
+            console.log('YPrint Debug [Order Actions]: Share dropdown OPENED');
+            
+            // Debug: Check if dropdown is actually visible
+            setTimeout(() => {
+                const computedStyle = window.getComputedStyle(shareDropdown);
+                console.log('YPrint Debug [Order Actions]: Dropdown computed styles:', {
+                    display: computedStyle.display,
+                    opacity: computedStyle.opacity,
+                    visibility: computedStyle.visibility,
+                    transform: computedStyle.transform,
+                    position: computedStyle.position,
+                    zIndex: computedStyle.zIndex
+                });
+            }, 100);
+        }
+    } else {
+        console.error('YPrint Debug [Order Actions]: ❌ shareDropdown not found!');
     }
 });
 
-// Close dropdown when clicking outside
-document.addEventListener('click', (e) => {
-    if (!shareButton.contains(e.target) && !shareDropdown.contains(e.target)) {
-        shareDropdown.classList.remove('show');
-        shareButton.classList.remove('show');
+// Global click handler to close dropdown
+const globalClickHandler = (e) => {
+    if (shareButton && shareDropdown) {
+        if (!shareButton.contains(e.target) && !shareDropdown.contains(e.target)) {
+            shareDropdown.classList.remove('show');
+            shareButton.classList.remove('show');
+            console.log('YPrint Debug [Order Actions]: Share dropdown closed by outside click');
+        }
     }
-});
+};
+
+document.addEventListener('click', globalClickHandler);
         
         // Share option clicks - use event delegation
 if (shareDropdown) {
