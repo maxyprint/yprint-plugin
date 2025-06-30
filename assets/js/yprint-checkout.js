@@ -2009,27 +2009,87 @@ if (confirmPaymentMethodEl && paymentData.payment_method_id) {
             console.error('❌ Error dispatching checkout completion event:', error);
         }
 
-        // Schritt 10: Cart Data laden
-        console.log('📝 Step 10: Loading cart data');
+        // Schritt 10: Order Data verwenden statt Cart Data zu laden
+        console.log('📝 Step 10: Using order data instead of loading cart data');
         try {
-            if (typeof loadRealCartData === 'function') {
-                loadRealCartData().then(() => {
-                    if (typeof updateConfirmationProductList === 'function') {
-                        updateConfirmationProductList();
+            // Nach Express Payment sollten wir die Order-Daten verwenden, nicht den Cart
+            if (paymentData.order_data && paymentData.order_data.items) {
+                console.log('✅ Using order data for confirmation display');
+                
+                // Order-basierte Confirmation Population
+                if (typeof updateConfirmationWithOrderData === 'function') {
+                    updateConfirmationWithOrderData(paymentData.order_data);
+                } else {
+                    // Fallback: Direkte Manipulation der DOM-Elemente
+                    console.log('🔄 Using fallback order data display');
+                    
+                    // Produktliste basierend auf Order Data setzen
+                    const productListEl = document.querySelector('.yprint-order-items-list');
+                    if (productListEl && paymentData.order_data.items) {
+                        let itemsHtml = '';
+                        paymentData.order_data.items.forEach(item => {
+                            itemsHtml += `
+                                <div class="yprint-order-item">
+                                    <div class="yprint-item-details">
+                                        <h4 class="yprint-item-title">${item.name || 'Produkt'}</h4>
+                                        <span class="yprint-item-quantity">Anzahl: ${item.quantity || 1}</span>
+                                    </div>
+                                    <div class="yprint-item-total">
+                                        ${item.total || item.price || '0,00 €'}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        productListEl.innerHTML = itemsHtml;
                     }
-                    if (typeof updateConfirmationTotals === 'function') {
-                        updateConfirmationTotals();
+                    
+                    // Totals basierend auf Order Data setzen
+                    if (paymentData.order_data.totals) {
+                        const totals = paymentData.order_data.totals;
+                        
+                        // Subtotal
+                        const subtotalEl = document.getElementById('confirm-subtotal');
+                        if (subtotalEl && totals.subtotal) {
+                            subtotalEl.textContent = totals.subtotal;
+                        }
+                        
+                        // Shipping
+                        const shippingEl = document.getElementById('confirm-shipping');
+                        if (shippingEl && totals.shipping) {
+                            shippingEl.textContent = totals.shipping;
+                        }
+                        
+                        // Tax
+                        const taxEl = document.getElementById('confirm-tax');
+                        if (taxEl && totals.tax) {
+                            taxEl.textContent = totals.tax;
+                        }
+                        
+                        // Total
+                        const totalEl = document.getElementById('confirm-total');
+                        if (totalEl && totals.total) {
+                            totalEl.textContent = totals.total;
+                        }
                     }
-                    if (typeof populateConfirmation === 'function') {
-                        populateConfirmation();
-                    }
-                }).catch(error => {
-                    console.error('❌ Error in loadRealCartData chain:', error);
-                });
-                console.log('✅ Cart data loading initiated');
+                }
+                
+                console.log('✅ Order-based confirmation display completed');
+            } else {
+                console.warn('⚠️ No order data available - checkout may be incomplete');
+                
+                // Fallback: Zeige eine allgemeine Erfolgsmeldung ohne Details
+                const productListEl = document.querySelector('.yprint-order-items-list');
+                if (productListEl) {
+                    productListEl.innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="fas fa-check-circle text-green-500 text-4xl mb-2"></i>
+                            <p class="text-gray-600">Ihre Bestellung wurde erfolgreich verarbeitet.</p>
+                        </div>
+                    `;
+                }
             }
         } catch (error) {
-            console.error('❌ Error initiating cart data load:', error);
+            console.error('❌ Error using order data for confirmation:', error);
         }
 
         console.log('🎯 populateConfirmationWithPaymentData COMPLETED SUCCESSFULLY');
