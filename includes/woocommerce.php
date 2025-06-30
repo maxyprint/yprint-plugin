@@ -73,118 +73,6 @@ function woo_order_history($atts) {
             padding: 0;
         }
 
-        .yprint-search-container {
-    position: relative;
-    margin-bottom: 32px;
-}
-
-.yprint-order-search {
-    width: 100%;
-    padding: 18px 50px 18px 55px;
-    background: #ffffff;
-    border: 1px solid #e1e5e9;
-    border-radius: 24px;
-    font-size: 16px;
-    color: #333333;
-    box-sizing: border-box;
-    transition: all 0.3s ease;
-    font-weight: 400;
-}
-
-.yprint-order-search:hover {
-    border-color: #cbd5e0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transform: translateY(-1px);
-}
-
-.yprint-order-search:focus {
-    outline: none;
-    border-color: #e1e5e9;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    transform: translateY(-1px);
-}
-
-.yprint-order-search::placeholder {
-    color: #a0aec0;
-    font-weight: 400;
-}
-
-.yprint-search-icon {
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
-    color: #a0aec0;
-    pointer-events: none;
-    transition: color 0.3s ease;
-    z-index: 2;
-}
-
-.yprint-search-container:hover .yprint-search-icon {
-    color: #718096;
-}
-
-.yprint-search-container:focus-within .yprint-search-icon {
-    color: #718096;
-}
-
-.yprint-clear-search {
-    position: absolute;
-    right: 18px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: #f1f3f4;
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    color: #a0aec0;
-    transition: all 0.3s ease;
-    z-index: 2;
-}
-
-.yprint-clear-search:hover {
-    background: #e1e5e9;
-    color: #718096;
-    transform: translateY(-50%) scale(1.1);
-}
-
-.yprint-search-container.has-value .yprint-clear-search {
-    display: flex;
-}
-
-@media (max-width: 768px) {
-    .yprint-search-container {
-        margin-bottom: 24px;
-    }
-    
-    .yprint-order-search {
-        padding: 16px 45px 16px 55px;
-        font-size: 16px;
-        border-radius: 20px;
-    }
-    
-    .yprint-search-icon {
-        left: 20px;
-        width: 18px;
-        height: 18px;
-    }
-    
-    .yprint-clear-search {
-        right: 16px;
-        width: 22px;
-        height: 22px;
-        font-size: 13px;
-    }
-}
-
         .yprint-order-list {
             display: flex;
             flex-direction: column;
@@ -255,30 +143,30 @@ function woo_order_history($atts) {
         }
 
         .yprint-cancel-order-btn {
-    background: #dc3545;
-    color: white;
-    border: 1px solid #dc3545;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-left: 12px;
-}
+            background: #dc3545;
+            color: white;
+            border: 1px solid #dc3545;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 12px;
+        }
 
-.yprint-cancel-order-btn:hover {
-    background: #c82333;
-    border-color: #c82333;
-    transform: none;
-}
+        .yprint-cancel-order-btn:hover {
+            background: #c82333;
+            border-color: #c82333;
+            transform: none;
+        }
 
-.yprint-cancel-order-btn:disabled {
-    background: #e9ecef;
-    color: #adb5bd;
-    cursor: not-allowed;
-    border-color: #dee2e6;
-}
+        .yprint-cancel-order-btn:disabled {
+            background: #e9ecef;
+            color: #adb5bd;
+            cursor: not-allowed;
+            border-color: #dee2e6;
+        }
 
         .yprint-order-items {
             border-top: 1px solid #f1f3f4;
@@ -368,77 +256,76 @@ function woo_order_history($atts) {
         }
 
         .yprint-cancel-item-btn {
-    background: #dc3545;
-    color: white;
-    border: 1px solid #dc3545;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
+            background: #dc3545;
+            color: white;
+            border: 1px solid #dc3545;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
 
-.yprint-cancel-item-btn:hover {
-    background: #c82333;
-    border-color: #c82333;
-}
+        .yprint-cancel-item-btn:hover {
+            background: #c82333;
+            border-color: #c82333;
+        }
 
+        .yprint-cancel-item-btn:disabled {
+            background: #e9ecef;
+            color: #adb5bd;
+            cursor: not-allowed;
+            border-color: #dee2e6;
+        }
 
-.yprint-cancel-item-btn:disabled {
-    background: #e9ecef;
-    color: #adb5bd;
-    cursor: not-allowed;
-    border-color: #dee2e6;
-}
+        .yprint-order-item.cancelled {
+            opacity: 0.6;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 8px 0;
+            position: relative;
+        }
 
-.yprint-order-item.cancelled {
-    opacity: 0.6;
-    background-color: #f8f9fa;
-    border-radius: 8px;
-    padding: 16px;
-    margin: 8px 0;
-    position: relative;
-}
+        .yprint-order-item.cancelled .yprint-item-name,
+        .yprint-order-item.cancelled .yprint-design-title,
+        .yprint-order-item.cancelled .yprint-item-meta {
+            color: #6c757d !important;
+        }
 
-.yprint-order-item.cancelled .yprint-item-name,
-.yprint-order-item.cancelled .yprint-design-title,
-.yprint-order-item.cancelled .yprint-item-meta {
-    color: #6c757d !important;
-}
+        .yprint-order-item.cancelled .yprint-item-price {
+            color: #1a1a1a !important;
+        }
 
-.yprint-order-item.cancelled .yprint-item-price {
-    color: #1a1a1a !important;
-}
+        .yprint-order-item.cancelled .yprint-item-preview {
+            opacity: 0.5;
+            filter: grayscale(100%);
+        }
 
-.yprint-order-item.cancelled .yprint-item-preview {
-    opacity: 0.5;
-    filter: grayscale(100%);
-}
+        .yprint-cancelled-label {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #6c757d;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
 
-.yprint-cancelled-label {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: #6c757d;
-    color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.yprint-cancelled-info {
-    background: #f1f3f4;
-    color: #5f6368;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    margin-top: 8px;
-    border-left: 3px solid #6c757d;
-}
+        .yprint-cancelled-info {
+            background: #f1f3f4;
+            color: #5f6368;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-top: 8px;
+            border-left: 3px solid #6c757d;
+        }
 
         .yprint-expand-icon {
             margin-left: 8px;
@@ -508,60 +395,60 @@ function woo_order_history($atts) {
         }
 
         @media (max-width: 768px) {
-    .yprint-order-history {
-        padding: 0 16px;
-    }
-            
-    .yprint-order-header {
-        flex-direction: column;
-        gap: 8px;
-        align-items: flex-start;
-    }
-            
-    .yprint-order-meta, .yprint-order-actions {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
+            .yprint-order-history {
+                padding: 0 16px;
+            }
+                
+            .yprint-order-header {
+                flex-direction: column;
+                gap: 8px;
+                align-items: flex-start;
+            }
+                
+            .yprint-order-meta, .yprint-order-actions {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
 
-    .yprint-order-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
+            .yprint-order-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
 
-    .yprint-item-actions {
-        width: 100%;
-        justify-content: space-between;
-    }
+            .yprint-item-actions {
+                width: 100%;
+                justify-content: space-between;
+            }
 
-    .yprint-item-preview {
-        width: 50px;
-        height: 50px;
-    }
+            .yprint-item-preview {
+                width: 50px;
+                height: 50px;
+            }
 
-    .yprint-cancelled-label {
-        position: static;
-        display: inline-block;
-        margin-top: 8px;
-    }
+            .yprint-cancelled-label {
+                position: static;
+                display: inline-block;
+                margin-top: 8px;
+            }
 
-    .yprint-order-item.cancelled {
-        padding: 12px;
-    }
+            .yprint-order-item.cancelled {
+                padding: 12px;
+            }
 
-    .yprint-cancel-order-btn {
-    font-size: 11px;
-    padding: 5px 10px;
-    margin-left: 8px;
-}
+            .yprint-cancel-order-btn {
+                font-size: 11px;
+                padding: 5px 10px;
+                margin-left: 8px;
+            }
 
-.yprint-cancel-item-btn {
-    font-size: 10px;
-    padding: 3px 6px;
-}
+            .yprint-cancel-item-btn {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
         }
-    </style>
+</style>
 
     <div class="yprint-order-history">
         <div class="yprint-search-container">
