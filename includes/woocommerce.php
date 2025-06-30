@@ -844,10 +844,10 @@ function yprint_cancel_order_item() {
     }
     
     $non_cancellable_statuses = array('completed', 'refunded', 'cancelled', 'failed');
-if (in_array($order->get_status(), $non_cancellable_statuses)) {
-    wp_send_json_error('Artikel dieser Bestellung können nicht mehr storniert werden (Status: ' . $order->get_status() . ')');
-    return;
-}
+    if (in_array($order->get_status(), $non_cancellable_statuses)) {
+        wp_send_json_error('Artikel dieser Bestellung können nicht mehr storniert werden (Status: ' . $order->get_status() . ')');
+        return;
+    }
     
     // 2-Stunden-Regel prüfen
     $order_date = $order->get_date_created();
@@ -874,15 +874,58 @@ if (in_array($order->get_status(), $non_cancellable_statuses)) {
     }
     
     try {
-        // Mark item as cancelled
+        // Mark item as cancelled with comprehensive meta data
         $item->add_meta_data('_cancelled', true, true);
         $item->add_meta_data('_cancelled_date', current_time('mysql'), true);
+        $item->add_meta_data('_cancelled_by', 'customer', true);
+        $item->add_meta_data('_cancelled_reason', 'Customer cancellation within 2 hours', true);
+        $item->add_meta_data('_item_status', 'cancelled', true);
         $item->save();
+
+        // Trigger admin notification
+do_action('yprint_item_cancelled', $order->get_id(), $item_id, $item->get_name());
         
-        // Add order note
-        $order->add_order_note(sprintf('Artikel "%s" vom Kunden storniert', $item->get_name()));
+        // Calculate cancelled items count and update order meta
+        $all_items = $order->get_items();
+        $cancelled_count = 0;
+        $total_count = count($all_items);
         
-        // Recalculate order totals if needed
+        foreach ($all_items as $order_item) {
+            if ($order_item->get_meta('_cancelled')) {
+                $cancelled_count++;
+            }
+        }
+        
+        // Update order meta with cancellation info
+        $order->update_meta_data('_cancelled_items_count', $cancelled_count);
+        $order->update_meta_data('_total_items_count', $total_count);
+        $order->update_meta_data('_has_partial_cancellation', true);
+        
+        // Determine new order status based on cancellation ratio
+        if ($cancelled_count == $total_count) {
+            // All items cancelled - full cancellation
+            $order->update_status('cancelled', 'Alle Artikel vom Kunden storniert');
+        } else if ($cancelled_count > 0) {
+            // Partial cancellation - set to specific status or add prominent note
+            $percentage_cancelled = round(($cancelled_count / $total_count) * 100);
+            $order->update_meta_data('_partial_cancellation_percentage', $percentage_cancelled);
+            
+            // Add prominent order note
+            $order->add_order_note(sprintf(
+                '🚨 ARTIKEL STORNIERT: "%s" vom Kunden storniert (%d von %d Artikeln = %d%% storniert)', 
+                $item->get_name(), 
+                $cancelled_count, 
+                $total_count, 
+                $percentage_cancelled
+            ));
+            
+            // If more than 50% cancelled, consider changing status
+            if ($percentage_cancelled >= 50) {
+                $order->add_order_note('⚠️ WARNUNG: Mehr als 50% der Artikel wurden storniert!');
+            }
+        }
+        
+        // Recalculate order totals
         $order->calculate_totals();
         $order->save();
         
@@ -892,6 +935,176 @@ if (in_array($order->get_status(), $non_cancellable_statuses)) {
     }
 }
 add_action('wp_ajax_yprint_cancel_order_item', 'yprint_cancel_order_item');
+
+
+/**
+ * Display cancelled item status in WooCommerce admin order items
+ */
+add_action('woocommerce_admin_order_item_headers', 'yprint_add_cancelled_header');
+function yprint_add_cancelled_header($order) {
+    echo '<th class="item-cancelled sortable">Status</th>';
+}
+
+add_action('woocommerce_admin_order_item_values', 'yprint_display_cancelled_status', 10, 3);
+function yprint_display_cancelled_status($product, $item, $item_id) {
+    $is_cancelled = $item->get_meta('_cancelled');
+    $cancelled_date = $item->get_meta('_cancelled_date');
+    
+    echo '<td class="item-cancelled">';
+    if ($is_cancelled) {
+        echo '<span style="color: #dc3545; font-weight: bold;">❌ STORNIERT</span>';
+        if ($cancelled_date) {
+            echo '<br><small style="color: #6c757d;">' . date('d.m.Y H:i', strtotime($cancelled_date)) . '</small>';
+        }
+    } else {
+        echo '<span style="color: #28a745;">✅ Aktiv</span>';
+    }
+    echo '</td>';
+}
+
+/**
+ * Add prominent admin notice for orders with cancelled items
+ */
+add_action('add_meta_boxes', 'yprint_add_cancellation_meta_box');
+function yprint_add_cancellation_meta_box() {
+    add_meta_box(
+        'yprint_cancellation_info',
+        '🚨 Artikel-Stornierungen',
+        'yprint_cancellation_meta_box_callback',
+        'shop_order',
+        'side',
+        'high'
+    );
+}
+
+function yprint_cancellation_meta_box_callback($post) {
+    $order = wc_get_order($post->ID);
+    $cancelled_count = $order->get_meta('_cancelled_items_count');
+    $total_count = $order->get_meta('_total_items_count');
+    $has_partial = $order->get_meta('_has_partial_cancellation');
+    
+    if (!$has_partial || $cancelled_count == 0) {
+        echo '<p style="color: #28a745;">✅ Keine Artikel-Stornierungen</p>';
+        return;
+    }
+    
+    $percentage = $order->get_meta('_partial_cancellation_percentage');
+    
+    echo '<div style="background: #fff3cd; padding: 10px; border-left: 4px solid #ffc107; margin-bottom: 10px;">';
+    echo '<h4 style="margin: 0 0 10px 0; color: #856404;">⚠️ Teilstornierung</h4>';
+    echo '<p><strong>' . $cancelled_count . ' von ' . $total_count . ' Artikeln storniert</strong></p>';
+    echo '<p>Stornierungsrate: <strong>' . $percentage . '%</strong></p>';
+    
+    // List cancelled items
+    echo '<h5>Stornierte Artikel:</h5>';
+    echo '<ul style="margin: 5px 0;">';
+    foreach ($order->get_items() as $item) {
+        if ($item->get_meta('_cancelled')) {
+            $cancelled_date = $item->get_meta('_cancelled_date');
+            echo '<li style="color: #dc3545;">';
+            echo '<strong>' . $item->get_name() . '</strong>';
+            if ($cancelled_date) {
+                echo '<br><small>Storniert am: ' . date('d.m.Y H:i', strtotime($cancelled_date)) . '</small>';
+            }
+            echo '</li>';
+        }
+    }
+    echo '</ul>';
+    echo '</div>';
+}
+
+/**
+ * Add cancelled items info to order list in admin
+ */
+add_filter('manage_edit-shop_order_columns', 'yprint_add_cancelled_items_column');
+function yprint_add_cancelled_items_column($columns) {
+    $new_columns = array();
+    foreach ($columns as $key => $value) {
+        $new_columns[$key] = $value;
+        if ($key === 'order_status') {
+            $new_columns['cancelled_items'] = 'Stornierungen';
+        }
+    }
+    return $new_columns;
+}
+
+add_action('manage_shop_order_posts_custom_column', 'yprint_display_cancelled_items_column', 10, 2);
+function yprint_display_cancelled_items_column($column, $post_id) {
+    if ($column === 'cancelled_items') {
+        $order = wc_get_order($post_id);
+        $cancelled_count = $order->get_meta('_cancelled_items_count');
+        $total_count = $order->get_meta('_total_items_count');
+        
+        if ($cancelled_count > 0) {
+            $percentage = $order->get_meta('_partial_cancellation_percentage');
+            echo '<span style="color: #dc3545; font-weight: bold;">';
+            echo $cancelled_count . '/' . $total_count . ' (' . $percentage . '%)';
+            echo '</span>';
+        } else {
+            echo '<span style="color: #28a745;">-</span>';
+        }
+    }
+}
+
+/**
+ * Highlight orders with cancelled items in admin list
+ */
+add_action('admin_head', 'yprint_admin_order_list_styles');
+function yprint_admin_order_list_styles() {
+    global $pagenow, $typenow;
+    
+    if ($pagenow === 'edit.php' && $typenow === 'shop_order') {
+        echo '<style>
+            .cancelled-items-row {
+                background-color: #fff3cd !important;
+            }
+            .cancelled-items-row:hover {
+                background-color: #ffeaa7 !important;
+            }
+        </style>';
+    }
+}
+
+add_filter('post_class', 'yprint_highlight_cancelled_orders', 10, 3);
+function yprint_highlight_cancelled_orders($classes, $class, $post_id) {
+    if (get_post_type($post_id) === 'shop_order') {
+        $order = wc_get_order($post_id);
+        if ($order && $order->get_meta('_has_partial_cancellation')) {
+            $classes[] = 'cancelled-items-row';
+        }
+    }
+    return $classes;
+}
+
+/**
+ * Send admin notification when item is cancelled
+ */
+add_action('yprint_item_cancelled', 'yprint_notify_admin_item_cancellation', 10, 3);
+function yprint_notify_admin_item_cancellation($order_id, $item_id, $item_name) {
+    $order = wc_get_order($order_id);
+    $admin_email = get_option('admin_email');
+    
+    $subject = sprintf('[%s] Artikel storniert in Bestellung #%s', get_bloginfo('name'), $order->get_order_number());
+    
+    $message = sprintf(
+        "Ein Artikel wurde vom Kunden storniert:\n\n" .
+        "Bestellung: #%s\n" .
+        "Artikel: %s\n" .
+        "Kunde: %s\n" .
+        "Storniert am: %s\n\n" .
+        "Bestellung ansehen: %s",
+        $order->get_order_number(),
+        $item_name,
+        $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
+        current_time('d.m.Y H:i'),
+        admin_url('post.php?post=' . $order_id . '&action=edit')
+    );
+    
+    wp_mail($admin_email, $subject, $message);
+}
+
+// Trigger the notification in the cancellation function (add this to the try block)
+// do_action('yprint_item_cancelled', $order->get_id(), $item_id, $item->get_name());
 
 
 
