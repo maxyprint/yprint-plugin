@@ -1733,227 +1733,319 @@ if (voucherButton) {
  * @param {object} paymentData - Die Zahlungsdaten vom Payment Processing.
  */
 function populateConfirmationWithPaymentData(paymentData) {
-    console.log('Populating confirmation with payment data:', paymentData);
+    console.log('🎯 populateConfirmationWithPaymentData STARTED with:', paymentData);
 
-    // Zeige Erfolgsmeldung an.
-    showMessage('Zahlung erfolgreich! Ihre Bestellung wird verarbeitet.', 'success');
-
-    // Zahlungsart basierend auf Payment Data setzen.
-    const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
-    if (confirmPaymentMethodEl && paymentData.payment_method_id) {
-        let paymentMethodText = null;
-
-        // Versuche, den Titel der Zahlungsart über die vorhandene Funktion zu erhalten.
-        if (typeof getPaymentMethodTitle === 'function') {
-            paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
-        }
-
-        // Fallback, falls getPaymentMethodTitle nicht verfügbar ist oder null zurückgibt.
-        if (!paymentMethodText) {
-            paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
-        }
-        confirmPaymentMethodEl.innerHTML = paymentMethodText;
-    }
-
-    // Speichere Payment Data global für spätere Payment Method Detection.
-    window.confirmationPaymentData = paymentData;
-
-    // KRITISCH: Trigger Payment Method Detection für Express Payments.
-    console.log('=== TRIGGERING PAYMENT METHOD DETECTION FOR EXPRESS PAYMENTS ===');
-    console.log('Payment Data set:', paymentData);
-
-    // Erzwinge Payment Method Detection Update via Event.
-    console.log('🔥 Line 1736 - About to trigger events and updates');
-    
-    // Event für Payment Data Update triggen
-    const event = new CustomEvent('yprint_payment_data_updated', {
-        detail: paymentData
-    });
-    document.dispatchEvent(event);
-    console.log('✅ yprint_payment_data_updated Event dispatched');
-
-    // Force Payment Method Display Update
-    if (typeof updatePaymentMethodDisplay === 'function') {
-        console.log('✅ Calling updatePaymentMethodDisplay()');
-        updatePaymentMethodDisplay();
-    } else {
-        console.warn('⚠️ updatePaymentMethodDisplay function not available');
-    }
-
-    // Trigger Payment Method Update Attempts
-    if (typeof attemptPaymentMethodUpdate === 'function') {
-        console.log('✅ Calling attemptPaymentMethodUpdate()');
-        setTimeout(() => attemptPaymentMethodUpdate(1, 5), 50);
-    } else {
-        console.warn('⚠️ attemptPaymentMethodUpdate function not available');
-    }
-
-    setTimeout(() => {
-        console.log('Dispatching yprint_payment_data_updated event');
-        window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
-            detail: { source: 'populateConfirmationWithPaymentData', paymentData: paymentData }
-        }));
-    }, 100);
-
-    // Backup-Trigger für Payment Method Detection.
-    setTimeout(() => {
-        if (typeof window.updatePaymentMethodDisplay === 'function') {
-            console.log('🔄 Direct backup call updatePaymentMethodDisplay');
-            window.updatePaymentMethodDisplay();
-        }
-        if (typeof window.attemptPaymentMethodUpdate === 'function') {
-            console.log('🔄 Direct backup call attemptPaymentMethodUpdate');
-            window.attemptPaymentMethodUpdate(1, 5);
-        }
-    }, 300);
-
-    // Setze Kundeninformationen, falls vorhanden.
-    if (paymentData.order_data && paymentData.order_data.customer_details) {
-        const customerDetails = paymentData.order_data.customer_details;
-        
-        // Email setzen
-        const confirmEmailEl = document.getElementById('confirm-email');
-        if (confirmEmailEl && customerDetails.email) {
-            confirmEmailEl.textContent = customerDetails.email;
-        }
-        
-        // Name setzen
-        const confirmNameEl = document.getElementById('confirm-name');
-        if (confirmNameEl && customerDetails.name) {
-            confirmNameEl.textContent = customerDetails.name;
-        }
-        
-        // Telefon setzen (falls vorhanden)
-        const confirmPhoneEl = document.getElementById('confirm-phone');
-        if (confirmPhoneEl && customerDetails.phone) {
-            confirmPhoneEl.textContent = customerDetails.phone;
-        }
-
-        // Lieferadresse setzen
-        const confirmShippingAddressEl = document.getElementById('confirm-shipping-address');
-        if (confirmShippingAddressEl && customerDetails.name) {
-            const billingAddress = paymentData.order_data.billing_address;
-            const shippingAddress = paymentData.order_data.shipping_address;
-
-            let addressInfo = customerDetails.name + '<br>';
-
-            if (shippingAddress && shippingAddress.addressLine) {
-                addressInfo += shippingAddress.addressLine[0] + '<br>';
-                addressInfo += shippingAddress.postalCode + ' ' + shippingAddress.city + '<br>';
-                addressInfo += shippingAddress.country;
-            } else if (billingAddress) {
-                addressInfo += (billingAddress.line1 || '') + '<br>';
-                addressInfo += (billingAddress.postal_code || '') + ' ' + (billingAddress.city || '') + '<br>';
-                addressInfo += (billingAddress.country || '');
+    try {
+        // Schritt 1: Success Message (mit Fehlerbehandlung)
+        console.log('📝 Step 1: Attempting to show success message');
+        try {
+            if (typeof showMessage === 'function') {
+                showMessage('Zahlung erfolgreich! Ihre Bestellung wird verarbeitet.', 'success');
+                console.log('✅ Success message shown');
+            } else {
+                console.warn('⚠️ showMessage function not available - skipping');
             }
-
-            if (customerDetails.phone) {
-                addressInfo += '<br>Tel: ' + customerDetails.phone;
-            }
-            confirmShippingAddressEl.innerHTML = addressInfo;
+        } catch (error) {
+            console.error('❌ Error in showMessage:', error);
         }
-    }
 
-    // Setze Adressen, falls vorhanden.
-    if (paymentData.order_data) {
-        const orderData = paymentData.order_data;
-        
-        // Rechnungsadresse setzen
-        if (orderData.billing_address) {
-            const billingAddr = orderData.billing_address;
-            const confirmBillingEl = document.getElementById('confirm-billing-address');
-            if (confirmBillingEl) {
-                const addressParts = [];
-                if (billingAddr.line1) addressParts.push(billingAddr.line1);
-                if (billingAddr.line2) addressParts.push(billingAddr.line2);
-                if (billingAddr.postal_code && billingAddr.city) {
-                    addressParts.push(`${billingAddr.postal_code} ${billingAddr.city}`);
+        // Schritt 2: Payment Method Element Update (mit Fehlerbehandlung)
+        console.log('📝 Step 2: Attempting to update payment method display');
+        try {
+            const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
+            if (confirmPaymentMethodEl && paymentData.payment_method_id) {
+                let paymentMethodText = null;
+
+                // Sichere Verwendung von getPaymentMethodTitle
+                try {
+                    if (typeof getPaymentMethodTitle === 'function') {
+                        paymentMethodText = getPaymentMethodTitle(paymentData.payment_method_id);
+                        console.log('✅ getPaymentMethodTitle result:', paymentMethodText);
+                    }
+                } catch (error) {
+                    console.error('❌ Error in getPaymentMethodTitle:', error);
                 }
-                if (billingAddr.country) addressParts.push(billingAddr.country);
+
+                // Fallback
+                if (!paymentMethodText) {
+                    paymentMethodText = '<i class="fas fa-credit-card mr-2"></i> Express-Zahlung (Stripe)';
+                    console.log('✅ Using fallback payment method text');
+                }
                 
-                confirmBillingEl.innerHTML = addressParts.join('<br>');
+                confirmPaymentMethodEl.innerHTML = paymentMethodText;
+                console.log('✅ Payment method element updated');
+            } else {
+                console.warn('⚠️ confirm-payment-method element not found or no payment_method_id');
             }
+        } catch (error) {
+            console.error('❌ Error updating payment method element:', error);
         }
-    }
 
-    // Verstecke Rechnungsadresse, da sie gleich der Lieferadresse ist (Apple Pay Standard).
-    const confirmBillingContainer = document.getElementById('confirm-billing-address-container');
-    if (confirmBillingContainer) {
-        confirmBillingContainer.classList.add('hidden');
-    }
+        // Schritt 3: Global Data Storage (kritisch!)
+        console.log('📝 Step 3: Storing payment data globally');
+        window.confirmationPaymentData = paymentData;
+        console.log('✅ Payment data stored globally');
 
-    // Setze Order ID, falls vorhanden.
-    if (paymentData.order_id) {
-        const confirmOrderIdEl = document.getElementById('confirm-order-id');
-        if (confirmOrderIdEl) {
-            confirmOrderIdEl.textContent = `#${paymentData.order_id}`;
-        }
+        // Schritt 4: EVENT TRIGGERS (kritisch für Payment Method Detection!)
+        console.log('🔥 Step 4: TRIGGERING PAYMENT METHOD DETECTION FOR EXPRESS PAYMENTS');
+        console.log('🔥 Payment Data set:', paymentData);
+        console.log('🔥 About to trigger events and updates');
         
-        // Speichere Order ID für Button-Erstellung
-        sessionStorage.setItem('yprint_order_id', paymentData.order_id);
-    }
+        try {
+            // Event für Payment Data Update triggen
+            const event = new CustomEvent('yprint_payment_data_updated', {
+                detail: paymentData
+            });
+            document.dispatchEvent(event);
+            console.log('✅ yprint_payment_data_updated Event dispatched');
+        } catch (error) {
+            console.error('❌ Error dispatching event:', error);
+        }
 
-    // Zeige Test-Modus Hinweis an, falls im Test-Modus.
-    const isTestMode = (paymentData.order_data && !paymentData.order_data.livemode) || paymentData.test_mode;
+        try {
+            // Force Payment Method Display Update
+            if (typeof updatePaymentMethodDisplay === 'function') {
+                console.log('✅ Calling updatePaymentMethodDisplay()');
+                updatePaymentMethodDisplay();
+            } else {
+                console.warn('⚠️ updatePaymentMethodDisplay function not available');
+            }
+        } catch (error) {
+            console.error('❌ Error in updatePaymentMethodDisplay:', error);
+        }
 
-    if (isTestMode) {
-        const testModeNotice = document.createElement('div');
-        testModeNotice.className = 'mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg';
+        try {
+            // Trigger Payment Method Update Attempts
+            if (typeof attemptPaymentMethodUpdate === 'function') {
+                console.log('✅ Calling attemptPaymentMethodUpdate()');
+                setTimeout(() => {
+                    try {
+                        attemptPaymentMethodUpdate(1, 5);
+                    } catch (error) {
+                        console.error('❌ Error in attemptPaymentMethodUpdate:', error);
+                    }
+                }, 50);
+            } else {
+                console.warn('⚠️ attemptPaymentMethodUpdate function not available');
+            }
+        } catch (error) {
+            console.error('❌ Error setting up attemptPaymentMethodUpdate:', error);
+        }
+
+        // Backup Events mit Error-Handling
+        try {
+            setTimeout(() => {
+                console.log('🔄 Dispatching backup yprint_payment_data_updated event');
+                window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
+                    detail: { source: 'populateConfirmationWithPaymentData', paymentData: paymentData }
+                }));
+            }, 100);
+        } catch (error) {
+            console.error('❌ Error in backup event dispatch:', error);
+        }
+
+        // Final Backup-Trigger für Payment Method Detection
+        try {
+            setTimeout(() => {
+                if (typeof window.updatePaymentMethodDisplay === 'function') {
+                    console.log('🔄 Direct backup call updatePaymentMethodDisplay');
+                    try {
+                        window.updatePaymentMethodDisplay();
+                    } catch (error) {
+                        console.error('❌ Error in backup updatePaymentMethodDisplay:', error);
+                    }
+                }
+                if (typeof window.attemptPaymentMethodUpdate === 'function') {
+                    console.log('🔄 Direct backup call attemptPaymentMethodUpdate');
+                    try {
+                        window.attemptPaymentMethodUpdate(1, 5);
+                    } catch (error) {
+                        console.error('❌ Error in backup attemptPaymentMethodUpdate:', error);
+                    }
+                }
+            }, 300);
+        } catch (error) {
+            console.error('❌ Error setting up backup calls:', error);
+        }
+
+        // Schritt 5: Kundeninformationen setzen
+        console.log('📝 Step 5: Setting customer information');
+        try {
+            if (paymentData.order_data && paymentData.order_data.customer_details) {
+                const customerDetails = paymentData.order_data.customer_details;
+                
+                // Email setzen
+                const confirmEmailEl = document.getElementById('confirm-email');
+                if (confirmEmailEl && customerDetails.email) {
+                    confirmEmailEl.textContent = customerDetails.email;
+                }
+                
+                // Name setzen
+                const confirmNameEl = document.getElementById('confirm-name');
+                if (confirmNameEl && customerDetails.name) {
+                    confirmNameEl.textContent = customerDetails.name;
+                }
+                
+                // Telefon setzen (falls vorhanden)
+                const confirmPhoneEl = document.getElementById('confirm-phone');
+                if (confirmPhoneEl && customerDetails.phone) {
+                    confirmPhoneEl.textContent = customerDetails.phone;
+                }
+                
+                console.log('✅ Customer information updated');
+            }
+        } catch (error) {
+            console.error('❌ Error setting customer information:', error);
+        }
+
+        // Schritt 6: Adressen setzen
+        console.log('📝 Step 6: Setting addresses');
+        try {
+            if (paymentData.order_data) {
+                const orderData = paymentData.order_data;
+                
+                // Lieferadresse setzen
+                if (orderData.shipping_address) {
+                    const shippingAddr = orderData.shipping_address;
+                    const confirmShippingEl = document.getElementById('confirm-shipping-address');
+                    if (confirmShippingEl) {
+                        const addressParts = [];
+                        if (shippingAddr.recipient) addressParts.push(shippingAddr.recipient);
+                        if (shippingAddr.addressLine && shippingAddr.addressLine.length > 0) {
+                            addressParts.push(shippingAddr.addressLine.join(', '));
+                        }
+                        if (shippingAddr.postalCode && shippingAddr.city) {
+                            addressParts.push(`${shippingAddr.postalCode} ${shippingAddr.city}`);
+                        }
+                        if (shippingAddr.country) addressParts.push(shippingAddr.country);
+                        
+                        confirmShippingEl.innerHTML = addressParts.join('<br>');
+                    }
+                }
+                
+                // Rechnungsadresse setzen
+                if (orderData.billing_address) {
+                    const billingAddr = orderData.billing_address;
+                    const confirmBillingEl = document.getElementById('confirm-billing-address');
+                    if (confirmBillingEl) {
+                        const addressParts = [];
+                        if (billingAddr.line1) addressParts.push(billingAddr.line1);
+                        if (billingAddr.line2) addressParts.push(billingAddr.line2);
+                        if (billingAddr.postal_code && billingAddr.city) {
+                            addressParts.push(`${billingAddr.postal_code} ${billingAddr.city}`);
+                        }
+                        if (billingAddr.country) addressParts.push(billingAddr.country);
+                        
+                        confirmBillingEl.innerHTML = addressParts.join('<br>');
+                    }
+                }
+                
+                console.log('✅ Addresses updated');
+            }
+        } catch (error) {
+            console.error('❌ Error setting addresses:', error);
+        }
+
+        // Schritt 7: Order ID setzen
+        console.log('📝 Step 7: Setting order ID');
+        try {
+            if (paymentData.order_id) {
+                const confirmOrderIdEl = document.getElementById('confirm-order-id');
+                if (confirmOrderIdEl) {
+                    confirmOrderIdEl.textContent = `#${paymentData.order_id}`;
+                }
+                
+                // Speichere Order ID für Button-Erstellung
+                sessionStorage.setItem('yprint_order_id', paymentData.order_id);
+                console.log('✅ Order ID updated and stored');
+            }
+        } catch (error) {
+            console.error('❌ Error setting order ID:', error);
+        }
+
+        // Schritt 8: Test-Modus Hinweis
+        console.log('📝 Step 8: Checking test mode');
+        try {
+            const isTestMode = (paymentData.order_data && !paymentData.order_data.livemode) || paymentData.test_mode;
+
+            if (isTestMode) {
+                const testModeNotice = document.createElement('div');
+                testModeNotice.className = 'mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg';
+                testModeNotice.innerHTML = `
+                    <div class="flex items-center">
+                        <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
+                        <span class="text-sm text-yellow-800 font-medium">Test-Modus: Diese Zahlung wurde im Test-Modus verarbeitet.</span>
+                    </div>
+                `;
+                
+                const confirmationContainer = document.querySelector('#step-3 .checkout-step-content');
+                if (confirmationContainer) {
+                    confirmationContainer.appendChild(testModeNotice);
+                } else {
+                    const confirmationStep = document.getElementById('step-3');
+                    if (confirmationStep) {
+                        confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
+                    }
+                }
+                console.log('✅ Test mode notice added');
+            }
+        } catch (error) {
+            console.error('❌ Error adding test mode notice:', error);
+        }
+
+        // Schritt 9: Checkout Completion Event
+        console.log('📝 Step 9: Triggering checkout completion');
+        try {
+            const completionEvent = new CustomEvent('yprint_checkout_completed', {
+                detail: {
+                    order_id: paymentData.order_id,
+                    payment_method_id: paymentData.payment_method_id,
+                    source: 'express_checkout'
+                }
+            });
+            document.dispatchEvent(completionEvent);
+            console.log('✅ Checkout completion event dispatched');
+        } catch (error) {
+            console.error('❌ Error dispatching checkout completion event:', error);
+        }
+
+        // Schritt 10: Cart Data laden
+        console.log('📝 Step 10: Loading cart data');
+        try {
+            if (typeof loadRealCartData === 'function') {
+                loadRealCartData().then(() => {
+                    if (typeof updateConfirmationProductList === 'function') {
+                        updateConfirmationProductList();
+                    }
+                    if (typeof updateConfirmationTotals === 'function') {
+                        updateConfirmationTotals();
+                    }
+                    if (typeof populateConfirmation === 'function') {
+                        populateConfirmation();
+                    }
+                }).catch(error => {
+                    console.error('❌ Error in loadRealCartData chain:', error);
+                });
+                console.log('✅ Cart data loading initiated');
+            }
+        } catch (error) {
+            console.error('❌ Error initiating cart data load:', error);
+        }
+
+        console.log('🎯 populateConfirmationWithPaymentData COMPLETED SUCCESSFULLY');
+
+    } catch (error) {
+        console.error('❌ CRITICAL ERROR in populateConfirmationWithPaymentData:', error);
+        console.error('Error stack:', error.stack);
         
-        if (paymentData.order_data && !paymentData.order_data.livemode) {
-             testModeNotice.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-triangle text-yellow-600 mr-2"></i>
-                    <span class="text-sm text-yellow-800 font-medium">Test-Modus: Diese Zahlung wurde im Test-Modus verarbeitet.</span>
-                </div>
-            `;
-        } else if (paymentData.test_mode) {
-            testModeNotice.className = 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4';
-            testModeNotice.innerHTML = `
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    <span><strong>Test-Modus:</strong> Diese Zahlung wurde im Test-Modus verarbeitet. Kein echtes Geld wurde belastet.</span>
-                </div>
-            `;
-        }
-       
-        const confirmationContainer = document.querySelector('#step-3 .checkout-step-content');
-        if (confirmationContainer) {
-            confirmationContainer.appendChild(testModeNotice);
-        } else {
-            const confirmationStep = document.getElementById('step-3');
-            if (confirmationStep) {
-                confirmationStep.insertBefore(testModeNotice, confirmationStep.firstChild);
-            }
+        // Fallback: Speichere wenigstens die Payment Data
+        try {
+            window.confirmationPaymentData = paymentData;
+            console.log('✅ Payment data stored as fallback');
+        } catch (fallbackError) {
+            console.error('❌ Even fallback storage failed:', fallbackError);
         }
     }
-
-    // Trigger checkout completion Event
-    const completionEvent = new CustomEvent('yprint_checkout_completed', {
-        detail: {
-            order_id: paymentData.order_id,
-            payment_method_id: paymentData.payment_method_id,
-            source: 'express_checkout'
-        }
-    });
-    document.dispatchEvent(completionEvent);
-
-    // Lade und zeige Warenkorbdaten
-    if (typeof loadRealCartData === 'function') {
-        loadRealCartData().then(() => {
-            if (typeof updateConfirmationProductList === 'function') {
-                updateConfirmationProductList();
-            }
-            if (typeof updateConfirmationTotals === 'function') {
-                updateConfirmationTotals();
-            }
-            if (typeof populateConfirmation === 'function') {
-                populateConfirmation();
-            }
-        });
-    }
-    
-    console.log('=== populateConfirmationWithPaymentData COMPLETED ===');
 }
 
 
