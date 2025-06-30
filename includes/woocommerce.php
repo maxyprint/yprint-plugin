@@ -451,24 +451,24 @@ function woo_order_history($atts) {
 </style>
 
 <style>
-/* Sauberes Suchleisten-CSS */
+/* Sauberes Suchleisten-CSS mit mehr Abstand */
 .yprint-search-container {
     position: relative;
     margin-bottom: 24px;
 }
 
-.yprint-order-search {
-    width: 100%;
-    height: 50px;
-    padding: 0 20px 0 65px;
-    border: 2px solid #e1e5e9;
-    border-radius: 25px;
-    font-size: 16px;
-    color: #333;
-    background: #fff;
-    outline: none;
-    box-sizing: border-box;
-    font-family: inherit;
+input.yprint-order-search[type="text"] {
+    width: 100% !important;
+    height: 50px !important;
+    padding: 0 20px 0 65px !important;
+    border: 2px solid #e1e5e9 !important;
+    border-radius: 25px !important;
+    font-size: 16px !important;
+    color: #333 !important;
+    background: #fff !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
 }
 
 .yprint-order-search:focus {
@@ -517,11 +517,11 @@ function woo_order_history($atts) {
 }
 
 @media (max-width: 768px) {
-    .yprint-order-search {
-        height: 45px;
-        padding: 0 18px 0 55px;
-        font-size: 16px;
-        border-radius: 22px;
+    input.yprint-order-search[type="text"] {
+        height: 45px !important;
+        padding: 0 18px 0 55px !important;
+        font-size: 16px !important;
+        border-radius: 22px !important;
     }
     
     .yprint-search-icon {
