@@ -410,15 +410,19 @@ function woo_order_history($atts) {
             </div>
         <?php else: ?>
             <div class="yprint-order-list" id="orderList">
-                <?php foreach ($customer_orders as $order): 
-                    $status_name = wc_get_order_status_name($order->get_status());
-                    $order_date = $order->get_date_created();
-                    $now = new DateTime();
-                    $order_time = $order_date->getTimestamp();
-                    $current_time = $now->getTimestamp();
-                    $time_diff_hours = ($current_time - $order_time) / 3600;
+            <?php foreach ($customer_orders as $order): 
+    $status_name = wc_get_order_status_name($order->get_status());
+    $order_date = $order->get_date_created();
+    $now = new DateTime();
+    $order_time = $order_date->getTimestamp();
+    $current_time = $now->getTimestamp();
+    $time_diff_hours = ($current_time - $order_time) / 3600;
+    
                     
-                    $can_cancel = in_array($order->get_status(), array('pending', 'on-hold')) && $time_diff_hours <= 2;
+                    // Erweiterte Stornierungslogik - alle Status außer completed, refunded, cancelled erlauben
+$cancellable_statuses = array('pending', 'on-hold', 'processing', 'awaiting-payment');
+$non_cancellable_statuses = array('completed', 'refunded', 'cancelled', 'failed');
+$can_cancel = !in_array($order->get_status(), $non_cancellable_statuses) && $time_diff_hours <= 2;
                     $order_items = $order->get_items();
                 ?>
                     <div class="yprint-order-card" 
@@ -438,12 +442,19 @@ function woo_order_history($atts) {
                         </div>
                         
                         <div class="yprint-order-meta">
-                            <div class="yprint-order-details">
-                                <?php echo esc_html($order_date->format('d.m.Y H:i')); ?> Uhr
-                                <?php if ($time_diff_hours <= 2 && in_array($order->get_status(), array('pending', 'on-hold'))): ?>
-                                    <br><small style="color: #dc3545;">Stornierung noch <?php echo esc_html(number_format(2 - $time_diff_hours, 1)); ?> Stunden möglich</small>
-                                <?php endif; ?>
-                            </div>
+                        <div class="yprint-order-details">
+    <?php echo esc_html($order_date->format('d.m.Y H:i')); ?> Uhr
+    <?php if ($time_diff_hours <= 2 && !in_array($order->get_status(), $non_cancellable_statuses)): ?>
+        <br><small style="color: #dc3545;">Stornierung noch <?php echo esc_html(number_format(max(0, 2 - $time_diff_hours), 1)); ?> Stunden möglich</small>
+    <?php elseif ($time_diff_hours > 2): ?>
+        <br><small style="color: #6c757d;">Stornierungsfrist abgelaufen</small>
+    <?php elseif (in_array($order->get_status(), $non_cancellable_statuses)): ?>
+        <br><small style="color: #6c757d;">Stornierung nicht mehr möglich</small>
+    <?php endif; ?>
+    <?php if (defined('WP_DEBUG') && WP_DEBUG): ?>
+        <br><small style="color: #999; font-size: 11px;"><?php echo esc_html($debug_info); ?></small>
+    <?php endif; ?>
+</div>
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <span class="yprint-order-total"><?php echo wp_kses_post(wc_price($order->get_total())); ?></span>
                                 <?php if ($can_cancel): ?>
@@ -674,10 +685,11 @@ function yprint_cancel_order() {
         return;
     }
     
-    if (!$order->has_status(array('pending', 'on-hold'))) {
-        wp_send_json_error('Diese Bestellung kann nicht mehr storniert werden');
-        return;
-    }
+    $non_cancellable_statuses = array('completed', 'refunded', 'cancelled', 'failed');
+if (in_array($order->get_status(), $non_cancellable_statuses)) {
+    wp_send_json_error('Diese Bestellung kann nicht mehr storniert werden (Status: ' . $order->get_status() . ')');
+    return;
+}
     
     // 2-Stunden-Regel prüfen
     $order_date = $order->get_date_created();
@@ -739,10 +751,11 @@ function yprint_cancel_order_item() {
         return;
     }
     
-    if (!$order->has_status(array('pending', 'on-hold'))) {
-        wp_send_json_error('Artikel dieser Bestellung können nicht mehr storniert werden');
-        return;
-    }
+    $non_cancellable_statuses = array('completed', 'refunded', 'cancelled', 'failed');
+if (in_array($order->get_status(), $non_cancellable_statuses)) {
+    wp_send_json_error('Artikel dieser Bestellung können nicht mehr storniert werden (Status: ' . $order->get_status() . ')');
+    return;
+}
     
     // 2-Stunden-Regel prüfen
     $order_date = $order->get_date_created();
