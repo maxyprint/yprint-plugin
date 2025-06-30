@@ -1990,516 +1990,129 @@ function yprint_billing_settings_shortcode() {
     
     // Aktuelle Benutzerdaten abrufen
     $user_id = get_current_user_id();
-    $message = '';
-    $message_type = '';
-    
-    // WooCommerce-Rechnungsfelder abrufen
-    $billing_first_name = get_user_meta($user_id, 'billing_first_name', true);
-    $billing_last_name = get_user_meta($user_id, 'billing_last_name', true);
-    $billing_company = get_user_meta($user_id, 'billing_company', true);
-    $billing_vat = get_user_meta($user_id, 'billing_vat', true);
-    $billing_address_1 = get_user_meta($user_id, 'billing_address_1', true);
-    $billing_address_2 = get_user_meta($user_id, 'billing_address_2', true);
-    $billing_postcode = get_user_meta($user_id, 'billing_postcode', true);
-    $billing_city = get_user_meta($user_id, 'billing_city', true);
-    $billing_country = get_user_meta($user_id, 'billing_country', true) ?: 'DE';
-    $alt_billing_email = get_user_meta($user_id, 'alt_billing_email', true);
-    $is_company = get_user_meta($user_id, 'is_company', true);
-    
-    // Lieferadresse für "Identisch mit Lieferadresse" Option abrufen
-    $shipping_first_name = get_user_meta($user_id, 'shipping_first_name', true);
-    $shipping_last_name = get_user_meta($user_id, 'shipping_last_name', true);
-    $shipping_company = get_user_meta($user_id, 'shipping_company', true);
-    $shipping_address_1 = get_user_meta($user_id, 'shipping_address_1', true);
-    $shipping_address_2 = get_user_meta($user_id, 'shipping_address_2', true);
-    $shipping_postcode = get_user_meta($user_id, 'shipping_postcode', true);
-    $shipping_city = get_user_meta($user_id, 'shipping_city', true);
-    $shipping_country = get_user_meta($user_id, 'shipping_country', true) ?: 'DE';
-    
-    // Prüfen ob Rechnungsadresse identisch mit Lieferadresse ist
-    $billing_same_as_shipping = (
-        $billing_first_name === $shipping_first_name &&
-        $billing_last_name === $shipping_last_name &&
-        $billing_address_1 === $shipping_address_1 &&
-        $billing_address_2 === $shipping_address_2 &&
-        $billing_postcode === $shipping_postcode &&
-        $billing_city === $shipping_city &&
-        $billing_country === $shipping_country
-    );
     
     // Address Manager Integration - gespeicherte Adressen abrufen
     $additional_addresses = get_user_meta($user_id, 'additional_shipping_addresses', true);
     if (!is_array($additional_addresses)) {
         $additional_addresses = array();
     }
-
-    // Formularverarbeitung
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['billing_settings_nonce']) && 
-        wp_verify_nonce($_POST['billing_settings_nonce'], 'save_billing_settings')) {
-        
-        $email_changed = false;
-        
-        // Prüfen ob "Identisch mit Lieferadresse" gewählt wurde
-        $billing_same_as_shipping_selected = isset($_POST['billing_same_as_shipping_value']) && $_POST['billing_same_as_shipping_value'] === '1';
-        
-        if ($billing_same_as_shipping_selected) {
-            // Lieferadresse in Rechnungsfelder kopieren
-            $fields_to_update = [
-                'billing_first_name' => $shipping_first_name,
-                'billing_last_name' => $shipping_last_name,
-                'billing_company' => $shipping_company,
-                'billing_address_1' => $shipping_address_1,
-                'billing_address_2' => $shipping_address_2,
-                'billing_postcode' => $shipping_postcode,
-                'billing_city' => $shipping_city,
-                'billing_country' => $shipping_country,
-            ];
-            
-            // Unternehmensstatus von Lieferadresse übernehmen
-            $is_company = get_user_meta($user_id, 'is_company_shipping', true);
-            update_user_meta($user_id, 'is_company', $is_company);
-        } else {
-            // Standardfelder aktualisieren
-            $fields_to_update = [
-                'billing_first_name' => isset($_POST['billing_first_name']) ? sanitize_text_field($_POST['billing_first_name']) : '',
-                'billing_last_name' => isset($_POST['billing_last_name']) ? sanitize_text_field($_POST['billing_last_name']) : '',
-                'billing_address_1' => isset($_POST['billing_address_1']) ? sanitize_text_field($_POST['billing_address_1']) : '',
-                'billing_address_2' => isset($_POST['billing_address_2']) ? sanitize_text_field($_POST['billing_address_2']) : '',
-                'billing_postcode' => isset($_POST['billing_postcode']) ? sanitize_text_field($_POST['billing_postcode']) : '',
-                'billing_city' => isset($_POST['billing_city']) ? sanitize_text_field($_POST['billing_city']) : '',
-                'billing_country' => isset($_POST['billing_country']) ? sanitize_text_field($_POST['billing_country']) : 'DE',
-            ];
-
-            // Unternehmensdaten aktualisieren
-            $is_company = isset($_POST['is_company']);
-            update_user_meta($user_id, 'is_company', $is_company);
-            
-            if ($is_company) {
-                $fields_to_update['billing_company'] = isset($_POST['billing_company']) ? sanitize_text_field($_POST['billing_company']) : '';
-                $fields_to_update['billing_vat'] = isset($_POST['billing_vat']) ? sanitize_text_field($_POST['billing_vat']) : '';
-            }
-        }
-        
-        // Präferenz "Rechnungsadresse identisch" speichern
-        update_user_meta($user_id, 'billing_same_as_shipping', $billing_same_as_shipping_selected);
-
-        // Alternative Rechnungs-E-Mail
-        if (isset($_POST['different_billing_email']) && $_POST['different_billing_email'] === 'on') {
-            if (isset($_POST['alt_billing_email']) && !empty($_POST['alt_billing_email'])) {
-                $new_billing_email = sanitize_email($_POST['alt_billing_email']);
-                $old_billing_email = get_user_meta($user_id, 'alt_billing_email', true);
-                
-                if ($new_billing_email !== $old_billing_email) {
-                    // Verifizierungs-Token generieren
-                    $verification_token = wp_generate_password(32, false);
-                    update_user_meta($user_id, 'billing_email_verification_token', $verification_token);
-                    
-                    // E-Mail an neue Rechnungs-E-Mail senden
-                    $verification_link = add_query_arg(
-                        array(
-                            'action' => 'reject_billing_email',
-                            'token' => $verification_token,
-                            'user_id' => $user_id
-                        ),
-                        home_url()
-                    );
-
-                    $user = get_userdata($user_id);
-                    $message_content = sprintf(
-                        'Die E-Mail-Adresse %s wurde als Empfänger für Rechnungen von %s bei YPrint eingetragen.<br><br>
-                        Falls Sie diese Änderung nicht veranlasst haben oder nicht möchten, klicken Sie bitte hier:<br><br>
-                        <a href="%s" style="display: inline-block; padding: 10px 20px; background-color: #2997FF; color: white; text-decoration: none; border-radius: 5px;">Diese Einstellung ablehnen</a>',
-                        $new_billing_email,
-                        $user->display_name,
-                        esc_url($verification_link)
-                    );
-                    
-                    // E-Mail-Template-Funktion verwenden, wenn verfügbar
-                    if (function_exists('yprint_get_email_template')) {
-                        $message = yprint_get_email_template('Bestätigung: Rechnungsempfänger', 'Hallo', $message_content);
-                    } else {
-                        $message = $message_content;
-                    }
-
-                    $headers = array('Content-Type: text/html; charset=UTF-8');
-                    wp_mail($new_billing_email, 'Bestätigung: Rechnungsempfänger bei YPrint', $message, $headers);
-                    
-                    update_user_meta($user_id, 'alt_billing_email', $new_billing_email);
-                    update_user_meta($user_id, 'billing_email', $new_billing_email);
-                    $email_changed = true;
-                }
-            }
-        } else {
-            // Wenn Checkbox nicht ausgewählt ist, alternative E-Mail entfernen
-            delete_user_meta($user_id, 'alt_billing_email');
-            $user = get_userdata($user_id);
-            update_user_meta($user_id, 'billing_email', $user->user_email);
-        }
-
-        // WooCommerce-Metadaten aktualisieren
-        foreach ($fields_to_update as $key => $value) {
-            update_user_meta($user_id, $key, $value);
-        }
-        
-        $message = 'Deine Rechnungsdaten wurden erfolgreich gespeichert.';
-        $message_type = 'success';
-        
-        // Umleitung, um URL sauber zu halten und Formular-Resubmit zu verhindern
-        if (!$email_changed) {
-            wp_redirect(add_query_arg(
-                array(
-                    'tab' => 'billing',
-                    'message' => urlencode($message),
-                    'type' => $message_type
-                ),
-                remove_query_arg(array('message', 'type'))
-            ));
-            exit;
-        }
-    }
     
     // Formular ausgeben
     ?>
     <div class="yprint-settings-page">
-        <h2>Rechnungsadresse</h2>
+        <h2>Rechnungsadressen</h2>
         
-        <?php if ($message): ?>
-        <div class="yprint-message yprint-message-<?php echo esc_attr($message_type); ?>">
-            <?php echo esc_html($message); ?>
+        <div class="yprint-info-message" style="background-color: #E3F2FD; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 15px;">
+            <p style="margin: 0;">Hier kannst du verschiedene Rechnungsadressen hinterlegen und verwalten. Im Bestellprozess kannst du dann auswählen, welche Adresse für die Rechnung verwendet werden soll.</p>
         </div>
-        <?php endif; ?>
         
-        <!-- Overlay für E-Mail-Änderung -->
-        <div id="emailChangeOverlay" class="yprint-overlay">
-            <div class="yprint-overlay-content">
-                <h3>Rechnungs-E-Mail wurde geändert</h3>
-                <p>Eine Bestätigungs-E-Mail wurde an die neue Adresse gesendet. Die Empfängeradresse kann diese Einstellung jederzeit ablehnen.</p>
-                <div class="yprint-overlay-buttons">
-                    <button class="yprint-button" onclick="document.getElementById('emailChangeOverlay').style.display='none';">Verstanden</button>
-                </div>
+        <!-- Address Manager Integration -->
+        <div class="yprint-saved-addresses" style="margin-bottom: 30px;">
+            <div class="loading-addresses" style="text-align: center; padding: 20px; display: none;">
+                <i class="fas fa-spinner fa-spin"></i> Lade gespeicherte Adressen...
+            </div>
+            <div class="address-cards-grid" style="display: none;">
+                <!-- Adressen werden hier durch JavaScript geladen -->
             </div>
         </div>
         
-        <!-- Gespeicherte Adressen für Rechnungsadresse -->
-        <?php if (!empty($additional_addresses)): ?>
-        <h3>Gespeicherte Adressen</h3>
-        <div class="yprint-saved-addresses billing-addresses">
-            <div class="address-cards-grid">
-                <?php foreach ($additional_addresses as $address): ?>
-                <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
-                    <div class="address-card-header">
-                        <div class="address-card-title">
-                            <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
+        <!-- Modal für neue/bearbeitete Adressen -->
+        <div id="new-address-modal" class="yprint-address-modal" style="display: none;">
+            <div class="address-modal-overlay"></div>
+            <div class="address-modal-content">
+                <div class="address-modal-header">
+                    <h3>Neue Adresse hinzufügen</h3>
+                    <button type="button" class="btn-close-modal">&times;</button>
+                </div>
+                <form id="new-address-form">
+                    <!-- Hidden Field für ID bei Bearbeitung -->
+                    <input type="hidden" id="new_address_edit_id" name="new_address_edit_id" value="">
+                    
+                    <div class="yprint-form-group">
+                        <label for="new_address_name" class="yprint-form-label">Bezeichnung</label>
+                        <input type="text" id="new_address_name" name="new_address_name" class="yprint-form-input" placeholder="z.B. Zuhause, Büro" required>
+                    </div>
+                    
+                    <div class="yprint-form-row">
+                        <div class="yprint-form-group">
+                            <label for="new_address_first_name" class="yprint-form-label">Vorname</label>
+                            <input type="text" id="new_address_first_name" name="new_address_first_name" class="yprint-form-input" required>
                         </div>
-                        <div class="address-card-actions">
-                            <button type="button" class="btn-address-action btn-edit-address" title="Adresse bearbeiten" data-address-id="<?php echo esc_attr($address['id'] ?? ''); ?>">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button type="button" class="btn-address-action btn-delete-address" title="Adresse löschen" data-address-id="<?php echo esc_attr($address['id'] ?? ''); ?>">
-                                <i class="fas fa-trash"></i>
-                            </button>
+                        <div class="yprint-form-group">
+                            <label for="new_last_name" class="yprint-form-label">Nachname</label>
+                            <input type="text" id="new_last_name" name="new_last_name" class="yprint-form-input" required>
                         </div>
                     </div>
-                    <div class="address-card-content">
-                        <p>
-                            <?php if (!empty($address['company'])): ?>
-                            <?php echo esc_html($address['company']); ?><br>
-                            <?php endif; ?>
-                            <?php echo esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')); ?><br>
-                            <?php echo esc_html(($address['address_1'] ?? '') . ' ' . ($address['address_2'] ?? '')); ?><br>
-                            <?php echo esc_html(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')); ?><br>
-                            <?php echo esc_html($address['country'] ?? ''); ?>
-                        </p>
+                    
+                    <div class="yprint-checkbox-row">
+                        <input type="checkbox" id="new_is_company" name="new_is_company">
+                        <label for="new_is_company">Firmenadresse</label>
                     </div>
-                    <div class="address-card-footer">
-                        <button type="button" class="yprint-button btn-use-billing-address">
-                            <i class="fas fa-check mr-2"></i>
-                            Als Rechnungsadresse verwenden
-                        </button>
+                    
+                    <div id="new_company_field" class="yprint-company-fields" style="display: none;">
+                        <div class="yprint-form-group">
+                            <label for="new_company" class="yprint-form-label">Firmenname</label>
+                            <input type="text" id="new_company" name="new_company" class="yprint-form-input">
+                        </div>
                     </div>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-        
-        <h3 style="margin-top: 30px;">Neue Rechnungsadresse</h3>
-        <?php endif; ?>
-        
-        <input type="hidden" id="billing_same_as_shipping_value" name="billing_same_as_shipping_value" value="<?php echo $billing_same_as_shipping ? '1' : '0'; ?>">
-        
-        <!-- Gespeicherte Adressen für Rechnungsadresse -->
-        <div id="billing-saved-addresses" style="display: none; margin-bottom: 20px;">
-            <?php if (!empty($additional_addresses)): ?>
-            <div class="address-cards-grid">
-                <?php foreach ($additional_addresses as $address): ?>
-                <div class="address-card billing-address-option" data-address-data="<?php echo esc_attr(json_encode($address)); ?>">
-                    <div class="address-card-content">
-                        <h5><?php echo esc_html($address['name'] ?? 'Gespeicherte Adresse'); ?></h5>
-                        <p>
-                            <?php if (!empty($address['company'])): ?>
-                            <?php echo esc_html($address['company']); ?><br>
-                            <?php endif; ?>
-                            <?php echo esc_html(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')); ?><br>
-                            <?php echo esc_html(($address['address_1'] ?? '') . ' ' . ($address['address_2'] ?? '')); ?><br>
-                            <?php echo esc_html(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')); ?><br>
-                            <?php echo esc_html($address['country'] ?? ''); ?>
-                        </p>
+                    
+                    <div class="yprint-form-row">
+                        <div class="yprint-form-group">
+                            <label for="new_address_1" class="yprint-form-label">Straße</label>
+                            <input type="text" id="new_address_1" name="new_address_1" class="yprint-form-input" required>
+                        </div>
+                        <div class="yprint-form-group">
+                            <label for="new_address_2" class="yprint-form-label">Hausnummer</label>
+                            <input type="text" id="new_address_2" name="new_address_2" class="yprint-form-input" required>
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-primary btn-use-billing-address">
-                        <i class="fas fa-check mr-2"></i>
-                        Für Rechnung verwenden
-                    </button>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-        </div>
-        
-        <!-- Adressverwaltung Integration -->
-        
-        
-            <form method="POST" class="yprint-settings-form" id="billing-settings-form">
-                <?php wp_nonce_field('save_billing_settings', 'billing_settings_nonce'); ?>
-                <input type="hidden" id="billing_same_as_shipping_value" name="billing_same_as_shipping_value" value="<?php echo $billing_same_as_shipping ? '1' : '0'; ?>">
-                
-                <div class="yprint-form-row">
-                    <div class="yprint-form-group">
-                        <label for="billing_first_name" class="yprint-form-label">Vorname</label>
-                        <input type="text" 
-                               id="billing_first_name" 
-                               name="billing_first_name" 
-                               class="yprint-form-input" 
-                               value="<?php echo esc_attr($billing_first_name); ?>" 
-                               placeholder="Vorname" 
-                               required>
-                    </div>
-                    <div class="yprint-form-group">
-                        <label for="billing_last_name" class="yprint-form-label">Nachname</label>
-                        <input type="text" 
-                               id="billing_last_name" 
-                               name="billing_last_name" 
-                               class="yprint-form-input" 
-                               value="<?php echo esc_attr($billing_last_name); ?>" 
-                               placeholder="Nachname" 
-                               required>
-                    </div>
-                </div>
-            
-            <!-- Unternehmensdaten -->
-            <div class="yprint-checkbox-row">
-                <input type="checkbox" 
-                       id="is_company" 
-                       name="is_company" 
-                       <?php checked($is_company, true); ?>>
-                <label for="is_company">Ich bestelle als Unternehmen</label>
-            </div>
-            
-            <div id="company_fields" class="yprint-company-fields" <?php echo $is_company ? 'style="display: block;"' : 'style="display: none;"'; ?>>
-                <div class="yprint-form-row">
-                    <div class="yprint-form-group">
-                        <label for="billing_company" class="yprint-form-label">Unternehmensname</label>
-                        <input type="text" 
-                               id="billing_company" 
-                               name="billing_company" 
-                               class="yprint-form-input" 
-                               value="<?php echo esc_attr($billing_company); ?>" 
-                               placeholder="Unternehmensname" 
-                               required>
+                    
+                    <div class="yprint-form-row">
+                        <div class="yprint-form-group">
+                            <label for="new_postcode" class="yprint-form-label">PLZ</label>
+                            <input type="text" id="new_postcode" name="new_postcode" class="yprint-form-input" required>
+                        </div>
+                        <div class="yprint-form-group">
+                            <label for="new_city" class="yprint-form-label">Stadt</label>
+                            <input type="text" id="new_city" name="new_city" class="yprint-form-input" required>
+                        </div>
                     </div>
                     
                     <div class="yprint-form-group">
-                        <label for="billing_vat" class="yprint-form-label">USt.-ID</label>
-                        <input type="text" 
-                               id="billing_vat" 
-                               name="billing_vat" 
-                               class="yprint-form-input" 
-                               value="<?php echo esc_attr($billing_vat); ?>" 
-                               placeholder="z.B. DE123456789">
-                        <div class="yprint-form-hint">Für steuerfreie innergemeinschaftliche Lieferungen erforderlich</div>
+                        <label for="new_country" class="yprint-form-label">Land</label>
+                        <select id="new_country" name="new_country" class="yprint-form-select" required>
+                            <option value="DE">Deutschland</option>
+                            <option value="AT">Österreich</option>
+                            <option value="CH">Schweiz</option>
+                            <!-- Weitere Länder hier -->
+                        </select>
                     </div>
-                </div>
+                    
+                    <div class="address-form-actions">
+                        <button type="button" class="yprint-button yprint-button-secondary btn-cancel-address">Abbrechen</button>
+                        <button type="button" class="yprint-button btn-save-address">
+                            <i class="fas fa-save mr-2"></i>Adresse speichern
+                        </button>
+                    </div>
+                    
+                    <div class="address-form-errors" style="display: none; margin-top: 15px;"></div>
+                </form>
             </div>
-            
-            <!-- Adressdaten mit Suche -->
-            <h3>Adresse</h3>
-            
-            <div class="yprint-form-group yprint-address-search">
-                <label for="address_search_billing" class="yprint-form-label">Adresse suchen</label>
-                <input type="text" 
-                       id="address_search_billing" 
-                       class="yprint-form-input" 
-                       placeholder="Adresse eingeben...">
-                <div id="billing_address_loader" class="yprint-loader"></div>
-                <div id="billing_address_suggestions" class="yprint-address-suggestions"></div>
-            </div>
-            
-            <div class="yprint-form-row">
-                <div class="yprint-form-group">
-                    <label for="billing_address_1" class="yprint-form-label">Straße</label>
-                    <input type="text" 
-                           id="billing_address_1" 
-                           name="billing_address_1" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($billing_address_1); ?>" 
-                           placeholder="Straße" 
-                           required>
-                </div>
-                
-                <div class="yprint-form-group">
-                    <label for="billing_address_2" class="yprint-form-label">Hausnummer</label>
-                    <input type="text" 
-                           id="billing_address_2" 
-                           name="billing_address_2" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($billing_address_2); ?>" 
-                           placeholder="Hausnummer" 
-                           required>
-                </div>
-            </div>
-            
-            <div class="yprint-form-row">
-                <div class="yprint-form-group">
-                    <label for="billing_postcode" class="yprint-form-label">PLZ</label>
-                    <input type="text" 
-                           id="billing_postcode" 
-                           name="billing_postcode" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($billing_postcode); ?>" 
-                           placeholder="PLZ" 
-                           required>
-                </div>
-                
-                <div class="yprint-form-group">
-                    <label for="billing_city" class="yprint-form-label">Stadt</label>
-                    <input type="text" 
-                           id="billing_city" 
-                           name="billing_city" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($billing_city); ?>" 
-                           placeholder="Stadt" 
-                           required>
-                </div>
-            </div>
-            
-            <div class="yprint-form-group">
-                <label for="billing_country" class="yprint-form-label">Land</label>
-                <select id="billing_country" 
-                        name="billing_country" 
-                        class="yprint-form-select" 
-                        required>
-                    <?php
-                    if (class_exists('WC_Countries')) {
-                        $countries_obj = new WC_Countries();
-                        $countries = $countries_obj->get_countries();
-                        foreach ($countries as $code => $name) {
-                            $selected = ($billing_country === $code) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($code) . '" ' . $selected . '>' . esc_html($name) . '</option>';
-                        }
-                    } else {
-                        // Fallback, wenn WooCommerce's Länderklasse nicht verfügbar ist
-                        $countries = array(
-                            'DE' => 'Deutschland',
-                            'AT' => 'Österreich',
-                            'CH' => 'Schweiz',
-                            'FR' => 'Frankreich',
-                            'IT' => 'Italien',
-                            'NL' => 'Niederlande',
-                            'BE' => 'Belgien',
-                            'LU' => 'Luxemburg',
-                            'DK' => 'Dänemark',
-                            'SE' => 'Schweden',
-                            'FI' => 'Finnland',
-                            'PL' => 'Polen',
-                            'CZ' => 'Tschechien',
-                            'GB' => 'Großbritannien',
-                            'US' => 'Vereinigte Staaten'
-                        );
-                        foreach ($countries as $code => $name) {
-                            $selected = ($billing_country === $code) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($code) . '" ' . $selected . '>' . esc_html($name) . '</option>';
-                        }
-                    }
-                    ?>
-                </select>
-            </div>
-            
-            <!-- Alternative Rechnungs-E-Mail entfernt -->
-            
-            <div>
-                <button type="submit" class="yprint-button">Änderungen speichern</button>
-            </div>
-        </form>
+        </div>
     </div>
     
     <script>
-jQuery(document).ready(function($) {
-    // HERE API Initialisierung
-    const API_KEY = 'xPlTGXIrjg1O6Oea3e2gvo5lrN-iO1gT47Sc-VojWdU';
-    
-    // Adresstyp-Auswahl Handler
-    $('input[name="billing_address_type"]').change(function() {
-        const selectedType = $(this).val();
-        
-        // Alle Bereiche zunächst verstecken
-        $('#billing-address-selection').hide();
-        $('#billing-saved-addresses').hide();
-        
-        // Update hidden field
-        $('#billing_same_as_shipping_value').val(selectedType === 'same_as_shipping' ? '1' : '0');
-        
-        switch(selectedType) {
-            case 'same_as_shipping':
-                // Lieferadresse in Rechnungsfelder kopieren
-                $('#billing_first_name').val('<?php echo esc_js($shipping_first_name); ?>');
-                $('#billing_last_name').val('<?php echo esc_js($shipping_last_name); ?>');
-                $('#billing_address_1').val('<?php echo esc_js($shipping_address_1); ?>');
-                $('#billing_address_2').val('<?php echo esc_js($shipping_address_2); ?>');
-                $('#billing_postcode').val('<?php echo esc_js($shipping_postcode); ?>');
-                $('#billing_city').val('<?php echo esc_js($shipping_city); ?>');
-                $('#billing_country').val('<?php echo esc_js($shipping_country); ?>');
-                break;
-                
-            case 'saved_address':
-                $('#billing-saved-addresses').slideDown(300);
-                break;
-                
-            case 'new_address':
-                $('#billing-address-selection').slideDown(300);
-                // Felder leeren für neue Eingabe
-                $('#billing_first_name, #billing_last_name, #billing_address_1, #billing_address_2, #billing_postcode, #billing_city').val('');
-                break;
-        }
-        
-        // Event für Integration triggern
-        $(document).trigger('yprint_billing_type_changed', [selectedType]);
+    jQuery(document).ready(function($) {
+        // Unternehmensfeld umschalten
+        $('#new_is_company').change(function() {
+            if (this.checked) {
+                $('#new_company_field').slideDown(300);
+            } else {
+                $('#new_company_field').slideUp(300);
+            }
+        });
     });
-    
-    // Gespeicherte Adresse für Rechnung verwenden
-    $('.btn-use-billing-address').on('click', function() {
-        const addressCard = $(this).closest('.address-card');
-        const addressData = JSON.parse(addressCard.attr('data-address-data'));
-        
-        // Felder ausfüllen
-        $('#billing_first_name').val(addressData.first_name || '');
-        $('#billing_last_name').val(addressData.last_name || '');
-        $('#billing_company').val(addressData.company || '');
-        $('#billing_address_1').val(addressData.address_1 || '');
-        $('#billing_address_2').val(addressData.address_2 || '');
-        $('#billing_postcode').val(addressData.postcode || '');
-        $('#billing_city').val(addressData.city || '');
-        $('#billing_country').val(addressData.country || 'DE');
-        
-        // Visuelles Feedback
-        addressCard.addClass('selected');
-        setTimeout(() => addressCard.removeClass('selected'), 2000);
-        
-        // Bereich verstecken
-        $('#billing-saved-addresses').slideUp(300);
-        $('#billing-address-selection').slideDown(300);
-        
-        // Event triggern
-        $(document).trigger('yprint_billing_address_selected', [addressData]);
-    });
+    </script>
     <?php
     
     return ob_get_clean();
@@ -3315,171 +2928,11 @@ function yprint_shipping_settings_shortcode() {
         </form>
         
         <?php
-        // Standardansicht - Liste der Adressen und Hauptadressformular
+        // Standardansicht - nur Address Manager anzeigen
         else:
         ?>
         
-        <h3>Standardadresse</h3>
-        <form method="POST" class="yprint-settings-form" id="shipping-settings-form">
-            <?php wp_nonce_field('save_shipping_settings', 'shipping_settings_nonce'); ?>
-            
-            <div class="yprint-form-row">
-                <div class="yprint-form-group">
-                    <label for="shipping_first_name" class="yprint-form-label">Vorname</label>
-                    <input type="text" 
-                           id="shipping_first_name" 
-                           name="shipping_first_name" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_first_name); ?>" 
-                           placeholder="Vorname" 
-                           required>
-                </div>
-                
-                <div class="yprint-form-group">
-                    <label for="shipping_last_name" class="yprint-form-label">Nachname</label>
-                    <input type="text" 
-                           id="shipping_last_name" 
-                           name="shipping_last_name" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_last_name); ?>" 
-                           placeholder="Nachname" 
-                           required>
-                </div>
-            </div>
-            
-            <!-- Unternehmensdaten -->
-            <div class="yprint-checkbox-row">
-                <input type="checkbox" 
-                       id="is_company_shipping" 
-                       name="is_company_shipping" 
-                       <?php checked($is_company_shipping, true); ?>>
-                <label for="is_company_shipping">Lieferung an Unternehmen</label>
-            </div>
-            
-            <div id="company_shipping_fields" class="yprint-company-fields" <?php echo $is_company_shipping ? 'style="display: block;"' : 'style="display: none;"'; ?>>
-                <div class="yprint-form-group">
-                    <label for="shipping_company" class="yprint-form-label">Firmenname</label>
-                    <input type="text" 
-                           id="shipping_company" 
-                           name="shipping_company" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_company); ?>" 
-                           placeholder="Firmenname">
-                    <?php if ($is_company_billing && $billing_company): ?>
-                    <div class="yprint-company-suggestion" style="margin-top: 8px; font-size: 0.9rem;">
-                        <a href="#" id="use-billing-company" style="color: #2997FF; text-decoration: none;">
-                            '<?php echo esc_html($billing_company); ?>' aus Rechnungsdaten übernehmen
-                        </a>
-                    </div>
-                    <?php endif; ?>
-                </div>
-            </div>
-            
-            <!-- Adressdaten mit Suche -->
-            <div class="yprint-form-group yprint-address-search">
-                <label for="address_search_shipping" class="yprint-form-label">Adresse suchen</label>
-                <input type="text" 
-                       id="address_search_shipping" 
-                       class="yprint-form-input" 
-                       placeholder="Adresse eingeben...">
-                <div id="shipping_address_loader" class="yprint-loader"></div>
-                <div id="shipping_address_suggestions" class="yprint-address-suggestions"></div>
-            </div>
-            
-            <div class="yprint-form-row">
-                <div class="yprint-form-group">
-                    <label for="shipping_address_1" class="yprint-form-label">Straße</label>
-                    <input type="text" 
-                           id="shipping_address_1" 
-                           name="shipping_address_1" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_address_1); ?>" 
-                           placeholder="Straße" 
-                           required>
-                </div>
-                
-                <div class="yprint-form-group">
-                    <label for="shipping_address_2" class="yprint-form-label">Hausnummer</label>
-                    <input type="text" 
-                           id="shipping_address_2" 
-                           name="shipping_address_2" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_address_2); ?>" 
-                           placeholder="Hausnummer" 
-                           required>
-                </div>
-            </div>
-            
-            <div class="yprint-form-row">
-                <div class="yprint-form-group">
-                    <label for="shipping_postcode" class="yprint-form-label">PLZ</label>
-                    <input type="text" 
-                           id="shipping_postcode" 
-                           name="shipping_postcode" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_postcode); ?>" 
-                           placeholder="PLZ" 
-                           required>
-                </div>
-                
-                <div class="yprint-form-group">
-                    <label for="shipping_city" class="yprint-form-label">Stadt</label>
-                    <input type="text" 
-                           id="shipping_city" 
-                           name="shipping_city" 
-                           class="yprint-form-input" 
-                           value="<?php echo esc_attr($shipping_city); ?>" 
-                           placeholder="Stadt" 
-                           required>
-                </div>
-            </div>
-            
-            <div class="yprint-form-group">
-                <label for="shipping_country" class="yprint-form-label">Land</label>
-                <select id="shipping_country" 
-                        name="shipping_country" 
-                        class="yprint-form-select" 
-                        required>
-                    <?php
-                    if (class_exists('WC_Countries')) {
-                        $countries_obj = new WC_Countries();
-                        $countries = $countries_obj->get_shipping_countries();
-                        foreach ($countries as $code => $name) {
-                            $selected = ($shipping_country === $code) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($code) . '" ' . $selected . '>' . esc_html($name) . '</option>';
-                        }
-                    } else {
-                        // Fallback, wenn WooCommerce's Länderklasse nicht verfügbar ist
-                        $countries = array(
-                            'DE' => 'Deutschland',
-                            'AT' => 'Österreich',
-                            'CH' => 'Schweiz',
-                            'FR' => 'Frankreich',
-                            'IT' => 'Italien',
-                            'NL' => 'Niederlande',
-                            'BE' => 'Belgien',
-                            'LU' => 'Luxemburg',
-                            'DK' => 'Dänemark',
-                            'SE' => 'Schweden',
-                            'FI' => 'Finnland',
-                            'PL' => 'Polen',
-                            'CZ' => 'Tschechien',
-                            'GB' => 'Großbritannien',
-                            'US' => 'Vereinigte Staaten'
-                        );
-                        foreach ($countries as $code => $name) {
-                            $selected = ($shipping_country === $code) ? 'selected' : '';
-                            echo '<option value="' . esc_attr($code) . '" ' . $selected . '>' . esc_html($name) . '</option>';
-                        }
-                    }
-                    ?>
-                </select>
-            </div>
-            
-            <div>
-                <button type="submit" class="yprint-button">Änderungen speichern</button>
-            </div>
-        </form>
+        <!-- Keine Standard-Formulare mehr - nur Address Manager Integration -->
         
         <?php endif; ?>
     </div>
