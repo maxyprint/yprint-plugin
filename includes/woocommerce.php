@@ -165,6 +165,31 @@ function woo_order_history($atts) {
             color: #1a1a1a;
         }
 
+        .yprint-cancel-order-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 12px;
+        }
+
+        .yprint-cancel-order-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .yprint-cancel-order-btn:disabled {
+            background: #e9ecef;
+            color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .yprint-order-items {
             border-top: 1px solid #f1f3f4;
             background: #fafbfc;
@@ -178,14 +203,39 @@ function woo_order_history($atts) {
 
         .yprint-order-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 12px 0;
+            padding: 16px 0;
             border-bottom: 1px solid #e9ecef;
+            gap: 16px;
         }
 
         .yprint-order-item:last-child {
             border-bottom: none;
+        }
+
+        .yprint-item-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .yprint-item-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .yprint-item-preview.no-preview {
+            background: #e9ecef;
+            color: #6c757d;
+            font-size: 12px;
+            text-align: center;
         }
 
         .yprint-item-info {
@@ -193,27 +243,38 @@ function woo_order_history($atts) {
         }
 
         .yprint-item-name {
-            font-weight: 500;
+            font-weight: 600;
             color: #1a1a1a;
             margin-bottom: 4px;
+            font-size: 16px;
         }
 
         .yprint-item-meta {
             font-size: 13px;
             color: #5f6368;
+            line-height: 1.4;
+        }
+
+        .yprint-design-title {
+            color: #007cba;
+            font-weight: 500;
+            font-size: 14px;
+            margin-bottom: 2px;
         }
 
         .yprint-item-actions {
             display: flex;
             align-items: center;
             gap: 12px;
+            flex-shrink: 0;
         }
 
         .yprint-item-price {
-            font-weight: 500;
+            font-weight: 600;
             color: #1a1a1a;
             min-width: 80px;
             text-align: right;
+            font-size: 16px;
         }
 
         .yprint-cancel-item-btn {
@@ -247,6 +308,16 @@ function woo_order_history($atts) {
 
         .yprint-order-card.expanded .yprint-expand-icon {
             transform: rotate(180deg);
+        }
+
+        .yprint-order-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px 20px;
+            border-top: 1px solid #f1f3f4;
+            padding-top: 12px;
+            margin-top: 12px;
         }
 
         .yprint-pagination {
@@ -306,21 +377,26 @@ function woo_order_history($atts) {
                 align-items: flex-start;
             }
             
-            .yprint-order-meta {
+            .yprint-order-meta, .yprint-order-actions {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 8px;
+                gap: 12px;
             }
 
             .yprint-order-item {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 8px;
+                gap: 12px;
             }
 
             .yprint-item-actions {
                 width: 100%;
                 justify-content: space-between;
+            }
+
+            .yprint-item-preview {
+                width: 50px;
+                height: 50px;
             }
         }
     </style>
@@ -368,35 +444,84 @@ function woo_order_history($atts) {
                                     <br><small style="color: #dc3545;">Stornierung noch <?php echo esc_html(number_format(2 - $time_diff_hours, 1)); ?> Stunden möglich</small>
                                 <?php endif; ?>
                             </div>
-                            <div class="yprint-order-total"><?php echo wp_kses_post(wc_price($order->get_total())); ?></div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span class="yprint-order-total"><?php echo wp_kses_post(wc_price($order->get_total())); ?></span>
+                                <?php if ($can_cancel): ?>
+                                    <button class="yprint-cancel-order-btn" 
+                                            onclick="event.stopPropagation(); cancelOrder(<?php echo esc_js($order->get_id()); ?>)">
+                                        Bestellung stornieren
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
 
                         <div class="yprint-order-items" id="order-items-<?php echo esc_attr($order->get_id()); ?>">
                             <?php foreach ($order_items as $item_id => $item): 
                                 $product = $item->get_product();
                                 $item_can_cancel = $can_cancel && !$item->get_meta('_cancelled');
+                                
+                                // Get design data
+                                $design_name = $item->get_meta('_design_name');
+                                $design_preview = $item->get_meta('_design_preview_url');
+                                $design_color = $item->get_meta('_design_color');
+                                $design_size = $item->get_meta('_design_size');
+                                $design_id = $item->get_meta('_design_id');
+                                
+                                // Determine display name (prefer design name over product name)
+                                $display_name = !empty($design_name) ? $design_name : $item->get_name();
+                                $is_design_product = !empty($design_id);
                             ?>
                                 <div class="yprint-order-item" data-item-id="<?php echo esc_attr($item_id); ?>">
+                                    <div class="yprint-item-preview">
+                                        <?php if (!empty($design_preview)): ?>
+                                            <img src="<?php echo esc_url($design_preview); ?>" alt="Design Preview">
+                                        <?php else: ?>
+                                            <div class="no-preview">Kein<br>Bild</div>
+                                        <?php endif; ?>
+                                    </div>
+                                    
                                     <div class="yprint-item-info">
-                                        <div class="yprint-item-name"><?php echo esc_html($item->get_name()); ?></div>
+                                        <?php if ($is_design_product && !empty($design_name)): ?>
+                                            <div class="yprint-design-title"><?php echo esc_html($design_name); ?></div>
+                                        <?php endif; ?>
+                                        <div class="yprint-item-name"><?php echo esc_html($display_name); ?></div>
                                         <div class="yprint-item-meta">
                                             Menge: <?php echo esc_html($item->get_quantity()); ?>
+                                            <?php if (!empty($design_color)): ?>
+                                                • Farbe: <?php echo esc_html($design_color); ?>
+                                            <?php endif; ?>
+                                            <?php if (!empty($design_size)): ?>
+                                                • Größe: <?php echo esc_html($design_size); ?>
+                                            <?php endif; ?>
                                             <?php if ($product && $product->get_sku()): ?>
-                                                • SKU: <?php echo esc_html($product->get_sku()); ?>
+                                                <br>SKU: <?php echo esc_html($product->get_sku()); ?>
                                             <?php endif; ?>
                                         </div>
                                     </div>
+                                    
                                     <div class="yprint-item-actions">
                                         <div class="yprint-item-price"><?php echo wp_kses_post(wc_price($item->get_total())); ?></div>
                                         <?php if ($item_can_cancel): ?>
                                             <button class="yprint-cancel-item-btn" 
                                                     onclick="cancelOrderItem(<?php echo esc_js($order->get_id()); ?>, <?php echo esc_js($item_id); ?>)">
-                                                Stornieren
+                                                Artikel stornieren
                                             </button>
                                         <?php endif; ?>
                                     </div>
                                 </div>
                             <?php endforeach; ?>
+                            
+                            <?php if ($can_cancel): ?>
+                                <div class="yprint-order-actions">
+                                    <div style="color: #5f6368; font-size: 14px;">
+                                        Komplette Bestellung stornieren:
+                                    </div>
+                                    <button class="yprint-cancel-order-btn" 
+                                            onclick="cancelOrder(<?php echo esc_js($order->get_id()); ?>)">
+                                        Gesamte Bestellung stornieren
+                                    </button>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
@@ -451,6 +576,31 @@ function woo_order_history($atts) {
         } else {
             itemsContainer.addClass('expanded');
             orderCard.addClass('expanded');
+        }
+    }
+
+    function cancelOrder(orderId) {
+        if (confirm('Möchtest du diese Bestellung wirklich komplett stornieren?')) {
+            jQuery.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'yprint_cancel_order',
+                    order_id: orderId,
+                    security: '<?php echo wp_create_nonce('yprint-order-cancel'); ?>'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('Bestellung wurde erfolgreich storniert.');
+                        location.reload();
+                    } else {
+                        alert('Fehler beim Stornieren der Bestellung: ' + response.data);
+                    }
+                },
+                error: function() {
+                    alert('Es ist ein Fehler aufgetreten. Bitte versuche es später erneut.');
+                }
+            });
         }
     }
 
