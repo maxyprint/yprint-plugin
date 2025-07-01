@@ -55,6 +55,14 @@ function yprint_login_form_shortcode() {
     position: relative;
 }
 
+/* Mobile Override für vollständige Breite */
+@media screen and (max-width: 768px) {
+    .yprint-login-card {
+        max-width: none !important;
+        width: 100% !important;
+    }
+}
+
 .yprint-login-header {
     text-align: center;
     margin-bottom: 32px;
