@@ -55,14 +55,6 @@ function yprint_login_form_shortcode() {
     position: relative;
 }
 
-/* Mobile Override für vollständige Breite */
-@media screen and (max-width: 768px) {
-    .yprint-login-card {
-        max-width: none !important;
-        width: 100% !important;
-    }
-}
-
 .yprint-login-header {
     text-align: center;
     margin-bottom: 32px;
@@ -298,18 +290,6 @@ function yprint_login_form_shortcode() {
         #eye-toggle:hover i {
             color: #3b82f6;
         }
-        
-
-        /* Desktop Standard */
-        @media screen and (min-width: 769px) {
-            .yprint-login-container {
-                min-height: auto;
-            }
-            
-            .yprint-login-card {
-                max-width: 420px;
-            }
-        }
 
         /* Desktop Standard */
         @media screen and (min-width: 769px) {
@@ -326,10 +306,10 @@ function yprint_login_form_shortcode() {
         @media screen and (max-width: 768px) {
             .yprint-login-container {
                 padding: 0 !important;
-                min-height: 100vh;
-                background: #ffffff;
+                min-height: 100vh !important;
+                background: #ffffff !important;
                 width: 100% !important;
-                box-sizing: border-box;
+                box-sizing: border-box !important;
             }
             
             .yprint-login-card {
@@ -337,14 +317,14 @@ function yprint_login_form_shortcode() {
                 border-radius: 0 !important;
                 box-shadow: none !important;
                 border: none !important;
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
+                min-height: 100vh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
                 max-width: none !important;
                 width: 100% !important;
                 margin: 0 !important;
-                box-sizing: border-box;
+                box-sizing: border-box !important;
             }
             
             .yprint-logo img {
@@ -383,82 +363,13 @@ function yprint_login_form_shortcode() {
 
         @media screen and (max-width: 320px) {
             .yprint-login-card {
-                padding: 20px;
+                padding: 20px !important;
             }
             
             .yprint-register-button {
                 height: 40px;
                 font-size: 13px;
                 padding: 10px 20px;
-            }
-            
-            #loginform input[type="text"],
-            #loginform input[type="password"],
-            #loginform input[type="email"],
-            #loginform input[type="submit"] {
-                height: 44px !important;
-                padding: 12px 16px !important;
-            }
-        }
-    
-    .yprint-logo img {
-        width: 40px;
-        height: 40px;
-    }
-    
-    .yprint-login-title {
-        font-size: 22px;
-    }
-    
-    .yprint-login-subtitle {
-        font-size: 14px;
-    }
-    
-    .yprint-register-button {
-        height: 44px;
-        font-size: 14px;
-    }
-    
-    #loginform input[type="text"],
-    #loginform input[type="password"],
-    #loginform input[type="email"],
-    #loginform input[type="submit"] {
-        height: 48px !important;
-        font-size: 16px !important;
-    }
-    
-    #email-hint {
-        font-size: 12px;
-        padding: 10px 14px;
-        white-space: normal;
-        max-width: 95%;
-    }
-}
-
-@media screen and (max-width: 320px) {
-    .yprint-login-card {
-        padding: 20px;
-    }
-    
-    .yprint-register-button {
-        height: 40px;
-        font-size: 13px;
-        padding: 10px 20px;
-    }
-    
-    #loginform input[type="text"],
-    #loginform input[type="password"],
-    #loginform input[type="email"],
-    #loginform input[type="submit"] {
-        height: 44px !important;
-        padding: 12px 16px !important;
-    }
-}
-        }
-        
-        @media screen and (max-width: 320px) {
-            .yprint-login-card {
-                padding: 20px;
             }
             
             #loginform input[type="text"],
