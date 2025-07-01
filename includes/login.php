@@ -425,17 +425,7 @@ function yprint_login_form_shortcode() {
                         </button>
                     </div>
                     
-                    <?php 
-                    // Turnstile Widget rendern wenn aktiviert
-                    if (class_exists('YPrint_Turnstile')) {
-                        $turnstile = YPrint_Turnstile::get_instance();
-                        if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
-                            echo '<div class="yprint-input-group" style="text-align: center; margin: 20px 0;">';
-                            echo $turnstile->render_widget('login-form', 'light');
-                            echo '</div>';
-                        }
-                    }
-                    ?>
+                    
                     
                     <div class="yprint-input-group">
                         <input type="submit" name="wp-submit" id="wp-submit" value="Anmelden" />
