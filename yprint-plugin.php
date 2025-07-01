@@ -166,6 +166,9 @@ function yprint_enqueue_scripts() {
     wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
     wp_enqueue_script('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
     
+    // Turnstile Frontend JavaScript
+    wp_enqueue_script('yprint-turnstile', YPRINT_PLUGIN_URL . 'assets/js/yprint-turnstile.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    
     // Add AJAX URL and Nonces
     wp_localize_script('yprint-scripts', 'yprint_ajax', array(
         'ajax_url' => admin_url('admin-ajax.php'),

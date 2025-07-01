@@ -425,6 +425,18 @@ function yprint_login_form_shortcode() {
                         </button>
                     </div>
                     
+                    <?php 
+                    // Turnstile Widget rendern wenn aktiviert
+                    if (class_exists('YPrint_Turnstile')) {
+                        $turnstile = YPrint_Turnstile::get_instance();
+                        if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
+                            echo '<div class="yprint-input-group" style="text-align: center; margin: 20px 0;">';
+                            echo $turnstile->render_widget('login-form', 'light');
+                            echo '</div>';
+                        }
+                    }
+                    ?>
+                    
                     <div class="yprint-input-group">
                         <input type="submit" name="wp-submit" id="wp-submit" value="Anmelden" />
                         <input type="hidden" name="redirect_to" value="<?php echo esc_attr(home_url('/dashboard/')); ?>" />
@@ -506,6 +518,26 @@ function yprint_process_custom_login() {
     
     // Debug-Log
     error_log('YPrint Custom Login: Processing login attempt');
+    
+    // Turnstile-Verifikation wenn aktiviert
+    if (class_exists('YPrint_Turnstile')) {
+        $turnstile = YPrint_Turnstile::get_instance();
+        if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
+            $token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
+            if (empty($token)) {
+                error_log('YPrint Custom Login: Turnstile token missing');
+                wp_redirect(home_url('/login/?login=turnstile_missing&timestamp=' . time()));
+                exit;
+            }
+            
+            $verification = $turnstile->verify_token($token);
+            if (!$verification['success']) {
+                error_log('YPrint Custom Login: Turnstile verification failed');
+                wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
+                exit;
+            }
+        }
+    }
     
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
     $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
