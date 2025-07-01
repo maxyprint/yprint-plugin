@@ -46,11 +46,20 @@ function setupTurnstileIntegration() {
     const widgets = new Map();
 
     // Widgets rendern - doppelt abgesichert
-    document.querySelectorAll('.cf-turnstile').forEach((container) => {
-        if (container.hasAttribute('data-rendered') || container.querySelector('iframe')) {
-            console.log('🛡️ Turnstile: Widget bereits gerendert, überspringe...');
-            return;
-        }
+console.log('🛡️ Frontend JavaScript: Gefundene .cf-turnstile Container:', document.querySelectorAll('.cf-turnstile').length);
+document.querySelectorAll('.cf-turnstile').forEach((container, index) => {
+    console.log(`🛡️ Frontend JavaScript: Container ${index}:`, {
+        'hasAttribute data-rendered': container.hasAttribute('data-rendered'),
+        'has iframe': !!container.querySelector('iframe'),
+        'has data-callback': container.hasAttribute('data-callback'),
+        'has data-error-callback': container.hasAttribute('data-error-callback'),
+        'innerHTML': container.innerHTML.substring(0, 100)
+    });
+    
+    if (container.hasAttribute('data-rendered') || container.querySelector('iframe')) {
+        console.log('🛡️ Turnstile: Widget bereits gerendert, überspringe...');
+        return;
+    }
 
         const siteKey = container.getAttribute('data-sitekey');
         const theme = container.getAttribute('data-theme') || 'auto';

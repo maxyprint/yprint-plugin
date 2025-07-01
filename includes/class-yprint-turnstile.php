@@ -379,13 +379,20 @@ class YPrint_Turnstile {
             <?php if (in_array('login', $protected_pages)): ?>
             // Login-Formular Turnstile einfügen
 const loginForm = document.getElementById('yprint-loginform');
+const existingWidgets = loginForm?.querySelectorAll('.cf-turnstile') || [];
 console.log('🛡️ Auto-Injection Login Check:', {
     'loginForm exists': !!loginForm,
-    'has cf-turnstile': !!loginForm?.querySelector('.cf-turnstile'),
+    'existing widgets count': existingWidgets.length,
+    'existing widgets details': Array.from(existingWidgets).map(w => ({
+        'has data-callback': w.hasAttribute('data-callback'),
+        'has data-sitekey': w.hasAttribute('data-sitekey'),
+        'has iframe': !!w.querySelector('iframe'),
+        'innerHTML': w.innerHTML.substring(0, 100)
+    })),
     'has data-turnstile-injected': !!loginForm?.hasAttribute('data-turnstile-injected')
 });
 
-if (loginForm && !loginForm.querySelector('.cf-turnstile') && !loginForm.hasAttribute('data-turnstile-injected')) {
+if (loginForm && existingWidgets.length === 0 && !loginForm.hasAttribute('data-turnstile-injected')) {
     loginForm.setAttribute('data-turnstile-injected', 'true');
     console.log('🛡️ Auto-Injection: Injiziere Widget in Login-Form');
                 const submitGroup = loginForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
