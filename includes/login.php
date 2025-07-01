@@ -34,105 +34,106 @@ function yprint_login_form_shortcode() {
     ob_start();
     ?>
     <style>
-        /* Moderner Login Container - flexibel für Integration */
-.yprint-login-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
-    padding: 40px 20px;
-    box-sizing: border-box;
-}
+        /* Moderner Login Container - identisch mit Register Design */
+        .yprint-login-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
 
-.yprint-login-card {
-    background: #ffffff;
-    border-radius: 20px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e5e7eb;
-    padding: 40px;
-    width: 100%;
-    max-width: 420px;
-    position: relative;
-}
+        .yprint-login-card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+        }
 
-.yprint-login-header {
-    text-align: center;
-    margin-bottom: 32px;
-}
+        .yprint-login-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
 
-.yprint-logo {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 24px;
-}
+        .yprint-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
 
-.yprint-logo img {
-    width: 48px;
-    height: 48px;
-    object-fit: contain;
-}
+        .yprint-logo img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
 
-.yprint-login-title {
-    font-size: 26px;
-    font-weight: 700;
-    color: #111827;
-    margin: 0 0 8px 0;
-}
+        .yprint-login-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 8px 0;
+        }
 
-.yprint-login-subtitle {
-    font-size: 15px;
-    color: #6b7280;
-    margin: 0;
-}
+        .yprint-login-subtitle {
+            font-size: 15px;
+            color: #6b7280;
+            margin: 0;
+        }
 
-/* Registrieren Button */
-.yprint-register-section {
-    margin-top: 24px;
-    padding-top: 24px;
-    border-top: 1px solid #e5e7eb;
-    text-align: center;
-}
+        /* Register Button Section */
+        .yprint-register-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
 
-.yprint-register-text {
-    font-size: 14px;
-    color: #6b7280;
-    margin: 0 0 16px 0;
-}
+        .yprint-register-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 16px 0;
+        }
 
-.yprint-register-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 48px;
-    padding: 12px 24px;
-    font-family: inherit;
-    font-size: 15px;
-    font-weight: 500;
-    color: #3b82f6 !important;
-    background-color: #f8fafc;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    text-decoration: none;
-    transition: all 0.3s ease;
-    cursor: pointer;
-    box-sizing: border-box;
-}
+        .yprint-register-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 48px;
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            color: #3b82f6 !important;
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
 
-.yprint-register-button:hover {
-    background-color: #f1f5f9;
-    border-color: #3b82f6;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-    color: #2563eb !important;
-    text-decoration: none;
-}
+        .yprint-register-button:hover {
+            background-color: #f1f5f9;
+            border-color: #3b82f6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            color: #2563eb !important;
+            text-decoration: none;
+        }
 
-.yprint-register-button:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-        
+        /* Input Field Container */
+        .yprint-input-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
         /* Reset WordPress Form Styles */
         #loginform {
             margin: 0 !important;
@@ -141,14 +142,8 @@ function yprint_login_form_shortcode() {
             border: none !important;
             box-shadow: none !important;
         }
-        
-        /* Input Field Container */
-        .yprint-input-group {
-            margin-bottom: 24px;
-            position: relative;
-        }
-        
-        /* Eingabefelder */
+
+        /* Eingabefelder - moderne Styles */
         #loginform input[type="text"],
         #loginform input[type="password"],
         #loginform input[type="email"] {
@@ -169,7 +164,7 @@ function yprint_login_form_shortcode() {
             margin: 0 !important;
             box-sizing: border-box !important;
         }
-        
+
         #loginform input[type="text"]:focus,
         #loginform input[type="password"]:focus,
         #loginform input[type="email"]:focus {
@@ -177,13 +172,13 @@ function yprint_login_form_shortcode() {
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
         }
-        
+
         /* Platzhaltertext */
         #loginform input::placeholder {
             color: #9ca3af !important;
             font-weight: 400 !important;
         }
-        
+
         /* Submit-Button */
         #loginform input[type="submit"] {
             width: 100% !important;
@@ -203,23 +198,58 @@ function yprint_login_form_shortcode() {
             text-transform: none !important;
             line-height: 1.5 !important;
         }
-        
+
         #loginform input[type="submit"]:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
         }
-        
-        #loginform input[type="submit"]:active {
-            transform: translateY(0) !important;
-        }
-        
+
         /* Verstecken unnötiger Elemente */
         #loginform #rememberme,
         #loginform label {
             display: none !important;
         }
-        
+
+        /* Password Container für Eye-Toggle */
+        .password-container {
+            position: relative;
+            width: 100%;
+        }
+
+        /* Augen-Icon für Passwort-Toggle */
+        #eye-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 10;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        #eye-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        #eye-toggle i {
+            font-size: 18px;
+            color: #6b7280;
+            transition: color 0.2s ease;
+        }
+
+        #eye-toggle:hover i {
+            color: #3b82f6;
+        }
+
         /* E-Mail-Hinweis - moderner Stil */
         #email-hint {
             position: absolute;
@@ -240,7 +270,7 @@ function yprint_login_form_shortcode() {
             max-width: 90%;
             white-space: nowrap;
         }
-        
+
         #email-hint:after {
             content: '';
             position: absolute;
@@ -250,45 +280,6 @@ function yprint_login_form_shortcode() {
             border-left: 6px solid transparent;
             border-right: 6px solid transparent;
             border-top: 6px solid #fde68a;
-        }
-        
-        /* Passwort Container */
-        .password-container {
-            position: relative;
-            width: 100%;
-        }
-        
-        /* Augen-Icon für Passwort-Toggle - moderner Stil */
-        #eye-toggle {
-            position: absolute;
-            right: 16px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
-            border: none;
-            cursor: pointer;
-            z-index: 10;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-        }
-        
-        #eye-toggle:hover {
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-        
-        #eye-toggle i {
-            font-size: 18px;
-            color: #6b7280;
-            transition: color 0.2s ease;
-        }
-        
-        #eye-toggle:hover i {
-            color: #3b82f6;
         }
 
         /* Desktop Standard */
@@ -311,7 +302,7 @@ function yprint_login_form_shortcode() {
                 width: 100% !important;
                 box-sizing: border-box !important;
             }
-            
+
             .yprint-login-card {
                 padding: 40px 24px !important;
                 border-radius: 0 !important;
@@ -326,7 +317,7 @@ function yprint_login_form_shortcode() {
                 margin: 0 !important;
                 box-sizing: border-box !important;
             }
-            
+
             /* Elemente begrenzen damit sie nicht zu groß werden */
             .yprint-login-form,
             .yprint-register-section {
@@ -334,7 +325,7 @@ function yprint_login_form_shortcode() {
                 margin: 0 auto;
                 width: 100%;
             }
-            
+
             #loginform input[type="text"],
             #loginform input[type="password"],
             #loginform input[type="email"],
@@ -349,6 +340,11 @@ function yprint_login_form_shortcode() {
                 height: 48px;
                 font-size: 15px;
             }
+            
+            #email-hint {
+                max-width: 500px;
+                margin: 12px auto 0 auto;
+            }
         }
 
         /* Kleine Mobile Geräte */
@@ -361,15 +357,20 @@ function yprint_login_form_shortcode() {
                 width: 40px;
                 height: 40px;
             }
-            
+
             .yprint-login-title {
                 font-size: 22px;
             }
-            
+
             .yprint-login-subtitle {
                 font-size: 14px;
             }
-            
+
+            .yprint-register-button {
+                height: 44px;
+                font-size: 14px;
+            }
+
             #loginform input[type="text"],
             #loginform input[type="password"],
             #loginform input[type="email"],
@@ -377,61 +378,7 @@ function yprint_login_form_shortcode() {
                 height: 48px !important;
                 font-size: 16px !important;
             }
-            
-            .yprint-register-button {
-                height: 44px;
-                font-size: 14px;
-            }
-        }
-            .yprint-login-container {
-                padding: 0 !important;
-                min-height: 100vh !important;
-                background: #ffffff !important;
-                width: 100% !important;
-                box-sizing: border-box !important;
-            }
-            
-            .yprint-login-card {
-                padding: 40px 24px !important;
-                border-radius: 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                min-height: 100vh !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                max-width: none !important;
-                width: 100% !important;
-                margin: 0 !important;
-                box-sizing: border-box !important;
-            }
-            
-            .yprint-logo img {
-                width: 40px;
-                height: 40px;
-            }
-            
-            .yprint-login-title {
-                font-size: 22px;
-            }
-            
-            .yprint-login-subtitle {
-                font-size: 14px;
-            }
-            
-            .yprint-register-button {
-                height: 44px;
-                font-size: 14px;
-            }
-            
-            #loginform input[type="text"],
-            #loginform input[type="password"],
-            #loginform input[type="email"],
-            #loginform input[type="submit"] {
-                height: 48px !important;
-                font-size: 16px !important;
-            }
-            
+
             #email-hint {
                 font-size: 12px;
                 padding: 10px 14px;
@@ -442,15 +389,15 @@ function yprint_login_form_shortcode() {
 
         @media screen and (max-width: 320px) {
             .yprint-login-card {
-                padding: 20px !important;
+                padding: 20px;
             }
-            
+
             .yprint-register-button {
                 height: 40px;
                 font-size: 13px;
                 padding: 10px 20px;
             }
-            
+
             #loginform input[type="text"],
             #loginform input[type="password"],
             #loginform input[type="email"],
