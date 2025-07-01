@@ -836,7 +836,7 @@ function yprint_registration_form_mobile() {
             </form>
 
             <div class="yprint-mobile-login-section">
-                <p class="yprint-mobile-login-text">Bereits ein Konto?</p>
+                <p class="yprint-mobile-login-text">Du hast bereits ein Konto?</p>
                 <a href="https://yprint.de/login/" class="yprint-mobile-login-button">
                     Jetzt anmelden
                 </a>
