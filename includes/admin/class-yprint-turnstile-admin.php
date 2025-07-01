@@ -389,7 +389,4 @@ class YPrint_Turnstile_Admin {
     }
 }
 
-// Admin initialisieren (nur im Admin-Bereich)
-if (is_admin()) {
-    YPrint_Turnstile_Admin::get_instance();
-}
+// Initialisierung erfolgt jetzt zentral über yprint-plugin.php mit plugins_loaded Hook

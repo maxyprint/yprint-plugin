@@ -84,6 +84,13 @@ require_once plugin_dir_path(__FILE__) . 'includes/design-share-page.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-turnstile.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-turnstile-admin.php';
 
+// Initialize Turnstile Admin (parallel zur Stripe Admin)
+add_action('plugins_loaded', function() {
+    if (is_admin()) {
+        YPrint_Turnstile_Admin::get_instance();
+    }
+});
+
 // Flush rewrite rules on plugin activation
 register_activation_hook(__FILE__, function() {
     YPrint_Design_Share_Page::add_rewrite_rules();
