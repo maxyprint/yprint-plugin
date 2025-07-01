@@ -100,7 +100,8 @@ class YPrint_Turnstile_Admin {
      * Admin-Scripts laden
      */
     public function enqueue_admin_scripts($hook) {
-        if ($hook !== 'yprint_page_yprint-turnstile') {
+        // Der korrekte Hook für ein Untermenü von 'yprint-plugin'
+        if ($hook !== 'yprint-plugin_page_yprint-turnstile') {
             return;
         }
         
