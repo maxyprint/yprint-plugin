@@ -364,16 +364,18 @@ class YPrint_Turnstile {
         ?>
         <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Prüfe ob bereits Turnstile-Widgets vorhanden sind
-            if (document.querySelector('.cf-turnstile')) {
-                console.log('🛡️ Turnstile: Widgets bereits vorhanden, überspringe Auto-Injection');
-                return;
-            }
+    // Mehrfach-Ausführung verhindern
+    if (document.body.hasAttribute('data-turnstile-injection-done')) {
+        console.log('🛡️ Turnstile: Auto-Injection bereits ausgeführt, überspringe');
+        return;
+    }
+    document.body.setAttribute('data-turnstile-injection-done', 'true');
             
             <?php if (in_array('login', $protected_pages)): ?>
             // Login-Formular Turnstile einfügen
-            const loginForm = document.getElementById('yprint-loginform');
-            if (loginForm && !loginForm.querySelector('.cf-turnstile')) {
+const loginForm = document.getElementById('yprint-loginform');
+if (loginForm && !loginForm.querySelector('.cf-turnstile') && !loginForm.hasAttribute('data-turnstile-injected')) {
+    loginForm.setAttribute('data-turnstile-injected', 'true');
                 const submitGroup = loginForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
                 if (submitGroup) {
                     const turnstileContainer = document.createElement('div');
@@ -391,8 +393,9 @@ class YPrint_Turnstile {
             
             <?php if (in_array('registration', $protected_pages)): ?>
             // Registration-Formular Turnstile einfügen
-            const regForm = document.getElementById('register-form');
-            if (regForm && !regForm.querySelector('.cf-turnstile')) {
+const regForm = document.getElementById('register-form');
+if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute('data-turnstile-injected')) {
+    regForm.setAttribute('data-turnstile-injected', 'true');
                 const submitGroup = regForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
                 if (submitGroup) {
                     const turnstileContainer = document.createElement('div');
@@ -416,5 +419,5 @@ class YPrint_Turnstile {
 // Singleton initialisieren
 $turnstile_instance = YPrint_Turnstile::get_instance();
 
-// Auto-Injection DEAKTIVIERT - verwende nur manuelle Integration
-// add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
+// Auto-Injection aktiviert
+add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
