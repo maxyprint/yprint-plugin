@@ -781,37 +781,6 @@ function yprint_registration_form_mobile() {
                 font-size: 14px;
             }
         }
-
-        /* Cloudflare Turnstile Mobile Registration Responsive */
-        .turnstile-widget-container {
-            text-align: center !important;
-            margin: 20px 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            overflow: hidden !important;
-            box-sizing: border-box !important;
-        }
-
-        .yprint-input-group.turnstile-widget-container {
-            display: flex !important;
-            justify-content: center !important;
-            align-items: center !important;
-            padding: 0 !important;
-            margin: 24px 0 !important;
-        }
-
-        .cf-turnstile,
-        .cf-turnstile-rendered {
-            margin: 0 auto !important;
-            max-width: 100% !important;
-            width: auto !important;
-            transform-origin: center !important;
-            transform: scale(0.8) !important;
-        }
-
-        .yprint-mobile-register-card {
-            overflow: visible !important;
-        }
     </style>
 
     <div class="yprint-mobile-register-container">
