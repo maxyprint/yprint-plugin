@@ -292,7 +292,7 @@ function yprint_login_form_shortcode() {
         }
 
         /* Desktop Standard */
-        @media screen and (min-width: 769px) {
+        @media screen and (min-width: 1025px) {
             .yprint-login-container {
                 min-height: auto;
             }
@@ -302,8 +302,87 @@ function yprint_login_form_shortcode() {
             }
         }
         
-        /* Mobile Responsive - Fullscreen */
-        @media screen and (max-width: 768px) {
+        /* Mobile + Tablet Responsive - Fullscreen */
+        @media screen and (max-width: 1024px) {
+            .yprint-login-container {
+                padding: 0 !important;
+                min-height: 100vh !important;
+                background: #ffffff !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            
+            .yprint-login-card {
+                padding: 40px 24px !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                min-height: 100vh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                max-width: none !important;
+                width: 100% !important;
+                margin: 0 !important;
+                box-sizing: border-box !important;
+            }
+            
+            /* Elemente begrenzen damit sie nicht zu groß werden */
+            .yprint-login-form,
+            .yprint-register-section {
+                max-width: 500px;
+                margin: 0 auto;
+                width: 100%;
+            }
+            
+            #loginform input[type="text"],
+            #loginform input[type="password"],
+            #loginform input[type="email"],
+            #loginform input[type="submit"] {
+                max-width: 500px;
+                height: 52px !important;
+                font-size: 16px !important;
+            }
+            
+            .yprint-register-button {
+                max-width: 500px;
+                height: 48px;
+                font-size: 15px;
+            }
+        }
+
+        /* Kleine Mobile Geräte */
+        @media screen and (max-width: 480px) {
+            .yprint-login-card {
+                padding: 20px !important;
+            }
+            
+            .yprint-logo img {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .yprint-login-title {
+                font-size: 22px;
+            }
+            
+            .yprint-login-subtitle {
+                font-size: 14px;
+            }
+            
+            #loginform input[type="text"],
+            #loginform input[type="password"],
+            #loginform input[type="email"],
+            #loginform input[type="submit"] {
+                height: 48px !important;
+                font-size: 16px !important;
+            }
+            
+            .yprint-register-button {
+                height: 44px;
+                font-size: 14px;
+            }
+        }
             .yprint-login-container {
                 padding: 0 !important;
                 min-height: 100vh !important;
