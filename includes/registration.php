@@ -17,6 +17,89 @@ function yprint_custom_registration_form() {
     ob_start();
     ?>
     <style>
+/* Cloudflare Turnstile Responsive Styling für Registration */
+.turnstile-widget-container {
+            text-align: center !important;
+            margin: 20px 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+        }
+
+        .yprint-input-group.turnstile-widget-container {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            padding: 0 !important;
+            margin: 24px 0 !important;
+        }
+
+        .cf-turnstile,
+        .cf-turnstile-rendered {
+            margin: 0 auto !important;
+            max-width: 100% !important;
+            width: auto !important;
+            transform-origin: center !important;
+        }
+
+        #register-form .turnstile-widget-container,
+        #register-form-mobile .turnstile-widget-container {
+            max-width: 100% !important;
+            margin: 24px auto !important;
+        }
+
+        #register-form .cf-turnstile,
+        #register-form .cf-turnstile-rendered,
+        #register-form-mobile .cf-turnstile,
+        #register-form-mobile .cf-turnstile-rendered {
+            margin: 0 auto !important;
+        }
+
+        .cf-turnstile iframe,
+        .cf-turnstile-rendered iframe {
+            max-width: 100% !important;
+            height: auto !important;
+        }
+
+        .yprint-register-card,
+        .yprint-mobile-register-card {
+            overflow: visible !important;
+        }
+
+        @media screen and (max-width: 500px) {
+            .turnstile-widget-container {
+                margin: 16px 0 !important;
+                padding: 0 10px !important;
+            }
+            
+            .cf-turnstile,
+            .cf-turnstile-rendered {
+                transform: scale(0.85) !important;
+                transform-origin: center center !important;
+                max-width: 90% !important;
+            }
+        }
+
+        @media screen and (max-width: 400px) {
+            .cf-turnstile,
+            .cf-turnstile-rendered {
+                transform: scale(0.75) !important;
+            }
+            
+            .turnstile-widget-container {
+                padding: 0 5px !important;
+            }
+        }
+
+        @media screen and (max-width: 320px) {
+            .cf-turnstile,
+            .cf-turnstile-rendered {
+                transform: scale(0.65) !important;
+            }
+        }
+    
+
         /* Moderner Register Container - identisch mit Login */
         .yprint-register-container {
             display: flex;
