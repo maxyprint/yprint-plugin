@@ -926,7 +926,6 @@ function yprint_login_feedback_shortcode() {
     echo '<div id="yprint-toast-container" class="yprint-toast-container"></div>';
 
     // JavaScript für Toast-System
-    // JavaScript für Toast-System
     ?>
     <script type="text/javascript">
         window.YPrintToast = {
@@ -1083,19 +1082,6 @@ function yprint_login_feedback_shortcode() {
         }, 1000);
     </script>
     <?php
-
-    echo '
-            }
-        };
-
-        // Toast-System initialisieren
-        if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", () => YPrintToast.init());
-        } else {
-            YPrintToast.init();
-        }
-            
-    </script>';
 
     return ob_get_clean();
 }
