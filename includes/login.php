@@ -291,17 +291,37 @@ function yprint_login_form_shortcode() {
             color: #3b82f6;
         }
         
-        /* Mobile Responsive */
-        @media screen and (max-width: 480px) {
+
+        /* Desktop Standard */
+        @media screen and (min-width: 769px) {
             .yprint-login-container {
-                padding: 16px;
-                min-height: 100vh;
+                min-height: auto;
             }
             
             .yprint-login-card {
-                padding: 24px;
-                border-radius: 16px;
-                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+                max-width: 420px;
+            }
+        }
+        
+        /* Mobile Responsive - Fullscreen */
+        @media screen and (max-width: 768px) {
+            .yprint-login-container {
+                padding: 0;
+                min-height: 100vh;
+                background: #ffffff;
+            }
+            
+            .yprint-login-card {
+                padding: 40px 24px;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                max-width: none;
+                width: 100%;
             }
             
             .yprint-login-title {

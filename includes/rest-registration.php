@@ -672,15 +672,25 @@ function yprint_registration_form_mobile() {
             border-radius: 6px;
         }
 
-        /* Mobile Responsive */
-        @media screen and (max-width: 480px) {
+        /* Mobile Responsive - Fullscreen */
+        @media screen and (max-width: 768px) {
             .yprint-mobile-register-container {
-                padding: 20px 16px;
+                padding: 0;
+                min-height: 100vh;
+                background: #ffffff;
             }
 
             .yprint-mobile-register-card {
-                padding: 24px;
-                border-radius: 16px;
+                padding: 40px 24px;
+                border-radius: 0;
+                box-shadow: none;
+                border: none;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                max-width: none;
+                width: 100%;
             }
 
             .yprint-mobile-logo img {
@@ -699,6 +709,18 @@ function yprint_registration_form_mobile() {
                 height: 48px !important;
                 font-size: 16px !important;
             }
+        }
+
+/* Desktop Standard */
+@media screen and (min-width: 769px) {
+            .yprint-mobile-register-container {
+                min-height: auto;
+            }
+            
+            .yprint-mobile-register-card {
+                max-width: 420px;
+            }
+        
         }
     </style>
 
