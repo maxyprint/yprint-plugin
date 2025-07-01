@@ -409,8 +409,57 @@ function yprint_help_shortcode() {
         }
         
         .help-shortcode .help-card-content.open {
-            max-height: 500px;
-            overflow: visible;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        
+        /* Responsives Scrolling */
+        @media (min-width: 768px) {
+            .help-shortcode .help-card-content.open {
+                max-height: 500px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .help-shortcode .help-card-content.open {
+                max-height: 300px;
+            }
+        }
+
+        /* Scrollbar Styling für bessere UX */
+        .help-shortcode .help-card-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .help-shortcode .help-card-content::-webkit-scrollbar-track {
+            background: #f6f7fa;
+            border-radius: 3px;
+        }
+        
+        .help-shortcode .help-card-content::-webkit-scrollbar-thumb {
+            background: #c7c7cc;
+            border-radius: 3px;
+        }
+        
+        .help-shortcode .help-card-content::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+        
+        /* Firefox Scrollbar */
+        .help-shortcode .help-card-content {
+            scrollbar-width: thin;
+            scrollbar-color: #c7c7cc #f6f7fa;
+        }
+        
+        /* Smooth scroll behavior */
+        .help-shortcode .help-card-content {
+            scroll-behavior: smooth;
+        }
+        
+        /* Padding adjustment for scrollable content */
+        .help-shortcode .help-card-content.open .help-card-inner {
+            padding-right: 16px;
         }
         
         .help-shortcode .help-card-inner {
