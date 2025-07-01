@@ -403,74 +403,373 @@ add_shortcode('verify_email', 'verify_email_shortcode');
  * Mobile registration form shortcode
  */
 function yprint_registration_form_mobile() {
-    return '<form id="register-form-mobile" method="post" style="display: flex; flex-direction: column; align-items: center; background-color: #fff; border-radius: 25px; padding: 20px; width: 300px; box-sizing: border-box; border: 1px solid #000; position: relative;">
-        <div style="display: flex; flex-direction: column; align-items: center; font-family: \'Roboto\', sans-serif; font-weight: bold; margin-bottom: 16px;">
-            <!-- Username Feld -->
-            <label style="font-size: 14px; margin-bottom: 4px; color: #000; text-align: center;">Username</label>
-            <div style="width: 240px; height: 36px; display: flex; align-items: center; border: 1px solid #000; border-radius: 18px; padding: 0 12px; background-color: #f9f9f9; box-sizing: border-box;">
-                <input type="text" name="username" id="user_login_mobile" placeholder="Enter your username" style="flex-grow: 1; text-align: center; border: none; outline: none; font-family: inherit; font-size: 14px; background: none; height: 100%; margin: 0;" required>
+    ob_start();
+    ?>
+    <style>
+        /* Moderner Mobile Register Container - identisch mit Login Design */
+        .yprint-mobile-register-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            padding: 40px 20px;
+            box-sizing: border-box;
+        }
+
+        .yprint-mobile-register-card {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+        }
+
+        .yprint-mobile-register-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .yprint-mobile-logo {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .yprint-mobile-logo img {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+        }
+
+        .yprint-mobile-register-title {
+            font-size: 26px;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 8px 0;
+        }
+
+        .yprint-mobile-register-subtitle {
+            font-size: 15px;
+            color: #6b7280;
+            margin: 0;
+        }
+
+        /* Login Button Section */
+        .yprint-mobile-login-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .yprint-mobile-login-text {
+            font-size: 14px;
+            color: #6b7280;
+            margin: 0 0 16px 0;
+        }
+
+        .yprint-mobile-login-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 48px;
+            padding: 12px 24px;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 500;
+            color: #3b82f6 !important;
+            background-color: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        .yprint-mobile-login-button:hover {
+            background-color: #f1f5f9;
+            border-color: #3b82f6;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+            color: #2563eb !important;
+            text-decoration: none;
+        }
+
+        /* Input Field Container */
+        .yprint-mobile-input-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        /* Eingabefelder - moderne Styles */
+        #register-form-mobile input[type="text"],
+        #register-form-mobile input[type="email"],
+        #register-form-mobile input[type="password"] {
+            width: 100% !important;
+            height: 52px !important;
+            padding: 16px 20px !important;
+            font-family: inherit !important;
+            font-size: 16px !important;
+            font-weight: 400 !important;
+            line-height: 1.5 !important;
+            color: #111827 !important;
+            background-color: #f3f4f6 !important;
+            border: 2px solid #e5e7eb !important;
+            border-radius: 12px !important;
+            outline: none !important;
+            transition: all 0.3s ease !important;
+            text-align: left !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        #register-form-mobile input[type="text"]:focus,
+        #register-form-mobile input[type="email"]:focus,
+        #register-form-mobile input[type="password"]:focus {
+            background-color: #ffffff !important;
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        /* Platzhaltertext */
+        #register-form-mobile input::placeholder {
+            color: #9ca3af !important;
+            font-weight: 400 !important;
+        }
+
+        /* Submit-Button */
+        #register-form-mobile button[type="submit"] {
+            width: 100% !important;
+            height: 52px !important;
+            padding: 16px 24px !important;
+            font-family: inherit !important;
+            font-size: 16px !important;
+            font-weight: 600 !important;
+            color: #ffffff !important;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+            border: none !important;
+            border-radius: 12px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            margin-top: 8px !important;
+            margin-bottom: 0 !important;
+            text-transform: none !important;
+            line-height: 1.5 !important;
+        }
+
+        #register-form-mobile button[type="submit"]:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+            transform: translateY(-1px) !important;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
+        }
+
+        /* Password Container für Eye-Toggle */
+        .yprint-mobile-password-container {
+            position: relative;
+            width: 100%;
+        }
+
+        /* Augen-Icon für Passwort-Toggle */
+        .yprint-mobile-eye-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            z-index: 10;
+            border-radius: 4px;
+            transition: background-color 0.2s ease;
+        }
+
+        .yprint-mobile-eye-toggle:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .yprint-mobile-eye-toggle i {
+            font-size: 18px;
+            color: #6b7280;
+            transition: color 0.2s ease;
+        }
+
+        .yprint-mobile-eye-toggle:hover i {
+            color: #3b82f6;
+        }
+
+        /* Password Requirements */
+        #password-requirements {
+            margin-top: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #92400e;
+        }
+
+        #password-requirements ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        #password-requirements li {
+            margin: 4px 0;
+            transition: all 0.2s ease;
+        }
+
+        #password-requirements li.valid {
+            color: #065f46 !important;
+            text-decoration: line-through;
+        }
+
+        /* Datenschutz Checkbox */
+        .yprint-mobile-checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .yprint-mobile-checkbox-group input[type="checkbox"] {
+            margin-right: 12px;
+            margin-top: 2px;
+            width: 18px;
+            height: 18px;
+            accent-color: #3b82f6;
+        }
+
+        .yprint-mobile-checkbox-group a {
+            color: #3b82f6;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .yprint-mobile-checkbox-group a:hover {
+            text-decoration: underline;
+        }
+
+        /* Error Messages */
+        .yprint-mobile-error {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 8px;
+            display: none;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border: 1px solid #ef4444;
+            border-radius: 6px;
+        }
+
+        /* Mobile Responsive */
+        @media screen and (max-width: 480px) {
+            .yprint-mobile-register-container {
+                padding: 20px 16px;
+            }
+
+            .yprint-mobile-register-card {
+                padding: 24px;
+                border-radius: 16px;
+            }
+
+            .yprint-mobile-logo img {
+                width: 40px;
+                height: 40px;
+            }
+
+            .yprint-mobile-register-title {
+                font-size: 22px;
+            }
+
+            #register-form-mobile input[type="text"],
+            #register-form-mobile input[type="email"],
+            #register-form-mobile input[type="password"],
+            #register-form-mobile button[type="submit"] {
+                height: 48px !important;
+                font-size: 16px !important;
+            }
+        }
+    </style>
+
+    <div class="yprint-mobile-register-container">
+        <div class="yprint-mobile-register-card">
+            <div class="yprint-mobile-register-header">
+                <div class="yprint-mobile-logo">
+                    <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="YPrint Logo" />
+                </div>
+                <h1 class="yprint-mobile-register-title">Konto erstellen</h1>
+                <p class="yprint-mobile-register-subtitle">Registriere dich bei YPrint</p>
+            </div>
+
+            <form id="register-form-mobile" method="post">
+                <div class="yprint-mobile-input-group">
+                    <input type="text" name="username" id="user_login_mobile" placeholder="Benutzername" required>
+                </div>
+
+                <div class="yprint-mobile-input-group">
+                    <input type="email" name="email" id="user_email_mobile" placeholder="E-Mail-Adresse" required>
+                </div>
+
+                <div class="yprint-mobile-input-group yprint-mobile-password-container">
+                    <input type="password" name="password" id="user_password_mobile" placeholder="Passwort" required>
+                    <span id="password-toggle-mobile" class="yprint-mobile-eye-toggle">
+                        <i class="eicon-eye"></i>
+                    </span>
+                    <!-- Passwortanforderungen -->
+                    <div id="password-requirements">
+                        <ul>
+                            <li id="length">Mindestens 8 Zeichen</li>
+                            <li id="uppercase">Mindestens ein Großbuchstabe</li>
+                            <li id="number">Mindestens eine Zahl</li>
+                            <li id="special">Mindestens ein Sonderzeichen</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="yprint-mobile-input-group yprint-mobile-password-container">
+                    <input type="password" name="password_confirm" id="user_password_confirm_mobile" placeholder="Passwort wiederholen" required>
+                    <span id="confirm-password-toggle-mobile" class="yprint-mobile-eye-toggle">
+                        <i class="eicon-eye"></i>
+                    </span>
+                </div>
+
+                <!-- Datenschutz-Checkbox -->
+                <div class="yprint-mobile-checkbox-group">
+                    <input type="checkbox" id="datenschutz_akzeptiert" name="datenschutz_akzeptiert" required>
+                    <label for="datenschutz_akzeptiert">
+                        Ich habe die <a href="https://yprint.de/datenschutz/" target="_blank">Datenschutzerklärung</a> gelesen und akzeptiere diese.
+                    </label>
+                </div>
+
+                <!-- Fehlermeldung für Datenschutz -->
+                <div id="datenschutz-error" class="yprint-mobile-error">
+                    Bitte akzeptiere die Datenschutzerklärung, um fortzufahren.
+                </div>
+
+                <div class="yprint-mobile-input-group">
+                    <button type="submit" id="register-button-mobile">Registrieren</button>
+                </div>
+            </form>
+
+            <div class="yprint-mobile-login-section">
+                <p class="yprint-mobile-login-text">Bereits ein Konto?</p>
+                <a href="https://yprint.de/login/" class="yprint-mobile-login-button">
+                    Jetzt anmelden
+                </a>
             </div>
         </div>
-
-        <div style="display: flex; flex-direction: column; align-items: center; font-family: \'Roboto\', sans-serif; font-weight: bold; margin-bottom: 16px;">
-            <!-- Email Feld -->
-            <label style="font-size: 14px; margin-bottom: 4px; color: #000; text-align: center;">Email</label>
-            <div style="width: 240px; height: 36px; display: flex; align-items: center; border: 1px solid #000; border-radius: 18px; padding: 0 12px; background-color: #f9f9f9; box-sizing: border-box;">
-                <input type="email" name="email" id="user_email_mobile" placeholder="Enter your email" style="flex-grow: 1; text-align: center; border: none; outline: none; font-family: inherit; font-size: 14px; background: none; height: 100%; margin: 0;" required>
-            </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; align-items: center; font-family: \'Roboto\', sans-serif; font-weight: bold; margin-bottom: 16px;">
-            <!-- Password Feld -->
-            <label style="font-size: 14px; margin-bottom: 4px; color: #000; text-align: center;">Password</label>
-            <div style="width: 240px; height: 36px; display: flex; align-items: center; border: 1px solid #000; border-radius: 18px; padding: 0 12px; background-color: #f9f9f9; box-sizing: border-box;">
-                <input type="password" name="password" id="user_password_mobile" placeholder="Enter your password" style="flex-grow: 1; text-align: center; border: none; outline: none; font-family: inherit; font-size: 14px; background: none; height: 100%; margin: 0;" required>
-                <span id="password-toggle-mobile" style="cursor: pointer; padding-left: 5px;">
-                    <i class="eicon-eye" style="font-size: 16px; color: #666;"></i>
-                </span>
-            </div>
-            <!-- Passwortanforderungen -->
-            <div id="password-requirements" style="margin-top: 8px; font-size: 12px; color: red;">
-                <ul>
-                    <li id="length" style="color: red;">Mindestens 8 Zeichen</li>
-                    <li id="uppercase" style="color: red;">Mindestens ein Großbuchstabe</li>
-                    <li id="number" style="color: red;">Mindestens eine Zahl</li>
-                    <li id="special" style="color: red;">Mindestens ein Sonderzeichen</li>
-                </ul>
-            </div>
-        </div>
-
-        <div style="display: flex; flex-direction: column; align-items: center; font-family: \'Roboto\', sans-serif; font-weight: bold; margin-bottom: 16px;">
-            <!-- Repeat Password Feld -->
-            <label style="font-size: 14px; margin-bottom: 4px; color: #000; text-align: center;">Repeat Password</label>
-            <div style="width: 240px; height: 36px; display: flex; align-items: center; border: 1px solid #000; border-radius: 18px; padding: 0 12px; background-color: #f9f9f9; box-sizing: border-box;">
-                <input type="password" name="password_confirm" id="user_password_confirm_mobile" placeholder="Repeat your password" style="flex-grow: 1; text-align: center; border: none; outline: none; font-family: inherit; font-size: 14px; background: none; height: 100%; margin: 0;" required>
-                <span id="confirm-password-toggle-mobile" style="cursor: pointer; padding-left: 5px;">
-                    <i class="eicon-eye" style="font-size: 16px; color: #666;"></i>
-                </span>
-            </div>
-        </div>
-
-        <!-- Datenschutz-Checkbox -->
-        <div style="display: flex; margin-bottom: 25px; width: 240px; font-family: \'Roboto\', sans-serif; font-size: 13px; align-items: flex-start;">
-            <input type="checkbox" id="datenschutz_akzeptiert" name="datenschutz_akzeptiert" style="margin-right: 10px; margin-top: 4px;" required>
-            <label for="datenschutz_akzeptiert" style="font-weight: normal;">
-                Ich habe die <a href="https://yprint.de/datenschutz/" target="_blank" style="color: #0079FF; font-weight: bold; text-decoration: none;">Datenschutzerklärung</a> gelesen und akzeptiere diese.
-            </label>
-        </div>
-
-        <!-- Fehlermeldung für Datenschutz -->
-        <div id="datenschutz-error" style="color: red; font-size: 12px; margin-bottom: 10px; display: none; font-family: \'Roboto\', sans-serif;">
-            Bitte akzeptiere die Datenschutzerklärung, um fortzufahren.
-        </div>
-
-        <!-- Der Submit-Button wird innerhalb des Formulars, aber visuell außerhalb des Containers positioniert -->
-        <div style="position: absolute; bottom: -75px; width: 100%; display: flex; justify-content: center;">
-            <button type="submit" id="register-button-mobile" style="width: 155px; height: 35px; font-family: \'Roboto\', sans-serif; font-size: 20px; font-weight: bold; color: #FFFFFF; background-color: #0079FF; border: 1px solid #707070; border-radius: 0; cursor: pointer; text-transform: lowercase; line-height: 1px;">
-                Register
-            </button>
-        </div>
-    </form>
+    </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -485,32 +784,33 @@ function yprint_registration_form_mobile() {
                 };
 
                 // Überprüfe jede Anforderung
+                var lengthEl = document.getElementById("length");
+                var uppercaseEl = document.getElementById("uppercase");
+                var numberEl = document.getElementById("number");
+                var specialEl = document.getElementById("special");
+
                 if (requirements.length) {
-                    document.getElementById("length").style.display = "none";
+                    lengthEl.classList.add("valid");
                 } else {
-                    document.getElementById("length").style.display = "block";
-                    document.getElementById("length").style.color = "red";
+                    lengthEl.classList.remove("valid");
                 }
 
                 if (requirements.uppercase) {
-                    document.getElementById("uppercase").style.display = "none";
+                    uppercaseEl.classList.add("valid");
                 } else {
-                    document.getElementById("uppercase").style.display = "block";
-                    document.getElementById("uppercase").style.color = "red";
+                    uppercaseEl.classList.remove("valid");
                 }
 
                 if (requirements.number) {
-                    document.getElementById("number").style.display = "none";
+                    numberEl.classList.add("valid");
                 } else {
-                    document.getElementById("number").style.display = "block";
-                    document.getElementById("number").style.color = "red";
+                    numberEl.classList.remove("valid");
                 }
 
                 if (requirements.special) {
-                    document.getElementById("special").style.display = "none";
+                    specialEl.classList.add("valid");
                 } else {
-                    document.getElementById("special").style.display = "block";
-                    document.getElementById("special").style.color = "red";
+                    specialEl.classList.remove("valid");
                 }
             });
 
@@ -526,32 +826,42 @@ function yprint_registration_form_mobile() {
                 } else {
                     datenschutzError.style.display = "none";
                 }
-                
-                // Hier kannst du weitere Validierungen hinzufügen wenn nötig
             });
             
-            // Vereinfachte und robustere Password Toggle Funktionalität
+            // Password Toggle Funktionalität
             document.getElementById("password-toggle-mobile").onclick = function() {
                 var field = document.getElementById("user_password_mobile");
+                var icon = this.querySelector('i');
                 
-                // Toggle zwischen Passwort und Text
-                field.type = (field.type === "password") ? "text" : "password";
+                if (field.type === "password") {
+                    field.type = "text";
+                    icon.style.color = '#3b82f6';
+                } else {
+                    field.type = "password";
+                    icon.style.color = '#6b7280';
+                }
                 
-                // Verhindern, dass andere Event-Handler ausgelöst werden
                 return false;
             };
             
             document.getElementById("confirm-password-toggle-mobile").onclick = function() {
                 var field = document.getElementById("user_password_confirm_mobile");
+                var icon = this.querySelector('i');
                 
-                // Toggle zwischen Passwort und Text
-                field.type = (field.type === "password") ? "text" : "password";
+                if (field.type === "password") {
+                    field.type = "text";
+                    icon.style.color = '#3b82f6';
+                } else {
+                    field.type = "password";
+                    icon.style.color = '#6b7280';
+                }
                 
-                // Verhindern, dass andere Event-Handler ausgelöst werden
                 return false;
             };
         });
-    </script>';
+    </script>
+    <?php
+    return ob_get_clean();
 }
 add_shortcode('yprint_registration_form_mobile', 'yprint_registration_form_mobile');
 
