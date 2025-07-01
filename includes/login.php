@@ -926,7 +926,9 @@ function yprint_login_feedback_shortcode() {
     echo '<div id="yprint-toast-container" class="yprint-toast-container"></div>';
 
     // JavaScript für Toast-System
-    echo '<script>
+    // JavaScript für Toast-System
+    ?>
+    <script type="text/javascript">
         window.YPrintToast = {
             container: null,
             toastCounter: 0,
@@ -939,71 +941,74 @@ function yprint_login_feedback_shortcode() {
                 this.showQueuedNotifications();
             },
 
-            show: function(type, title, message, duration = 5000, actions = []) {
+            show: function(type, title, message, duration, actions) {
                 if (!this.container) return;
+                duration = duration || 5000;
+                actions = actions || [];
 
-                const toastId = "toast-" + (++this.toastCounter);
-                const iconMap = {
+                var toastId = "toast-" + (++this.toastCounter);
+                var iconMap = {
                     error: "⚠️",
                     success: "✅", 
                     warning: "⚠️",
                     info: "ℹ️"
                 };
 
-                let actionsHtml = "";
+                var actionsHtml = "";
                 if (actions.length > 0) {
-                    actionsHtml = "<div class=\"yprint-toast-actions\">";
-                    actions.forEach(action => {
+                    actionsHtml = '<div class="yprint-toast-actions">';
+                    for (var i = 0; i < actions.length; i++) {
+                        var action = actions[i];
                         if (action.type === "link") {
-                            actionsHtml += `<a href="${action.url}" class="yprint-toast-action ${action.primary ? "primary" : ""}">${action.label}</a>`;
+                            actionsHtml += '<a href="' + action.url + '" class="yprint-toast-action ' + (action.primary ? "primary" : "") + '">' + action.label + '</a>';
                         } else if (action.type === "form") {
-                            actionsHtml += `<form method="post" action="${action.action}" style="display: inline;">${action.fields}<button type="submit" class="yprint-toast-action ${action.primary ? "primary" : ""}">${action.label}</button></form>`;
+                            actionsHtml += '<form method="post" action="' + action.action + '" style="display: inline;">' + action.fields + '<button type="submit" class="yprint-toast-action ' + (action.primary ? "primary" : "") + '">' + action.label + '</button></form>';
                         }
-                    });
-                    actionsHtml += "</div>";
+                    }
+                    actionsHtml += '</div>';
                 }
 
-                const toastHtml = `
-    <div id="${toastId}" class="yprint-toast ${type}">
-        <div class="yprint-toast-icon">${iconMap[type] || "ℹ️"}</div>
-        <div class="yprint-toast-content">
-            <div class="yprint-toast-title">${title}</div>
-            <div class="yprint-toast-message">${message}</div>
-            ${actionsHtml}
-        </div>
-        <button class="yprint-toast-close" onclick="YPrintToast.close(\'${toastId}\')">&times;</button>
-        ${duration > 0 ? `<div class="yprint-toast-progress" style="width: 100%"></div>` : ""}
-    </div>
-`;
+                var progressHtml = duration > 0 ? '<div class="yprint-toast-progress" style="width: 100%"></div>' : "";
+                
+                var toastHtml = '<div id="' + toastId + '" class="yprint-toast ' + type + '">' +
+                    '<div class="yprint-toast-icon">' + (iconMap[type] || "ℹ️") + '</div>' +
+                    '<div class="yprint-toast-content">' +
+                        '<div class="yprint-toast-title">' + title + '</div>' +
+                        '<div class="yprint-toast-message">' + message + '</div>' +
+                        actionsHtml +
+                    '</div>' +
+                    '<button class="yprint-toast-close" onclick="YPrintToast.close(\'' + toastId + '\')">&times;</button>' +
+                    progressHtml +
+                '</div>';
 
                 this.container.insertAdjacentHTML("beforeend", toastHtml);
-                const toast = document.getElementById(toastId);
+                var toast = document.getElementById(toastId);
                 
                 // Animation starten
-                setTimeout(() => {
+                setTimeout(function() {
                     toast.classList.add("show");
                 }, 100);
 
                 // Auto-close mit Progress Bar
                 if (duration > 0) {
-                    const progressBar = toast.querySelector(".yprint-toast-progress");
+                    var progressBar = toast.querySelector(".yprint-toast-progress");
                     if (progressBar) {
                         progressBar.style.width = "0%";
                         progressBar.style.transitionDuration = duration + "ms";
                     }
                     
-                    setTimeout(() => {
-                        this.close(toastId);
+                    setTimeout(function() {
+                        YPrintToast.close(toastId);
                     }, duration);
                 }
             },
 
             close: function(toastId) {
-                const toast = document.getElementById(toastId);
+                var toast = document.getElementById(toastId);
                 if (toast) {
                     toast.style.transform = "translateX(100%)";
                     toast.style.opacity = "0";
-                    setTimeout(() => {
+                    setTimeout(function() {
                         if (toast.parentNode) {
                             toast.parentNode.removeChild(toast);
                         }
@@ -1011,39 +1016,39 @@ function yprint_login_feedback_shortcode() {
                 }
             },
 
-            showQueuedNotifications: function() {';
+            showQueuedNotifications: function() {
+                <?php
+                // JavaScript für die gesammelten Notifications
+                foreach ($notifications as $index => $notification) {
+                    $actions = array();
+                    
+                    // Actions basierend auf dem Notification-Typ hinzufügen
+                    if ($show_recover_option && $notification['type'] === 'error' && strpos($notification['message'], 'Falscher') !== false) {
+                        $actions[] = array(
+                            'type' => 'link',
+                            'url' => esc_url(home_url('/recover-account/')),
+                            'label' => '🔑 Konto wiederherstellen',
+                            'primary' => true
+                        );
+                    }
 
-    // JavaScript für die gesammelten Notifications
-    foreach ($notifications as $index => $notification) {
-        $actions = array();
-        
-        // Actions basierend auf dem Notification-Typ hinzufügen
-        if ($show_recover_option && $notification['type'] === 'error' && strpos($notification['message'], 'Falscher') !== false) {
-            $actions[] = array(
-                'type' => 'link',
-                'url' => esc_url(home_url('/recover-account/')),
-                'label' => '🔑 Konto wiederherstellen',
-                'primary' => true
-            );
-        }
+                    if ($show_resend_verification && $user_id && ($notification['type'] === 'warning' || $notification['type'] === 'success')) {
+                        $nonce_field = wp_nonce_field('resend_verification_nonce', 'security', true, false);
+                        $actions[] = array(
+                            'type' => 'form',
+                            'action' => esc_url(home_url('/login')),
+                            'fields' => addslashes($nonce_field) . '<input type="hidden" name="resend_verification" value="' . esc_attr($user_id) . '">',
+                            'label' => '✉️ E-Mail erneut senden',
+                            'primary' => false
+                        );
+                    }
 
-        if ($show_resend_verification && $user_id && ($notification['type'] === 'warning' || $notification['type'] === 'success')) {
-            $nonce_field = wp_nonce_field('resend_verification_nonce', 'security', true, false);
-            $actions[] = array(
-                'type' => 'form',
-                'action' => esc_url(home_url('/login')),
-                'fields' => $nonce_field . '<input type="hidden" name="resend_verification" value="' . esc_attr($user_id) . '">',
-                'label' => '✉️ E-Mail erneut senden',
-                'primary' => false
-            );
-        }
+                    $actions_json = json_encode($actions, JSON_HEX_QUOT | JSON_HEX_APOS);
+                    $delay = $index * 200; // Stagger die Notifications
 
-        $actions_json = json_encode($actions);
-        $delay = $index * 200; // Stagger die Notifications
-
-        echo "
-                setTimeout(() => {
-                    this.show(
+                    echo "
+                setTimeout(function() {
+                    YPrintToast.show(
                         '" . esc_js($notification['type']) . "',
                         '" . esc_js($notification['title']) . "',
                         '" . esc_js($notification['message']) . "',
@@ -1051,21 +1056,33 @@ function yprint_login_feedback_shortcode() {
                         " . $actions_json . "
                     );
                 }, $delay);";
-    }
+                }
+                ?>
+            }
+        };
 
-// Debug: Zeige alle URL-Parameter
-echo '<script>
-console.log("YPrint Login Debug:");
-console.log("URL Parameters:", new URLSearchParams(window.location.search));
-console.log("Current URL:", window.location.href);
-
-// Test-Toast für Debugging
-setTimeout(() => {
-    if (window.YPrintToast && new URLSearchParams(window.location.search).get("debug") === "1") {
-        window.YPrintToast.show("info", "Debug Toast", "Toast-System funktioniert!", 3000);
-    }
-}, 1000);
-</script>';
+        // Toast-System initialisieren
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", function() {
+                YPrintToast.init();
+            });
+        } else {
+            YPrintToast.init();
+        }
+        
+        // Debug: Zeige alle URL-Parameter
+        console.log("YPrint Login Debug:");
+        console.log("URL Parameters:", new URLSearchParams(window.location.search));
+        console.log("Current URL:", window.location.href);
+        
+        // Test-Toast für Debugging
+        setTimeout(function() {
+            if (window.YPrintToast && new URLSearchParams(window.location.search).get("debug") === "1") {
+                window.YPrintToast.show("info", "Debug Toast", "Toast-System funktioniert!", 3000);
+            }
+        }, 1000);
+    </script>
+    <?php
 
     echo '
             }
