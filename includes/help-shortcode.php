@@ -17,6 +17,16 @@ function yprint_help_shortcode() {
             $email = sanitize_email($_POST['contact_email'] ?? '');
             $message = sanitize_textarea_field($_POST['contact_message'] ?? '');
             
+            // Turnstile Bot-Schutz Validierung
+            $turnstile = YPrint_Turnstile::get_instance();
+            if ($turnstile->is_enabled() && in_array('contact_forms', $turnstile->get_protected_pages())) {
+                $turnstile_token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
+                $verification = $turnstile->verify_token($turnstile_token);
+                if (!$verification['success']) {
+                    $form_errors[] = $verification['error'] ?? 'Bot-Verifikation fehlgeschlagen';
+                }
+            }
+            
             // Validierung
             if (empty($name)) {
                 $form_errors[] = 'Name ist erforderlich';
@@ -766,6 +776,27 @@ function yprint_help_shortcode() {
         .help-shortcode .help-footer-links a:hover {
             color: #0079FF;
         }
+
+        /* Turnstile Integration */
+        .help-shortcode .turnstile-container {
+            display: flex;
+            justify-content: center;
+            margin: 16px 0;
+        }
+        
+        .help-shortcode .turnstile-error {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 8px;
+            text-align: center;
+        }
+        
+        @media (max-width: 480px) {
+            .help-shortcode .cf-turnstile {
+                transform: scale(0.85);
+                transform-origin: center;
+            }
+        }
     </style>
 
     <!-- Header -->
@@ -976,6 +1007,16 @@ function yprint_help_shortcode() {
                     <label for="contact_message" class="help-form-label">Nachricht</label>
                     <textarea id="contact_message" name="contact_message" class="help-form-textarea" placeholder="Beschreibe dein Problem oder deine Frage..." required><?php echo esc_textarea($_POST['contact_message'] ?? ''); ?></textarea>
                 </div>
+                
+                <?php
+                // Turnstile Widget einbinden wenn aktiviert
+                $turnstile = YPrint_Turnstile::get_instance();
+                if ($turnstile->is_enabled() && in_array('contact_forms', $turnstile->get_protected_pages())) {
+                    echo '<div class="help-form-group">';
+                    echo $turnstile->render_widget('help-contact-form', 'light');
+                    echo '</div>';
+                }
+                ?>
                 
                 <div class="help-form-actions">
                     <button type="button" class="help-btn help-btn--secondary" onclick="closeContactModal()">Abbrechen</button>
