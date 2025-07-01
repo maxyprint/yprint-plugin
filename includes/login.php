@@ -45,19 +45,33 @@ function yprint_login_form_shortcode() {
         }
 
         .yprint-login-card {
-            background: #ffffff;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e5e7eb;
-            padding: 40px;
-            width: 100%;
-            max-width: 420px;
-            position: relative;
+            background: #ffffff !important;
+            border-radius: 20px !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid #e5e7eb !important;
+            padding: 40px !important;
+            width: 100% !important;
+            max-width: 420px !important;
+            position: relative !important;
         }
 
         .yprint-login-header {
             text-align: center;
             margin-bottom: 32px;
+        }
+
+        /* Höhere Spezifität für Elementor-Override */
+        .elementor .yprint-login-card,
+        div.yprint-login-card,
+        .yprint-login-container .yprint-login-card {
+            background: #ffffff !important;
+            border-radius: 20px !important;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+            border: 1px solid #e5e7eb !important;
+            padding: 40px !important;
+            width: 100% !important;
+            max-width: 420px !important;
+            position: relative !important;
         }
 
         .yprint-logo {
@@ -293,30 +307,22 @@ function yprint_login_form_shortcode() {
             }
         }
         
-        /* Mobile + Tablet Responsive - Fullscreen */
-        @media screen and (max-width: 1024px) {
+                /* Desktop + Tablet Standard mit Rahmen */
+                @media screen and (min-width: 769px) {
             .yprint-login-container {
-                padding: 0 !important;
-                min-height: 100vh !important;
+                min-height: auto !important;
+            }
+            
+            .yprint-login-card,
+            .elementor .yprint-login-card,
+            div.yprint-login-card {
+                max-width: 420px !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+                border: 1px solid #e5e7eb !important;
                 background: #ffffff !important;
-                width: 100% !important;
-                box-sizing: border-box !important;
             }
-
-            .yprint-login-card {
-                padding: 40px 24px !important;
-                border-radius: 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                min-height: 100vh !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                max-width: none !important;
-                width: 100% !important;
-                margin: 0 !important;
-                box-sizing: border-box !important;
-            }
+        }
 
             /* Elemente begrenzen damit sie nicht zu groß werden */
             .yprint-login-form,
