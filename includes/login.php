@@ -325,22 +325,26 @@ function yprint_login_form_shortcode() {
         /* Mobile Responsive - Fullscreen */
         @media screen and (max-width: 768px) {
             .yprint-login-container {
-                padding: 0;
+                padding: 0 !important;
                 min-height: 100vh;
                 background: #ffffff;
+                width: 100% !important;
+                box-sizing: border-box;
             }
             
             .yprint-login-card {
-                padding: 40px 24px;
-                border-radius: 0;
-                box-shadow: none;
-                border: none;
+                padding: 40px 24px !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
                 min-height: 100vh;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                max-width: none;
-                width: 100%;
+                max-width: none !important;
+                width: 100% !important;
+                margin: 0 !important;
+                box-sizing: border-box;
             }
             
             .yprint-logo img {
