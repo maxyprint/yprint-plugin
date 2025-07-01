@@ -337,7 +337,84 @@ class YPrint_Turnstile {
         $result = $this->verify_token($token);
         return $result['success'];
     }
+    
+    /**
+     * Automatische Widget-Einbindung für geschützte Formulare
+     */
+    public function auto_inject_widgets() {
+        if (!$this->is_enabled()) {
+            return;
+        }
+        
+        // Generische Widget-Einbindung per JavaScript (Fallback)
+        add_action('wp_footer', array($this, 'inject_generic_widgets'));
+    }
+    
+    /**
+     * Generische Widget-Einbindung per JavaScript (Fallback)
+     */
+    public function inject_generic_widgets() {
+        if (!$this->should_load_turnstile()) {
+            return;
+        }
+        
+        $protected_pages = $this->get_protected_pages();
+        $site_key = $this->get_site_key();
+        
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Prüfe ob bereits Turnstile-Widgets vorhanden sind
+            if (document.querySelector('.cf-turnstile')) {
+                console.log('🛡️ Turnstile: Widgets bereits vorhanden, überspringe Auto-Injection');
+                return;
+            }
+            
+            <?php if (in_array('login', $protected_pages)): ?>
+            // Login-Formular Turnstile einfügen
+            const loginForm = document.getElementById('yprint-loginform');
+            if (loginForm && !loginForm.querySelector('.cf-turnstile')) {
+                const submitGroup = loginForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
+                if (submitGroup) {
+                    const turnstileContainer = document.createElement('div');
+                    turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
+                    turnstileContainer.style.cssText = 'text-align: center; margin: 20px 0;';
+                    turnstileContainer.innerHTML = `
+                        <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($site_key); ?>" data-theme="light"></div>
+                        <input type="hidden" name="cf-turnstile-response" value="" />
+                    `;
+                    submitGroup.parentNode.insertBefore(turnstileContainer, submitGroup);
+                    console.log('🛡️ Turnstile: Widget automatisch in Login-Formular eingefügt');
+                }
+            }
+            <?php endif; ?>
+            
+            <?php if (in_array('registration', $protected_pages)): ?>
+            // Registration-Formular Turnstile einfügen
+            const regForm = document.getElementById('register-form');
+            if (regForm && !regForm.querySelector('.cf-turnstile')) {
+                const submitGroup = regForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
+                if (submitGroup) {
+                    const turnstileContainer = document.createElement('div');
+                    turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
+                    turnstileContainer.style.cssText = 'text-align: center; margin: 20px 0;';
+                    turnstileContainer.innerHTML = `
+                        <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($site_key); ?>" data-theme="light"></div>
+                        <input type="hidden" name="cf-turnstile-response" value="" />
+                    `;
+                    submitGroup.parentNode.insertBefore(turnstileContainer, submitGroup);
+                    console.log('🛡️ Turnstile: Widget automatisch in Registration-Formular eingefügt');
+                }
+            }
+            <?php endif; ?>
+        });
+        </script>
+        <?php
+    }
 }
 
 // Singleton initialisieren
-YPrint_Turnstile::get_instance();
+$turnstile_instance = YPrint_Turnstile::get_instance();
+
+// Auto-Injection aktivieren
+add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
