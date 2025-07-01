@@ -33,8 +33,15 @@ function wc_rest_user_endpoint_handler($request) {
     $response = array();
     $parameters = $request->get_json_params();
     
-    // HMAC-basierte Validierung ist besser als Nonce für REST API
-    // Keine Änderung, da WP REST API eigene Sicherheitsmaßnahmen hat
+    // Turnstile Bot-Schutz Validierung für REST API
+    $turnstile = YPrint_Turnstile::get_instance();
+    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+        $token = $parameters['cf-turnstile-response'] ?? '';
+        $verification = $turnstile->verify_token($token);
+        if (!$verification['success']) {
+            return new WP_Error(403, 'Bot-Verifikation fehlgeschlagen. Bitte versuchen Sie es erneut.', array('status' => 403));
+        }
+    }
 
     // Eingabedaten validieren
     $username = sanitize_text_field($parameters['username']);
