@@ -486,29 +486,44 @@ function yprint_login_form_shortcode() {
 add_shortcode('yprint_login_form', 'yprint_login_form_shortcode');
 
 /**
- * Umfassende Login-Fehlerbehandlung
+ * Login-Verarbeitung auf Login-Seite
  */
-function yprint_handle_login_errors() {
-    // Nur bei POST-Requests von unserem Login-Formular
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['yprint_login']) || !isset($_POST['log']) || !isset($_POST['pwd'])) {
+function yprint_process_custom_login() {
+    // Nur auf Login-Seite ausführen
+    if (!is_page('login') && strpos($_SERVER['REQUEST_URI'], '/login') === false) {
         return;
     }
     
-    $username = sanitize_text_field($_POST['log']);
-    $password = $_POST['pwd'];
+    // Nur bei POST-Requests
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        return;
+    }
     
-    // Prüfe leere Felder
+    // Nur bei unserem Login-Formular
+    if (!isset($_POST['yprint_login']) || $_POST['yprint_login'] !== '1') {
+        return;
+    }
+    
+    // Debug-Log
+    error_log('YPrint Custom Login: Processing login attempt');
+    
+    $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
+    $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
+    $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
+    
+    // Leere Felder prüfen
     if (empty($username) || empty($password)) {
-        wp_redirect(home_url('/login/') . '?login=empty');
+        error_log('YPrint Custom Login: Empty fields detected');
+        wp_redirect(home_url('/login/?login=empty&timestamp=' . time()));
         exit;
     }
     
-    // Versuche Authentifizierung
+    // Benutzer authentifizieren
     $user = wp_authenticate($username, $password);
     
     if (is_wp_error($user)) {
-        // Login fehlgeschlagen
-        wp_redirect(home_url('/login/') . '?login=failed');
+        error_log('YPrint Custom Login: Authentication failed for user: ' . $username);
+        wp_redirect(home_url('/login/?login=failed&timestamp=' . time()));
         exit;
     }
     
@@ -522,73 +537,65 @@ function yprint_handle_login_errors() {
     );
     
     if ($email_verified !== null && $email_verified != 1) {
-        wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id));
+        error_log('YPrint Custom Login: Email not verified for user: ' . $username);
+        wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id . '&timestamp=' . time()));
         exit;
     }
     
     // Login erfolgreich - einloggen und weiterleiten
+    error_log('YPrint Custom Login: Login successful for user: ' . $username);
     wp_set_current_user($user_id, $username);
     wp_set_auth_cookie($user_id);
     do_action('wp_login', $username, $user);
     
-    $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
     wp_redirect($redirect_to);
     exit;
 }
-add_action('init', 'yprint_handle_login_errors', 1);
+add_action('template_redirect', 'yprint_process_custom_login', 1);
 
 /**
- * Backup: wp_login_failed Hook
+ * WordPress Standard-Login abfangen und umleiten
  */
-function yprint_login_failed_redirect($username) {
-    // Nur weiterleiten wenn wir von unserem Login kommen
-    if (isset($_POST['log'])) {
-        wp_redirect(home_url('/login/') . '?login=failed');
+function yprint_intercept_wp_login() {
+    // Nur bei POST-Requests auf wp-login.php
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['log']) && isset($_POST['pwd']) && !isset($_POST['yprint_login'])) {
+        // Wenn es nicht unser Custom-Login ist, zur Custom-Login-Seite umleiten
+        if (strpos($_SERVER['REQUEST_URI'], 'wp-login.php') !== false || strpos($_SERVER['REQUEST_URI'], 'wp-admin') !== false) {
+            $username = sanitize_text_field($_POST['log']);
+            $password = $_POST['pwd'];
+            
+            // Prüfe Credentials
+            $user = wp_authenticate($username, $password);
+            
+            if (is_wp_error($user)) {
+                wp_redirect(home_url('/login/?login=failed&timestamp=' . time()));
+                exit;
+            }
+        }
+    }
+}
+add_action('init', 'yprint_intercept_wp_login', 1);
+
+/**
+ * Backup: wp_login_failed Hook für alle anderen Login-Versuche
+ */
+function yprint_login_failed_backup($username) {
+    if (!isset($_POST['yprint_login'])) {
+        wp_redirect(home_url('/login/?login=failed&timestamp=' . time()));
         exit;
     }
 }
-add_action('wp_login_failed', 'yprint_login_failed_redirect');
-
-/**
- * E-Mail-Verifikation beim Login überprüfen
- */
-function yprint_authenticate_user($user, $username, $password) {
-    if (is_wp_error($user)) {
-        return $user;
-    }
-    
-    // Wenn die Login-Daten noch nicht überprüft wurden, nicht weiterfahren
-    if (!$username || !$password) {
-        return $user;
-    }
-    
-    global $wpdb;
-    $table_name = 'wp_email_verifications';
-    $user_id = $user->ID;
-    
-    $email_verified = $wpdb->get_var(
-        $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
-    );
-    
-    // Prüfen ob ein Eintrag für den Benutzer existiert
-    if ($email_verified === null) {
-        // Wenn kein Eintrag existiert, Benutzer als verifiziert betrachten
-        return $user;
-    }
-    
-    if ($email_verified != 1) {
-        wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id));
-        exit;
-    }
-    
-    return $user;
-}
-add_filter('authenticate', 'yprint_authenticate_user', 30, 3);
+add_action('wp_login_failed', 'yprint_login_failed_backup');
 
 /**
  * Handler für das Resenden der Verifikations-E-Mail
  */
 function yprint_handle_resend_verification() {
+    // Nur auf Login-Seite ausführen
+    if (!is_page('login') && strpos($_SERVER['REQUEST_URI'], '/login') === false) {
+        return;
+    }
+    
     if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['resend_verification'])) {
         check_admin_referer('resend_verification_nonce', 'security');
         
@@ -654,12 +661,12 @@ function yprint_handle_resend_verification() {
                 session_write_close();
             }
             
-            wp_redirect(home_url('/login/?verification_sent=1'));
+            wp_redirect(home_url('/login/?verification_sent=1&timestamp=' . time()));
             exit;
         }
     }
 }
-add_action('init', 'yprint_handle_resend_verification');
+add_action('template_redirect', 'yprint_handle_resend_verification', 2);
 
 /**
  * Login feedback and error messages shortcode
