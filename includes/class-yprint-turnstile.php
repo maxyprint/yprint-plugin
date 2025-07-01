@@ -364,18 +364,30 @@ class YPrint_Turnstile {
         ?>
         <script>
         document.addEventListener('DOMContentLoaded', function() {
+    console.log('🛡️ Auto-Injection: DOMContentLoaded Event gefeuert');
+    console.log('🛡️ Auto-Injection: Body has data-turnstile-injection-done:', document.body.hasAttribute('data-turnstile-injection-done'));
+    console.log('🛡️ Auto-Injection: Existing widgets:', document.querySelectorAll('.cf-turnstile').length);
+    
     // Mehrfach-Ausführung verhindern
     if (document.body.hasAttribute('data-turnstile-injection-done')) {
         console.log('🛡️ Turnstile: Auto-Injection bereits ausgeführt, überspringe');
         return;
     }
     document.body.setAttribute('data-turnstile-injection-done', 'true');
+    console.log('🛡️ Auto-Injection: Markierung gesetzt, führe Injection aus');
             
             <?php if (in_array('login', $protected_pages)): ?>
             // Login-Formular Turnstile einfügen
 const loginForm = document.getElementById('yprint-loginform');
+console.log('🛡️ Auto-Injection Login Check:', {
+    'loginForm exists': !!loginForm,
+    'has cf-turnstile': !!loginForm?.querySelector('.cf-turnstile'),
+    'has data-turnstile-injected': !!loginForm?.hasAttribute('data-turnstile-injected')
+});
+
 if (loginForm && !loginForm.querySelector('.cf-turnstile') && !loginForm.hasAttribute('data-turnstile-injected')) {
     loginForm.setAttribute('data-turnstile-injected', 'true');
+    console.log('🛡️ Auto-Injection: Injiziere Widget in Login-Form');
                 const submitGroup = loginForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
                 if (submitGroup) {
                     const turnstileContainer = document.createElement('div');
