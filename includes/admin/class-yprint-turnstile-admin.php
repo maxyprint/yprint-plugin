@@ -32,35 +32,9 @@ class YPrint_Turnstile_Admin {
      * Admin-Menü hinzufügen
      */
     public function add_admin_menu() {
-        global $menu;
-        
-        // Prüfe ob YPrint Hauptmenü bereits existiert
-        $yprint_menu_exists = false;
-        if (is_array($menu)) {
-            foreach ($menu as $menu_item) {
-                if (isset($menu_item[2]) && $menu_item[2] === 'yprint-settings') {
-                    $yprint_menu_exists = true;
-                    break;
-                }
-            }
-        }
-        
-        // Hauptmenü erstellen falls es nicht existiert
-        if (!$yprint_menu_exists) {
-            add_menu_page(
-                'YPrint Einstellungen',
-                'YPrint',
-                'manage_options',
-                'yprint-settings',
-                array($this, 'render_main_page'),
-                'dashicons-store',
-                30
-            );
-        }
-        
-        // Turnstile Untermenü hinzufügen
+        // Turnstile Untermenü an bestehendes YPrint-Hauptmenü anhängen
         add_submenu_page(
-            'yprint-settings',
+            'yprint-plugin',  // <-- Verwende bestehenden Parent-Slug
             'Turnstile Einstellungen',
             'Bot-Schutz (Turnstile)',
             'manage_options',
