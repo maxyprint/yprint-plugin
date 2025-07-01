@@ -535,77 +535,396 @@ add_shortcode('yprint_login_form', 'yprint_login_form_shortcode');
 function yprint_login_feedback_shortcode() {
     ob_start();
 
-    $error_message = '';
-    $success_message = '';
-    $info_message = '';
+    $notifications = array();
     $show_recover_option = false;
     $show_resend_verification = false;
     $user_id = isset($_GET['user_id']) ? intval($_GET['user_id']) : 0;
 
+    // Verschiedene Notification-Typen sammeln
     if (isset($_GET['login'])) {
         switch ($_GET['login']) {
             case 'failed':
-                $error_message = '⚠️ Falscher Benutzername oder Passwort!';
+                $notifications[] = array(
+                    'type' => 'error',
+                    'title' => 'Login fehlgeschlagen',
+                    'message' => 'Falscher Benutzername oder Passwort!',
+                    'duration' => 0 // 0 = bleibt bis manuell geschlossen
+                );
                 $show_recover_option = true;
                 break;
             case 'email_not_verified':
-                $error_message = '⚠️ Deine E-Mail-Adresse wurde noch nicht bestätigt. Bitte überprüfe dein Postfach.';
+                $notifications[] = array(
+                    'type' => 'warning',
+                    'title' => 'E-Mail nicht bestätigt',
+                    'message' => 'Deine E-Mail-Adresse wurde noch nicht bestätigt. Bitte überprüfe dein Postfach.',
+                    'duration' => 0
+                );
                 $show_resend_verification = true;
                 break;
             case 'empty':
-                $error_message = '⚠️ Bitte fülle alle Felder aus!';
+                $notifications[] = array(
+                    'type' => 'error',
+                    'title' => 'Felder ausfüllen',
+                    'message' => 'Bitte fülle alle Felder aus!',
+                    'duration' => 5000
+                );
                 break;
         }
     }
 
     if (isset($_GET['verification_sent']) && $_GET['verification_sent'] == '1') {
-        $success_message = '✅ Registrierung erfolgreich! Eine Bestätigungs-E-Mail wurde an deine E-Mail-Adresse gesendet. Bitte überprüfe dein Postfach und bestätige deine Adresse, um dich einloggen zu können.';
+        $notifications[] = array(
+            'type' => 'success',
+            'title' => 'Registrierung erfolgreich!',
+            'message' => 'Eine Bestätigungs-E-Mail wurde an deine E-Mail-Adresse gesendet. Bitte überprüfe dein Postfach.',
+            'duration' => 0
+        );
         $show_resend_verification = true;
     }
     
     if (isset($_GET['verification_issue']) && $_GET['verification_issue'] == '1') {
-        $error_message = '⚠️ Dein Account wurde erstellt, aber es gab ein Problem beim Senden der Bestätigungs-E-Mail.';
-        $info_message = 'Du kannst dich anmelden, sobald deine E-Mail-Adresse bestätigt ist. Bitte verwende die Option zum erneuten Senden der Bestätigungs-E-Mail.';
+        $notifications[] = array(
+            'type' => 'warning',
+            'title' => 'E-Mail-Problem',
+            'message' => 'Dein Account wurde erstellt, aber es gab ein Problem beim Senden der Bestätigungs-E-Mail.',
+            'duration' => 0
+        );
         $show_resend_verification = true;
     }
 
-    if ($error_message) {
-        echo '<div style="color: red; text-align: center; margin-bottom: 10px;">' . esc_html($error_message) . '</div>';
+    // CSS für Toast-Notifications
+    echo '<style>
+        /* Toast Notification System */
+        .yprint-toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+            width: 100%;
+            pointer-events: none;
+        }
+
+        .yprint-toast {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+            border: 1px solid #e5e7eb;
+            padding: 16px 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            pointer-events: auto;
+            font-family: "Inter", "Roboto", "Helvetica Neue", Arial, sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .yprint-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .yprint-toast-icon {
+            font-size: 20px;
+            line-height: 1;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .yprint-toast-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .yprint-toast-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 4px 0;
+            color: #111827;
+            line-height: 1.3;
+        }
+
+        .yprint-toast-message {
+            font-size: 13px;
+            color: #6b7280;
+            margin: 0;
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .yprint-toast-close {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            line-height: 1;
+        }
+
+        .yprint-toast-close:hover {
+            color: #374151;
+            background: rgba(0, 0, 0, 0.05);
+        }
+
+        /* Toast-Typen */
+        .yprint-toast.error {
+            border-left: 4px solid #ef4444;
+        }
+        .yprint-toast.error .yprint-toast-icon {
+            color: #ef4444;
+        }
+
+        .yprint-toast.success {
+            border-left: 4px solid #10b981;
+        }
+        .yprint-toast.success .yprint-toast-icon {
+            color: #10b981;
+        }
+
+        .yprint-toast.warning {
+            border-left: 4px solid #f59e0b;
+        }
+        .yprint-toast.warning .yprint-toast-icon {
+            color: #f59e0b;
+        }
+
+        .yprint-toast.info {
+            border-left: 4px solid #3b82f6;
+        }
+        .yprint-toast.info .yprint-toast-icon {
+            color: #3b82f6;
+        }
+
+        /* Progress Bar für Auto-Close */
+        .yprint-toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            border-radius: 0 0 12px 12px;
+            transition: width linear;
+        }
+
+        /* Action Buttons */
+        .yprint-toast-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .yprint-toast-action {
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            color: #374151;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .yprint-toast-action:hover {
+            background: #e5e7eb;
+            color: #111827;
+            text-decoration: none;
+        }
+
+        .yprint-toast-action.primary {
+            background: #3b82f6;
+            border-color: #3b82f6;
+            color: #ffffff;
+        }
+
+        .yprint-toast-action.primary:hover {
+            background: #2563eb;
+            color: #ffffff;
+        }
+
+        /* Mobile Responsive */
+        @media screen and (max-width: 480px) {
+            .yprint-toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+
+            .yprint-toast {
+                margin: 0;
+            }
+
+            .yprint-toast-title {
+                font-size: 13px;
+            }
+
+            .yprint-toast-message {
+                font-size: 12px;
+            }
+        }
+    </style>';
+
+    // Toast Container
+    echo '<div id="yprint-toast-container" class="yprint-toast-container"></div>';
+
+    // JavaScript für Toast-System
+    echo '<script>
+        window.YPrintToast = {
+            container: null,
+            toastCounter: 0,
+
+            init: function() {
+                this.container = document.getElementById("yprint-toast-container");
+                if (!this.container) return;
+                
+                // Zeige alle gesammelten Notifications
+                this.showQueuedNotifications();
+            },
+
+            show: function(type, title, message, duration = 5000, actions = []) {
+                if (!this.container) return;
+
+                const toastId = "toast-" + (++this.toastCounter);
+                const iconMap = {
+                    error: "⚠️",
+                    success: "✅", 
+                    warning: "⚠️",
+                    info: "ℹ️"
+                };
+
+                let actionsHtml = "";
+                if (actions.length > 0) {
+                    actionsHtml = "<div class=\"yprint-toast-actions\">";
+                    actions.forEach(action => {
+                        if (action.type === "link") {
+                            actionsHtml += `<a href="${action.url}" class="yprint-toast-action ${action.primary ? "primary" : ""}">${action.label}</a>`;
+                        } else if (action.type === "form") {
+                            actionsHtml += `<form method="post" action="${action.action}" style="display: inline;">${action.fields}<button type="submit" class="yprint-toast-action ${action.primary ? "primary" : ""}">${action.label}</button></form>`;
+                        }
+                    });
+                    actionsHtml += "</div>";
+                }
+
+                const toastHtml = `
+    <div id="${toastId}" class="yprint-toast ${type}">
+        <div class="yprint-toast-icon">${iconMap[type] || "ℹ️"}</div>
+        <div class="yprint-toast-content">
+            <div class="yprint-toast-title">${title}</div>
+            <div class="yprint-toast-message">${message}</div>
+            ${actionsHtml}
+        </div>
+        <button class="yprint-toast-close" onclick="YPrintToast.close(\'${toastId}\')">&times;</button>
+        ${duration > 0 ? `<div class="yprint-toast-progress" style="width: 100%"></div>` : ""}
+    </div>
+`;
+
+                this.container.insertAdjacentHTML("beforeend", toastHtml);
+                const toast = document.getElementById(toastId);
+                
+                // Animation starten
+                setTimeout(() => {
+                    toast.classList.add("show");
+                }, 100);
+
+                // Auto-close mit Progress Bar
+                if (duration > 0) {
+                    const progressBar = toast.querySelector(".yprint-toast-progress");
+                    if (progressBar) {
+                        progressBar.style.width = "0%";
+                        progressBar.style.transitionDuration = duration + "ms";
+                    }
+                    
+                    setTimeout(() => {
+                        this.close(toastId);
+                    }, duration);
+                }
+            },
+
+            close: function(toastId) {
+                const toast = document.getElementById(toastId);
+                if (toast) {
+                    toast.style.transform = "translateX(100%)";
+                    toast.style.opacity = "0";
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 400);
+                }
+            },
+
+            showQueuedNotifications: function() {';
+
+    // JavaScript für die gesammelten Notifications
+    foreach ($notifications as $index => $notification) {
+        $actions = array();
+        
+        // Actions basierend auf dem Notification-Typ hinzufügen
+        if ($show_recover_option && $notification['type'] === 'error' && strpos($notification['message'], 'Falscher') !== false) {
+            $actions[] = array(
+                'type' => 'link',
+                'url' => esc_url(home_url('/recover-account/')),
+                'label' => '🔑 Konto wiederherstellen',
+                'primary' => true
+            );
+        }
+
+        if ($show_resend_verification && $user_id && ($notification['type'] === 'warning' || $notification['type'] === 'success')) {
+            $nonce_field = wp_nonce_field('resend_verification_nonce', 'security', true, false);
+            $actions[] = array(
+                'type' => 'form',
+                'action' => esc_url(home_url('/login')),
+                'fields' => $nonce_field . '<input type="hidden" name="resend_verification" value="' . esc_attr($user_id) . '">',
+                'label' => '✉️ E-Mail erneut senden',
+                'primary' => false
+            );
+        }
+
+        $actions_json = json_encode($actions);
+        $delay = $index * 200; // Stagger die Notifications
+
+        echo "
+                setTimeout(() => {
+                    this.show(
+                        '" . esc_js($notification['type']) . "',
+                        '" . esc_js($notification['title']) . "',
+                        '" . esc_js($notification['message']) . "',
+                        " . intval($notification['duration']) . ",
+                        " . $actions_json . "
+                    );
+                }, $delay);";
     }
 
-    if ($info_message) {
-        echo '<div style="color: #0079FF; text-align: center; margin-bottom: 10px;">' . esc_html($info_message) . '</div>';
-    }
+    echo '
+            }
+        };
 
-    if ($success_message) {
-        echo '<div style="color: green; text-align: center; margin-bottom: 10px;">' . esc_html($success_message) . '</div>';
-    }
-
-    if ($show_recover_option) {
-        echo '<div style="text-align: center; margin-top: 10px;">
-                <a href="' . esc_url(home_url('/recover-account/')) . '" style="color: #0079FF; font-weight: bold; text-decoration: none;">
-                    ❓ Passwort vergessen oder Nutzername falsch? Konto wiederherstellen
-                </a>
-              </div>';
-    }
-
-    if ($show_resend_verification && $user_id) {
-        echo '<div style="text-align: center; margin-top: 10px;">
-                <form method="post" action="' . esc_url(home_url('/login')) . '">';
-        // PHP-Tags außerhalb des Strings platzieren
-        wp_nonce_field('resend_verification_nonce', 'security');
-        echo '<input type="hidden" name="resend_verification" value="' . esc_attr($user_id) . '">
-                <button type="submit" style="background-color: #0079FF; color: white; padding: 10px; border: none; cursor: pointer;">
-                ✉️ Bestätigungs-E-Mail erneut senden
-                </button>
-                </form>
-              </div>';
-    } else if ($show_resend_verification) {
-        // Wenn kein User-ID Parameter vorhanden ist, aber trotzdem der Button gezeigt werden soll
-        echo '<div style="text-align: center; margin-top: 10px; color: #0079FF;">
-                Wenn du keine E-Mail erhalten hast, versuche dich mit deinen Daten anzumelden, um die Bestätigungs-E-Mail erneut zu senden.
-              </div>';
-    }
+        // Toast-System initialisieren
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", () => YPrintToast.init());
+        } else {
+            YPrintToast.init();
+        }
+    </script>';
 
     return ob_get_clean();
 }
