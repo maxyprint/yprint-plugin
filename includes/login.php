@@ -302,6 +302,17 @@ function yprint_login_form_shortcode() {
                 max-width: 420px;
             }
         }
+
+        /* Desktop Standard */
+        @media screen and (min-width: 769px) {
+            .yprint-login-container {
+                min-height: auto;
+            }
+            
+            .yprint-login-card {
+                max-width: 420px;
+            }
+        }
         
         /* Mobile Responsive - Fullscreen */
         @media screen and (max-width: 768px) {
@@ -324,11 +335,21 @@ function yprint_login_form_shortcode() {
                 width: 100%;
             }
             
+            .yprint-logo img {
+                width: 40px;
+                height: 40px;
+            }
+            
             .yprint-login-title {
                 font-size: 22px;
             }
             
             .yprint-login-subtitle {
+                font-size: 14px;
+            }
+            
+            .yprint-register-button {
+                height: 44px;
                 font-size: 14px;
             }
             
@@ -346,18 +367,27 @@ function yprint_login_form_shortcode() {
                 white-space: normal;
                 max-width: 95%;
             }
+        }
 
-            /* Mobile Responsive für neue Elemente */
-@media screen and (max-width: 480px) {
-    .yprint-login-container {
-        padding: 20px 16px;
-    }
-    
-    .yprint-login-card {
-        padding: 24px;
-        border-radius: 16px;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    }
+        @media screen and (max-width: 320px) {
+            .yprint-login-card {
+                padding: 20px;
+            }
+            
+            .yprint-register-button {
+                height: 40px;
+                font-size: 13px;
+                padding: 10px 20px;
+            }
+            
+            #loginform input[type="text"],
+            #loginform input[type="password"],
+            #loginform input[type="email"],
+            #loginform input[type="submit"] {
+                height: 44px !important;
+                padding: 12px 16px !important;
+            }
+        }
     
     .yprint-logo img {
         width: 40px;
