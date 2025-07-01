@@ -639,14 +639,6 @@ function yprint_register_user_callback() {
         }
     }
 
-    // Turnstile Bot-Schutz Validierung
-    $turnstile = YPrint_Turnstile::get_instance();
-    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-        if (!$turnstile->has_valid_turnstile_token()) {
-            wp_send_json_error(array('message' => 'Bot-Verifikation fehlgeschlagen. Bitte versuchen Sie es erneut.'));
-        }
-    }
-
     $username = sanitize_text_field($_POST['username']);
     $email = sanitize_email($_POST['email']);
     $password = $_POST['password'];

@@ -842,6 +842,14 @@ function yprint_registration_form_mobile() {
                 </div>
             </form>
 
+            <?php
+                // Turnstile Widget für Mobile Registration
+                $turnstile = YPrint_Turnstile::get_instance();
+                if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+                    echo $turnstile->render_widget('register-mobile', 'light');
+                }
+                ?>
+
             <div class="yprint-mobile-login-section">
                 <p class="yprint-mobile-login-text">Du hast bereits ein Konto?</p>
                 <a href="https://yprint.de/login/" class="yprint-mobile-login-button">
@@ -995,6 +1003,12 @@ function yprint_enqueue_registration_script() {
                         email: email,
                         password: password
                     };
+
+                    // Turnstile Token hinzufügen falls vorhanden
+                    const turnstileResponse = document.querySelector(\'input[name="cf-turnstile-response"]\');
+                    if (turnstileResponse && turnstileResponse.value) {
+                        data[\'cf-turnstile-response\'] = turnstileResponse.value;
+                    }
 
                     fetch("' . esc_url(rest_url('wp/v2/users/register')) . '", {
                         method: "POST",

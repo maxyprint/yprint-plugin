@@ -118,23 +118,8 @@ public function add_admin_menu() {
      * Admin-Scripts laden
      */
     public function enqueue_admin_scripts($hook) {
-        // Der korrekte Hook für ein Untermenü von 'yprint-plugin'
-        if ($hook !== 'yprint-plugin_page_yprint-turnstile') {
-            return;
-        }
-        
-        wp_enqueue_script(
-            'yprint-turnstile-admin',
-            plugins_url('assets/js/yprint-turnstile-admin.js', dirname(__DIR__)),
-            array('jquery'),
-            '1.0.0',
-            true
-        );
-        
-        wp_localize_script('yprint-turnstile-admin', 'yprintTurnstileAdmin', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('yprint_turnstile_test_nonce')
-        ));
+        // JavaScript ist inline in render_turnstile_page() eingebaut
+        // Keine externe Datei erforderlich
     }
     
     /**
@@ -231,6 +216,92 @@ public function render_turnstile_page() {
                 </div>
             </div>
         </div>
+
+        <script>
+        // Admin-Interface JavaScript (inline)
+        document.addEventListener('DOMContentLoaded', function() {
+            const testButton = document.getElementById('test-turnstile');
+            const testResults = document.getElementById('test-results');
+            const testContent = document.getElementById('test-content');
+            
+            if (!testButton) return;
+
+            testButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                
+                const siteKey = document.querySelector('input[name="yprint_turnstile_options[site_key]"]')?.value || '';
+                const secretKey = document.querySelector('input[name="yprint_turnstile_options[secret_key]"]')?.value || '';
+                
+                if (!siteKey || !secretKey) {
+                    showTestResult('error', 'Bitte geben Sie Site Key und Secret Key ein.');
+                    return;
+                }
+                
+                testButton.disabled = true;
+                testButton.innerHTML = '<span class="dashicons dashicons-update-alt" style="animation: rotate 1s linear infinite;"></span> Teste Verbindung...';
+                
+                fetch('<?php echo admin_url('admin-ajax.php'); ?>', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'action': 'yprint_test_turnstile_connection',
+                        'nonce': '<?php echo wp_create_nonce('yprint_turnstile_test_nonce'); ?>',
+                        'site_key': siteKey,
+                        'secret_key': secretKey
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showTestResult('success', data.data.message || 'Verbindung erfolgreich!');
+                    } else {
+                        showTestResult('error', data.data.message || 'Verbindung fehlgeschlagen');
+                    }
+                })
+                .catch(error => {
+                    showTestResult('error', 'Netzwerkfehler: ' + error.message);
+                })
+                .finally(() => {
+                    testButton.disabled = false;
+                    testButton.innerHTML = '<span class="dashicons dashicons-update-alt"></span> Verbindung testen';
+                });
+            });
+            
+            function showTestResult(type, message) {
+                if (!testResults || !testContent) return;
+                
+                const iconClass = type === 'success' ? 'dashicons-yes-alt' : 'dashicons-warning';
+                const resultClass = type === 'success' ? 'notice-success' : 'notice-error';
+                
+                testContent.innerHTML = `
+                    <div class="notice ${resultClass}">
+                        <p><span class="dashicons ${iconClass}"></span> ${message}</p>
+                    </div>
+                `;
+                testResults.style.display = 'block';
+            }
+        });
+        </script>
+        
+        <style>
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .yprint-admin-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .yprint-admin-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        </style>
         
         <style>
         .yprint-admin-container {
