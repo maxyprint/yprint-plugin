@@ -37,7 +37,7 @@ function yprint_login_form_shortcode() {
     echo yprint_login_feedback_shortcode();
     ?>
     <style>
-        /* Moderner Login Container - identisch mit Register Design */
+        /* [Alle bisherigen CSS-Styles bleiben unverändert] */
         .yprint-login-container {
             display: flex;
             align-items: center;
@@ -63,7 +63,6 @@ function yprint_login_form_shortcode() {
             margin-bottom: 32px;
         }
 
-        /* Höhere Spezifität für Elementor-Override */
         .elementor .yprint-login-card,
         div.yprint-login-card,
         .yprint-login-container .yprint-login-card {
@@ -102,7 +101,6 @@ function yprint_login_form_shortcode() {
             margin: 0;
         }
 
-        /* Register Button Section */
         .yprint-register-section {
             margin-top: 24px;
             padding-top: 24px;
@@ -145,14 +143,12 @@ function yprint_login_form_shortcode() {
             text-decoration: none;
         }
 
-        /* Input Field Container */
         .yprint-input-group {
             margin-bottom: 24px;
             position: relative;
         }
 
-        /* Reset WordPress Form Styles */
-        #loginform {
+        #yprint-loginform {
             margin: 0 !important;
             padding: 0 !important;
             background: none !important;
@@ -160,10 +156,9 @@ function yprint_login_form_shortcode() {
             box-shadow: none !important;
         }
 
-        /* Eingabefelder - moderne Styles */
-        #loginform input[type="text"],
-        #loginform input[type="password"],
-        #loginform input[type="email"] {
+        #yprint-loginform input[type="text"],
+        #yprint-loginform input[type="password"],
+        #yprint-loginform input[type="email"] {
             width: 100% !important;
             height: 52px !important;
             padding: 16px 20px !important;
@@ -182,22 +177,20 @@ function yprint_login_form_shortcode() {
             box-sizing: border-box !important;
         }
 
-        #loginform input[type="text"]:focus,
-        #loginform input[type="password"]:focus,
-        #loginform input[type="email"]:focus {
+        #yprint-loginform input[type="text"]:focus,
+        #yprint-loginform input[type="password"]:focus,
+        #yprint-loginform input[type="email"]:focus {
             background-color: #ffffff !important;
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
         }
 
-        /* Platzhaltertext */
-        #loginform input::placeholder {
+        #yprint-loginform input::placeholder {
             color: #9ca3af !important;
             font-weight: 400 !important;
         }
 
-        /* Submit-Button */
-        #loginform input[type="submit"] {
+        #yprint-loginform input[type="submit"] {
             width: 100% !important;
             height: 52px !important;
             padding: 16px 24px !important;
@@ -216,25 +209,22 @@ function yprint_login_form_shortcode() {
             line-height: 1.5 !important;
         }
 
-        #loginform input[type="submit"]:hover {
+        #yprint-loginform input[type="submit"]:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
         }
 
-        /* Verstecken unnötiger Elemente */
-        #loginform #rememberme,
-        #loginform label {
+        #yprint-loginform #rememberme,
+        #yprint-loginform label {
             display: none !important;
         }
 
-        /* Password Container für Eye-Toggle */
         .password-container {
             position: relative;
             width: 100%;
         }
 
-        /* Augen-Icon für Passwort-Toggle */
         #eye-toggle {
             position: absolute;
             right: 16px;
@@ -267,7 +257,6 @@ function yprint_login_form_shortcode() {
             color: #3b82f6;
         }
 
-        /* E-Mail-Hinweis - moderner Stil */
         #email-hint {
             position: absolute;
             top: -45px;
@@ -299,7 +288,6 @@ function yprint_login_form_shortcode() {
             border-top: 6px solid #fde68a;
         }
 
-        /* Desktop Standard */
         @media screen and (min-width: 1025px) {
             .yprint-login-container {
                 min-height: auto;
@@ -310,8 +298,7 @@ function yprint_login_form_shortcode() {
             }
         }
         
-                /* Desktop + Tablet Standard mit Rahmen */
-                @media screen and (min-width: 769px) {
+        @media screen and (min-width: 769px) {
             .yprint-login-container {
                 min-height: auto !important;
             }
@@ -325,9 +312,7 @@ function yprint_login_form_shortcode() {
                 border: 1px solid #e5e7eb !important;
                 background: #ffffff !important;
             }
-        }
 
-            /* Elemente begrenzen damit sie nicht zu groß werden */
             .yprint-login-form,
             .yprint-register-section {
                 max-width: 500px;
@@ -335,10 +320,10 @@ function yprint_login_form_shortcode() {
                 width: 100%;
             }
 
-            #loginform input[type="text"],
-            #loginform input[type="password"],
-            #loginform input[type="email"],
-            #loginform input[type="submit"] {
+            #yprint-loginform input[type="text"],
+            #yprint-loginform input[type="password"],
+            #yprint-loginform input[type="email"],
+            #yprint-loginform input[type="submit"] {
                 max-width: 500px;
                 height: 52px !important;
                 font-size: 16px !important;
@@ -356,7 +341,6 @@ function yprint_login_form_shortcode() {
             }
         }
 
-        /* Kleine Mobile Geräte */
         @media screen and (max-width: 480px) {
             .yprint-login-card {
                 padding: 20px !important;
@@ -380,10 +364,10 @@ function yprint_login_form_shortcode() {
                 font-size: 14px;
             }
 
-            #loginform input[type="text"],
-            #loginform input[type="password"],
-            #loginform input[type="email"],
-            #loginform input[type="submit"] {
+            #yprint-loginform input[type="text"],
+            #yprint-loginform input[type="password"],
+            #yprint-loginform input[type="email"],
+            #yprint-loginform input[type="submit"] {
                 height: 48px !important;
                 font-size: 16px !important;
             }
@@ -407,10 +391,10 @@ function yprint_login_form_shortcode() {
                 padding: 10px 20px;
             }
 
-            #loginform input[type="text"],
-            #loginform input[type="password"],
-            #loginform input[type="email"],
-            #loginform input[type="submit"] {
+            #yprint-loginform input[type="text"],
+            #yprint-loginform input[type="password"],
+            #yprint-loginform input[type="email"],
+            #yprint-loginform input[type="submit"] {
                 height: 44px !important;
                 padding: 12px 16px !important;
             }
@@ -418,66 +402,55 @@ function yprint_login_form_shortcode() {
     </style>
     
     <div class="yprint-login-container">
-    <div class="yprint-login-card">
-        <div class="yprint-login-header">
-            <div class="yprint-logo">
-                <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="YPrint Logo" />
+        <div class="yprint-login-card">
+            <div class="yprint-login-header">
+                <div class="yprint-logo">
+                    <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="YPrint Logo" />
+                </div>
+                <h1 class="yprint-login-title">Willkommen zurück!</h1>
+                <p class="yprint-login-subtitle">Bitte melde dich an, um fortzufahren</p>
             </div>
-            <h1 class="yprint-login-title">Willkommen zurück!</h1>
-            <p class="yprint-login-subtitle">Bitte melde dich an, um fortzufahren</p>
-        </div>
-        
-        <div class="yprint-login-form">
-            <?php
-            // Standard WordPress Login-Formular
-            $args = array(
-                'redirect' => home_url('/dashboard'),
-                'label_username' => '',
-                'label_password' => '',
-                'label_remember' => '',
-                'value_username' => '',
-                'value_remember' => false,
-            );
             
-            wp_login_form($args);
-            ?>
-        </div>
-        
-        <div class="yprint-register-section">
-            <p class="yprint-register-text">Noch kein Konto?</p>
-            <a href="https://yprint.de/register/" class="yprint-register-button">
-                Jetzt registrieren
-            </a>
+            <div class="yprint-login-form">
+                <form name="yprint-loginform" id="yprint-loginform" action="<?php echo esc_url(home_url('/login/')); ?>" method="post">
+                    <div class="yprint-input-group">
+                        <input type="text" name="log" id="user_login" placeholder="Benutzername" value="" size="20" autocapitalize="off" required />
+                        <div id="email-hint">Bitte beachte: Hier wird dein Benutzername benötigt, nicht deine E-Mail-Adresse.</div>
+                    </div>
+                    
+                    <div class="yprint-input-group password-container">
+                        <input type="password" name="pwd" id="user_pass" placeholder="Passwort" value="" size="20" autocomplete="current-password" required />
+                        <button type="button" id="eye-toggle" aria-label="Passwort anzeigen/verstecken">
+                            <i class="eicon-eye"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="yprint-input-group">
+                        <input type="submit" name="wp-submit" id="wp-submit" value="Anmelden" />
+                        <input type="hidden" name="redirect_to" value="<?php echo esc_attr(home_url('/dashboard/')); ?>" />
+                        <input type="hidden" name="yprint_login" value="1" />
+                    </div>
+                </form>
+            </div>
+            
+            <div class="yprint-register-section">
+                <p class="yprint-register-text">Noch kein Konto?</p>
+                <a href="https://yprint.de/register/" class="yprint-register-button">
+                    Jetzt registrieren
+                </a>
+            </div>
         </div>
     </div>
-</div>
-    
-    <!-- Dieser komplette Block wird entfernt -->
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var usernameField = document.querySelector('input[name="log"]');
-        var passwordField = document.querySelector('input[name="pwd"]');
+        var usernameField = document.getElementById('user_login');
+        var passwordField = document.getElementById('user_pass');
+        var emailHint = document.getElementById('email-hint');
+        var eyeToggle = document.getElementById('eye-toggle');
         
-        // Username-Feld anpassen
-        if (usernameField) {
-            usernameField.setAttribute('placeholder', 'Benutzername');
-            
-            // Username-Wrapper erstellen mit neuer Klasse
-            var usernameWrapper = document.createElement('div');
-            usernameWrapper.className = 'yprint-input-group';
-            
-            // Das original Benutzernamenfeld in den Wrapper verschieben
-            usernameField.parentNode.insertBefore(usernameWrapper, usernameField);
-            usernameWrapper.appendChild(usernameField);
-            
-            // Hinweis-Element erstellen
-            var emailHint = document.createElement('div');
-            emailHint.id = 'email-hint';
-            emailHint.innerHTML = 'Bitte beachte: Hier wird dein Benutzername benötigt, nicht deine E-Mail-Adresse.';
-            usernameWrapper.appendChild(emailHint);
-            
-            // Input-Event für den Benutzernamen
+        // Username Email-Hinweis
+        if (usernameField && emailHint) {
             usernameField.addEventListener('input', function() {
                 if (this.value.includes('@')) {
                     emailHint.style.display = 'block';
@@ -487,27 +460,8 @@ function yprint_login_form_shortcode() {
             });
         }
         
-        // Passwort-Feld anpassen
-        if (passwordField) {
-            passwordField.setAttribute('placeholder', 'Passwort');
-            
-            // Container für Passwortfeld erstellen mit neuer Klasse
-            var passwordContainer = document.createElement('div');
-            passwordContainer.className = 'yprint-input-group password-container';
-            
-            // Passwortfeld in Container verschieben
-            passwordField.parentNode.insertBefore(passwordContainer, passwordField);
-            passwordContainer.appendChild(passwordField);
-            
-            // Augen-Icon erstellen mit modernem Design
-            var eyeToggle = document.createElement('button');
-            eyeToggle.type = 'button';
-            eyeToggle.id = 'eye-toggle';
-            eyeToggle.innerHTML = '<i class="eicon-eye"></i>';
-            eyeToggle.setAttribute('aria-label', 'Passwort anzeigen/verstecken');
-            passwordContainer.appendChild(eyeToggle);
-            
-            // Icon-Funktionalität mit neuen Farben
+        // Password Toggle
+        if (passwordField && eyeToggle) {
             function togglePassword(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -521,16 +475,191 @@ function yprint_login_form_shortcode() {
                 }
             }
             
-            // Event Listeners für alle Geräte
             eyeToggle.addEventListener('click', togglePassword);
             eyeToggle.addEventListener('touchstart', togglePassword);
         }
     });
-</script>
+    </script>
     <?php
     return ob_get_clean();
 }
 add_shortcode('yprint_login_form', 'yprint_login_form_shortcode');
+
+/**
+ * Umfassende Login-Fehlerbehandlung
+ */
+function yprint_handle_login_errors() {
+    // Nur bei POST-Requests von unserem Login-Formular
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['yprint_login']) || !isset($_POST['log']) || !isset($_POST['pwd'])) {
+        return;
+    }
+    
+    $username = sanitize_text_field($_POST['log']);
+    $password = $_POST['pwd'];
+    
+    // Prüfe leere Felder
+    if (empty($username) || empty($password)) {
+        wp_redirect(home_url('/login/') . '?login=empty');
+        exit;
+    }
+    
+    // Versuche Authentifizierung
+    $user = wp_authenticate($username, $password);
+    
+    if (is_wp_error($user)) {
+        // Login fehlgeschlagen
+        wp_redirect(home_url('/login/') . '?login=failed');
+        exit;
+    }
+    
+    // E-Mail-Verifikation prüfen
+    global $wpdb;
+    $table_name = 'wp_email_verifications';
+    $user_id = $user->ID;
+    
+    $email_verified = $wpdb->get_var(
+        $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
+    );
+    
+    if ($email_verified !== null && $email_verified != 1) {
+        wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id));
+        exit;
+    }
+    
+    // Login erfolgreich - einloggen und weiterleiten
+    wp_set_current_user($user_id, $username);
+    wp_set_auth_cookie($user_id);
+    do_action('wp_login', $username, $user);
+    
+    $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
+    wp_redirect($redirect_to);
+    exit;
+}
+add_action('init', 'yprint_handle_login_errors', 1);
+
+/**
+ * Backup: wp_login_failed Hook
+ */
+function yprint_login_failed_redirect($username) {
+    // Nur weiterleiten wenn wir von unserem Login kommen
+    if (isset($_POST['log'])) {
+        wp_redirect(home_url('/login/') . '?login=failed');
+        exit;
+    }
+}
+add_action('wp_login_failed', 'yprint_login_failed_redirect');
+
+/**
+ * E-Mail-Verifikation beim Login überprüfen
+ */
+function yprint_authenticate_user($user, $username, $password) {
+    if (is_wp_error($user)) {
+        return $user;
+    }
+    
+    // Wenn die Login-Daten noch nicht überprüft wurden, nicht weiterfahren
+    if (!$username || !$password) {
+        return $user;
+    }
+    
+    global $wpdb;
+    $table_name = 'wp_email_verifications';
+    $user_id = $user->ID;
+    
+    $email_verified = $wpdb->get_var(
+        $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
+    );
+    
+    // Prüfen ob ein Eintrag für den Benutzer existiert
+    if ($email_verified === null) {
+        // Wenn kein Eintrag existiert, Benutzer als verifiziert betrachten
+        return $user;
+    }
+    
+    if ($email_verified != 1) {
+        wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id));
+        exit;
+    }
+    
+    return $user;
+}
+add_filter('authenticate', 'yprint_authenticate_user', 30, 3);
+
+/**
+ * Handler für das Resenden der Verifikations-E-Mail
+ */
+function yprint_handle_resend_verification() {
+    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['resend_verification'])) {
+        check_admin_referer('resend_verification_nonce', 'security');
+        
+        global $wpdb;
+        
+        $table_name = 'wp_email_verifications';
+        $user_id = intval($_POST['resend_verification']);
+        $user = get_userdata($user_id);
+        
+        if ($user) {
+            $email = $user->user_email;
+            $username = $user->user_login;
+            $verification_code = bin2hex(random_bytes(16));
+            $current_time = current_time('mysql');
+            
+            // Zuerst den alten Eintrag definitiv löschen
+            $wpdb->delete(
+                $table_name,
+                array('user_id' => $user_id),
+                array('%d')
+            );
+            
+            // Dann einen neuen Eintrag erstellen
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'verification_code' => $verification_code,
+                    'email_verified' => 0,
+                    'created_at' => $current_time,
+                    'updated_at' => $current_time
+                ),
+                array('%d', '%s', '%d', '%s', '%s')
+            );
+
+            // Verification Link erstellen
+            $verification_link = add_query_arg(
+                array(
+                    'user_id' => $user_id,
+                    'verification_code' => $verification_code,
+                ),
+                home_url('/verify-email/')
+            );
+
+            // E-Mail senden mit der vorhandenen Funktion
+            if (function_exists('yprint_get_email_template')) {
+                $subject = 'Bitte verifiziere deine E-Mail-Adresse';
+                $message_content = "Bitte klicke auf den folgenden Link, um deine E-Mail-Adresse zu verifizieren:<br><br>";
+                $message_content .= "<a href='" . esc_url($verification_link) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Verifizieren</a><br><br>";
+                $message_content .= "Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
+                
+                $message = yprint_get_email_template('Bitte verifiziere deine E-Mail-Adresse', esc_html($username), $message_content);
+                
+                $headers = array(
+                    'Content-Type: text/html; charset=UTF-8',
+                    'From: YPrint <do-not-reply@yprint.de>'
+                );
+                
+                wp_mail($email, $subject, $message, $headers);
+            }
+            
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_write_close();
+            }
+            
+            wp_redirect(home_url('/login/?verification_sent=1'));
+            exit;
+        }
+    }
+}
+add_action('init', 'yprint_handle_resend_verification');
 
 /**
  * Login feedback and error messages shortcode
@@ -947,158 +1076,3 @@ setTimeout(() => {
     return ob_get_clean();
 }
 add_shortcode('yprint_login_feedback', 'yprint_login_feedback_shortcode');
-
-
-
-/**
- * Umfassende Login-Fehlerbehandlung
- */
-function yprint_handle_login_errors() {
-    // Nur bei POST-Requests von unserem Login-Formular
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['log']) || !isset($_POST['pwd'])) {
-        return;
-    }
-    
-    $username = sanitize_text_field($_POST['log']);
-    $password = $_POST['pwd'];
-    
-    // Prüfe leere Felder
-    if (empty($username) || empty($password)) {
-        wp_redirect(home_url('/login/') . '?login=empty');
-        exit;
-    }
-    
-    // Versuche Authentifizierung
-    $user = wp_authenticate($username, $password);
-    
-    if (is_wp_error($user)) {
-        // Login fehlgeschlagen
-        wp_redirect(home_url('/login/') . '?login=failed');
-        exit;
-    }
-}
-add_action('init', 'yprint_handle_login_errors', 1);
-
-/**
- * Backup: wp_login_failed Hook
- */
-function yprint_login_failed_redirect($username) {
-    // Nur weiterleiten wenn wir von unserem Login kommen
-    if (isset($_POST['log'])) {
-        wp_redirect(home_url('/login/') . '?login=failed');
-        exit;
-    }
-}
-add_action('wp_login_failed', 'yprint_login_failed_redirect');
-
-/**
- * E-Mail-Verifikation beim Login überprüfen
- */
-function yprint_authenticate_user($user, $username, $password) {
-    if (is_wp_error($user)) {
-        return $user;
-    }
-    
-    // Wenn die Login-Daten noch nicht überprüft wurden, nicht weiterfahren
-    if (!$username || !$password) {
-        return $user;
-    }
-    
-    global $wpdb;
-    $table_name = 'wp_email_verifications';
-    $user_id = $user->ID;
-    
-    $email_verified = $wpdb->get_var(
-        $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
-    );
-    
-    // Prüfen ob ein Eintrag für den Benutzer existiert
-    if ($email_verified === null) {
-        // Wenn kein Eintrag existiert, Benutzer als verifiziert betrachten
-        return $user;
-    }
-    
-    if ($email_verified != 1) {
-        wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id));
-        exit;
-    }
-    
-    return $user;
-}
-add_filter('authenticate', 'yprint_authenticate_user', 30, 3);
-
-/**
- * Handler für das Resenden der Verifikations-E-Mail
- */
-function yprint_handle_resend_verification() {
-    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['resend_verification'])) {
-        check_admin_referer('resend_verification_nonce', 'security');
-        
-        global $wpdb;
-        
-        $table_name = 'wp_email_verifications';
-        $user_id = intval($_POST['resend_verification']);
-        $user = get_userdata($user_id);
-        
-        if ($user) {
-            $email = $user->user_email;
-            $username = $user->user_login;
-            $verification_code = bin2hex(random_bytes(16));
-            $current_time = current_time('mysql');
-            
-            // Zuerst den alten Eintrag definitiv löschen
-            $wpdb->delete(
-                $table_name,
-                array('user_id' => $user_id),
-                array('%d')
-            );
-            
-            // Dann einen neuen Eintrag erstellen
-            $wpdb->insert(
-                $table_name,
-                array(
-                    'user_id' => $user_id,
-                    'verification_code' => $verification_code,
-                    'email_verified' => 0,
-                    'created_at' => $current_time,
-                    'updated_at' => $current_time
-                ),
-                array('%d', '%s', '%d', '%s', '%s')
-            );
-
-            // Verification Link erstellen
-            $verification_link = add_query_arg(
-                array(
-                    'user_id' => $user_id,
-                    'verification_code' => $verification_code,
-                ),
-                home_url('/verify-email/')
-            );
-
-            // E-Mail senden mit der vorhandenen Funktion
-            if (function_exists('yprint_get_email_template')) {
-                $subject = 'Bitte verifiziere deine E-Mail-Adresse';
-                $message_content = "Bitte klicke auf den folgenden Link, um deine E-Mail-Adresse zu verifizieren:<br><br>";
-                $message_content .= "<a href='" . esc_url($verification_link) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Verifizieren</a><br><br>";
-                $message_content .= "Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
-                
-                $message = yprint_get_email_template('Bitte verifiziere deine E-Mail-Adresse', esc_html($username), $message_content);
-                
-                $headers = array(
-                    'Content-Type: text/html; charset=UTF-8',
-                    'From: YPrint <do-not-reply@yprint.de>'
-                );
-                
-                wp_mail($email, $subject, $message, $headers);
-            }
-            
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_write_close();
-            }
-            
-            wp_redirect(home_url('/login/?verification_sent=1'));
-            exit;
-        }
-    }
-}
-add_action('init', 'yprint_handle_resend_verification');
