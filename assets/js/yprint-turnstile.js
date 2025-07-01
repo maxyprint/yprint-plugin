@@ -4,9 +4,16 @@
  */
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Mehrfach-Initialisierung verhindern
+    if (window.yprintTurnstileInitialized) {
+        console.log('🛡️ YPrint Turnstile: Already initialized, skipping...');
+        return;
+    }
+    
     // Nur initialisieren wenn Turnstile-Widgets vorhanden sind
     if (document.querySelector('.cf-turnstile')) {
         console.log('🛡️ YPrint Turnstile: Widgets detected, initializing...');
+        window.yprintTurnstileInitialized = true;
         
         // Warten auf Cloudflare Turnstile Script
         waitForTurnstile().then(() => {
@@ -38,10 +45,11 @@ function waitForTurnstile() {
 function setupTurnstileIntegration() {
     const widgets = new Map();
 
-    // Widgets rendern
+    // Widgets rendern - doppelt abgesichert
     document.querySelectorAll('.cf-turnstile').forEach((container) => {
-        if (container.hasAttribute('data-rendered')) {
-            return; // Already rendered
+        if (container.hasAttribute('data-rendered') || container.querySelector('iframe')) {
+            console.log('🛡️ Turnstile: Widget bereits gerendert, überspringe...');
+            return;
         }
 
         const siteKey = container.getAttribute('data-sitekey');

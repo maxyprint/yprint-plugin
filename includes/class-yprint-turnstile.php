@@ -416,5 +416,5 @@ class YPrint_Turnstile {
 // Singleton initialisieren
 $turnstile_instance = YPrint_Turnstile::get_instance();
 
-// Auto-Injection aktivieren
-add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
+// Auto-Injection DEAKTIVIERT - verwende nur manuelle Integration
+// add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
