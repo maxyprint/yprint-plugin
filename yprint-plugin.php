@@ -84,8 +84,12 @@ require_once plugin_dir_path(__FILE__) . 'includes/design-share-page.php';
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-turnstile.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-turnstile-admin.php';
 
-// Initialize Turnstile Admin (parallel zur Stripe Admin)
+// Initialize Admin Classes (Stripe FIRST, dann Turnstile)
 add_action('plugins_loaded', function() {
+    // Stripe Admin erstellt das Hauptmenü
+    YPrint_Stripe_Admin::get_instance();
+    
+    // Turnstile Admin hängt Untermenü an
     if (is_admin()) {
         YPrint_Turnstile_Admin::get_instance();
         add_action('admin_footer', function() {
@@ -144,10 +148,7 @@ add_action('plugins_loaded', function() {
     YPrint_Address_Handler::get_instance();
 });
 
-// Initialize Stripe Admin
-add_action('plugins_loaded', function() {
-    YPrint_Stripe_Admin::get_instance();
-});
+ 
 
 /**
  * Enqueue scripts and styles
