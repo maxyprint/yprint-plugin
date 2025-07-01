@@ -17,34 +17,31 @@ class YPrint_Turnstile_Admin {
     
     public static function get_instance() {
         if (null === self::$instance) {
-            error_log('🚀 YPrint_Turnstile_Admin: Creating new instance');
             self::$instance = new self();
-            error_log('✅ YPrint_Turnstile_Admin: Instance created successfully');
+            add_action('admin_footer', function() {
+                echo '<script>console.log("🚀 YPrint_Turnstile_Admin: Instance created successfully");</script>';
+            });
         }
         return self::$instance;
     }
     
     private function __construct() {
-        error_log('🔧 YPrint_Turnstile_Admin: Constructor called');
         add_action('admin_menu', array($this, 'add_admin_menu'));
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_scripts'));
-        error_log('🎯 YPrint_Turnstile_Admin: All hooks registered');
+        add_action('admin_footer', function() {
+            echo '<script>console.log("🎯 YPrint_Turnstile_Admin: All hooks registered");</script>';
+        });
     }
     
     /**
  * Admin-Menü hinzufügen
  */
 public function add_admin_menu() {
-    error_log('📋 YPrint_Turnstile_Admin: add_admin_menu called');
-    
-    // Prüfe ob Parent-Menu existiert
     global $menu, $submenu;
-    error_log('📋 Available parent menus: ' . print_r(array_keys($submenu), true));
     
-    // Turnstile Untermenü an bestehendes YPrint-Hauptmenü anhängen
     $hook_suffix = add_submenu_page(
-        'yprint-plugin',  // <-- Verwende bestehenden Parent-Slug
+        'yprint-plugin',  
         'Turnstile Einstellungen',
         'Bot-Schutz (Turnstile)',
         'manage_options',
@@ -52,8 +49,16 @@ public function add_admin_menu() {
         array($this, 'render_turnstile_page')
     );
     
-    error_log('📋 YPrint_Turnstile_Admin: Submenu added with hook_suffix: ' . $hook_suffix);
-    error_log('📋 YPrint_Turnstile_Admin: Callback is callable: ' . (is_callable(array($this, 'render_turnstile_page')) ? 'YES' : 'NO'));
+    add_action('admin_footer', function() use ($hook_suffix, $submenu) {
+        $parent_menus = isset($submenu) ? array_keys($submenu) : array();
+        $is_callable = is_callable(array($this, 'render_turnstile_page')) ? 'YES' : 'NO';
+        echo '<script>';
+        echo 'console.log("📋 YPrint_Turnstile_Admin: add_admin_menu called");';
+        echo 'console.log("📋 Available parent menus:", ' . json_encode($parent_menus) . ');';
+        echo 'console.log("📋 Submenu added with hook_suffix: ' . $hook_suffix . '");';
+        echo 'console.log("📋 Callback is callable: ' . $is_callable . '");';
+        echo '</script>';
+    });
 }
     
     /**
@@ -154,12 +159,15 @@ public function add_admin_menu() {
  * Turnstile Admin-Seite rendern
  */
 public function render_turnstile_page() {
-    error_log('🎨 YPrint_Turnstile_Admin: render_turnstile_page called - PAGE IS RENDERING!');
-    error_log('🎨 Current user can manage options: ' . (current_user_can('manage_options') ? 'YES' : 'NO'));
-    
     $options = get_option('yprint_turnstile_options', array());
-    error_log('🎨 Loaded options: ' . print_r($options, true));
+    $can_manage = current_user_can('manage_options') ? 'YES' : 'NO';
     ?>
+    <script>
+    console.log("🎨 YPrint_Turnstile_Admin: render_turnstile_page called - PAGE IS RENDERING!");
+    console.log("🎨 Current user can manage options: <?php echo $can_manage; ?>");
+    console.log("🎨 Loaded options:", <?php echo json_encode($options); ?>);
+    </script>
+    
         <div class="wrap">
             <h1>Cloudflare Turnstile Bot-Schutz</h1>
             

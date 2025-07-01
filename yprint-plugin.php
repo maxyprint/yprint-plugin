@@ -86,14 +86,18 @@ require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-turnstile-
 
 // Initialize Turnstile Admin (parallel zur Stripe Admin)
 add_action('plugins_loaded', function() {
-    error_log('🔄 plugins_loaded hook fired');
-    error_log('🔄 is_admin(): ' . (is_admin() ? 'YES' : 'NO'));
-    error_log('🔄 Class exists: ' . (class_exists('YPrint_Turnstile_Admin') ? 'YES' : 'NO'));
-    
     if (is_admin()) {
-        error_log('🔄 About to call YPrint_Turnstile_Admin::get_instance()');
         YPrint_Turnstile_Admin::get_instance();
-        error_log('🔄 YPrint_Turnstile_Admin initialized');
+        add_action('admin_footer', function() {
+            $is_admin = is_admin() ? 'YES' : 'NO';
+            $class_exists = class_exists('YPrint_Turnstile_Admin') ? 'YES' : 'NO';
+            echo '<script>';
+            echo 'console.log("🔄 plugins_loaded hook fired");';
+            echo 'console.log("🔄 is_admin(): ' . $is_admin . '");';
+            echo 'console.log("🔄 Class exists: ' . $class_exists . '");';
+            echo 'console.log("🔄 YPrint_Turnstile_Admin initialized");';
+            echo '</script>';
+        });
     }
 });
 
