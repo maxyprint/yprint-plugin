@@ -32,8 +32,21 @@ class YPrint_Turnstile_Admin {
      * Admin-Menü hinzufügen
      */
     public function add_admin_menu() {
-        // Hauptmenü prüfen und ggf. erstellen
-        if (!menu_page_url('yprint-settings', false)) {
+        global $menu;
+        
+        // Prüfe ob YPrint Hauptmenü bereits existiert
+        $yprint_menu_exists = false;
+        if (is_array($menu)) {
+            foreach ($menu as $menu_item) {
+                if (isset($menu_item[2]) && $menu_item[2] === 'yprint-settings') {
+                    $yprint_menu_exists = true;
+                    break;
+                }
+            }
+        }
+        
+        // Hauptmenü erstellen falls es nicht existiert
+        if (!$yprint_menu_exists) {
             add_menu_page(
                 'YPrint Einstellungen',
                 'YPrint',
