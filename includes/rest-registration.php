@@ -726,15 +726,16 @@ function yprint_registration_form_mobile() {
                     <span id="password-toggle-mobile" class="yprint-mobile-eye-toggle">
                         <i class="eicon-eye"></i>
                     </span>
-                    <!-- Passwortanforderungen -->
-                    <div id="password-requirements">
-                        <ul>
-                            <li id="length">Mindestens 8 Zeichen</li>
-                            <li id="uppercase">Mindestens ein Großbuchstabe</li>
-                            <li id="number">Mindestens eine Zahl</li>
-                            <li id="special">Mindestens ein Sonderzeichen</li>
-                        </ul>
-                    </div>
+                </div>
+                
+                <!-- Passwortanforderungen außerhalb des Containers -->
+                <div id="password-requirements" style="display: none;">
+                    <ul>
+                        <li id="length">Mindestens 8 Zeichen</li>
+                        <li id="uppercase">Mindestens ein Großbuchstabe</li>
+                        <li id="number">Mindestens eine Zahl</li>
+                        <li id="special">Mindestens ein Sonderzeichen</li>
+                    </ul>
                 </div>
 
                 <div class="yprint-mobile-input-group yprint-mobile-password-container">
@@ -773,9 +774,34 @@ function yprint_registration_form_mobile() {
 
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            // Passwort-Validierung
-            document.getElementById("user_password_mobile").addEventListener("input", function() {
+            // Passwort-Validierung mit Focus/Blur Events
+            var passwordField = document.getElementById("user_password_mobile");
+            var requirementsDiv = document.getElementById("password-requirements");
+            
+            // Zeige Requirements beim Focus an
+            passwordField.addEventListener("focus", function() {
+                if (this.value.length > 0) {
+                    requirementsDiv.style.display = "block";
+                }
+            });
+            
+            // Verstecke Requirements beim Blur (Verlassen des Feldes)
+            passwordField.addEventListener("blur", function() {
+                requirementsDiv.style.display = "none";
+            });
+            
+            // Passwort-Validierung bei Input
+            passwordField.addEventListener("input", function() {
                 var password = this.value;
+                
+                // Zeige Requirements nur an, wenn Passwort eingegeben wird
+                if (password.length > 0) {
+                    requirementsDiv.style.display = "block";
+                } else {
+                    requirementsDiv.style.display = "none";
+                    return;
+                }
+                
                 var requirements = {
                     length: password.length >= 8,
                     uppercase: /[A-Z]/.test(password),
