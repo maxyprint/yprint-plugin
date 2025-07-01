@@ -88,7 +88,9 @@ document.querySelectorAll('.cf-turnstile').forEach((container, index) => {
 
             widgets.set(formId, { widgetId: widgetId, isValid: false, token: null });
             container.setAttribute('data-rendered', 'true');
-            console.log(`🛡️ Turnstile widget rendered for form: ${formId}`);
+            // Container vor Cloudflare Auto-Rendering verstecken
+            container.className = container.className.replace('cf-turnstile', 'cf-turnstile-rendered');
+            console.log(`🛡️ Turnstile widget rendered for form: ${formId}, Container-Klasse geändert zu cf-turnstile-rendered`);
 
         } catch (error) {
             console.error('🛡️ Turnstile render error:', error);

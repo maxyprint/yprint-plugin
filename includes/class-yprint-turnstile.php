@@ -366,7 +366,7 @@ class YPrint_Turnstile {
         document.addEventListener('DOMContentLoaded', function() {
     console.log('🛡️ Auto-Injection: DOMContentLoaded Event gefeuert');
     console.log('🛡️ Auto-Injection: Body has data-turnstile-injection-done:', document.body.hasAttribute('data-turnstile-injection-done'));
-    console.log('🛡️ Auto-Injection: Existing widgets:', document.querySelectorAll('.cf-turnstile').length);
+    console.log('🛡️ Auto-Injection: Existing widgets:', document.querySelectorAll('.cf-turnstile, .cf-turnstile-rendered').length);
     
     // Mehrfach-Ausführung verhindern
     if (document.body.hasAttribute('data-turnstile-injection-done')) {
@@ -379,7 +379,7 @@ class YPrint_Turnstile {
             <?php if (in_array('login', $protected_pages)): ?>
             // Login-Formular Turnstile einfügen
 const loginForm = document.getElementById('yprint-loginform');
-const existingWidgets = loginForm?.querySelectorAll('.cf-turnstile') || [];
+const existingWidgets = loginForm?.querySelectorAll('.cf-turnstile, .cf-turnstile-rendered') || [];
 console.log('🛡️ Auto-Injection Login Check:', {
     'loginForm exists': !!loginForm,
     'existing widgets count': existingWidgets.length,
