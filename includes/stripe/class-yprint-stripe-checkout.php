@@ -100,8 +100,8 @@ class YPrint_Stripe_Checkout {
         // Express Checkout Design Transfer Hook
         add_action('yprint_express_order_created', array($instance, 'express_checkout_design_transfer_hook'), 10, 1);
         
-        // SCHUTZ-HOOK: Finale YPrint-Adress-Kontrolle nach allen anderen Hooks
-        add_action('woocommerce_checkout_order_processed', array($instance, 'final_address_protection_hook'), 999, 3);
+        // Final address protection hook temporarily disabled - removing race condition logic
+// add_action('woocommerce_checkout_order_processed', array($instance, 'final_address_protection_hook'), 999, 3);
         
     }
 
@@ -2987,87 +2987,8 @@ if ('succeeded' === $intent->status) {
         
         error_log('Order creation successful for payment method: ' . $payment_method['id']);
         
-        // **FINALE YPRINT-ADRESS-SCHUTZ-ANWENDUNG - ROBUSTE VERSION MIT BACKUP-DATEN**
-        // Verwendet gesicherte Session-Daten statt aktuelle (möglicherweise korrumpierte) Session
-        error_log('🔍 YPRINT FINAL: Applying comprehensive address protection for Order #' . $order_id);
-        
-        $final_order = wc_get_order($order_id);
-        if (!$final_order) {
-            error_log('🔍 YPRINT FINAL: ERROR - Could not reload order for final protection');
-        } else {
-            $address_applied = false;
-            
-            // KRITISCH: Verwende BACKUP-Daten statt aktuelle Session (die möglicherweise bereits überschrieben wurde)
-            error_log('🔍 YPRINT FINAL: Using BACKUP session data instead of current session');
-            
-            // 1. YPrint Standard-Adresse (Lieferadresse) mit BACKUP-Daten
-            if (!empty($backup_selected)) {
-                error_log('🔍 YPRINT FINAL: Applying YPrint shipping address from BACKUP');
-                $final_order->set_shipping_first_name($backup_selected['first_name'] ?? '');
-                $final_order->set_shipping_last_name($backup_selected['last_name'] ?? '');
-                $final_order->set_shipping_address_1($backup_selected['address_1'] ?? '');
-                $final_order->set_shipping_address_2($backup_selected['address_2'] ?? '');
-                $final_order->set_shipping_city($backup_selected['city'] ?? '');
-                $final_order->set_shipping_postcode($backup_selected['postcode'] ?? '');
-                $final_order->set_shipping_country($backup_selected['country'] ?? 'DE');
-                $final_order->set_shipping_phone($backup_selected['phone'] ?? '');
-                $address_applied = true;
-                error_log('🔍 YPRINT FINAL: Shipping address applied from BACKUP: ' . $backup_selected['address_1'] . ', ' . $backup_selected['city']);
-            } else {
-                error_log('🔍 YPRINT FINAL: WARNING - No backup shipping address data available');
-            }
-            
-            // 2. YPrint Rechnungsadresse (falls unterschiedlich) mit BACKUP-Daten
-            if ($backup_billing_different && !empty($backup_billing)) {
-                error_log('🔍 YPRINT FINAL: Applying YPrint billing address (different) from BACKUP');
-                $final_order->set_billing_first_name($backup_billing['first_name'] ?? '');
-                $final_order->set_billing_last_name($backup_billing['last_name'] ?? '');
-                $final_order->set_billing_address_1($backup_billing['address_1'] ?? '');
-                $final_order->set_billing_address_2($backup_billing['address_2'] ?? '');
-                $final_order->set_billing_city($backup_billing['city'] ?? '');
-                $final_order->set_billing_postcode($backup_billing['postcode'] ?? '');
-                $final_order->set_billing_country($backup_billing['country'] ?? 'DE');
-                $final_order->set_billing_phone($backup_billing['phone'] ?? '');
-                error_log('🔍 YPRINT FINAL: Billing address applied from BACKUP: ' . $backup_billing['address_1'] . ', ' . $backup_billing['city']);
-            } elseif ($address_applied && !empty($backup_selected)) {
-                // Rechnungsadresse = Lieferadresse falls keine separate Rechnungsadresse
-                error_log('🔍 YPRINT FINAL: Using shipping as billing address from BACKUP');
-                $final_order->set_billing_first_name($backup_selected['first_name'] ?? '');
-                $final_order->set_billing_last_name($backup_selected['last_name'] ?? '');
-                $final_order->set_billing_address_1($backup_selected['address_1'] ?? '');
-                $final_order->set_billing_address_2($backup_selected['address_2'] ?? '');
-                $final_order->set_billing_city($backup_selected['city'] ?? '');
-                $final_order->set_billing_postcode($backup_selected['postcode'] ?? '');
-                $final_order->set_billing_country($backup_selected['country'] ?? 'DE');
-                $final_order->set_billing_phone($backup_selected['phone'] ?? '');
-            }
-            
-            // 3. E-Mail aus User-Daten sicherstellen
-            if (is_user_logged_in()) {
-                $current_user = wp_get_current_user();
-                $final_order->set_billing_email($current_user->user_email);
-            }
-            
-            // 4. Zusätzliche Sicherung und Verifikation
-            if ($address_applied) {
-                $final_order->update_meta_data('_yprint_addresses_final_applied', true);
-                $final_order->update_meta_data('_yprint_backup_shipping', $backup_selected);
-                if ($backup_billing_different && !empty($backup_billing)) {
-                    $final_order->update_meta_data('_yprint_backup_billing', $backup_billing);
-                }
-                $final_order->save();
-                error_log('🔍 YPRINT FINAL: All YPrint addresses successfully applied from BACKUP and meta saved');
-                
-                // VERIFIKATION: Debug finale Adressen
-                error_log('🔍 YPRINT FINAL: VERIFICATION - Final shipping: ' . $final_order->get_shipping_address_1() . ', ' . $final_order->get_shipping_city());
-                error_log('🔍 YPRINT FINAL: VERIFICATION - Final billing: ' . $final_order->get_billing_address_1() . ', ' . $final_order->get_billing_city());
-            } else {
-                error_log('🔍 YPRINT FINAL: WARNING - No YPrint backup data found - keeping Stripe addresses');
-                // Debug: Zeige welche Stripe-Adressen verwendet werden
-                error_log('🔍 YPRINT FINAL: Stripe shipping fallback: ' . $final_order->get_shipping_address_1() . ', ' . $final_order->get_shipping_city());
-                error_log('🔍 YPRINT FINAL: Stripe billing fallback: ' . $final_order->get_billing_address_1() . ', ' . $final_order->get_billing_city());
-            }
-        }
+        // Final address protection temporarily disabled - removing backup session logic
+error_log('🔍 YPRINT: Order #' . $order_id . ' - final address protection disabled during cleanup phase');
         
         // Return success with payment intent ID und Redirect URL
         $confirmation_url = add_query_arg(array(

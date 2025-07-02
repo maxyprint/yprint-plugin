@@ -68,15 +68,11 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
-        // CLEAN HOOKS: Eindeutige Prioritäten, keine Duplikate
-        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 5, 2);
-        add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 5, 2);
+        // SINGLE HOOK: Nur ein zentraler Hook für Adress-Anwendung
+add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
 
-        // Stripe-spezifischer Hook für Express Payments
-        add_action('woocommerce_checkout_order_processed', array($this, 'apply_addresses_to_order_backup'), 20, 3);
-        
-        // Debug-Hooks
-        add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 25, 1);
+// Debug-Hook behalten (für Entwicklung)
+add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 25, 1);
 
         // AJAX-Handler für Billing Different Flag
 add_action('wp_ajax_yprint_activate_billing_different', array($this, 'ajax_activate_billing_different'));
@@ -1369,15 +1365,11 @@ public function ajax_set_checkout_address() {
     }
 
     if (WC()->session) {
-        // FALLBACK: Context-Erkennung wenn address_type fehlt oder falsch ist
-        // Dies ist eine sehr wichtige Fallback-Logik, die bestehen bleiben sollte.
-        if (($address_type === 'shipping' || empty($address_type)) && isset($_SERVER['HTTP_REFERER'])) {
-            $referer = $_SERVER['HTTP_REFERER'];
-            if (strpos($referer, 'step=billing') !== false) {
-                $address_type = 'billing';
-                error_log('🚀 AJAX DEBUG: FALLBACK - Context auf billing gesetzt (Referer-basiert)');
-            }
-        }
+        // Explicit address_type validation - no HTTP_REFERER fallback
+if (empty($address_type) || !in_array($address_type, ['shipping', 'billing'])) {
+    $address_type = 'shipping'; // Default to shipping if invalid or empty
+    error_log('🚀 AJAX DEBUG: Invalid address_type - defaulting to shipping');
+}
         
         error_log('🚀 AJAX DEBUG: Entering session logic with resolved address_type: ' . $address_type); // Log resolved value
         
