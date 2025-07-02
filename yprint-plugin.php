@@ -80,9 +80,21 @@ require_once YPRINT_PLUGIN_DIR . 'includes/yprint-order-debug-tracker.php';
 // Include the design share page
 require_once plugin_dir_path(__FILE__) . 'includes/design-share-page.php';
 
+// Load AddressOrchestrator (Pilot Implementation)
+require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-address-orchestrator.php';
+
+// Initialize AddressOrchestrator
+add_action('plugins_loaded', function() {
+    if (class_exists('YPrint_Address_Orchestrator')) {
+        YPrint_Address_Orchestrator::get_instance();
+    }
+});
+
 // Turnstile Integration laden
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-turnstile.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-turnstile-admin.php';
+
+
 
 // Initialize Admin Classes (Stripe FIRST, dann Turnstile)
 add_action('plugins_loaded', function() {

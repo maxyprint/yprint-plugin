@@ -68,8 +68,8 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
-        // SINGLE HOOK: Nur ein zentraler Hook für Adress-Anwendung
-add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
+        // PILOT: AddressOrchestrator handles wallet payments, fallback for manual payments
+add_action('woocommerce_checkout_create_order', array($this, 'orchestrator_aware_address_application'), 10, 2);
 
 // Debug-Hook behalten (für Entwicklung)
 add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 25, 1);
@@ -86,6 +86,32 @@ add_action('wp_ajax_nopriv_yprint_debug_session_state', array($this, 'ajax_debug
 add_action('wp_ajax_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
 add_action('wp_ajax_nopriv_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
     }
+
+/**
+ * Orchestrator-aware address application (pilot phase)
+ * 
+ * @param WC_Order $order
+ * @param array $data
+ */
+public function orchestrator_aware_address_application($order, $data = null) {
+    // Check if AddressOrchestrator is available and should handle this
+    if (class_exists('YPrint_Address_Orchestrator')) {
+        $orchestrator = YPrint_Address_Orchestrator::get_instance();
+        
+        // For pilot: Let orchestrator handle if it has collected addresses
+        // Otherwise fall back to manual address processing
+        $orchestrator_result = $orchestrator->orchestrate_addresses_for_order($order, $data);
+        
+        if ($orchestrator_result) {
+            error_log('🎯 AddressOrchestrator: Handled address processing for Order #' . $order->get_id());
+            return; // AddressOrchestrator handled it
+        }
+    }
+    
+    // Fallback: Use original manual address processing
+    $this->apply_addresses_to_order($order, $data);
+    error_log('🔍 YPRINT DEBUG: Fallback manual address processing for Order #' . $order->get_id());
+}
 
 /**
  * AJAX-Handler zum Aktivieren des Billing Different Flags ohne Adressdaten

@@ -245,8 +245,28 @@ error_log('🔍 YPRINT DEBUG: Standard Payment Order #' . $order->get_id() . ' -
             // Empty cart
             WC()->cart->empty_cart();
             
-// Express Payment address handling - keep original Express Payment addresses
-error_log('🔍 YPRINT DEBUG: Express Payment Order #' . $order->get_id() . ' - keeping original Express Payment addresses');
+// PILOT: Route Express Payment through AddressOrchestrator
+if (class_exists('YPrint_Address_Orchestrator')) {
+    $orchestrator = YPrint_Address_Orchestrator::get_instance();
+    
+    // Extract payment method data for orchestrator
+    $payment_method_data = null;
+    if (isset($payment_method['id'])) {
+        try {
+            $stripe_payment_method = \Stripe\PaymentMethod::retrieve($payment_method['id']);
+            $payment_method_data = $stripe_payment_method->toArray();
+        } catch (Exception $e) {
+            error_log('Could not retrieve payment method for orchestrator: ' . $e->getMessage());
+        }
+    }
+    
+    // Process through AddressOrchestrator
+    $orchestrator->process_wallet_payment_addresses($order, $payment_method_data);
+    
+    error_log('🎯 AddressOrchestrator: Express Payment processed for Order #' . $order->get_id());
+} else {
+    error_log('🔍 YPRINT DEBUG: Express Payment Order #' . $order->get_id() . ' - AddressOrchestrator not available, keeping original addresses');
+}
             
             return array(
                 'result'   => 'success',

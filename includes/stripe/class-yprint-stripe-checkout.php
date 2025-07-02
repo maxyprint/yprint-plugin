@@ -2899,8 +2899,30 @@ if ('succeeded' === $intent->status) {
         
         error_log('Order creation successful for payment method: ' . $payment_method['id']);
         
-        // Final address protection temporarily disabled - removing backup session logic
-error_log('🔍 YPRINT: Order #' . $order_id . ' - final address protection disabled during cleanup phase');
+        // PILOT: Route through AddressOrchestrator for all Stripe payments
+if (class_exists('YPrint_Address_Orchestrator')) {
+    $orchestrator = YPrint_Address_Orchestrator::get_instance();
+    
+    // Reload order for orchestrator processing
+    $final_order = wc_get_order($order_id);
+    if ($final_order) {
+        // Extract payment method data if available
+        $payment_method_data = null;
+        if (isset($payment_method) && is_array($payment_method)) {
+            $payment_method_data = $payment_method;
+        }
+        
+        // Process through AddressOrchestrator
+        $orchestrator->orchestrate_addresses_for_order($final_order, $payment_method_data);
+        
+        // Save order after orchestrator processing
+        $final_order->save();
+        
+        error_log('🎯 AddressOrchestrator: Stripe Checkout processed for Order #' . $order_id);
+    }
+} else {
+    error_log('🔍 YPRINT: Order #' . $order_id . ' - AddressOrchestrator not available');
+}
         
         // Return success with payment intent ID und Redirect URL
         $confirmation_url = add_query_arg(array(
