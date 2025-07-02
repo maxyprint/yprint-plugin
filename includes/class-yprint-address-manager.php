@@ -990,50 +990,8 @@ error_log('🔍 YPRINT DEBUG: apply_addresses_to_order COMPLETED for Order #' . 
 error_log('🔍 YPRINT DEBUG: ========================================');
 }
 
-/**
- * Backup-Methode für Express Payment Szenarien wo der Standard-Hook nicht greift
- */
-public function apply_addresses_to_order_backup($order_id, $posted_data, $order) {
-    error_log('🔍 YPRINT DEBUG: Backup method called for Order #' . $order_id);
-    
-    if ($order instanceof WC_Order) {
-        // Prüfe ob Adressen bereits korrekt gesetzt sind
-        $shipping_addr = $order->get_shipping_address();
-        $billing_addr = $order->get_billing_address();
-        
-        // Session-Daten abrufen
-        $has_different_billing = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
-        $selected_address = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
-        $billing_address = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
-        
-        // Prüfe Meta-Daten auf YPrint-Originaldaten
-        $original_shipping = $order->get_meta('_yprint_original_shipping_address');
-        
-        // MEHRERE KORREKTUR-BEDINGUNGEN:
-        
-        // 1. Shipping = Billing aber sollte unterschiedlich sein
-        $addresses_identical = ($shipping_addr['address_1'] === $billing_addr['address_1']);
-        
-        // 2. Original YPrint-Daten wurden überschrieben
-        $yprint_data_overwritten = !empty($original_shipping) && 
-                                   $shipping_addr['address_1'] !== $original_shipping['address_1'];
-        
-        // 3. Session zeigt unterschiedliche Adressen
-        $session_indicates_different = $has_different_billing && !empty($billing_address) && !empty($selected_address);
-        
-        if ($addresses_identical && $session_indicates_different) {
-            error_log('🔍 YPRINT DEBUG: BACKUP CORRECTION NEEDED - Shipping and Billing identical but should be different');
-            $this->apply_addresses_to_order($order);
-            $order->save();
-        } elseif ($yprint_data_overwritten) {
-            error_log('🔍 YPRINT DEBUG: BACKUP CORRECTION NEEDED - YPrint data was overwritten');
-            $this->apply_addresses_to_order($order);
-            $order->save();
-        } else {
-            error_log('🔍 YPRINT DEBUG: BACKUP CHECK - No correction needed');
-        }
-    }
-}
+// REMOVED: apply_addresses_to_order_backup() function completely removed 
+// This backup method was causing race conditions and has been eliminated
 
 /**
  * Debug-Handler für Bestellungsverarbeitung
@@ -1397,17 +1355,9 @@ if (empty($address_type) || !in_array($address_type, ['shipping', 'billing'])) {
             error_log('🚀 AJAX DEBUG: - yprint_billing_address_different: ' . ($verification_different ? 'TRUE' : 'FALSE')); // Corrected for boolean output
             error_log('🚀 AJAX DEBUG: - yprint_selected_address (should be unchanged): ' . (is_array($verification_shipping) ? ($verification_shipping['address_1'] ?? 'no address_1') : $verification_shipping));
             
-            // WooCommerce Customer Billing-Daten direkt setzen (ohne Session-Update)
-            if (WC()->customer) {
-                WC()->customer->set_billing_first_name($address_data['first_name'] ?? '');
-                WC()->customer->set_billing_last_name($address_data['last_name'] ?? '');
-                WC()->customer->set_billing_company($address_data['company'] ?? '');
-                WC()->customer->set_billing_address_1($address_data['address_1'] ?? '');
-                WC()->customer->set_billing_address_2($address_data['address_2'] ?? '');
-                WC()->customer->set_billing_postcode($address_data['postcode'] ?? '');
-                WC()->customer->set_billing_city($address_data['city'] ?? '');
-                WC()->customer->set_billing_country($address_data['country'] ?? 'DE');
-            }
+            // WooCommerce Customer updates temporarily limited - avoiding conflicts
+// Customer data will be updated through the standard order processing hooks
+error_log('🚀 AJAX DEBUG: Skipping WC Customer direct updates to avoid conflicts');
             
             error_log('🔍 YPRINT DEBUG: ========================================');
             error_log('🔍 YPRINT DEBUG: BILLING Address ONLY saved to yprint_billing_address');

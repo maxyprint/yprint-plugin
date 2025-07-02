@@ -597,20 +597,12 @@ public function add_order_meta($order_id, $posted_data) {
     protected function get_shipping_options($shipping_address) {
         $data = array();
         
-        // Set shipping address
-        WC()->customer->set_billing_address($shipping_address['address']);
-        WC()->customer->set_billing_address_2($shipping_address['address_2']);
-        WC()->customer->set_billing_country($shipping_address['country']);
-        WC()->customer->set_billing_state($shipping_address['state']);
-        WC()->customer->set_billing_postcode($shipping_address['postcode']);
-        WC()->customer->set_billing_city($shipping_address['city']);
-        
-        WC()->customer->set_shipping_address($shipping_address['address']);
-        WC()->customer->set_shipping_address_2($shipping_address['address_2']);
-        WC()->customer->set_shipping_country($shipping_address['country']);
-        WC()->customer->set_shipping_state($shipping_address['state']);
-        WC()->customer->set_shipping_postcode($shipping_address['postcode']);
-        WC()->customer->set_shipping_city($shipping_address['city']);
+        // Set shipping address for calculation only - avoid session conflicts
+WC()->customer->set_shipping_country($shipping_address['country']);
+WC()->customer->set_shipping_state($shipping_address['state']);
+WC()->customer->set_shipping_postcode($shipping_address['postcode']);
+WC()->customer->set_shipping_city($shipping_address['city']);
+// Note: Not setting billing to avoid conflicts with manual selection
         
         // Calculate shipping
         WC()->customer->set_calculated_shipping(true);
