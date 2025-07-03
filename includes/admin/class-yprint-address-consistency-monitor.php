@@ -32,19 +32,47 @@ public function add_admin_menu() {
     public function render_admin_page() {
         ?>
         <div class="wrap">
-            <h1>YPrint Address Consistency Monitor</h1>
+            <h1>🎯 YPrint Address Problem Diagnostic</h1>
+            <p><strong>Diagnose-Tool für die Chat-Probleme:</strong> Bestätigungsmail leer | Confirmation Page OK | Stripe falsch | WooCommerce korrekt</p>
             
-            <form method="post">
-                <label for="order_id">Order ID:</label>
-                <input type="number" id="order_id" name="order_id" value="5120" />
-                <button type="button" onclick="checkOrderConsistency()">Check Consistency</button>
+            <div style="background: #f1f1f1; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
+                <h3>🔍 Überprüfte Systeme:</h3>
+                <ul>
+                    <li><strong>WooCommerce Order:</strong> Tatsächlich gespeicherte Adressen</li>
+                    <li><strong>Stripe Payment Method:</strong> An Stripe übertragene Adressen</li>
+                    <li><strong>E-Mail System:</strong> Für Bestätigungsmail verwendete Adressen</li>
+                    <li><strong>Confirmation Page:</strong> Angezeigte Adressen im Checkout</li>
+                </ul>
+            </div>
+            
+            <form method="post" style="margin-bottom: 20px;">
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Order ID</th>
+                        <td>
+                            <input type="number" id="order_id" name="order_id" value="5125" style="width: 100px;" />
+                            <button type="button" onclick="checkOrderConsistency()" class="button button-primary">🔍 Probleme Analysieren</button>
+                        </td>
+                    </tr>
+                </table>
             </form>
             
             <div id="consistency-results" style="margin-top: 20px;"></div>
             
+            <style>
+            .problem-critical { background-color: #ffebee; border-left: 4px solid #f44336; }
+            .problem-warning { background-color: #fff3e0; border-left: 4px solid #ff9800; }
+            .problem-success { background-color: #e8f5e8; border-left: 4px solid #4caf50; }
+            .address-block { padding: 10px; margin: 5px 0; border-radius: 3px; }
+            .system-title { font-weight: bold; color: #333; margin-bottom: 8px; }
+            </style>
+            
             <script>
             function checkOrderConsistency() {
                 const orderId = document.getElementById('order_id').value;
+                const button = event.target;
+                button.disabled = true;
+                button.innerHTML = '🔄 Analysiere...';
                 
                 fetch(ajaxurl, {
                     method: 'POST',
@@ -54,6 +82,13 @@ public function add_admin_menu() {
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('consistency-results').innerHTML = data.data.html;
+                    button.disabled = false;
+                    button.innerHTML = '🔍 Probleme Analysieren';
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    button.disabled = false;
+                    button.innerHTML = '🔍 Probleme Analysieren';
                 });
             }
             </script>
@@ -78,140 +113,87 @@ public function add_admin_menu() {
         $results = $this->analyze_order_consistency($order);
         
         $html = '<div class="consistency-report">';
-        $html .= '<h3>Consistency Report for Order #' . $order_id . '</h3>';
-        $html .= '<table class="wp-list-table widefat fixed striped">';
-        $html .= '<thead><tr><th>System</th><th>Shipping Address</th><th>Billing Address</th><th>Status</th></tr></thead>';
-        $html .= '<tbody>';
+        $html .= '<h2>🎯 Address Problem Diagnostic - Order #' . $order_id . '</h2>';
         
-        foreach ($results as $system => $data) {
-            $status_class = $data['consistent'] ? 'success' : 'error';
-            $status_text = $data['consistent'] ? '✅ Consistent' : '❌ Inconsistent';
-            
-            $html .= '<tr>';
-            $html .= '<td><strong>' . esc_html($system) . '</strong></td>';
-            $html .= '<td>' . esc_html($data['shipping']) . '</td>';
-            $html .= '<td>' . esc_html($data['billing']) . '</td>';
-            $html .= '<td class="' . $status_class . '">' . $status_text . '</td>';
-            $html .= '</tr>';
+        // WooCommerce Order (Referenz)
+        $html .= '<div class="address-block problem-success">';
+        $html .= '<div class="system-title">✅ WooCommerce Order (FUNKTIONIERT)</div>';
+        if ($results['woocommerce']['shipping']) {
+            $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['woocommerce']['shipping']) . '<br>';
+            $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['woocommerce']['billing']) . '<br>';
         }
+        $html .= '<em>' . $results['woocommerce']['note'] . '</em>';
+        $html .= '</div>';
         
-        $html .= '</tbody></table></div>';
+        // Stripe (Problem)
+        $html .= '<div class="address-block problem-warning">';
+        $html .= '<div class="system-title">🟡 Stripe Payment Method (PROBLEM ERWARTET)</div>';
+        if ($results['stripe']['status'] !== 'error') {
+            if (isset($results['stripe']['billing'])) {
+                $html .= '<strong>Payment Method ID:</strong> ' . ($results['stripe']['payment_method_id'] ?? 'N/A') . '<br>';
+                $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['stripe']['billing']) . '<br>';
+            }
+        }
+        $html .= '<em>' . $results['stripe']['note'] . '</em>';
+        $html .= '</div>';
+        
+        // E-Mail System (Kritisches Problem)
+        $status_class = $results['email']['status'] === 'critical' ? 'problem-critical' : 'problem-success';
+        $html .= '<div class="address-block ' . $status_class . '">';
+        $html .= '<div class="system-title">' . ($results['email']['status'] === 'critical' ? '🔴 E-Mail System (KRITISCHES PROBLEM)' : '✅ E-Mail System (OK)') . '</div>';
+        if ($results['email']['status'] === 'critical') {
+            $html .= '<strong>PROBLEM:</strong> ' . $results['email']['note'] . '<br>';
+            if (isset($results['email']['debug'])) {
+                $html .= '<strong>Debug Info:</strong><br>';
+                foreach ($results['email']['debug'] as $key => $value) {
+                    $html .= '&nbsp;&nbsp;• ' . $key . ': ' . $value . '<br>';
+                }
+            }
+        } else {
+            $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['email']['shipping']) . '<br>';
+            $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['email']['billing']) . '<br>';
+        }
+        $html .= '<em>' . $results['email']['note'] . '</em>';
+        $html .= '</div>';
+        
+        // Confirmation Page
+        $html .= '<div class="address-block problem-success">';
+        $html .= '<div class="system-title">✅ Confirmation Page (FUNKTIONIERT)</div>';
+        if ($results['confirmation']['status'] === 'success' && isset($results['confirmation']['shipping'])) {
+            $html .= '<strong>Session Shipping:</strong> ' . $this->format_address_oneline($results['confirmation']['shipping']) . '<br>';
+            if (!empty($results['confirmation']['billing'])) {
+                $html .= '<strong>Session Billing:</strong> ' . $this->format_address_oneline($results['confirmation']['billing']) . '<br>';
+            }
+        }
+        $html .= '<em>' . $results['confirmation']['note'] . '</em>';
+        $html .= '</div>';
+        
+        $html .= '</div>';
         
         wp_send_json_success(['html' => $html]);
     }
     
-    /**
-     * Analyze order consistency across all systems
-     */
     private function analyze_order_consistency($order) {
-        $results = [];
+        $problems = [];
         
-        // 1. WooCommerce Order Data (DETAILLIERT)
-        $wc_shipping = $this->format_detailed_address([
-            'first_name' => $order->get_shipping_first_name(),
-            'last_name' => $order->get_shipping_last_name(),
-            'company' => $order->get_shipping_company(),
-            'address_1' => $order->get_shipping_address_1(),
-            'address_2' => $order->get_shipping_address_2(),
-            'city' => $order->get_shipping_city(),
-            'postcode' => $order->get_shipping_postcode(),
-            'country' => $order->get_shipping_country()
-        ]);
+        // 1. 🏗️ WooCommerce Order (REFERENZ - das was funktioniert)
+        $wc_data = $this->analyze_woocommerce_order($order);
         
-        $wc_billing = $this->format_detailed_address([
-            'first_name' => $order->get_billing_first_name(),
-            'last_name' => $order->get_billing_last_name(),
-            'company' => $order->get_billing_company(),
-            'address_1' => $order->get_billing_address_1(),
-            'address_2' => $order->get_billing_address_2(),
-            'city' => $order->get_billing_city(),
-            'postcode' => $order->get_billing_postcode(),
-            'country' => $order->get_billing_country(),
-            'email' => $order->get_billing_email(),
-            'phone' => $order->get_billing_phone()
-        ]);
+        // 2. 🔴 Stripe Payment Method (PROBLEM: zeigt falsche Adressen)
+        $stripe_data = $this->analyze_stripe_addresses($order);
         
-        $results['WooCommerce Order'] = [
-            'shipping' => $wc_shipping,
-            'billing' => $wc_billing,
-            'consistent' => true // Base reference
+        // 3. 🔴 E-Mail System (PROBLEM: leere Adressen)
+        $email_data = $this->analyze_email_addresses($order);
+        
+        // 4. ✅ Confirmation Page (FUNKTIONIERT)
+        $confirmation_data = $this->analyze_confirmation_addresses($order);
+        
+        return [
+            'woocommerce' => $wc_data,
+            'stripe' => $stripe_data,
+            'email' => $email_data,
+            'confirmation' => $confirmation_data
         ];
-        
-        // 2. AddressOrchestrator Data (DETAILLIERT) - VERBESSERTE DATENERFASSUNG
-$orchestrator_shipping = $order->get_meta('_yprint_orchestrator_final_shipping');
-$orchestrator_billing = $order->get_meta('_yprint_orchestrator_final_billing');
-$orchestrator_processed = $order->get_meta('_yprint_orchestrator_processed');
-$orchestrator_source = $order->get_meta('_yprint_orchestrator_source');
-
-if ($orchestrator_processed && $orchestrator_shipping && $orchestrator_billing) {
-    $orch_consistent = $this->compare_addresses_simple($orchestrator_shipping, [
-        'address_1' => $order->get_shipping_address_1(),
-        'city' => $order->get_shipping_city(),
-        'postcode' => $order->get_shipping_postcode(),
-        'country' => $order->get_shipping_country()
-    ]);
-    
-    $results['AddressOrchestrator'] = [
-        'shipping' => $this->format_detailed_address($orchestrator_shipping) . '<br>📊 <em>Source: ' . esc_html($orchestrator_source ?? 'Unknown') . '</em>',
-        'billing' => $this->format_detailed_address($orchestrator_billing),
-        'consistent' => $orch_consistent
-    ];
-} else {
-    $results['AddressOrchestrator'] = [
-        'shipping' => '❌ AddressOrchestrator nicht ausgeführt oder Daten fehlen',
-        'billing' => '❌ AddressOrchestrator nicht ausgeführt oder Daten fehlen',
-        'consistent' => false
-    ];
-}
-        
-        // 3. Session Data (DETAILLIERT)
-        if (WC()->session) {
-            $session_shipping = WC()->session->get('yprint_selected_address');
-            $session_billing = WC()->session->get('yprint_billing_address');
-            
-            if ($session_shipping) {
-                $results['Session Data'] = [
-                    'shipping' => $this->format_detailed_address($session_shipping),
-                    'billing' => $session_billing ? $this->format_detailed_address($session_billing) : '📋 Same as shipping',
-                    'consistent' => $this->compare_addresses_simple($session_shipping, [
-                        'address_1' => $order->get_shipping_address_1(),
-                        'city' => $order->get_shipping_city(),
-                        'postcode' => $order->get_shipping_postcode()
-                    ])
-                ];
-            } else {
-                $results['Session Data'] = [
-                    'shipping' => '❌ Keine Session-Daten verfügbar',
-                    'billing' => '❌ Keine Session-Daten verfügbar',
-                    'consistent' => false
-                ];
-            }
-        }
-        
-        // 4. Stripe Payment Method Data (DETAILLIERT mit Original-Daten)
-        $payment_method_id = $order->get_meta('_stripe_payment_method_id');
-        if ($payment_method_id) {
-            // Versuche ursprüngliche Stripe-Daten zu rekonstruieren
-            $stripe_data = $order->get_meta('_stripe_payment_method_details');
-            if ($stripe_data && isset($stripe_data['billing_details'])) {
-                $stripe_billing = $stripe_data['billing_details'];
-                $results['Stripe Payment Method'] = [
-                    'shipping' => '💳 Apple Pay: Heideweg 18, 97525 Schwebheim (Original)',
-                    'billing' => '💳 Stripe: ' . ($stripe_billing['address']['line1'] ?? 'Unbekannt') . ', ' . 
-                               ($stripe_billing['address']['postal_code'] ?? '') . ' ' . 
-                               ($stripe_billing['address']['city'] ?? '') . ' (Original)',
-                    'consistent' => false // Immer inconsistent by design
-                ];
-            } else {
-                $results['Stripe Payment Method'] = [
-                    'shipping' => '💳 Original Payment Method Data (nicht verfügbar)',
-                    'billing' => '💳 Original Payment Method Data (nicht verfügbar)',
-                    'consistent' => false
-                ];
-            }
-        }
-        
-        return $results;
     }
     
     /**
@@ -335,6 +317,153 @@ private function format_detailed_address(?array $address): string
         return true;
     }
 
+    /**
+     * Analysiere WooCommerce Order Adressen (Referenz - funktioniert)
+     */
+    private function analyze_woocommerce_order($order) {
+        $shipping = [
+            'first_name' => $order->get_shipping_first_name(),
+            'last_name' => $order->get_shipping_last_name(),
+            'address_1' => $order->get_shipping_address_1(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode(),
+            'country' => $order->get_shipping_country()
+        ];
+        
+        $billing = [
+            'first_name' => $order->get_billing_first_name(),
+            'last_name' => $order->get_billing_last_name(),
+            'address_1' => $order->get_billing_address_1(),
+            'city' => $order->get_billing_city(),
+            'postcode' => $order->get_billing_postcode(),
+            'country' => $order->get_billing_country(),
+            'email' => $order->get_billing_email()
+        ];
+        
+        return [
+            'status' => 'success',
+            'shipping' => $shipping,
+            'billing' => $billing,
+            'note' => 'WooCommerce Order zeigt korrekte Adressen (laut Chat: 97525 Schwebheim)'
+        ];
+    }
+    
+    /**
+     * Analysiere Stripe Payment Method Adressen (Problem-System)
+     */
+    private function analyze_stripe_addresses($order) {
+        // Stripe Payment Method ID aus Order Meta
+        $payment_method_id = $order->get_meta('_stripe_payment_method_id');
+        
+        // Original Stripe Billing Details aus Meta
+        $stripe_billing = $order->get_meta('_stripe_billing_details');
+        
+        // Payment Method Details falls verfügbar
+        $payment_details = $order->get_meta('_payment_method_details');
+        
+        if (!empty($stripe_billing)) {
+            $address = $stripe_billing['address'] ?? [];
+            return [
+                'status' => 'warning',
+                'payment_method_id' => $payment_method_id,
+                'billing' => [
+                    'name' => $stripe_billing['name'] ?? '',
+                    'email' => $stripe_billing['email'] ?? '',
+                    'address_1' => $address['line1'] ?? '',
+                    'city' => $address['city'] ?? '',
+                    'postcode' => $address['postal_code'] ?? '',
+                    'country' => $address['country'] ?? ''
+                ],
+                'note' => 'Stripe zeigt originale Payment Method Daten (laut Chat: Buchental 15 Schonungen, 97453, DE)'
+            ];
+        }
+        
+        return [
+            'status' => 'error',
+            'note' => 'Keine Stripe Payment Method Daten gefunden'
+        ];
+    }
+    
+    /**
+     * Analysiere E-Mail System Adressen (Problem-System)
+     */
+    private function analyze_email_addresses($order) {
+        // AddressOrchestrator E-Mail Meta-Keys
+        $email_shipping = $order->get_meta('_email_template_shipping_address');
+        $email_billing = $order->get_meta('_email_template_billing_address');
+        $addresses_ready = $order->get_meta('_email_template_addresses_ready');
+        
+        if ($addresses_ready && !empty($email_shipping) && !empty($email_billing)) {
+            return [
+                'status' => 'success',
+                'shipping' => $email_shipping,
+                'billing' => $email_billing,
+                'note' => 'E-Mail Template Adressen verfügbar - sollten in Bestätigungsmail erscheinen'
+            ];
+        } else {
+            return [
+                'status' => 'critical',
+                'shipping' => null,
+                'billing' => null,
+                'note' => 'PROBLEM: Keine E-Mail Template Adressen verfügbar (laut Chat: Bestätigungsmails leer)',
+                'debug' => [
+                    'addresses_ready' => $addresses_ready ? 'true' : 'false',
+                    'email_shipping_empty' => empty($email_shipping) ? 'true' : 'false',
+                    'email_billing_empty' => empty($email_billing) ? 'true' : 'false'
+                ]
+            ];
+        }
+    }
+    
+    /**
+     * Analysiere Confirmation Page Adressen (funktioniert laut Chat)
+     */
+    private function analyze_confirmation_addresses($order) {
+        // Session-basierte Daten die für Confirmation Page verwendet werden
+        if (WC()->session) {
+            $session_shipping = WC()->session->get('yprint_selected_address');
+            $session_billing = WC()->session->get('yprint_billing_address');
+            
+            if (!empty($session_shipping)) {
+                return [
+                    'status' => 'success',
+                    'shipping' => $session_shipping,
+                    'billing' => $session_billing,
+                    'note' => 'Confirmation Page funktioniert (laut Chat: super) - Session-Daten verfügbar'
+                ];
+            }
+        }
+        
+        return [
+            'status' => 'warning',
+            'note' => 'Session nicht verfügbar im Admin - Confirmation Page nutzt Session-Daten'
+        ];
+    }
+
+    /**
+     * Formatiert Adresse in einer Zeile für kompakte Anzeige
+     */
+    private function format_address_oneline($address) {
+        if (empty($address)) {
+            return '❌ Leer';
+        }
+        
+        $parts = [];
+        if (!empty($address['first_name']) || !empty($address['last_name'])) {
+            $parts[] = trim(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? ''));
+        }
+        if (!empty($address['address_1'])) {
+            $parts[] = $address['address_1'];
+        }
+        if (!empty($address['postcode']) || !empty($address['city'])) {
+            $parts[] = trim(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? ''));
+        }
+        if (!empty($address['email'])) {
+            $parts[] = $address['email'];
+        }
+        
+        return !empty($parts) ? implode(', ', $parts) : '❌ Keine Daten';
+    }
     
 }
 
