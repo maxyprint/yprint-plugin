@@ -13,18 +13,18 @@ class YPrint_Address_Consistency_Monitor {
     }
     
     /**
-     * Add admin menu item
-     */
-    public function add_admin_menu() {
-        add_submenu_page(
-            'woocommerce',
-            'YPrint Address Consistency',
-            'Address Consistency',
-            'manage_woocommerce',
-            'yprint-address-consistency',
-            [$this, 'render_admin_page']
-        );
-    }
+ * Add admin menu item
+ */
+public function add_admin_menu() {
+    add_submenu_page(
+        'yprint-plugin', // Parent slug - YPrint Hauptmenü
+        'YPrint Address Consistency',
+        'Address Consistency',
+        'manage_options',
+        'yprint-address-consistency',
+        [$this, 'render_admin_page']
+    );
+}
     
     /**
      * Render admin page
