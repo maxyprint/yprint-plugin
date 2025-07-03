@@ -2899,30 +2899,64 @@ if ('succeeded' === $intent->status) {
         
         error_log('Order creation successful for payment method: ' . $payment_method['id']);
         
-        // PILOT: Route through AddressOrchestrator for all Stripe payments
+        // ===== ROBUSTE ORCHESTRATOR INTEGRATION MIT CONSOLE DEBUGGING (CHECKOUT) =====
+// Für AJAX Responses müssen wir die Console Logs in die JSON Response einbetten
+$debug_logs = [];
+$debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Starting AddressOrchestrator integration for Order #' . $order_id;
+$debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Class exists check: ' . (class_exists('YPrint_Address_Orchestrator') ? 'TRUE' : 'FALSE');
+
 if (class_exists('YPrint_Address_Orchestrator')) {
-    $orchestrator = YPrint_Address_Orchestrator::get_instance();
+    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Getting orchestrator instance...';
     
-    // Reload order for orchestrator processing
-    $final_order = wc_get_order($order_id);
-    if ($final_order) {
-        // Extract payment method data if available
-        $payment_method_data = null;
-        if (isset($payment_method) && is_array($payment_method)) {
-            $payment_method_data = $payment_method;
+    try {
+        $orchestrator = YPrint_Address_Orchestrator::get_instance();
+        $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Instance retrieved: ' . (is_object($orchestrator) ? 'SUCCESS' : 'FAILED');
+        
+        // Reload order for orchestrator processing
+        $final_order = wc_get_order($order_id);
+        $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Order reload: ' . ($final_order ? 'SUCCESS' : 'FAILED');
+        
+        if ($final_order && is_object($orchestrator)) {
+            // Extract payment method data if available
+            $payment_method_data = null;
+            if (isset($payment_method) && is_array($payment_method)) {
+                $payment_method_data = $payment_method;
+                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Payment method data available: ' . implode(', ', array_keys($payment_method));
+            } else {
+                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): No payment method data available';
+            }
+            
+            // Method existence check
+            if (method_exists($orchestrator, 'orchestrate_addresses_for_order')) {
+                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Method orchestrate_addresses_for_order EXISTS - calling now...';
+                
+                // CALL ORCHESTRATOR
+                $result = $orchestrator->orchestrate_addresses_for_order($final_order, $payment_method_data);
+                
+                $debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Orchestrator returned: ' . ($result ? 'SUCCESS' : 'FAILED');
+                
+                // Save order after orchestrator processing
+                $final_order->save();
+                $debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Order saved after orchestrator processing';
+                
+                $debug_logs[] = '🎯 AddressOrchestrator: Stripe Checkout processed for Order #' . $order_id;
+            } else {
+                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): ERROR - Method orchestrate_addresses_for_order NOT FOUND';
+            }
+        } else {
+            $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): ERROR - Order reload or orchestrator instance failed';
         }
         
-        // Process through AddressOrchestrator
-        $orchestrator->orchestrate_addresses_for_order($final_order, $payment_method_data);
-        
-        // Save order after orchestrator processing
-        $final_order->save();
-        
-        error_log('🎯 AddressOrchestrator: Stripe Checkout processed for Order #' . $order_id);
+    } catch (Exception $e) {
+        $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): EXCEPTION during orchestrator processing: ' . $e->getMessage();
     }
 } else {
-    error_log('🔍 YPRINT: Order #' . $order_id . ' - AddressOrchestrator not available');
+    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): AddressOrchestrator class NOT AVAILABLE';
 }
+
+$debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Integration attempt completed for Order #' . $order_id;
+
+// Für AJAX: Debug logs in die Success Response einbetten, damit sie im Frontend per Console ausgegeben werden können
         
         // Return success with payment intent ID und Redirect URL
         $confirmation_url = add_query_arg(array(
@@ -2942,16 +2976,16 @@ if (class_exists('YPrint_Address_Orchestrator')) {
                 'success' => $design_transfers_success,
                 'failed' => $design_transfers_failed
             ),
-            'test_mode' => YPrint_Stripe_API::is_testmode()
+            'test_mode' => YPrint_Stripe_API::is_testmode(),
+            'debug_logs' => $debug_logs
         ));
         
-    } catch (Exception $e) {
-        error_log('Payment processing error: ' . $e->getMessage());
-        wp_send_json_error(array(
-            'message' => 'Payment processing failed: ' . $e->getMessage()
-        ));
-    }
-}
+        } catch (Exception $e) {
+            error_log('Payment processing error: ' . $e->getMessage());
+            wp_send_json_error(array(
+                'message' => 'Payment processing failed: ' . $e->getMessage()
+            ));
+        }}
 
 
 
