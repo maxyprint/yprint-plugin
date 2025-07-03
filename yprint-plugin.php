@@ -107,10 +107,9 @@ add_action('plugins_loaded', function() {
         error_log('✅ YPrint AddressOrchestrator: Stripe metadata integration initialized');
     }
     
-    // Initialize Admin Monitor
+    // Admin Monitor - wird später bei Admin Classes initialisiert
     if (class_exists('YPrint_Address_Consistency_Monitor')) {
-        new YPrint_Address_Consistency_Monitor();
-        error_log('✅ YPrint AddressOrchestrator: Admin consistency monitor initialized');
+        error_log('✅ YPrint AddressOrchestrator: Admin consistency monitor class loaded');
     }
 });
 
@@ -131,8 +130,8 @@ add_action('plugins_loaded', function() {
         
         // Address Consistency Monitor hinzufügen
         if (class_exists('YPrint_Address_Consistency_Monitor')) {
-            // Monitor wird automatisch via plugins_loaded initialisiert
-            error_log('✅ YPrint Admin: Address Consistency Monitor available in admin');
+            new YPrint_Address_Consistency_Monitor();
+            error_log('✅ YPrint Admin: Address Consistency Monitor initialized');
         }
         add_action('admin_footer', function() {
             $is_admin = is_admin() ? 'YES' : 'NO';
