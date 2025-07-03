@@ -83,10 +83,34 @@ require_once plugin_dir_path(__FILE__) . 'includes/design-share-page.php';
 // Load AddressOrchestrator (Pilot Implementation)
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-address-orchestrator.php';
 
-// Initialize AddressOrchestrator
+// Load AddressOrchestrator Extensions (Email & Stripe Integration)
+require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-email-address-integration.php';
+require_once plugin_dir_path(__FILE__) . 'includes/stripe/class-yprint-stripe-metadata-integration.php';
+require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-address-consistency-monitor.php';
+
+// Initialize AddressOrchestrator and Extensions
 add_action('plugins_loaded', function() {
     if (class_exists('YPrint_Address_Orchestrator')) {
         YPrint_Address_Orchestrator::get_instance();
+        error_log('✅ YPrint AddressOrchestrator: Core system initialized');
+    }
+    
+    // Initialize Email Integration
+    if (class_exists('YPrint_Email_Address_Integration')) {
+        new YPrint_Email_Address_Integration();
+        error_log('✅ YPrint AddressOrchestrator: Email integration initialized');
+    }
+    
+    // Initialize Stripe Metadata Integration  
+    if (class_exists('YPrint_Stripe_Metadata_Integration')) {
+        new YPrint_Stripe_Metadata_Integration();
+        error_log('✅ YPrint AddressOrchestrator: Stripe metadata integration initialized');
+    }
+    
+    // Initialize Admin Monitor
+    if (class_exists('YPrint_Address_Consistency_Monitor')) {
+        new YPrint_Address_Consistency_Monitor();
+        error_log('✅ YPrint AddressOrchestrator: Admin consistency monitor initialized');
     }
 });
 
@@ -96,7 +120,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-turnstile-
 
 
 
-// Initialize Admin Classes (Stripe FIRST, dann Turnstile)
+// Initialize Admin Classes (Stripe FIRST, dann Turnstile, dann Address Monitor)
 add_action('plugins_loaded', function() {
     // Stripe Admin erstellt das Hauptmenü
     YPrint_Stripe_Admin::get_instance();
@@ -104,6 +128,12 @@ add_action('plugins_loaded', function() {
     // Turnstile Admin hängt Untermenü an
     if (is_admin()) {
         YPrint_Turnstile_Admin::get_instance();
+        
+        // Address Consistency Monitor hinzufügen
+        if (class_exists('YPrint_Address_Consistency_Monitor')) {
+            // Monitor wird automatisch via plugins_loaded initialisiert
+            error_log('✅ YPrint Admin: Address Consistency Monitor available in admin');
+        }
         add_action('admin_footer', function() {
             $is_admin = is_admin() ? 'YES' : 'NO';
             $class_exists = class_exists('YPrint_Turnstile_Admin') ? 'YES' : 'NO';
