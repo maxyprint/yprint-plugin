@@ -75,6 +75,71 @@ function yprint_get_email_template($title, $username, $content) {
                         </td>
                     </tr>
                 </table>
+
+                </table>
+            
+            <!-- 🔥 NEU: Adressdaten-Sektion -->
+            <h2 style="margin: 30px 0 25px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 22px; font-weight: 600;">
+                Adressdaten
+            </h2>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <!-- Lieferadresse -->
+                <div style="flex: 1; min-width: 250px; background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 16px; font-weight: 600;">
+                        📦 Lieferadresse
+                    </h3>
+                    <div style="color: <?php echo esc_attr($text_color_dark); ?>; line-height: 1.5;">
+                        <?php 
+                        $shipping_lines = [];
+                        if (!empty($shipping_address['first_name']) || !empty($shipping_address['last_name'])) {
+                            $shipping_lines[] = trim(($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? ''));
+                        }
+                        if (!empty($shipping_address['address_1'])) {
+                            $shipping_lines[] = esc_html($shipping_address['address_1']);
+                        }
+                        if (!empty($shipping_address['address_2'])) {
+                            $shipping_lines[] = esc_html($shipping_address['address_2']);
+                        }
+                        if (!empty($shipping_address['postcode']) || !empty($shipping_address['city'])) {
+                            $shipping_lines[] = trim(($shipping_address['postcode'] ?? '') . ' ' . ($shipping_address['city'] ?? ''));
+                        }
+                        if (!empty($shipping_address['country'])) {
+                            $shipping_lines[] = esc_html($shipping_address['country']);
+                        }
+                        echo implode('<br>', $shipping_lines);
+                        ?>
+                    </div>
+                </div>
+                
+                <!-- Rechnungsadresse -->
+                <div style="flex: 1; min-width: 250px; background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 15px;">
+                    <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 16px; font-weight: 600;">
+                        🧾 Rechnungsadresse
+                    </h3>
+                    <div style="color: <?php echo esc_attr($text_color_dark); ?>; line-height: 1.5;">
+                        <?php 
+                        $billing_lines = [];
+                        if (!empty($billing_address['first_name']) || !empty($billing_address['last_name'])) {
+                            $billing_lines[] = trim(($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? ''));
+                        }
+                        if (!empty($billing_address['address_1'])) {
+                            $billing_lines[] = esc_html($billing_address['address_1']);
+                        }
+                        if (!empty($billing_address['address_2'])) {
+                            $billing_lines[] = esc_html($billing_address['address_2']);
+                        }
+                        if (!empty($billing_address['postcode']) || !empty($billing_address['city'])) {
+                            $billing_lines[] = trim(($billing_address['postcode'] ?? '') . ' ' . ($billing_address['city'] ?? ''));
+                        }
+                        if (!empty($billing_address['country'])) {
+                            $billing_lines[] = esc_html($billing_address['country']);
+                        }
+                        echo implode('<br>', $billing_lines);
+                        ?>
+                    </div>
+                </div>
+            </div>
+        </div>
             </td>
         </tr>
     </table>
@@ -195,6 +260,36 @@ function yprint_send_order_confirmation_email($order) {
  * @return string Der HTML-Inhalt
  */
 function yprint_build_order_confirmation_content($order) {
+    // 🔥 KRITISCH: Nutze orchestrierte Adressen für E-Mail-Templates
+    $shipping_address = $order->get_meta('_email_template_shipping_address');
+    $billing_address = $order->get_meta('_email_template_billing_address');
+    $addresses_ready = $order->get_meta('_email_template_addresses_ready');
+    
+    // Fallback auf Standard-Order-Felder wenn orchestrierte Adressen nicht verfügbar
+    if (!$addresses_ready || empty($shipping_address) || empty($billing_address)) {
+        error_log('YPrint Email: Fallback - Nutze Standard Order-Adressen (keine orchestrierten Daten verfügbar)');
+        $shipping_address = [
+            'first_name' => $order->get_shipping_first_name(),
+            'last_name' => $order->get_shipping_last_name(),
+            'address_1' => $order->get_shipping_address_1(),
+            'address_2' => $order->get_shipping_address_2(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode(),
+            'country' => $order->get_shipping_country()
+        ];
+        $billing_address = [
+            'first_name' => $order->get_billing_first_name(),
+            'last_name' => $order->get_billing_last_name(),
+            'address_1' => $order->get_billing_address_1(),
+            'address_2' => $order->get_billing_address_2(),
+            'city' => $order->get_billing_city(),
+            'postcode' => $order->get_billing_postcode(),
+            'country' => $order->get_billing_country()
+        ];
+    } else {
+        error_log('YPrint Email: SUCCESS - Nutze orchestrierte Adressen aus AddressOrchestrator');
+    }
+    
     ob_start();
     $accent_color = '#007BFF'; // A clean, modern blue
     $text_color_dark = '#333333';

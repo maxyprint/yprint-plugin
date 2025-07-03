@@ -215,62 +215,84 @@ if ($orchestrator_processed && $orchestrator_shipping && $orchestrator_billing) 
     }
     
     /**
-     * Format address for detailed display
-     */
-    private function format_detailed_address($address) {
-        if (empty($address) || !is_array($address)) {
-            return '❌ Keine Daten';
-        }
-        
-        $lines = [];
-        
-        // Name
-        $name = trim(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? ''));
-        if (!empty($name)) {
-            $lines[] = '👤 ' . $name;
-        }
-        
-        // Company
-        if (!empty($address['company'])) {
-            $lines[] = '🏢 ' . $address['company'];
-        }
-        
-        // Address
-        if (!empty($address['address_1'])) {
-            $address_line = $address['address_1'];
-            if (!empty($address['address_2'])) {
-                $address_line .= ', ' . $address['address_2'];
-            }
-            $lines[] = '📍 ' . $address_line;
-        }
-        
-        // City & Postcode
-        $city_line = '';
-        if (!empty($address['postcode'])) {
-            $city_line .= $address['postcode'];
-        }
-        if (!empty($address['city'])) {
-            $city_line .= ($city_line ? ' ' : '') . $address['city'];
-        }
-        if (!empty($city_line)) {
-            $lines[] = '🏙️ ' . $city_line;
-        }
-        
-        // Country
-        if (!empty($address['country'])) {
-            $lines[] = '🌍 ' . $address['country'];
-        }
-        
-        // Contact Info
-        if (!empty($address['email'])) {
-            $lines[] = '✉️ ' . $address['email'];
-        }
-        if (!empty($address['phone'])) {
-            $lines[] = '📞 ' . $address['phone'];
-        }
-        
-        return implode('<br>', $lines);
+ * Formatiert Adressdaten für eine detaillierte Anzeige.
+ *
+ * Diese Funktion nimmt ein Array von Adressdaten entgegen und gibt einen formatierten String
+ * zurück, der die Adresse zeilenweise für die Anzeige darstellt. Es werden gängige Adressfelder
+ * wie Name, Firma, Adresse, Stadt, Postleitzahl, Land, E-Mail und Telefon berücksichtigt.
+ * Leere Felder werden ignoriert.
+ *
+ * @param array|null $address Das Adressdaten-Array. Erwartet Schlüssel wie 'first_name',
+ * 'last_name', 'company', 'address_1', 'address_2', 'city',
+ * 'postcode', 'country', 'email', 'phone'.
+ * @return string Der formatierte Adress-String als HTML (mit <br> für Zeilenumbrüche)
+ * oder eine Fehlermeldung, wenn keine gültigen Adressdaten vorliegen.
+ */
+private function format_detailed_address(?array $address): string
+{
+    // Prüfen, ob Adressdaten vorhanden und ein Array sind
+    if (empty($address) || !is_array($address)) {
+        return '❌ Keine Adressdaten verfügbar.';
     }
+
+    $lines = [];
+
+    // Name
+    $fullName = trim(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? ''));
+    if (!empty($fullName)) {
+        $lines[] = '👤 ' . esc_html($fullName);
+    }
+
+    // Firma
+    if (!empty($address['company'])) {
+        $lines[] = '🏢 ' . esc_html($address['company']);
+    }
+
+    // Adresse (Zeile 1 und 2 kombinieren)
+    $addressLine = [];
+    if (!empty($address['address_1'])) {
+        $addressLine[] = esc_html($address['address_1']);
+    }
+    if (!empty($address['address_2'])) {
+        $addressLine[] = esc_html($address['address_2']);
+    }
+    if (!empty($addressLine)) {
+        $lines[] = '📍 ' . implode(', ', $addressLine);
+    }
+
+    // Stadt und Postleitzahl
+    $cityPostcodeLine = [];
+    if (!empty($address['postcode'])) {
+        $cityPostcodeLine[] = esc_html($address['postcode']);
+    }
+    if (!empty($address['city'])) {
+        $cityPostcodeLine[] = esc_html($address['city']);
+    }
+    if (!empty($cityPostcodeLine)) {
+        $lines[] = '🏙️ ' . implode(' ', $cityPostcodeLine);
+    }
+
+    // Land
+    if (!empty($address['country'])) {
+        $lines[] = '🌍 ' . esc_html($address['country']);
+    }
+
+    // Kontaktinformationen
+    if (!empty($address['email'])) {
+        $lines[] = '✉️ ' . esc_html($address['email']);
+    }
+    if (!empty($address['phone'])) {
+        $lines[] = '📞 ' . esc_html($address['phone']);
+    }
+
+    // Wenn nach allen Prüfungen keine Zeilen hinzugefügt wurden, bedeutet das, dass das Array leer war
+    // oder nur unbekannte Schlüssel enthielt.
+    if (empty($lines)) {
+        return '❌ Keine gültigen Adressdaten zum Anzeigen gefunden.';
+    }
+
+    return implode('<br>', $lines);
+}
     
     /**
      * Compare addresses for detailed consistency check
@@ -312,5 +334,7 @@ if ($orchestrator_processed && $orchestrator_shipping && $orchestrator_billing) 
         
         return true;
     }
+
+    
 }
 
