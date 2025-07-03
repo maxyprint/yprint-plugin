@@ -76,18 +76,18 @@ class YPrint_Address_Orchestrator {
     }
 
     /**
-     * Initialize hooks for wallet payment integration (pilot)
-     */
-    private function init_wallet_payment_hooks() {
-        // Hook into Stripe payment processing for wallet payments
-        add_action('yprint_wallet_payment_processing', [$this, 'process_wallet_payment_addresses'], 5, 2);
-        
-        // Hook into WooCommerce order creation for wallet payments  
-        add_action('woocommerce_checkout_create_order', [$this, 'orchestrate_addresses_for_order'], 5, 2);
-        
-        // Hook for Express Payment processing
-        add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 10, 2);
-    }
+ * Initialize hooks for wallet payment integration (pilot)
+ */
+private function init_wallet_payment_hooks() {
+    // Hook into Stripe payment processing for wallet payments
+    add_action('yprint_wallet_payment_processing', [$this, 'process_wallet_payment_addresses'], 5, 2);
+    
+    // HOOK ENTFERNT: Verhindert doppelten Aufruf - Orchestrator wird manuell von Payment Gateways aufgerufen
+    // add_action('woocommerce_checkout_create_order', [$this, 'orchestrate_addresses_for_order'], 5, 2);
+    
+    // Hook for Express Payment processing
+    add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 10, 2);
+}
 
     /**
      * MAIN ORCHESTRATION METHOD
@@ -851,11 +851,11 @@ private function validate_session_consistency($shipping_address, $billing_addres
         $prefix = self::LOG_PREFIX;
         $context_suffix = $this->context ? ' [' . $this->context . ']' : '';
         
-        // Console log for frontend (if applicable)
-        if (!wp_doing_ajax() && !is_admin()) {
-            $js_message = esc_js($prefix . ' ' . $message . $context_suffix);
-            echo "<script>console.log('{$js_message}');</script>";
-        }
+        // Console log for frontend - AJAX-Blockade entfernt für Debug-Zwecke
+if (!is_admin()) {
+    $js_message = esc_js($prefix . ' ' . $message . $context_suffix);
+    echo "<script>console.log('{$js_message}');</script>";
+}
     
         // Backend error log
         $log_message = $prefix . ' ' . $message . $context_suffix;
