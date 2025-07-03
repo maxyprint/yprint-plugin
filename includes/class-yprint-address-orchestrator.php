@@ -70,6 +70,9 @@ class YPrint_Address_Orchestrator {
     private function __construct() {
         // Initialize hooks for pilot wallet payment integration
         $this->init_wallet_payment_hooks();
+        
+        // Initialize AJAX handlers for frontend communication
+        $this->init_ajax_handlers();
     }
 
     /**
@@ -623,5 +626,128 @@ class YPrint_Address_Orchestrator {
         $this->final_addresses = [];
         $this->context = '';
         $this->debug_logs = [];
+    }
+    
+    /**
+     * Initialize AJAX handlers for frontend communication
+     */
+    private function init_ajax_handlers() {
+        // Status and debug endpoints
+        add_action('wp_ajax_yprint_orchestrator_status', array($this, 'ajax_get_status'));
+        add_action('wp_ajax_nopriv_yprint_orchestrator_status', array($this, 'ajax_get_status'));
+        
+        // Session state debugging
+        add_action('wp_ajax_yprint_orchestrator_debug', array($this, 'ajax_debug_state'));
+        add_action('wp_ajax_nopriv_yprint_orchestrator_debug', array($this, 'ajax_debug_state'));
+        
+        // Address collection testing
+        add_action('wp_ajax_yprint_orchestrator_collect', array($this, 'ajax_collect_addresses'));
+        add_action('wp_ajax_nopriv_yprint_orchestrator_collect', array($this, 'ajax_collect_addresses'));
+    }
+    
+    /**
+     * AJAX: Get orchestrator status and configuration
+     */
+    public function ajax_get_status() {
+        // Basic security check
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'yprint_checkout_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $session_available = WC()->session !== null;
+        $user_id = get_current_user_id();
+        
+        wp_send_json_success([
+            'orchestrator_active' => true,
+            'session_available' => $session_available,
+            'user_logged_in' => $user_id > 0,
+            'user_id' => $user_id,
+            'current_context' => $this->context,
+            'debug_logs_count' => count($this->debug_logs ?? []),
+            'priority_hierarchy' => self::PRIORITY_HIERARCHY,
+            'timestamp' => current_time('mysql')
+        ]);
+    }
+    
+    /**
+     * AJAX: Debug current orchestrator state and session data
+     */
+    public function ajax_debug_state() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'yprint_checkout_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        if (!WC()->session) {
+            wp_send_json_error(['message' => 'WooCommerce session not available']);
+            return;
+        }
+        
+        try {
+            // Collect session data for debugging
+            $session_data = [
+                'customer_data' => WC()->session->get('customer', []),
+                'yprint_selected_address' => WC()->session->get('yprint_selected_address'),
+                'yprint_billing_address' => WC()->session->get('yprint_billing_address'),
+                'yprint_billing_different' => WC()->session->get('yprint_billing_address_different', false),
+                'yprint_apple_pay_address' => WC()->session->get('yprint_apple_pay_address')
+            ];
+            
+            wp_send_json_success([
+                'session_data' => $session_data,
+                'collected_addresses' => $this->collected_addresses,
+                'final_addresses' => $this->final_addresses,
+                'debug_logs' => $this->get_debug_logs(),
+                'context' => $this->context,
+                'timestamp' => current_time('mysql')
+            ]);
+            
+        } catch (Exception $e) {
+            wp_send_json_error(['message' => 'Debug state access failed: ' . $e->getMessage()]);
+        }
+    }
+    
+    /**
+     * AJAX: Test address collection from available sources
+     */
+    public function ajax_collect_addresses() {
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'yprint_checkout_nonce')) {
+            wp_send_json_error(['message' => 'Security check failed']);
+            return;
+        }
+        
+        $test_context = sanitize_text_field($_POST['context'] ?? 'frontend_test');
+        $this->context = $test_context;
+        
+        try {
+            // Reset state for clean test
+            $this->reset_state();
+            $this->context = $test_context;
+            
+            // Use existing collection method with dummy order for testing
+            $dummy_order = wc_create_order();
+            $this->collect_addresses($dummy_order, null);
+            
+            // Clean up dummy order
+            $dummy_order->delete(true);
+            
+            $this->log_step("AJAX address collection test completed", 'success');
+            
+            wp_send_json_success([
+                'collected_addresses' => $this->collected_addresses,
+                'collection_successful' => !empty($this->collected_addresses),
+                'sources_found' => array_keys($this->collected_addresses),
+                'debug_logs' => $this->get_debug_logs(),
+                'timestamp' => current_time('mysql')
+            ]);
+            
+        } catch (Exception $e) {
+            $this->log_step("AJAX collection test failed: " . $e->getMessage(), 'error');
+            wp_send_json_error([
+                'message' => $e->getMessage(),
+                'debug_logs' => $this->get_debug_logs()
+            ]);
+        }
     }
 }
