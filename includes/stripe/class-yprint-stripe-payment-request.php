@@ -1001,13 +1001,85 @@ if (!empty($design_data)) {
             $order->set_payment_method_title('Stripe Express Payment');
             
             // Calculate totals
-            $order->calculate_totals();
-            $order->save();
-            
-            error_log('EXPRESS: Order saved with ' . count($order->get_items()) . ' items');
-            
-            // Mark order as paid
-            $order->payment_complete($payment_method_id);
+$order->calculate_totals();
+$order->save();
+
+error_log('EXPRESS: Order saved with ' . count($order->get_items()) . ' items');
+
+// 🎯 CRITICAL: Integrate AddressOrchestrator for Express Payment
+if (class_exists('YPrint_Address_Orchestrator')) {
+    error_log('🎯 EXPRESS: Triggering AddressOrchestrator for order #' . $order->get_id());
+    
+    // Prepare Express Payment data for orchestrator
+    $payment_data = array(
+        'payment_method_id' => $payment_method_id,
+        'payment_type' => isset($_POST['payment_request_type']) ? sanitize_text_field($_POST['payment_request_type']) : 'payment_request',
+        'source' => 'express_payment',
+        'billing_details' => array(),
+        'shipping_details' => array()
+    );
+    
+    // Extract billing details from POST data
+    if (isset($_POST['billing_email'])) {
+        $payment_data['billing_details']['email'] = sanitize_email(wp_unslash($_POST['billing_email']));
+    }
+    if (isset($_POST['billing_first_name'])) {
+        $payment_data['billing_details']['first_name'] = sanitize_text_field(wp_unslash($_POST['billing_first_name']));
+    }
+    if (isset($_POST['billing_last_name'])) {
+        $payment_data['billing_details']['last_name'] = sanitize_text_field(wp_unslash($_POST['billing_last_name']));
+    }
+    if (isset($_POST['billing_phone'])) {
+        $payment_data['billing_details']['phone'] = sanitize_text_field(wp_unslash($_POST['billing_phone']));
+    }
+    
+    // Extract billing address
+    if (isset($_POST['billing_address_1'])) {
+        $payment_data['billing_details']['address'] = array(
+            'line1' => sanitize_text_field(wp_unslash($_POST['billing_address_1'])),
+            'line2' => isset($_POST['billing_address_2']) ? sanitize_text_field(wp_unslash($_POST['billing_address_2'])) : '',
+            'city' => isset($_POST['billing_city']) ? sanitize_text_field(wp_unslash($_POST['billing_city'])) : '',
+            'state' => isset($_POST['billing_state']) ? sanitize_text_field(wp_unslash($_POST['billing_state'])) : '',
+            'postal_code' => isset($_POST['billing_postcode']) ? sanitize_text_field(wp_unslash($_POST['billing_postcode'])) : '',
+            'country' => isset($_POST['billing_country']) ? sanitize_text_field(wp_unslash($_POST['billing_country'])) : 'DE'
+        );
+    }
+    
+    // Extract shipping address
+    if (isset($_POST['shipping_address_1'])) {
+        $payment_data['shipping_details'] = array(
+            'first_name' => isset($_POST['shipping_first_name']) ? sanitize_text_field(wp_unslash($_POST['shipping_first_name'])) : '',
+            'last_name' => isset($_POST['shipping_last_name']) ? sanitize_text_field(wp_unslash($_POST['shipping_last_name'])) : '',
+            'address_1' => sanitize_text_field(wp_unslash($_POST['shipping_address_1'])),
+            'address_2' => isset($_POST['shipping_address_2']) ? sanitize_text_field(wp_unslash($_POST['shipping_address_2'])) : '',
+            'city' => isset($_POST['shipping_city']) ? sanitize_text_field(wp_unslash($_POST['shipping_city'])) : '',
+            'state' => isset($_POST['shipping_state']) ? sanitize_text_field(wp_unslash($_POST['shipping_state'])) : '',
+            'postcode' => isset($_POST['shipping_postcode']) ? sanitize_text_field(wp_unslash($_POST['shipping_postcode'])) : '',
+            'country' => isset($_POST['shipping_country']) ? sanitize_text_field(wp_unslash($_POST['shipping_country'])) : 'DE'
+        );
+    }
+    
+    // Call AddressOrchestrator BEFORE marking order as paid
+    $orchestrator = YPrint_Address_Orchestrator::get_instance();
+    $orchestration_success = $orchestrator->orchestrate_addresses_for_order($order, $payment_data);
+    
+    if ($orchestration_success) {
+        error_log('🎯 EXPRESS: AddressOrchestrator integration successful');
+        $order->update_meta_data('_address_orchestrator_applied', 'express_payment');
+        $order->update_meta_data('_address_orchestrator_timestamp', current_time('mysql'));
+    } else {
+        error_log('🎯 EXPRESS: AddressOrchestrator integration failed - continuing with original addresses');
+        $order->update_meta_data('_address_orchestrator_failed', 'express_payment_fallback');
+    }
+    
+    // Save order with orchestrated addresses
+    $order->save();
+} else {
+    error_log('🎯 EXPRESS: AddressOrchestrator not available - using original flow');
+}
+
+// Mark order as paid
+$order->payment_complete($payment_method_id);
             
             // Add order note
             $payment_type = isset($_POST['payment_request_type']) ? 
