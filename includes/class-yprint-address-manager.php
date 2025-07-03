@@ -1016,6 +1016,62 @@ error_log('🔍 YPRINT DEBUG: apply_addresses_to_order COMPLETED for Order #' . 
 error_log('🔍 YPRINT DEBUG: ========================================');
 }
 
+/**
+ * Validates and corrects final addresses after payment completion
+ * Critical for Express Payment scenarios where addresses might be overridden
+ */
+public function validate_final_addresses($order_id) {
+    $order = wc_get_order($order_id);
+    
+    if (!$order instanceof WC_Order) {
+        return;
+    }
+    
+    error_log('🔍 YPRINT FINAL VALIDATION: Validating addresses for Order #' . $order_id);
+    
+    // Prüfe ob es ein Express Payment war
+    $payment_method_title = $order->get_payment_method_title();
+    $is_express_payment = (strpos(strtolower($payment_method_title), 'apple pay') !== false || 
+                          strpos(strtolower($payment_method_title), 'google pay') !== false ||
+                          $order->get_meta('_yprint_stripe_payment_type') === 'apple_pay' ||
+                          $order->get_meta('_yprint_stripe_payment_type') === 'google_pay');
+    
+    if (!$is_express_payment) {
+        error_log('🔍 YPRINT FINAL VALIDATION: Not Express Payment - skipping validation');
+        return;
+    }
+    
+    // Prüfe Session-Daten
+    $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
+    $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
+    $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+    
+    $has_manual_selection = !empty($yprint_selected) && !empty($yprint_selected['address_1']);
+    
+    if (!$has_manual_selection) {
+        error_log('🔍 YPRINT FINAL VALIDATION: No manual selection found - addresses are correct');
+        return;
+    }
+    
+    // Prüfe ob Order-Adressen mit Session übereinstimmen
+    $order_shipping_addr = $order->get_shipping_address_1();
+    $session_shipping_addr = $yprint_selected['address_1'];
+    
+    if ($order_shipping_addr !== $session_shipping_addr) {
+        error_log('🔍 YPRINT FINAL VALIDATION: ❌ ADDRESS MISMATCH DETECTED - Order: ' . $order_shipping_addr . ', Expected: ' . $session_shipping_addr);
+        error_log('🔍 YPRINT FINAL VALIDATION: 🔧 CORRECTING addresses with Session data');
+        
+        // Korrigiere mit Session-Daten
+        $this->apply_addresses_to_order($order);
+        $order->save();
+        
+        $order->add_order_note('YPrint Address Correction: Express Payment addresses corrected with manual selection data.');
+        error_log('🔍 YPRINT FINAL VALIDATION: ✅ Address correction completed');
+    } else {
+        error_log('🔍 YPRINT FINAL VALIDATION: ✅ Addresses are consistent');
+    }
+}
+
 // REMOVED: apply_addresses_to_order_backup() function completely removed 
 // This backup method was causing race conditions and has been eliminated
 
