@@ -213,11 +213,18 @@ console.log('URLSearchParams size:', new URLSearchParams(requestData).toString()
         let data;
         try {
             data = JSON.parse(responseText);
-            console.log('=== PARSED JSON RESPONSE ===');
-            console.log('Parsed Data:', data);
-            console.log('Data Success:', data.success);
-            console.log('Data Message:', data.data?.message);
-            console.log('Data Details:', data.data);
+console.log('=== PARSED JSON RESPONSE ===');
+console.log('Parsed Data:', data);
+console.log('Data Success:', data.success);
+console.log('Data Message:', data.data?.message);
+console.log('Data Details:', data.data);
+
+// AddressOrchestrator Debug-Logs ausgeben (falls vorhanden)
+if (data.data && data.data.debug_logs && Array.isArray(data.data.debug_logs)) {
+    console.log('🎯 === ADDRESSORCHESTRATOR DEBUG LOGS ===');
+    data.data.debug_logs.forEach(log => console.log(log));
+    console.log('🎯 === ADDRESSORCHESTRATOR DEBUG END ===');
+}
         } catch (parseError) {
             console.error('=== JSON PARSE ERROR ===');
             console.error('Parse Error:', parseError);
