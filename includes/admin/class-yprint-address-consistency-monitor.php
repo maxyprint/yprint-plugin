@@ -137,23 +137,32 @@ public function add_admin_menu() {
             'consistent' => true // Base reference
         ];
         
-        // 2. AddressOrchestrator Data (DETAILLIERT)
-        $orchestrator_shipping = $order->get_meta('_stripe_display_shipping_address');
-        $orchestrator_billing = $order->get_meta('_stripe_display_billing_address');
-        
-        if ($orchestrator_shipping && $orchestrator_billing) {
-            $results['AddressOrchestrator'] = [
-                'shipping' => $this->format_detailed_address($orchestrator_shipping),
-                'billing' => $this->format_detailed_address($orchestrator_billing),
-                'consistent' => $this->compare_addresses_detailed($wc_shipping, $orchestrator_shipping, $wc_billing, $orchestrator_billing)
-            ];
-        } else {
-            $results['AddressOrchestrator'] = [
-                'shipping' => '❌ Keine Orchestrator-Daten verfügbar',
-                'billing' => '❌ Keine Orchestrator-Daten verfügbar',
-                'consistent' => false
-            ];
-        }
+        // 2. AddressOrchestrator Data (DETAILLIERT) - VERBESSERTE DATENERFASSUNG
+$orchestrator_shipping = $order->get_meta('_yprint_orchestrator_final_shipping');
+$orchestrator_billing = $order->get_meta('_yprint_orchestrator_final_billing');
+$orchestrator_processed = $order->get_meta('_yprint_orchestrator_processed');
+$orchestrator_source = $order->get_meta('_yprint_orchestrator_source');
+
+if ($orchestrator_processed && $orchestrator_shipping && $orchestrator_billing) {
+    $orch_consistent = $this->compare_addresses_simple($orchestrator_shipping, [
+        'address_1' => $order->get_shipping_address_1(),
+        'city' => $order->get_shipping_city(),
+        'postcode' => $order->get_shipping_postcode(),
+        'country' => $order->get_shipping_country()
+    ]);
+    
+    $results['AddressOrchestrator'] = [
+        'shipping' => $this->format_detailed_address($orchestrator_shipping) . '<br>📊 <em>Source: ' . esc_html($orchestrator_source ?? 'Unknown') . '</em>',
+        'billing' => $this->format_detailed_address($orchestrator_billing),
+        'consistent' => $orch_consistent
+    ];
+} else {
+    $results['AddressOrchestrator'] = [
+        'shipping' => '❌ AddressOrchestrator nicht ausgeführt oder Daten fehlen',
+        'billing' => '❌ AddressOrchestrator nicht ausgeführt oder Daten fehlen',
+        'consistent' => false
+    ];
+}
         
         // 3. Session Data (DETAILLIERT)
         if (WC()->session) {
@@ -267,13 +276,23 @@ public function add_admin_menu() {
      * Compare addresses for detailed consistency check
      */
     private function compare_addresses_detailed($wc_shipping, $orch_shipping, $wc_billing, $orch_billing) {
+        // Prüfe Shipping-Konsistenz
         $shipping_match = $this->compare_addresses_simple($orch_shipping, [
-            'address_1' => explode('📍 ', $wc_shipping)[1] ?? '',
+            'address_1' => trim(str_replace('📍 ', '', explode('<br>', $wc_shipping)[1] ?? '')),
             'city' => $orch_shipping['city'] ?? '',
-            'postcode' => $orch_shipping['postcode'] ?? ''
+            'postcode' => $orch_shipping['postcode'] ?? '',
+            'country' => $orch_shipping['country'] ?? ''
         ]);
         
-        return $shipping_match; // Vereinfachte Prüfung
+        // Prüfe Billing-Konsistenz
+        $billing_match = $this->compare_addresses_simple($orch_billing, [
+            'address_1' => trim(str_replace('📍 ', '', explode('<br>', $wc_billing)[1] ?? '')),
+            'city' => $orch_billing['city'] ?? '',
+            'postcode' => $orch_billing['postcode'] ?? '',
+            'country' => $orch_billing['country'] ?? ''
+        ]);
+        
+        return $shipping_match && $billing_match;
     }
     
     /**

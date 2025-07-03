@@ -659,9 +659,10 @@ private function validate_session_consistency($shipping_address, $billing_addres
         $this->distribute_to_customer();
 
         // NEUE VERTEILUNGEN für konsistente Adressdaten
-        $this->distribute_to_stripe_metadata($order);
-        $this->distribute_to_email_templates($order);
-        $this->validate_distribution_consistency($order);
+$this->distribute_to_stripe_metadata($order);
+$this->distribute_to_email_templates($order);
+$this->distribute_to_consistency_monitor($order);
+$this->validate_distribution_consistency($order);
 
         $this->log_step('=== VERTEILUNG END (ERWEITERT) ===', 'phase');
     }
@@ -701,6 +702,24 @@ private function validate_session_consistency($shipping_address, $billing_addres
         
         $this->log_step('└─ E-Mail Template Meta-Daten gesetzt', 'distribution');
     }
+
+    /**
+ * Distribute addresses specifically for Consistency Monitor
+ * 
+ * @param WC_Order $order WooCommerce order object
+ */
+private function distribute_to_consistency_monitor($order) {
+    $this->log_step('Verteile an Consistency Monitor...', 'distribution');
+    
+    // Spezielle Meta-Keys für Consistency Monitor
+    $order->update_meta_data('_yprint_orchestrator_final_shipping', $this->final_addresses['shipping']);
+    $order->update_meta_data('_yprint_orchestrator_final_billing', $this->final_addresses['billing']);
+    $order->update_meta_data('_yprint_orchestrator_source', $this->final_addresses['source']);
+    $order->update_meta_data('_yprint_orchestrator_priority', $this->final_addresses['priority']);
+    $order->update_meta_data('_yprint_orchestrator_processed', true);
+    
+    $this->log_step('└─ Consistency Monitor Meta-Daten gesetzt', 'distribution');
+}
 
     /**
      * Validate consistency across all distribution targets
