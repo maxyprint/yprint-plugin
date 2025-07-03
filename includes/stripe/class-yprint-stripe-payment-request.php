@@ -997,11 +997,20 @@ if (!empty($design_data)) {
             }
             
             // Set payment method
-            $order->set_payment_method('yprint_stripe');
-            $order->set_payment_method_title('Stripe Express Payment');
-            
-            // Calculate totals
+$order->set_payment_method('yprint_stripe');
+$order->set_payment_method_title('Stripe Express Payment');
+
+// Calculate totals
 $order->calculate_totals();
+
+// 🎯 CRITICAL: Manual AddressOrchestrator call for Express Payment
+// Express Payment bypasses woocommerce_checkout_create_order hook
+if (class_exists('YPrint_Address_Manager')) {
+    $address_manager = YPrint_Address_Manager::get_instance();
+    $address_manager->orchestrator_aware_address_application($order, $_POST);
+    error_log('🎯 EXPRESS: AddressOrchestrator manually triggered for Order #' . $order->get_id());
+}
+
 $order->save();
 
 console.log('EXPRESS: Order saved with ' + order.get_items().length + ' items');
