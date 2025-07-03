@@ -639,30 +639,107 @@ private function validate_session_consistency($shipping_address, $billing_addres
     }
 
     /**
-     * PHASE 3: DISTRIBUTION
+     * PHASE 3: DISTRIBUTION - Erweitert um alle Zielsysteme
      * 
      * Distribute final addresses to all target systems
      * 
      * @param WC_Order $order WooCommerce order object
      */
     private function distribute_addresses($order) {
-        $this->log_step('=== VERTEILUNG START ===', 'phase');
+        $this->log_step('=== VERTEILUNG START (ERWEITERT) ===', 'phase');
 
         if (empty($this->final_addresses)) {
             $this->log_step('Keine finalen Adressen zum Verteilen', 'warning');
             return;
         }
 
-        // Distribute to WooCommerce Order
+        // Bestehende Verteilungen
         $this->distribute_to_woocommerce_order($order);
-
-        // Distribute to Session (for UI consistency)
         $this->distribute_to_session();
-
-        // Distribute to Customer Object (for WooCommerce integration)
         $this->distribute_to_customer();
 
-        $this->log_step('=== VERTEILUNG END ===', 'phase');
+        // NEUE VERTEILUNGEN für konsistente Adressdaten
+        $this->distribute_to_stripe_metadata($order);
+        $this->distribute_to_email_templates($order);
+        $this->validate_distribution_consistency($order);
+
+        $this->log_step('=== VERTEILUNG END (ERWEITERT) ===', 'phase');
+    }
+
+    /**
+     * Distribute addresses to Stripe metadata (for UI consistency)
+     * 
+     * @param WC_Order $order WooCommerce order object
+     */
+    private function distribute_to_stripe_metadata($order) {
+        $this->log_step('Verteile an Stripe Metadata...', 'distribution');
+        
+        // Stripe Payment Method kann nicht geändert werden, aber wir können Order Meta setzen
+        $final_shipping = $this->final_addresses['shipping'];
+        $final_billing = $this->final_addresses['billing'];
+        
+        // Meta-Daten für Stripe Dashboard Anzeige
+        $order->update_meta_data('_stripe_display_shipping_address', $final_shipping);
+        $order->update_meta_data('_stripe_display_billing_address', $final_billing);
+        $order->update_meta_data('_stripe_address_override_reason', 'AddressOrchestrator processed - Payment Method shows original data');
+        
+        $this->log_step('└─ Stripe Display Meta-Daten gesetzt', 'distribution');
+    }
+
+    /**
+     * Distribute addresses to email template system
+     * 
+     * @param WC_Order $order WooCommerce order object
+     */
+    private function distribute_to_email_templates($order) {
+        $this->log_step('Verteile an E-Mail Templates...', 'distribution');
+        
+        // Setze spezielle Meta-Daten für E-Mail Templates
+        $order->update_meta_data('_email_template_shipping_address', $this->final_addresses['shipping']);
+        $order->update_meta_data('_email_template_billing_address', $this->final_addresses['billing']);
+        $order->update_meta_data('_email_template_addresses_ready', true);
+        
+        $this->log_step('└─ E-Mail Template Meta-Daten gesetzt', 'distribution');
+    }
+
+    /**
+     * Validate consistency across all distribution targets
+     * 
+     * @param WC_Order $order WooCommerce order object
+     */
+    private function validate_distribution_consistency($order) {
+        $this->log_step('Validiere Verteilungs-Konsistenz...', 'validation');
+        
+        $shipping = $this->final_addresses['shipping'];
+        $billing = $this->final_addresses['billing'];
+        
+        // Check WooCommerce Order
+        $order_shipping = $order->get_shipping_address_1();
+        $order_billing = $order->get_billing_address_1();
+        
+        if ($order_shipping !== $shipping['address_1']) {
+            $this->log_step('WARNING: Order Shipping Inkonsistenz - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $order_shipping, 'validation');
+        } else {
+            $this->log_step('✅ Order Shipping konsistent: ' . $shipping['address_1'], 'validation');
+        }
+        
+        if ($order_billing !== $billing['address_1']) {
+            $this->log_step('WARNING: Order Billing Inkonsistenz - Erwartet: ' . $billing['address_1'] . ', Gefunden: ' . $order_billing, 'validation');
+        } else {
+            $this->log_step('✅ Order Billing konsistent: ' . $billing['address_1'], 'validation');
+        }
+        
+        // Check Session
+        if (WC()->session) {
+            $session_shipping = WC()->session->get('yprint_selected_address');
+            if ($session_shipping && $session_shipping['address_1'] !== $shipping['address_1']) {
+                $this->log_step('WARNING: Session Shipping Inkonsistenz - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $session_shipping['address_1'], 'validation');
+            } else {
+                $this->log_step('✅ Session Shipping konsistent', 'validation');
+            }
+        }
+        
+        $this->log_step('└─ Konsistenz-Validierung abgeschlossen', 'validation');
     }
 
     /**
