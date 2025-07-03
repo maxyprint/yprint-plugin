@@ -123,10 +123,6 @@ async function loadRealCartData(forceRefresh = false) {
         
         if (data.success) {
             console.log('AJAX success, updating cache...');
-            
-            // Debug Logs aus Response ausgeben
-            handleDebugLogs(data);
-            
             // Cache aktualisieren
             cartDataCache = data.data;
             cartDataCacheTime = Date.now();
@@ -137,9 +133,6 @@ async function loadRealCartData(forceRefresh = false) {
         } else {
             console.error('AJAX returned success=false:', data);
             console.error('Error data:', data.data);
-            
-            // Debug Logs auch bei Fehlern ausgeben
-            handleDebugLogs(data);
         }
     } catch (error) {
         console.error('EXCEPTION in loadRealCartData:', error);
