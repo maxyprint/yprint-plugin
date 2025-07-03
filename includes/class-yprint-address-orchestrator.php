@@ -850,17 +850,12 @@ private function validate_session_consistency($shipping_address, $billing_addres
     private function log_step($message, $type = 'info') {
         $prefix = self::LOG_PREFIX;
         $context_suffix = $this->context ? ' [' . $this->context . ']' : '';
+        $full_message = $prefix . ' ' . $message . $context_suffix;
         
-        // Console log for frontend (if applicable)
-        if (!wp_doing_ajax() && !is_admin()) {
-            $js_message = esc_js($prefix . ' ' . $message . $context_suffix);
-            echo "<script>console.log('{$js_message}');</script>";
-        }
-
-        // Backend error log
-        $log_message = $prefix . ' ' . $message . $context_suffix;
-        error_log($log_message);
-
+        // NUR CONSOLE LOGGING
+        $js_message = esc_js($full_message);
+        echo "<script>console.log('{$js_message}');</script>";
+    
         // Store in instance for debugging (optional)
         if (!isset($this->debug_logs)) {
             $this->debug_logs = [];
