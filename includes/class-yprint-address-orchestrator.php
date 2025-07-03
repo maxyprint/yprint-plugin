@@ -138,19 +138,13 @@ class YPrint_Address_Orchestrator {
     private function collect_addresses($order, $payment_data = null) {
         $this->log_step('=== SAMMLUNG START ===', 'phase');
         $this->collected_addresses = [];
-
-        // PILOT: Collect wallet addresses only
-        $this->collect_wallet_addresses($order, $payment_data);
-
-        // Future: Manual addresses (disabled for pilot)
-        // $this->collect_manual_addresses();
-
-        // Future: Form addresses (disabled for pilot)  
-        // $this->collect_form_addresses();
-
-        // Future: Legacy addresses (disabled for pilot)
-        // $this->collect_legacy_addresses();
-
+    
+        // PRODUCTION: Collect all address sources with proper priority
+        $this->collect_manual_addresses();      // Priority 1 (highest)
+        $this->collect_wallet_addresses($order, $payment_data);  // Priority 2
+        $this->collect_form_addresses($order);  // Priority 3  
+        $this->collect_legacy_addresses($order); // Priority 4 (fallback)
+    
         $this->log_step('Sammlung abgeschlossen. Quellen gefunden: ' . count($this->collected_addresses), 'info');
         $this->log_step('=== SAMMLUNG END ===', 'phase');
     }
@@ -209,6 +203,273 @@ class YPrint_Address_Orchestrator {
             $this->log_step('└─ Keine Wallet-Adressen gefunden', 'collection');
         }
     }
+
+    /**
+ * Collect addresses from YPrint manual selection (highest priority)
+ */
+private function collect_manual_addresses() {
+    $this->log_step('Sammle YPrint Manual-Adressen...', 'collection');
+
+    if (!WC()->session) {
+        $this->log_step('└─ WooCommerce Session nicht verfügbar', 'collection');
+        return;
+    }
+
+    // Collect YPrint session data
+    $selected_address = WC()->session->get('yprint_selected_address', array());
+    $billing_address = WC()->session->get('yprint_billing_address', array());
+    $billing_different = WC()->session->get('yprint_billing_address_different', false);
+
+    $this->log_step('└─ Session-Daten gelesen:', 'collection');
+    $this->log_step('    ├─ Selected Address: ' . (!empty($selected_address) ? 'VORHANDEN' : 'LEER'), 'collection');
+    $this->log_step('    ├─ Billing Different: ' . ($billing_different ? 'JA' : 'NEIN'), 'collection');
+    $this->log_step('    └─ Billing Address: ' . (!empty($billing_address) ? 'VORHANDEN' : 'LEER'), 'collection');
+
+    // Only proceed if we have manual selection data
+    if (empty($selected_address)) {
+        $this->log_step('└─ Keine YPrint Manual-Auswahl gefunden', 'collection');
+        return;
+    }
+
+    // Validate and normalize selected address
+    $normalized_shipping = $this->normalize_yprint_address($selected_address);
+    if (empty($normalized_shipping)) {
+        $this->log_step('└─ Fehler bei Normalisierung der Shipping-Adresse', 'collection');
+        return;
+    }
+
+    // Determine billing address
+    $normalized_billing = null;
+    $is_billing_different = false;
+
+    if ($billing_different && !empty($billing_address)) {
+        // User selected different billing address
+        $normalized_billing = $this->normalize_yprint_address($billing_address);
+        $is_billing_different = true;
+        $this->log_step('└─ Separate Billing-Adresse normalisiert', 'collection');
+    } else {
+        // Billing same as shipping
+        $normalized_billing = $normalized_shipping;
+        $is_billing_different = false;
+        $this->log_step('└─ Billing = Shipping (gleiche Adresse)', 'collection');
+    }
+
+    // Store collected manual addresses
+    $this->collected_addresses['manual'] = [
+        'source' => 'manual',
+        'priority' => self::PRIORITY_HIERARCHY['manual'],
+        'shipping' => $normalized_shipping,
+        'billing' => $normalized_billing,
+        'billing_different' => $is_billing_different,
+        'metadata' => [
+            'selection_method' => 'yprint_session',
+            'shipping_id' => $selected_address['id'] ?? null,
+            'billing_id' => $billing_address['id'] ?? null,
+            'collected_at' => current_time('mysql'),
+            'session_consistent' => $this->validate_session_consistency($selected_address, $billing_address)
+        ]
+    ];
+
+    $this->log_step('└─ YPrint Manual-Adressen erfolgreich gesammelt:', 'collection');
+    $this->log_step('    ├─ Shipping: ' . $normalized_shipping['address_1'] . ', ' . $normalized_shipping['city'], 'collection');
+    $this->log_step('    ├─ Billing: ' . $normalized_billing['address_1'] . ', ' . $normalized_billing['city'], 'collection');
+    $this->log_step('    └─ Billing Different: ' . ($is_billing_different ? 'JA' : 'NEIN'), 'collection');
+}
+
+/**
+ * Collect addresses from direct form input (fallback)
+ * 
+ * @param WC_Order $order WooCommerce order object
+ */
+private function collect_form_addresses($order) {
+    $this->log_step('Sammle Form-Adressen...', 'collection');
+
+    // Extract current order addresses as form input
+    $shipping_data = [
+        'first_name' => $order->get_shipping_first_name(),
+        'last_name' => $order->get_shipping_last_name(),
+        'company' => $order->get_shipping_company(),
+        'address_1' => $order->get_shipping_address_1(),
+        'address_2' => $order->get_shipping_address_2(),
+        'city' => $order->get_shipping_city(),
+        'postcode' => $order->get_shipping_postcode(),
+        'country' => $order->get_shipping_country(),
+        'state' => $order->get_shipping_state()
+    ];
+
+    $billing_data = [
+        'first_name' => $order->get_billing_first_name(),
+        'last_name' => $order->get_billing_last_name(),
+        'company' => $order->get_billing_company(),
+        'address_1' => $order->get_billing_address_1(),
+        'address_2' => $order->get_billing_address_2(),
+        'city' => $order->get_billing_city(),
+        'postcode' => $order->get_billing_postcode(),
+        'country' => $order->get_billing_country(),
+        'state' => $order->get_billing_state(),
+        'email' => $order->get_billing_email(),
+        'phone' => $order->get_billing_phone()
+    ];
+
+    // Only collect if addresses contain meaningful data
+    if (!empty($shipping_data['address_1']) || !empty($billing_data['address_1'])) {
+        
+        $this->collected_addresses['form'] = [
+            'source' => 'form',
+            'priority' => self::PRIORITY_HIERARCHY['form'],
+            'shipping' => !empty($shipping_data['address_1']) ? $shipping_data : $billing_data,
+            'billing' => $billing_data,
+            'billing_different' => $this->addresses_are_different($shipping_data, $billing_data),
+            'metadata' => [
+                'form_type' => 'woocommerce_checkout',
+                'collected_at' => current_time('mysql')
+            ]
+        ];
+
+        $this->log_step('└─ Form-Adressen gesammelt (Fallback)', 'collection');
+    } else {
+        $this->log_step('└─ Keine Form-Adressen gefunden', 'collection');
+    }
+}
+
+/**
+ * Collect legacy addresses from WooCommerce customer (final fallback)
+ * 
+ * @param WC_Order $order WooCommerce order object
+ */
+private function collect_legacy_addresses($order) {
+    $this->log_step('Sammle Legacy-Adressen...', 'collection');
+
+    if (!WC()->customer) {
+        $this->log_step('└─ WooCommerce Customer nicht verfügbar', 'collection');
+        return;
+    }
+
+    $shipping_data = [
+        'first_name' => WC()->customer->get_shipping_first_name(),
+        'last_name' => WC()->customer->get_shipping_last_name(),
+        'company' => WC()->customer->get_shipping_company(),
+        'address_1' => WC()->customer->get_shipping_address_1(),
+        'address_2' => WC()->customer->get_shipping_address_2(),
+        'city' => WC()->customer->get_shipping_city(),
+        'postcode' => WC()->customer->get_shipping_postcode(),
+        'country' => WC()->customer->get_shipping_country(),
+        'state' => WC()->customer->get_shipping_state()
+    ];
+
+    $billing_data = [
+        'first_name' => WC()->customer->get_billing_first_name(),
+        'last_name' => WC()->customer->get_billing_last_name(),
+        'company' => WC()->customer->get_billing_company(),
+        'address_1' => WC()->customer->get_billing_address_1(),
+        'address_2' => WC()->customer->get_billing_address_2(),
+        'city' => WC()->customer->get_billing_city(),
+        'postcode' => WC()->customer->get_billing_postcode(),
+        'country' => WC()->customer->get_billing_country(),
+        'state' => WC()->customer->get_billing_state(),
+        'email' => WC()->customer->get_billing_email(),
+        'phone' => WC()->customer->get_billing_phone()
+    ];
+
+    // Only collect if customer has stored addresses
+    if (!empty($shipping_data['address_1']) || !empty($billing_data['address_1'])) {
+        
+        $this->collected_addresses['legacy'] = [
+            'source' => 'legacy',
+            'priority' => self::PRIORITY_HIERARCHY['legacy'],
+            'shipping' => !empty($shipping_data['address_1']) ? $shipping_data : $billing_data,
+            'billing' => $billing_data,
+            'billing_different' => $this->addresses_are_different($shipping_data, $billing_data),
+            'metadata' => [
+                'customer_id' => WC()->customer->get_id(),
+                'collected_at' => current_time('mysql')
+            ]
+        ];
+
+        $this->log_step('└─ Legacy Customer-Adressen gesammelt (Final Fallback)', 'collection');
+    } else {
+        $this->log_step('└─ Keine Legacy-Adressen im Customer Object', 'collection');
+    }
+}
+
+/**
+ * Check if two addresses are different
+ * 
+ * @param array $addr1 First address
+ * @param array $addr2 Second address  
+ * @return bool True if addresses are different
+ */
+private function addresses_are_different($addr1, $addr2) {
+    $compare_fields = ['address_1', 'city', 'postcode', 'country'];
+    
+    foreach ($compare_fields as $field) {
+        if (($addr1[$field] ?? '') !== ($addr2[$field] ?? '')) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Normalize YPrint address format to orchestrator standard
+ * 
+ * @param array $yprint_address YPrint address data from session
+ * @return array|null Normalized address or null if invalid
+ */
+private function normalize_yprint_address($yprint_address) {
+    if (empty($yprint_address) || !is_array($yprint_address)) {
+        return null;
+    }
+
+    // Validate required fields
+    $required_fields = ['address_1', 'city', 'postcode', 'country'];
+    foreach ($required_fields as $field) {
+        if (empty($yprint_address[$field])) {
+            $this->log_step("Validation failed: Missing $field in YPrint address", 'warning');
+            return null;
+        }
+    }
+
+    // Normalize to standard format
+    return [
+        'first_name' => sanitize_text_field($yprint_address['first_name'] ?? ''),
+        'last_name' => sanitize_text_field($yprint_address['last_name'] ?? ''),
+        'company' => sanitize_text_field($yprint_address['company'] ?? ''),
+        'address_1' => sanitize_text_field($yprint_address['address_1']),
+        'address_2' => sanitize_text_field($yprint_address['address_2'] ?? ''),
+        'city' => sanitize_text_field($yprint_address['city']),
+        'postcode' => sanitize_text_field($yprint_address['postcode']),
+        'country' => sanitize_text_field($yprint_address['country'] ?? 'DE'),
+        'state' => sanitize_text_field($yprint_address['state'] ?? ''),
+        'phone' => sanitize_text_field($yprint_address['phone'] ?? ''),
+        'email' => sanitize_email($yprint_address['email'] ?? '')
+    ];
+}
+
+/**
+ * Validate consistency between session addresses
+ * 
+ * @param array $shipping_address Shipping address from session
+ * @param array $billing_address Billing address from session
+ * @return bool True if addresses are consistent
+ */
+private function validate_session_consistency($shipping_address, $billing_address) {
+    // Basic consistency checks
+    if (empty($shipping_address)) {
+        return false;
+    }
+
+    // Check if addresses are properly structured
+    $shipping_valid = !empty($shipping_address['address_1']) && !empty($shipping_address['city']);
+    
+    if (!empty($billing_address)) {
+        $billing_valid = !empty($billing_address['address_1']) && !empty($billing_address['city']);
+        return $shipping_valid && $billing_valid;
+    }
+
+    return $shipping_valid;
+}
 
     /**
      * Extract address from Stripe payment method data
@@ -336,41 +597,44 @@ class YPrint_Address_Orchestrator {
      */
     private function apply_hierarchy() {
         $this->log_step('=== ENTSCHEIDUNG START ===', 'phase');
-
+        
         if (empty($this->collected_addresses)) {
-            $this->log_step('Keine Adressen zum Verarbeiten verfügbar', 'warning');
-            $this->final_addresses = [];
+            $this->log_step('Keine Adressen zum Priorisieren gefunden', 'warning');
             return;
         }
-
-        // Sort by priority (lower number = higher priority)
+    
+        // Sort addresses by priority (1 = highest priority)
         $sorted_sources = $this->collected_addresses;
         uasort($sorted_sources, function($a, $b) {
             return $a['priority'] <=> $b['priority'];
         });
-
-        $this->log_step('Wende Hierarchie an:', 'decision');
+    
+        $this->log_step('Priorisierungs-Reihenfolge:', 'decision');
         foreach ($sorted_sources as $source => $data) {
-            $this->log_step('└─ Quelle: ' . $source . ' (Priorität: ' . $data['priority'] . ')', 'decision');
+            $this->log_step("└─ {$data['priority']}. {$source} ({$data['source']})", 'decision');
         }
-
-        // For pilot: Only wallet addresses, so take the first (and only) one
-        $highest_priority_source = array_key_first($sorted_sources);
-        $selected_address_data = $sorted_sources[$highest_priority_source];
-
+    
+        // Select highest priority addresses
+        $selected_source = array_key_first($sorted_sources);
+        $selected_data = $sorted_sources[$selected_source];
+    
         $this->final_addresses = [
-            'source' => $highest_priority_source,
-            'shipping' => $selected_address_data['shipping'],
-            'billing' => $selected_address_data['billing'], 
-            'billing_different' => $selected_address_data['billing_different'],
-            'metadata' => $selected_address_data['metadata']
+            'source' => $selected_data['source'],
+            'priority' => $selected_data['priority'],
+            'shipping' => $selected_data['shipping'],
+            'billing' => $selected_data['billing'],
+            'billing_different' => $selected_data['billing_different'],
+            'metadata' => array_merge($selected_data['metadata'], [
+                'selected_from' => $selected_source,
+                'alternatives_available' => array_keys($sorted_sources),
+                'decision_timestamp' => current_time('mysql')
+            ])
         ];
-
-        $this->log_step('FINALE AUSWAHL getroffen:', 'decision');
-        $this->log_step('└─ Gewählte Quelle: ' . $highest_priority_source, 'decision');
-        $this->log_step('└─ Shipping Adresse: ' . ($this->final_addresses['shipping']['address_1'] ?? 'leer'), 'decision');
-        $this->log_step('└─ Billing Different: ' . ($this->final_addresses['billing_different'] ? 'ja' : 'nein'), 'decision');
-
+    
+        $this->log_step("ENTSCHEIDUNG: {$selected_data['source']} (Priorität {$selected_data['priority']}) gewählt", 'success');
+        $this->log_step('└─ Shipping: ' . $this->final_addresses['shipping']['address_1'] . ', ' . $this->final_addresses['shipping']['city'], 'decision');
+        $this->log_step('└─ Billing: ' . $this->final_addresses['billing']['address_1'] . ', ' . $this->final_addresses['billing']['city'], 'decision');
+        
         $this->log_step('=== ENTSCHEIDUNG END ===', 'phase');
     }
 
