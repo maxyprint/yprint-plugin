@@ -259,10 +259,16 @@ public function add_admin_menu() {
         $problems = [];
         $status = 'success';
         
-        // Session-Daten (was User gewählt hat)
-        $session_shipping = WC()->session ? WC()->session->get('yprint_selected_address', []) : [];
-        $session_billing = WC()->session ? WC()->session->get('yprint_billing_address', []) : [];
-        $billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+        // Session-Daten aus Order-Meta rekonstruieren (was User gewählt hat)
+        $recovered_session = $this->recover_session_data_from_order_meta($order);
+        $session_shipping = $recovered_session['shipping'];
+        $session_billing = $recovered_session['billing'];
+        $billing_different = $recovered_session['billing_different'];
+        
+        // Debug logging für Admin
+        error_log('🔍 MONITOR DEBUG: Session backup meta: ' . (!empty($session_backup) ? 'FOUND' : 'EMPTY'));
+        error_log('🔍 MONITOR DEBUG: Original shipping meta: ' . (!empty($original_shipping) ? 'FOUND' : 'EMPTY'));
+        error_log('🔍 MONITOR DEBUG: Reconstructed session_shipping address_1: ' . ($session_shipping['address_1'] ?? 'N/A'));
         
         // Order-Daten (was tatsächlich gespeichert wurde)
         $order_shipping = [
@@ -288,9 +294,20 @@ public function add_admin_menu() {
             $shipping_matches = $this->compare_addresses_strict($session_shipping, $order_shipping);
             if (!$shipping_matches) {
                 $status = 'critical';
-                $problems[] = '🔴 SHIPPING OVERRIDE: User wählte "' . ($session_shipping['address_1'] ?? 'N/A') . 
-                             '" aber Order enthält "' . ($order_shipping['address_1'] ?? 'N/A') . '"';
+                $user_choice = $session_shipping['address_1'] ?? 'N/A';
+                $final_result = $order_shipping['address_1'] ?? 'N/A';
+                
+                // Spezielle Erkennung für Ihre "Liefer Adresse" / "Rechnungs Adresse" 
+                if ($user_choice === 'Liefer Adresse' || $user_choice === 'Rechnungs Adresse') {
+                    $problems[] = '🔴 SHIPPING OVERRIDE: User wählte Adresse "' . $user_choice . '" aber Order enthält "' . $final_result . '" (Apple Pay Override!)';
+                } else {
+                    $problems[] = '🔴 SHIPPING OVERRIDE: User wählte "' . $user_choice . '" aber Order enthält "' . $final_result . '"';
+                }
             }
+        } else {
+            // Keine Session-Daten gefunden - das ist ein Problem für sich
+            $status = 'warning';
+            $problems[] = '⚠️ KEINE SESSION-DATEN: Ursprüngliche User-Auswahl nicht in Order-Meta gefunden';
         }
         
         // 🔍 BILLING TRANSFER CHECK
@@ -458,6 +475,56 @@ public function add_admin_menu() {
                 'Fulfillment/Logistik'
             ]
         ];
+    }
+    
+    /**
+     * 🔍 Versuche Session-Daten aus verschiedenen Order-Meta-Keys zu rekonstruieren
+     */
+    private function recover_session_data_from_order_meta($order) {
+        $session_data = [
+            'shipping' => [],
+            'billing' => [],
+            'billing_different' => false
+        ];
+        
+        // 1. Versuche primären Session-Backup Key
+        $session_backup = $order->get_meta('_yprint_session_backup');
+        if (!empty($session_backup)) {
+            error_log('🔍 MONITOR: Found _yprint_session_backup meta');
+            return [
+                'shipping' => $session_backup['selected'] ?? [],
+                'billing' => $session_backup['billing'] ?? [],
+                'billing_different' => $session_backup['billing_different'] ?? false
+            ];
+        }
+        
+        // 2. Versuche originale Shipping-Adresse 
+        $original_shipping = $order->get_meta('_yprint_original_shipping_address');
+        if (!empty($original_shipping)) {
+            error_log('🔍 MONITOR: Found _yprint_original_shipping_address meta');
+            $session_data['shipping'] = $original_shipping;
+        }
+        
+        // 3. Versuche andere Meta-Keys (falls gesetzt)
+        $yprint_applied = $order->get_meta('_yprint_addresses_applied');
+        $yprint_applied_auth = $order->get_meta('_yprint_addresses_applied_authoritatively');
+        
+        if ($yprint_applied || $yprint_applied_auth) {
+            error_log('🔍 MONITOR: Found YPrint application markers - original selection was probably overridden');
+        }
+        
+        // 4. Debug alle verfügbaren Meta-Keys
+        $all_meta = $order->get_meta_data();
+        $yprint_meta_keys = [];
+        foreach ($all_meta as $meta) {
+            if (strpos($meta->key, 'yprint') !== false || strpos($meta->key, '_stripe_') !== false) {
+                $yprint_meta_keys[] = $meta->key;
+            }
+        }
+        
+        error_log('🔍 MONITOR: Available YPrint/Stripe meta keys: ' . implode(', ', $yprint_meta_keys));
+        
+        return $session_data;
     }
     
     /**
