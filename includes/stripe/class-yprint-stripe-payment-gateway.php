@@ -245,57 +245,8 @@ error_log('🔍 YPRINT DEBUG: Express Payment Order #' . $order->get_id() . ' - 
             // Empty cart
             WC()->cart->empty_cart();
             
-// ===== ROBUSTE ORCHESTRATOR INTEGRATION MIT CONSOLE DEBUGGING =====
-echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Starting AddressOrchestrator integration for Order #" . $order->get_id() . "');</script>";
-echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Class exists check: " . (class_exists('YPrint_Address_Orchestrator') ? 'TRUE' : 'FALSE') . "');</script>";
-
-if (class_exists('YPrint_Address_Orchestrator')) {
-    echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Getting orchestrator instance...');</script>";
-    
-    try {
-        $orchestrator = YPrint_Address_Orchestrator::get_instance();
-        echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Instance retrieved: " . (is_object($orchestrator) ? 'SUCCESS' : 'FAILED') . "');</script>";
-        
-        if (is_object($orchestrator)) {
-            // Payment method data extraction with debugging
-            $payment_method_data = null;
-            if (isset($payment_method['id'])) {
-                echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Extracting payment method data for: " . esc_js($payment_method['id']) . "');</script>";
-                try {
-                    $stripe_payment_method = \Stripe\PaymentMethod::retrieve($payment_method['id']);
-                    $payment_method_data = $stripe_payment_method->toArray();
-                    echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Payment method data extracted successfully');</script>";
-                } catch (Exception $e) {
-                    echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Payment method extraction failed: " . esc_js($e->getMessage()) . "');</script>";
-                }
-            } else {
-                echo "<script>console.log('🔍 PRE-ORCHESTRATOR: No payment method ID available');</script>";
-            }
-            
-            // Method existence check
-            if (method_exists($orchestrator, 'process_wallet_payment_addresses')) {
-                echo "<script>console.log('🔍 PRE-ORCHESTRATOR: Method process_wallet_payment_addresses EXISTS - calling now...');</script>";
-                
-                // CALL ORCHESTRATOR
-                $result = $orchestrator->process_wallet_payment_addresses($order, $payment_method_data);
-                
-                echo "<script>console.log('🔍 POST-ORCHESTRATOR: Orchestrator returned: " . ($result ? 'SUCCESS' : 'FAILED') . "');</script>";
-                echo "<script>console.log('🎯 AddressOrchestrator: Express Payment processed for Order #" . $order->get_id() . "');</script>";
-            } else {
-                echo "<script>console.log('🔍 PRE-ORCHESTRATOR: ERROR - Method process_wallet_payment_addresses NOT FOUND');</script>";
-            }
-        } else {
-            echo "<script>console.log('🔍 PRE-ORCHESTRATOR: ERROR - Failed to get orchestrator instance');</script>";
-        }
-        
-    } catch (Exception $e) {
-        echo "<script>console.log('🔍 PRE-ORCHESTRATOR: EXCEPTION during orchestrator processing: " . esc_js($e->getMessage()) . "');</script>";
-    }
-} else {
-    echo "<script>console.log('🔍 PRE-ORCHESTRATOR: AddressOrchestrator class NOT AVAILABLE - keeping Express Payment addresses');</script>";
-}
-
-echo "<script>console.log('🔍 POST-ORCHESTRATOR: Integration attempt completed for Order #" . $order->get_id() . "');</script>";
+// Express Payment address handling - preserve original Apple Pay addresses
+error_log('Express Payment Order #' . $order->get_id() . ' - preserving original Apple Pay addresses');
             
             return array(
                 'result'   => 'success',
