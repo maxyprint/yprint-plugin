@@ -237,24 +237,20 @@ public function process_payment($order_id) {
             
             $order->add_order_note(sprintf(__('Stripe payment complete (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
             
-            // 🎯 CRITICAL: COORDINATED ADDRESS RESOLUTION for Express Payment
+            // 🎯 CRITICAL: EXPRESS PAYMENT ADDRESS COORDINATION
 if (class_exists('YPrint_Address_Manager')) {
     error_log('🔍 YPRINT ADDRESS RESOLUTION: Starting coordinated address resolution for Express Payment Order #' . $order->get_id());
     
-    // Prüfe ob manuelle YPrint-Adressauswahl vorliegt
+    // Prüfe ob manuelle YPrint-Adresswahl existiert
     $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
     $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
     $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
     
-    $has_manual_selection = !empty($yprint_selected) && !empty($yprint_selected['address_1']);
-    
-    error_log('🔍 YPRINT ADDRESS RESOLUTION: Manual selection status: ' . ($has_manual_selection ? 'YES' : 'NO'));
-    
-    // AUTORITATIVE RESOLUTION: Manual Selection überschreibt Express Payment
-    if ($has_manual_selection) {
-        error_log('🔍 YPRINT ADDRESS RESOLUTION: MANUAL SELECTION AUTHORITY - Applying YPrint addresses over Express Payment');
+    // 🚨 AUTORITATIVE OVERRIDE: YPrint Session hat ABSOLUTE Priorität über Express Payment
+    if (!empty($yprint_selected)) {
+        error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - YPrint manual selection takes precedence over Express Payment');
         
-        // Shipping Address: YPrint Manual Selection (authoritative)
+        // Überschreibe Express Payment Adressen mit YPrint Session-Daten
         $order->set_shipping_first_name($yprint_selected['first_name'] ?? '');
         $order->set_shipping_last_name($yprint_selected['last_name'] ?? '');
         $order->set_shipping_address_1($yprint_selected['address_1'] ?? '');
@@ -264,9 +260,9 @@ if (class_exists('YPrint_Address_Manager')) {
         $order->set_shipping_country($yprint_selected['country'] ?? 'DE');
         $order->set_shipping_phone($yprint_selected['phone'] ?? '');
         
-        // Billing Address Resolution
+        // Rechnungsadresse: Separate oder gleiche wie Shipping
         if ($yprint_billing_different && !empty($yprint_billing)) {
-            error_log('🔍 YPRINT ADDRESS RESOLUTION: Applying separate billing address');
+            error_log('🔍 YPRINT DEBUG: Applying separate billing address from YPrint session');
             $order->set_billing_first_name($yprint_billing['first_name'] ?? '');
             $order->set_billing_last_name($yprint_billing['last_name'] ?? '');
             $order->set_billing_address_1($yprint_billing['address_1'] ?? '');
@@ -275,9 +271,8 @@ if (class_exists('YPrint_Address_Manager')) {
             $order->set_billing_postcode($yprint_billing['postcode'] ?? '');
             $order->set_billing_country($yprint_billing['country'] ?? 'DE');
             $order->set_billing_phone($yprint_billing['phone'] ?? '');
-            // Email bleibt aus Express Payment (wichtig für Stripe)
         } else {
-            error_log('🔍 YPRINT ADDRESS RESOLUTION: Using shipping as billing address');
+            error_log('🔍 YPRINT DEBUG: Using shipping address as billing address');
             $order->set_billing_first_name($yprint_selected['first_name'] ?? '');
             $order->set_billing_last_name($yprint_selected['last_name'] ?? '');
             $order->set_billing_address_1($yprint_selected['address_1'] ?? '');
@@ -286,19 +281,18 @@ if (class_exists('YPrint_Address_Manager')) {
             $order->set_billing_postcode($yprint_selected['postcode'] ?? '');
             $order->set_billing_country($yprint_selected['country'] ?? 'DE');
             $order->set_billing_phone($yprint_selected['phone'] ?? '');
-            // Email bleibt aus Express Payment
         }
         
-        // Traceability Meta-Data
-        $order->update_meta_data('_yprint_address_authority', 'manual_selection_over_express_payment');
-        $order->update_meta_data('_yprint_address_resolution_timestamp', current_time('mysql'));
-        $order->update_meta_data('_yprint_express_payment_type', isset($_POST['payment_request_type']) ? wc_clean(wp_unslash($_POST['payment_request_type'])) : 'express_payment');
-        
-        error_log('🔍 YPRINT ADDRESS RESOLUTION: ✅ MANUAL SELECTION AUTHORITY applied successfully');
+        error_log('🔍 YPRINT DEBUG: EXPRESS PAYMENT OVERRIDE COMPLETE - YPrint addresses applied');
     } else {
-        error_log('🔍 YPRINT ADDRESS RESOLUTION: No manual selection - keeping Express Payment addresses');
-        $order->update_meta_data('_yprint_address_authority', 'express_payment_default');
+        error_log('🔍 YPRINT DEBUG: No manual YPrint selection found - Express Payment addresses retained');
     }
+    
+    // Address Manager application (falls weitere Korrekturen nötig)
+    $address_manager = new YPrint_Address_Manager();
+    $address_manager->apply_addresses_to_order($order);
+    
+    error_log('🔍 YPRINT DEBUG: Final coordinated address resolution completed');
 }
             
             $order->save();
