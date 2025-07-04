@@ -63,6 +63,7 @@ public function add_admin_menu() {
             .problem-critical { background-color: #ffebee; border-left: 4px solid #f44336; }
             .problem-warning { background-color: #fff3e0; border-left: 4px solid #ff9800; }
             .problem-success { background-color: #e8f5e8; border-left: 4px solid #4caf50; }
+            .problem-info { background-color: #e3f2fd; border-left: 4px solid #2196f3; }
             .address-block { padding: 10px; margin: 5px 0; border-radius: 3px; }
             .system-title { font-weight: bold; color: #333; margin-bottom: 8px; }
             </style>
@@ -115,57 +116,109 @@ public function add_admin_menu() {
         $html = '<div class="consistency-report">';
         $html .= '<h2>🎯 Address Problem Diagnostic - Order #' . $order_id . '</h2>';
         
-        // WooCommerce Order (Referenz)
-        $html .= '<div class="address-block problem-success">';
-        $html .= '<div class="system-title">✅ WooCommerce Order (FUNKTIONIERT)</div>';
-        if ($results['woocommerce']['shipping']) {
-            $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['woocommerce']['shipping']) . '<br>';
-            $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['woocommerce']['billing']) . '<br>';
-        }
-        $html .= '<em>' . $results['woocommerce']['note'] . '</em>';
-        $html .= '</div>';
+        // 🎯 SESSION VS. ORDER TRANSFER (HAUPTPROBLEM)
+        $session_status = $results['session_transfer']['status'];
+        $status_class = $session_status === 'critical' ? 'problem-critical' : 'problem-success';
+        $status_icon = $session_status === 'critical' ? '🔴' : '✅';
+        $status_text = $session_status === 'critical' ? 'KRITISCHES PROBLEM' : 'FUNKTIONIERT';
         
-        // Stripe (Problem)
-        $html .= '<div class="address-block problem-warning">';
-        $html .= '<div class="system-title">🟡 Stripe Payment Method (PROBLEM ERWARTET)</div>';
-        if ($results['stripe']['status'] !== 'error') {
-            if (isset($results['stripe']['billing'])) {
-                $html .= '<strong>Payment Method ID:</strong> ' . ($results['stripe']['payment_method_id'] ?? 'N/A') . '<br>';
-                $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['stripe']['billing']) . '<br>';
-            }
-        }
-        $html .= '<em>' . $results['stripe']['note'] . '</em>';
-        $html .= '</div>';
-        
-        // E-Mail System (Kritisches Problem)
-        $status_class = $results['email']['status'] === 'critical' ? 'problem-critical' : 'problem-success';
         $html .= '<div class="address-block ' . $status_class . '">';
-        $html .= '<div class="system-title">' . ($results['email']['status'] === 'critical' ? '🔴 E-Mail System (KRITISCHES PROBLEM)' : '✅ E-Mail System (OK)') . '</div>';
-        if ($results['email']['status'] === 'critical') {
-            $html .= '<strong>PROBLEM:</strong> ' . $results['email']['note'] . '<br>';
-            if (isset($results['email']['debug'])) {
-                $html .= '<strong>Debug Info:</strong><br>';
-                foreach ($results['email']['debug'] as $key => $value) {
-                    $html .= '&nbsp;&nbsp;• ' . $key . ': ' . $value . '<br>';
-                }
+        $html .= '<div class="system-title">' . $status_icon . ' Session vs. Order Konsistenz (' . $status_text . ')</div>';
+        
+        if ($session_status === 'critical') {
+            $html .= '<div style="background: #ffebee; padding: 10px; margin: 10px 0; border-left: 4px solid #f44336;">';
+            $html .= '<strong>🚨 ERKANNTE PROBLEME:</strong><br>';
+            foreach ($results['session_transfer']['problems'] as $problem) {
+                $html .= '&nbsp;&nbsp;• ' . $problem . '<br>';
             }
-        } else {
-            $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['email']['shipping']) . '<br>';
-            $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['email']['billing']) . '<br>';
+            $html .= '</div>';
         }
-        $html .= '<em>' . $results['email']['note'] . '</em>';
+        
+        $html .= '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 10px 0;">';
+        
+        // User Auswahl (Session)
+        $html .= '<div style="background: #f0f8ff; padding: 10px; border-radius: 5px;">';
+        $html .= '<strong>👤 USER AUSWAHL (Session):</strong><br>';
+        if (!empty($results['session_transfer']['session_shipping'])) {
+            $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['session_transfer']['session_shipping']) . '<br>';
+        } else {
+            $html .= '<strong>Shipping:</strong> ❌ Keine Session-Daten<br>';
+        }
+        
+        if ($results['session_transfer']['billing_different'] && !empty($results['session_transfer']['session_billing'])) {
+            $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['session_transfer']['session_billing']) . '<br>';
+            $html .= '<em>🔄 User wählte bewusst unterschiedliche Billing</em>';
+        } else {
+            $html .= '<strong>Billing:</strong> <em>Gleich wie Shipping</em>';
+        }
         $html .= '</div>';
         
-        // Confirmation Page
-        $html .= '<div class="address-block problem-success">';
-        $html .= '<div class="system-title">✅ Confirmation Page (FUNKTIONIERT)</div>';
-        if ($results['confirmation']['status'] === 'success' && isset($results['confirmation']['shipping'])) {
-            $html .= '<strong>Session Shipping:</strong> ' . $this->format_address_oneline($results['confirmation']['shipping']) . '<br>';
-            if (!empty($results['confirmation']['billing'])) {
-                $html .= '<strong>Session Billing:</strong> ' . $this->format_address_oneline($results['confirmation']['billing']) . '<br>';
+        // Finale Order 
+        $html .= '<div style="background: #fff3e0; padding: 10px; border-radius: 5px;">';
+        $html .= '<strong>📝 FINALE ORDER (WooCommerce):</strong><br>';
+        $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['session_transfer']['order_shipping']) . '<br>';
+        $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['session_transfer']['order_billing']) . '<br>';
+        $html .= '</div>';
+        
+        $html .= '</div>';
+        $html .= '<em><strong>Fazit:</strong> ' . $results['session_transfer']['note'] . '</em>';
+        $html .= '</div>';
+        
+        // 🔍 EXPRESS PAYMENT OVERRIDE DETECTION
+        $express_status = $results['express_override']['status'];
+        $status_class = $express_status === 'warning' ? 'problem-warning' : 'problem-success';
+        $status_icon = $express_status === 'warning' ? '⚠️' : 'ℹ️';
+        
+        $html .= '<div class="address-block ' . $status_class . '">';
+        $html .= '<div class="system-title">' . $status_icon . ' Express Payment Override Detection</div>';
+        
+        if ($results['express_override']['is_express']) {
+            $html .= '<strong>🍎 Express Payment erkannt:</strong> Apple Pay / Google Pay<br>';
+            $html .= '<strong>Payment Method ID:</strong> ' . $results['express_override']['stripe_pm_id'] . '<br>';
+            
+            if (!empty($results['express_override']['express_address'])) {
+                $html .= '<br><strong>Express Payment Adresse:</strong><br>';
+                $html .= '&nbsp;&nbsp;' . $this->format_address_oneline($results['express_override']['express_address']) . '<br>';
+            }
+            
+            $html .= '<br><div style="background: #fff3cd; padding: 8px; border-radius: 4px;">';
+            $html .= '<strong>⚠️ WARNUNG:</strong> Express Payment kann User-Auswahl überschreiben!';
+            $html .= '</div>';
+        } else {
+            $html .= '<strong>Payment Type:</strong> Standard Checkout<br>';
+            $html .= '<em>Keine Express Payment Überschreibung erwartet</em>';
+        }
+        
+        $html .= '<br><em>' . $results['express_override']['note'] . '</em>';
+        $html .= '</div>';
+        
+        // ⚖️ SYMMETRIE-ANALYSE
+        $symmetry_status = $results['symmetry']['status'];
+        $status_class = $symmetry_status === 'critical' ? 'problem-critical' : ($symmetry_status === 'warning' ? 'problem-warning' : 'problem-success');
+        $status_icon = $symmetry_status === 'critical' ? '🔴' : ($symmetry_status === 'warning' ? '⚠️' : '✅');
+        
+        $html .= '<div class="address-block ' . $status_class . '">';
+        $html .= '<div class="system-title">' . $status_icon . ' Shipping vs Billing Symmetrie</div>';
+        
+        if (!empty($results['symmetry']['problems'])) {
+            $html .= '<strong>Asymmetrie gefunden:</strong><br>';
+            foreach ($results['symmetry']['problems'] as $problem) {
+                $html .= '&nbsp;&nbsp;• ' . $problem . '<br>';
             }
         }
-        $html .= '<em>' . $results['confirmation']['note'] . '</em>';
+        
+        $html .= '<strong>Preservation Status:</strong><br>';
+        $html .= '&nbsp;&nbsp;Shipping preserved: ' . ($results['symmetry']['shipping_preserved'] ? '✅' : '❌') . '<br>';
+        $html .= '&nbsp;&nbsp;Billing preserved: ' . ($results['symmetry']['billing_preserved'] ? '✅' : '❌') . '<br>';
+        $html .= '<em>' . $results['symmetry']['note'] . '</em>';
+        $html .= '</div>';
+        
+        // 🏗️ CURRENT ORDER STATE (Baseline)
+        $html .= '<div class="address-block problem-info">';
+        $html .= '<div class="system-title">ℹ️ Aktuelle Order Adressen (Baseline)</div>';
+        $html .= '<strong>Shipping:</strong> ' . $this->format_address_oneline($results['wc_order']['shipping']) . '<br>';
+        $html .= '<strong>Billing:</strong> ' . $this->format_address_oneline($results['wc_order']['billing']) . '<br>';
+        $html .= '<em>Diese Adressen werden an alle nachgelagerten Systeme weitergegeben</em>';
         $html .= '</div>';
         
         $html .= '</div>';
