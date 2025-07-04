@@ -45,10 +45,6 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_nopriv_yprint_get_saved_addresses', array($this, 'ajax_get_saved_addresses'));
         add_action('wp_ajax_yprint_get_address_details', array($this, 'ajax_get_address_details'));
         add_action('wp_action_yprint_save_new_address', array($this, 'handle_save_address_ajax')); // Beachten Sie, dass hier 'wp_action' steht, sollte 'wp_ajax' sein, wenn es ein AJAX-Call ist.
-        
-        // ENHANCED HOOK STRATEGY: Multi-point address protection
-        add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 5, 2);
-        add_action('woocommerce_payment_complete', array($this, 'validate_final_addresses'), 10, 1);
         add_action('wp_ajax_yprint_delete_address', array($this, 'ajax_delete_address'));
         add_action('wp_ajax_yprint_set_default_address', array($this, 'ajax_set_default_address'));
         add_action('wp_ajax_yprint_set_checkout_address', array($this, 'ajax_set_checkout_address'));
