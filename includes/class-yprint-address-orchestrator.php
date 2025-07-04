@@ -111,16 +111,19 @@ private function init_wallet_payment_hooks() {
         try {
             // PHASE 1: COLLECTION
             $this->collect_addresses($order, $payment_data);
-
+        
             // PHASE 2: DECISION  
             $this->apply_hierarchy();
-
+        
             // PHASE 3: DISTRIBUTION
             $this->distribute_addresses($order);
-
-            $this->log_step('=== ORCHESTRATION COMPLETE ===', 'success');
+            
+            // PHASE 4: PROTECTION (Neu)
+            $this->apply_protected_order_update($order);
+        
+            $this->log_step('=== ORCHESTRATION COMPLETE (WITH PROTECTION) ===', 'success');
             return true;
-
+        
         } catch (Exception $e) {
             $this->log_step('ORCHESTRATION FAILED: ' . $e->getMessage(), 'error');
             return false;
@@ -602,6 +605,23 @@ private function validate_session_consistency($shipping_address, $billing_addres
         uasort($sorted_sources, function($a, $b) {
             return $a['priority'] <=> $b['priority'];
         });
+        
+        // CRITICAL: Enforce manual selection supremacy
+        $has_manual_selection = !empty($this->collected_addresses['manual']);
+        if ($has_manual_selection) {
+            $this->log_step('🚨 MANUAL SELECTION SUPREMACY ENFORCED - Alle anderen Quellen haben niedrigere Priorität', 'priority');
+            
+            // Temporarily demote wallet priority if manual exists
+            if (isset($sorted_sources['wallet'])) {
+                $sorted_sources['wallet']['priority'] = 10; // Much lower than manual
+                $this->log_step('└─ Wallet Priority herabgestuft: 2 → 10 (Manual überschreibt)', 'priority');
+            }
+            
+            // Re-sort after priority adjustment
+            uasort($sorted_sources, function($a, $b) {
+                return $a['priority'] <=> $b['priority'];
+            });
+        }
     
         $this->log_step('🎯 SEPARATE HIERARCHIE-LOGIK:', 'decision');
         $this->log_step('Verfügbare Quellen nach Priorität:', 'decision');
@@ -617,33 +637,49 @@ private function validate_session_consistency($shipping_address, $billing_addres
         $shipping_source = 'none';
         $billing_source = 'none';
     
-        // **SHIPPING ADDRESS HIERARCHIE**
-        $this->log_step('🚚 SHIPPING ADDRESS AUSWAHL:', 'decision');
-        foreach ($sorted_sources as $source => $data) {
-            if (!empty($data['shipping']['address_1'])) {
-                $final_shipping = $data['shipping'];
-                $shipping_source = $source;
-                $this->log_step("└─ ✅ SHIPPING gewählt aus: {$source} (Priorität {$data['priority']})", 'success');
-                $this->log_step("    └─ Adresse: {$final_shipping['address_1']}, {$final_shipping['city']}", 'decision');
-                break; // Erste verfügbare Shipping-Adresse nach Priorität
-            } else {
-                $this->log_step("└─ ❌ SHIPPING nicht verfügbar in: {$source}", 'decision');
-            }
+        // **SYMMETRIC PRIORITY LOGIC - Shipping und Billing gleich behandeln**
+$final_shipping = null;
+$final_billing = null;
+$shipping_source = 'none';
+$billing_source = 'none';
+
+// **SHIPPING ADDRESS HIERARCHIE (mit Manual Supremacy)**
+$this->log_step('🚚 SHIPPING ADDRESS AUSWAHL (SYMMETRIC LOGIC):', 'decision');
+foreach ($sorted_sources as $source => $data) {
+    if (!empty($data['shipping']['address_1'])) {
+        $final_shipping = $data['shipping'];
+        $shipping_source = $source;
+        $this->log_step("└─ ✅ SHIPPING gewählt aus: {$source} (Priorität {$data['priority']})", 'success');
+        $this->log_step("    └─ Adresse: {$final_shipping['address_1']}, {$final_shipping['city']}", 'decision');
+        
+        // CRITICAL: Manual selection validation
+        if ($source === 'manual') {
+            $this->log_step("    └─ 🛡️ MANUAL SELECTION SCHUTZ: Shipping gesichert gegen Überschreibung", 'priority');
         }
-    
-        // **BILLING ADDRESS HIERARCHIE**
-        $this->log_step('💳 BILLING ADDRESS AUSWAHL:', 'decision');
-        foreach ($sorted_sources as $source => $data) {
-            if (!empty($data['billing']['address_1'])) {
-                $final_billing = $data['billing'];
-                $billing_source = $source;
-                $this->log_step("└─ ✅ BILLING gewählt aus: {$source} (Priorität {$data['priority']})", 'success');
-                $this->log_step("    └─ Adresse: {$final_billing['address_1']}, {$final_billing['city']}", 'decision');
-                break; // Erste verfügbare Billing-Adresse nach Priorität
-            } else {
-                $this->log_step("└─ ❌ BILLING nicht verfügbar in: {$source}", 'decision');
-            }
+        break; // Erste verfügbare Shipping-Adresse nach Priorität
+    } else {
+        $this->log_step("└─ ❌ SHIPPING nicht verfügbar in: {$source}", 'decision');
+    }
+}
+
+// **BILLING ADDRESS HIERARCHIE (identische Logik)**
+$this->log_step('💳 BILLING ADDRESS AUSWAHL (SYMMETRIC LOGIC):', 'decision');
+foreach ($sorted_sources as $source => $data) {
+    if (!empty($data['billing']['address_1'])) {
+        $final_billing = $data['billing'];
+        $billing_source = $source;
+        $this->log_step("└─ ✅ BILLING gewählt aus: {$source} (Priorität {$data['priority']})", 'success');
+        $this->log_step("    └─ Adresse: {$final_billing['address_1']}, {$final_billing['city']}", 'decision');
+        
+        // CRITICAL: Manual selection validation (identisch zu Shipping)
+        if ($source === 'manual') {
+            $this->log_step("    └─ 🛡️ MANUAL SELECTION SCHUTZ: Billing gesichert gegen Überschreibung", 'priority');
         }
+        break; // Erste verfügbare Billing-Adresse nach Priorität
+    } else {
+        $this->log_step("└─ ❌ BILLING nicht verfügbar in: {$source}", 'decision');
+    }
+}
     
         // **FALLBACK: Wenn keine Shipping-Adresse gefunden, verwende Billing**
         if (empty($final_shipping) && !empty($final_billing)) {
@@ -718,6 +754,61 @@ $this->validate_distribution_consistency($order);
 
         $this->log_step('=== VERTEILUNG END (ERWEITERT) ===', 'phase');
     }
+
+    /**
+ * Protected order update that prevents external overrides
+ * 
+ * @param WC_Order $order WooCommerce order object
+ */
+private function apply_protected_order_update($order) {
+    $this->log_step('🛡️ PROTECTED ORDER UPDATE - Verhindert externe Überschreibungen...', 'distribution');
+    
+    $shipping = $this->final_addresses['shipping'];
+    $billing = $this->final_addresses['billing'];
+    
+    // Apply addresses with high-priority hook to prevent overrides
+    add_action('woocommerce_checkout_update_order_meta', function($order_id) use ($shipping, $billing) {
+        $order = wc_get_order($order_id);
+        if (!$order) return;
+        
+        // Force-set shipping address
+        if (!empty($shipping)) {
+            $order->set_shipping_first_name($shipping['first_name'] ?? '');
+            $order->set_shipping_last_name($shipping['last_name'] ?? '');
+            $order->set_shipping_company($shipping['company'] ?? '');
+            $order->set_shipping_address_1($shipping['address_1'] ?? '');
+            $order->set_shipping_address_2($shipping['address_2'] ?? '');
+            $order->set_shipping_city($shipping['city'] ?? '');
+            $order->set_shipping_state($shipping['state'] ?? '');
+            $order->set_shipping_postcode($shipping['postcode'] ?? '');
+            $order->set_shipping_country($shipping['country'] ?? '');
+            $order->set_shipping_phone($shipping['phone'] ?? '');
+        }
+        
+        // Force-set billing address  
+        if (!empty($billing)) {
+            $order->set_billing_first_name($billing['first_name'] ?? '');
+            $order->set_billing_last_name($billing['last_name'] ?? '');
+            $order->set_billing_company($billing['company'] ?? '');
+            $order->set_billing_address_1($billing['address_1'] ?? '');
+            $order->set_billing_address_2($billing['address_2'] ?? '');
+            $order->set_billing_city($billing['city'] ?? '');
+            $order->set_billing_state($billing['state'] ?? '');
+            $order->set_billing_postcode($billing['postcode'] ?? '');
+            $order->set_billing_country($billing['country'] ?? '');
+            $order->set_billing_phone($billing['phone'] ?? '');
+            $order->set_billing_email($billing['email'] ?? '');
+        }
+        
+        // Save with high priority
+        $order->save();
+        
+        error_log('🛡️ AddressOrchestrator: Protected update applied for Order #' . $order_id);
+        
+    }, 999); // Very high priority to run last
+    
+    $this->log_step('└─ Protected Update Hook installiert (Priority 999)', 'distribution');
+}
 
     /**
      * Distribute addresses to Stripe metadata (for UI consistency)
