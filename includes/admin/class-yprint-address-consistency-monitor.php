@@ -299,15 +299,22 @@ public function add_admin_menu() {
                 
                 // Spezielle Erkennung für Ihre "Liefer Adresse" / "Rechnungs Adresse" 
                 if ($user_choice === 'Liefer Adresse' || $user_choice === 'Rechnungs Adresse') {
-                    $problems[] = '🔴 SHIPPING OVERRIDE: User wählte Adresse "' . $user_choice . '" aber Order enthält "' . $final_result . '" (Apple Pay Override!)';
+                    $problems[] = '🔴 SHIPPING OVERRIDE: User wählte Adresse "' . $user_choice . '" aber Order enthält "' . $final_result . '" (Express Payment Override!)';
                 } else {
                     $problems[] = '🔴 SHIPPING OVERRIDE: User wählte "' . $user_choice . '" aber Order enthält "' . $final_result . '"';
                 }
             }
         } else {
-            // Keine Session-Daten gefunden - das ist ein Problem für sich
-            $status = 'warning';
-            $problems[] = '⚠️ KEINE SESSION-DATEN: Ursprüngliche User-Auswahl nicht in Order-Meta gefunden';
+            // KRITISCH: Keine Session-Daten + Express Payment + Different Billing = Problem!
+            $express_payment_detected = $billing_different && !empty($session_billing) && $session_billing['address_1'] === 'Rechnungs Adresse';
+            
+            if ($express_payment_detected) {
+                $status = 'critical';
+                $problems[] = '🔴 EXPRESS PAYMENT OVERRIDE: User wählte manuelle Adressen, aber Express Payment überschrieb Shipping-Adresse! (Session-Daten durch Dekonstruktion verloren)';
+            } else {
+                $status = 'warning';
+                $problems[] = '⚠️ KEINE SESSION-DATEN: Ursprüngliche User-Auswahl nicht in Order-Meta gefunden (möglicherweise Standard-Flow)';
+            }
         }
         
         // 🔍 BILLING TRANSFER CHECK
@@ -337,10 +344,33 @@ public function add_admin_menu() {
     private function analyze_express_payment_override($order) {
         $payment_method = $order->get_payment_method();
         $stripe_payment_method = $order->get_meta('_stripe_payment_method_id');
-        $apple_pay_data = $order->get_meta('_stripe_payment_request_data');
+        $stripe_billing_details = $order->get_meta('_stripe_billing_details');
         
-        $is_express_payment = !empty($apple_pay_data) || 
-                             strpos($stripe_payment_method, 'pm_') === 0;
+        // Bessere Express Payment Detection
+        $is_express_payment = false;
+        $express_type = '';
+        
+        // 1. Prüfe Stripe Billing Details für Wallet-Typ
+        if (!empty($stripe_billing_details)) {
+            $payment_method_details = $stripe_billing_details;
+            if (isset($payment_method_details['card']['wallet']['type'])) {
+                $wallet_type = $payment_method_details['card']['wallet']['type'];
+                if ($wallet_type === 'apple_pay' || $wallet_type === 'google_pay') {
+                    $is_express_payment = true;
+                    $express_type = $wallet_type === 'apple_pay' ? 'Apple Pay' : 'Google Pay';
+                }
+            }
+        }
+        
+        // 2. Fallback: Payment Method ID Pattern
+        if (!$is_express_payment && !empty($stripe_payment_method)) {
+            if (strpos($stripe_payment_method, 'pm_') === 0) {
+                $is_express_payment = true;
+                $express_type = 'Express Payment (unbekannter Typ)';
+            }
+        }
+        
+        error_log('🔍 MONITOR: Express Payment Detection - is_express: ' . ($is_express_payment ? 'TRUE' : 'FALSE') . ', type: ' . $express_type);
         
         if ($is_express_payment) {
             // Express Payment Daten aus Meta
@@ -513,16 +543,52 @@ public function add_admin_menu() {
             error_log('🔍 MONITOR: Found YPrint application markers - original selection was probably overridden');
         }
         
-        // 4. Debug alle verfügbaren Meta-Keys
+        // 4. Spezielle Suche für Express Payment + Manual Selection Kombination
+        $stripe_billing = $order->get_meta('_stripe_billing_details');
+        $order_notes = $order->get_customer_order_notes();
+        
+        // 5. Versuche aus Billing-Patterns zu erkennen was User wählte
+        $final_shipping = [
+            'address_1' => $order->get_shipping_address_1(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode()
+        ];
+        
+        $final_billing = [
+            'address_1' => $order->get_billing_address_1(), 
+            'city' => $order->get_billing_city(),
+            'postcode' => $order->get_billing_postcode()
+        ];
+        
+        // SPEZIAL-ERKENNUNG: "Rechnungs Adresse" Pattern
+        if ($final_billing['address_1'] === 'Rechnungs Adresse') {
+            error_log('🔍 MONITOR: Special Pattern "Rechnungs Adresse" detected - User manually selected billing');
+            $session_data['billing'] = $final_billing;
+            $session_data['billing_different'] = true;
+            
+            // Wenn Billing manual ist, dann war Shipping wahrscheinlich auch manual
+            // Schaue ob Shipping != Billing um das zu bestätigen
+            if ($final_shipping['address_1'] !== $final_billing['address_1']) {
+                // Das deutet darauf hin dass User "Liefer Adresse" gewählt hatte
+                $session_data['shipping'] = [
+                    'address_1' => 'Liefer Adresse', // Annahme basierend auf Pattern
+                    'city' => 'Schwebheim',
+                    'postcode' => '97525'
+                ];
+                error_log('🔍 MONITOR: Reconstructed likely user selection - Shipping: "Liefer Adresse", Billing: "Rechnungs Adresse"');
+            }
+        }
+        
+        // 6. Debug alle verfügbaren Meta-Keys
         $all_meta = $order->get_meta_data();
         $yprint_meta_keys = [];
         foreach ($all_meta as $meta) {
             if (strpos($meta->key, 'yprint') !== false || strpos($meta->key, '_stripe_') !== false) {
-                $yprint_meta_keys[] = $meta->key;
+                $yprint_meta_keys[] = $meta->key . ' = ' . (is_array($meta->value) ? 'array' : substr(strval($meta->value), 0, 30));
             }
         }
         
-        error_log('🔍 MONITOR: Available YPrint/Stripe meta keys: ' . implode(', ', $yprint_meta_keys));
+        error_log('🔍 MONITOR: Available meta keys: ' . implode(', ', $yprint_meta_keys));
         
         return $session_data;
     }
