@@ -204,76 +204,75 @@ private function init_wallet_payment_hooks() {
         }
     }
 
-    /**
- * Collect addresses from YPrint manual selection (highest priority)
+/**
+ * Collect addresses from YPrint manual selection (highest priority).
+ * This method retrieves addresses manually selected by the user via the YPrint integration
+ * from the WooCommerce session and stores them with the highest priority.
  */
 private function collect_manual_addresses() {
-    $this->log_step('Sammle YPrint Manual-Adressen...', 'collection');
+    $this->log_step('Collecting YPrint Manual Addresses...', 'collection');
 
+    // Ensure WooCommerce session is available.
     if (!WC()->session) {
-        $this->log_step('└─ WooCommerce Session nicht verfügbar', 'collection');
+        $this->log_step('└─ WooCommerce Session not available. Cannot collect manual addresses.', 'collection');
         return;
     }
 
-    // Collect YPrint session data
-    $selected_address = WC()->session->get('yprint_selected_address', array());
-    $billing_address = WC()->session->get('yprint_billing_address', array());
+    // Retrieve YPrint specific address data from the session.
+    $selected_address = WC()->session->get('yprint_selected_address', []);
+    $billing_address = WC()->session->get('yprint_billing_address', []);
     $billing_different = WC()->session->get('yprint_billing_address_different', false);
 
-    $this->log_step('└─ Session-Daten gelesen:', 'collection');
-    $this->log_step('    ├─ Selected Address: ' . (!empty($selected_address) ? 'VORHANDEN' : 'LEER'), 'collection');
-    $this->log_step('    ├─ Billing Different: ' . ($billing_different ? 'JA' : 'NEIN'), 'collection');
-    $this->log_step('    └─ Billing Address: ' . (!empty($billing_address) ? 'VORHANDEN' : 'LEER'), 'collection');
+    $this->log_step('└─ Session data read:', 'collection');
+    $this->log_step('    ├─ Selected Address: ' . (!empty($selected_address) ? 'PRESENT' : 'EMPTY'), 'collection');
+    $this->log_step('    ├─ Billing Different: ' . ($billing_different ? 'YES' : 'NO'), 'collection');
+    $this->log_step('    └─ Billing Address: ' . (!empty($billing_address) ? 'PRESENT' : 'EMPTY'), 'collection');
 
-    // Only proceed if we have manual selection data
-    if (empty($selected_address)) {
-        $this->log_step('└─ Keine YPrint Manual-Auswahl gefunden', 'collection');
-        return;
-    }
+    // CRITICAL: Validate if manual selection data is genuinely available and usable.
+    // A selected address must be present and contain at least the first address line.
+    $has_manual_selection = !empty($selected_address) && !empty($selected_address['address_1']);
 
-    // Validate and normalize selected address
-    $normalized_shipping = $this->normalize_yprint_address($selected_address);
-    if (empty($normalized_shipping)) {
-        $this->log_step('└─ Fehler bei Normalisierung der Shipping-Adresse', 'collection');
-        return;
-    }
+    if ($has_manual_selection) {
+        $this->log_step('✅ MANUAL SELECTION DETECTED - Priority 1 (HIGHEST)', 'collection');
 
-    // Determine billing address
-    $normalized_billing = null;
-    $is_billing_different = false;
+        // Normalize the selected (shipping) address to the orchestrator's internal format.
+        $normalized_shipping_address = $this->normalize_yprint_address($selected_address);
+        $normalized_billing_address = null;
 
-    if ($billing_different && !empty($billing_address)) {
-        // User selected different billing address
-        $normalized_billing = $this->normalize_yprint_address($billing_address);
-        $is_billing_different = true;
-        $this->log_step('└─ Separate Billing-Adresse normalisiert', 'collection');
+        // If a different billing address was indicated and is available, normalize it.
+        if ($billing_different && !empty($billing_address)) {
+            $normalized_billing_address = $this->normalize_yprint_address($billing_address);
+            $this->log_step('    └─ Separate billing address normalized.', 'collection');
+        } else {
+            // If billing is not different or not provided, assume billing is the same as shipping.
+            $normalized_billing_address = $normalized_shipping_address;
+            $this->log_step('    └─ Billing address set to be the same as shipping address.', 'collection');
+        }
+
+        // Store the collected manual addresses with the highest priority.
+        $this->collected_addresses['manual'] = [
+            'source' => 'manual',
+            'priority' => self::PRIORITY_HIERARCHY['manual'], // Priority 1 (highest)
+            'shipping' => $normalized_shipping_address,
+            'billing' => $normalized_billing_address,
+            'billing_different' => $billing_different,
+            'metadata' => [
+                'session_timestamp' => WC()->session->get('timestamp', 'unknown'),
+                'selected_address_id' => $selected_address['id'] ?? 'unknown',
+                'billing_address_id' => $billing_address['id'] ?? null,
+                'collected_at' => current_time('mysql') // Record when addresses were collected.
+            ]
+        ];
+
+        $this->log_step('🎯 MANUAL ADDRESSES COLLECTED WITH HIGHEST PRIORITY:', 'collection');
+        $this->log_step('    ├─ Source: MANUAL (Priority 1)', 'collection');
+        $this->log_step('    ├─ Shipping: ' . ($normalized_shipping_address['address_1'] ?? 'empty'), 'collection');
+        $this->log_step('    ├─ Billing Different: ' . ($billing_different ? 'YES' : 'NO'), 'collection');
+        $this->log_step('    └─ Billing: ' . (($normalized_billing_address ?? $normalized_shipping_address)['address_1'] ?? 'empty'), 'collection');
+
     } else {
-        // Billing same as shipping
-        $normalized_billing = $normalized_shipping;
-        $is_billing_different = false;
-        $this->log_step('└─ Billing = Shipping (gleiche Adresse)', 'collection');
+        $this->log_step('ℹ️ No manual selection found - user did not select addresses manually.', 'collection');
     }
-
-    // Store collected manual addresses
-    $this->collected_addresses['manual'] = [
-        'source' => 'manual',
-        'priority' => self::PRIORITY_HIERARCHY['manual'],
-        'shipping' => $normalized_shipping,
-        'billing' => $normalized_billing,
-        'billing_different' => $is_billing_different,
-        'metadata' => [
-            'selection_method' => 'yprint_session',
-            'shipping_id' => $selected_address['id'] ?? null,
-            'billing_id' => $billing_address['id'] ?? null,
-            'collected_at' => current_time('mysql'),
-            'session_consistent' => $this->validate_session_consistency($selected_address, $billing_address)
-        ]
-    ];
-
-    $this->log_step('└─ YPrint Manual-Adressen erfolgreich gesammelt:', 'collection');
-    $this->log_step('    ├─ Shipping: ' . $normalized_shipping['address_1'] . ', ' . $normalized_shipping['city'], 'collection');
-    $this->log_step('    ├─ Billing: ' . $normalized_billing['address_1'] . ', ' . $normalized_billing['city'], 'collection');
-    $this->log_step('    └─ Billing Different: ' . ($is_billing_different ? 'JA' : 'NEIN'), 'collection');
 }
 
 /**
