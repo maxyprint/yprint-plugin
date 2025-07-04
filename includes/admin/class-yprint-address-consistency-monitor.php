@@ -166,14 +166,14 @@ public function add_admin_menu() {
         
         // 🔍 EXPRESS PAYMENT OVERRIDE DETECTION
         $express_status = $results['express_override']['status'];
-        $status_class = $express_status === 'warning' ? 'problem-warning' : 'problem-success';
-        $status_icon = $express_status === 'warning' ? '⚠️' : 'ℹ️';
+        $status_class = $express_status === 'detected' ? 'problem-critical' : 'problem-info';
+        $status_icon = $express_status === 'detected' ? '🔴' : 'ℹ️';
         
         $html .= '<div class="address-block ' . $status_class . '">';
         $html .= '<div class="system-title">' . $status_icon . ' Express Payment Override Detection</div>';
         
         if ($results['express_override']['is_express']) {
-            $html .= '<strong>🍎 Express Payment erkannt:</strong> Apple Pay / Google Pay<br>';
+            $html .= '<strong>🍎 Express Payment erkannt:</strong> ' . $results['express_override']['type'] . '<br>';
             $html .= '<strong>Payment Method ID:</strong> ' . $results['express_override']['stripe_pm_id'] . '<br>';
             
             if (!empty($results['express_override']['express_address'])) {
@@ -181,11 +181,11 @@ public function add_admin_menu() {
                 $html .= '&nbsp;&nbsp;' . $this->format_address_oneline($results['express_override']['express_address']) . '<br>';
             }
             
-            $html .= '<br><div style="background: #fff3cd; padding: 8px; border-radius: 4px;">';
-            $html .= '<strong>⚠️ WARNUNG:</strong> Express Payment kann User-Auswahl überschreiben!';
+            $html .= '<br><div style="background: #ffebee; padding: 8px; border-radius: 4px; border-left: 4px solid #f44336;">';
+            $html .= '<strong>🚨 PROBLEM BESTÄTIGT:</strong> ' . $results['express_override']['type'] . ' hat User-Auswahl überschrieben!';
             $html .= '</div>';
         } else {
-            $html .= '<strong>Payment Type:</strong> Standard Checkout<br>';
+            $html .= '<strong>Payment Type:</strong> ' . $results['express_override']['type'] . '<br>';
             $html .= '<em>Keine Express Payment Überschreibung erwartet</em>';
         }
         
