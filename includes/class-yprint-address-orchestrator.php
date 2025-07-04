@@ -589,13 +589,8 @@ private function validate_session_consistency($shipping_address, $billing_addres
         return 'card';
     }
 
-    /**
-     * PHASE 2: DECISION
-     * 
-     * Apply priority hierarchy to select final addresses
-     */
     private function apply_hierarchy() {
-        $this->log_step('=== ENTSCHEIDUNG START ===', 'phase');
+        $this->log_step('=== ENTSCHEIDUNG START (SEPARATE SHIPPING/BILLING) ===', 'phase');
         
         if (empty($this->collected_addresses)) {
             $this->log_step('Keine Adressen zum Priorisieren gefunden', 'warning');
@@ -608,33 +603,91 @@ private function validate_session_consistency($shipping_address, $billing_addres
             return $a['priority'] <=> $b['priority'];
         });
     
-        $this->log_step('Priorisierungs-Reihenfolge:', 'decision');
+        $this->log_step('🎯 SEPARATE HIERARCHIE-LOGIK:', 'decision');
+        $this->log_step('Verfügbare Quellen nach Priorität:', 'decision');
         foreach ($sorted_sources as $source => $data) {
-            $this->log_step("└─ {$data['priority']}. {$source} ({$data['source']})", 'decision');
+            $shipping_available = !empty($data['shipping']['address_1']) ? '✅' : '❌';
+            $billing_available = !empty($data['billing']['address_1']) ? '✅' : '❌';
+            $this->log_step("└─ {$data['priority']}.{$source}: Shipping {$shipping_available}, Billing {$billing_available}", 'decision');
         }
     
-        // Select highest priority addresses
-        $selected_source = array_key_first($sorted_sources);
-        $selected_data = $sorted_sources[$selected_source];
+        // **SEPARATE ENTSCHEIDUNG FÜR SHIPPING UND BILLING**
+        $final_shipping = null;
+        $final_billing = null;
+        $shipping_source = 'none';
+        $billing_source = 'none';
     
+        // **SHIPPING ADDRESS HIERARCHIE**
+        $this->log_step('🚚 SHIPPING ADDRESS AUSWAHL:', 'decision');
+        foreach ($sorted_sources as $source => $data) {
+            if (!empty($data['shipping']['address_1'])) {
+                $final_shipping = $data['shipping'];
+                $shipping_source = $source;
+                $this->log_step("└─ ✅ SHIPPING gewählt aus: {$source} (Priorität {$data['priority']})", 'success');
+                $this->log_step("    └─ Adresse: {$final_shipping['address_1']}, {$final_shipping['city']}", 'decision');
+                break; // Erste verfügbare Shipping-Adresse nach Priorität
+            } else {
+                $this->log_step("└─ ❌ SHIPPING nicht verfügbar in: {$source}", 'decision');
+            }
+        }
+    
+        // **BILLING ADDRESS HIERARCHIE**
+        $this->log_step('💳 BILLING ADDRESS AUSWAHL:', 'decision');
+        foreach ($sorted_sources as $source => $data) {
+            if (!empty($data['billing']['address_1'])) {
+                $final_billing = $data['billing'];
+                $billing_source = $source;
+                $this->log_step("└─ ✅ BILLING gewählt aus: {$source} (Priorität {$data['priority']})", 'success');
+                $this->log_step("    └─ Adresse: {$final_billing['address_1']}, {$final_billing['city']}", 'decision');
+                break; // Erste verfügbare Billing-Adresse nach Priorität
+            } else {
+                $this->log_step("└─ ❌ BILLING nicht verfügbar in: {$source}", 'decision');
+            }
+        }
+    
+        // **FALLBACK: Wenn keine Shipping-Adresse gefunden, verwende Billing**
+        if (empty($final_shipping) && !empty($final_billing)) {
+            $final_shipping = $final_billing;
+            $shipping_source = $billing_source . '_fallback';
+            $this->log_step('🔄 FALLBACK: Shipping = Billing (keine separate Shipping gefunden)', 'warning');
+        }
+    
+        // **FALLBACK: Wenn keine Billing-Adresse gefunden, verwende Shipping**
+        if (empty($final_billing) && !empty($final_shipping)) {
+            $final_billing = $final_shipping;
+            $billing_source = $shipping_source . '_fallback';
+            $this->log_step('🔄 FALLBACK: Billing = Shipping (keine separate Billing gefunden)', 'warning');
+        }
+    
+        // **BESTIMME BILLING_DIFFERENT FLAG**
+        $billing_different = false;
+        if (!empty($final_shipping) && !empty($final_billing)) {
+            $billing_different = ($final_shipping['address_1'] !== $final_billing['address_1']);
+        }
+    
+        // **FINALE ADRESSEN SETZEN**
         $this->final_addresses = [
-            'source' => $selected_data['source'],
-            'priority' => $selected_data['priority'],
-            'shipping' => $selected_data['shipping'],
-            'billing' => $selected_data['billing'],
-            'billing_different' => $selected_data['billing_different'],
-            'metadata' => array_merge($selected_data['metadata'], [
-                'selected_from' => $selected_source,
+            'source' => 'mixed', // Kann verschiedene Quellen haben
+            'priority' => 'mixed',
+            'shipping' => $final_shipping,
+            'billing' => $final_billing,
+            'billing_different' => $billing_different,
+            'metadata' => [
+                'shipping_source' => $shipping_source,
+                'billing_source' => $billing_source,
+                'decision_logic' => 'separate_hierarchy',
                 'alternatives_available' => array_keys($sorted_sources),
                 'decision_timestamp' => current_time('mysql')
-            ])
+            ]
         ];
     
-        $this->log_step("ENTSCHEIDUNG: {$selected_data['source']} (Priorität {$selected_data['priority']}) gewählt", 'success');
-        $this->log_step('└─ Shipping: ' . $this->final_addresses['shipping']['address_1'] . ', ' . $this->final_addresses['shipping']['city'], 'decision');
-        $this->log_step('└─ Billing: ' . $this->final_addresses['billing']['address_1'] . ', ' . $this->final_addresses['billing']['city'], 'decision');
+        // **ERFOLGS-LOGGING**
+        $this->log_step('🎯 FINALE ENTSCHEIDUNG (SEPARATE LOGIK):', 'success');
+        $this->log_step("└─ 🚚 SHIPPING: {$shipping_source} → " . ($final_shipping['address_1'] ?? 'FEHLT') . ', ' . ($final_shipping['city'] ?? 'FEHLT'), 'success');
+        $this->log_step("└─ 💳 BILLING: {$billing_source} → " . ($final_billing['address_1'] ?? 'FEHLT') . ', ' . ($final_billing['city'] ?? 'FEHLT'), 'success');
+        $this->log_step("└─ ⚖️ BILLING_DIFFERENT: " . ($billing_different ? 'YES' : 'NO'), 'success');
         
-        $this->log_step('=== ENTSCHEIDUNG END ===', 'phase');
+        $this->log_step('=== ENTSCHEIDUNG END (SEPARATE LOGIK) ===', 'phase');
     }
 
     /**
