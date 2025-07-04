@@ -2762,8 +2762,8 @@ if ('succeeded' === $intent->status) {
                 'email' => $payment_method['billing_details']['email'] ?? $order->get_billing_email(),
                 'phone' => $payment_method['billing_details']['phone'] ?? $order->get_billing_phone(),
             ),
-            'billing_address' => $payment_method['billing_details']['address'] ?? array(),
-            'shipping_address' => array(), // SEPA hat meist keine shipping address
+            'billing_address' => $order->get_billing_address(),
+            'shipping_address' => $order->get_shipping_address(),
             // KRITISCH: payment_method_details für Frontend-Konsistenz
             'payment_method_details' => array(
                 'type' => $payment_method['type'] ?? 'sepa_debit',
