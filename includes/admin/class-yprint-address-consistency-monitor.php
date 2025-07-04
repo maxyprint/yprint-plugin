@@ -378,18 +378,20 @@ public function add_admin_menu() {
             $express_address = $express_billing['address'] ?? [];
             
             return [
-                'status' => 'warning',
+                'status' => 'detected',
                 'is_express' => true,
+                'type' => $express_type,
                 'payment_method' => $payment_method,
                 'stripe_pm_id' => $stripe_payment_method,
                 'express_address' => $express_address,
-                'note' => 'Express Payment erkannt - potentielle Adress-Überschreibung durch Apple Pay/Google Pay'
+                'note' => $express_type . ' erkannt - User-Auswahl wurde überschrieben!'
             ];
         }
         
         return [
-            'status' => 'success',
+            'status' => 'none',
             'is_express' => false,
+            'type' => 'Standard Checkout',
             'note' => 'Standard Payment - keine Express Payment Überschreibung'
         ];
     }
@@ -414,8 +416,14 @@ public function add_admin_menu() {
             'postcode' => $order->get_billing_postcode()
         ];
         
-        $shipping_preserved = empty($session_shipping) || $this->compare_addresses_strict($session_shipping, $order_shipping);
-        $billing_preserved = !$billing_different || empty($session_billing) || $this->compare_addresses_strict($session_billing, $order_billing);
+        // Korrekte Preservation Logic - leer = unbekannt, nicht = preserved
+        $shipping_preserved = !empty($session_shipping) && $this->compare_addresses_strict($session_shipping, $order_shipping);
+        $billing_preserved = !$billing_different || (!empty($session_billing) && $this->compare_addresses_strict($session_billing, $order_billing));
+        
+        // Spezial-Fall: Wenn keine Session-Daten, aber Billing Pattern zeigt manuell Selection
+        if (empty($session_shipping) && $billing_different) {
+            $shipping_preserved = false; // Wenn User unterschiedliche Billing wählte, wurde Shipping wahrscheinlich auch überschrieben
+        }
         
         $status = 'success';
         $problems = [];
