@@ -237,63 +237,8 @@ public function process_payment($order_id) {
             
             $order->add_order_note(sprintf(__('Stripe payment complete (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
             
-            // 🎯 CRITICAL: EXPRESS PAYMENT ADDRESS COORDINATION
-if (class_exists('YPrint_Address_Manager')) {
-    error_log('🔍 YPRINT ADDRESS RESOLUTION: Starting coordinated address resolution for Express Payment Order #' . $order->get_id());
-    
-    // Prüfe ob manuelle YPrint-Adresswahl existiert
-    $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
-    $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
-    $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
-    
-    // 🚨 AUTORITATIVE OVERRIDE: YPrint Session hat ABSOLUTE Priorität über Express Payment
-    if (!empty($yprint_selected)) {
-        error_log('🔍 YPRINT DEBUG: AUTORITATIVE OVERRIDE - YPrint manual selection takes precedence over Express Payment');
-        
-        // Überschreibe Express Payment Adressen mit YPrint Session-Daten
-        $order->set_shipping_first_name($yprint_selected['first_name'] ?? '');
-        $order->set_shipping_last_name($yprint_selected['last_name'] ?? '');
-        $order->set_shipping_address_1($yprint_selected['address_1'] ?? '');
-        $order->set_shipping_address_2($yprint_selected['address_2'] ?? '');
-        $order->set_shipping_city($yprint_selected['city'] ?? '');
-        $order->set_shipping_postcode($yprint_selected['postcode'] ?? '');
-        $order->set_shipping_country($yprint_selected['country'] ?? 'DE');
-        $order->set_shipping_phone($yprint_selected['phone'] ?? '');
-        
-        // Rechnungsadresse: Separate oder gleiche wie Shipping
-        if ($yprint_billing_different && !empty($yprint_billing)) {
-            error_log('🔍 YPRINT DEBUG: Applying separate billing address from YPrint session');
-            $order->set_billing_first_name($yprint_billing['first_name'] ?? '');
-            $order->set_billing_last_name($yprint_billing['last_name'] ?? '');
-            $order->set_billing_address_1($yprint_billing['address_1'] ?? '');
-            $order->set_billing_address_2($yprint_billing['address_2'] ?? '');
-            $order->set_billing_city($yprint_billing['city'] ?? '');
-            $order->set_billing_postcode($yprint_billing['postcode'] ?? '');
-            $order->set_billing_country($yprint_billing['country'] ?? 'DE');
-            $order->set_billing_phone($yprint_billing['phone'] ?? '');
-        } else {
-            error_log('🔍 YPRINT DEBUG: Using shipping address as billing address');
-            $order->set_billing_first_name($yprint_selected['first_name'] ?? '');
-            $order->set_billing_last_name($yprint_selected['last_name'] ?? '');
-            $order->set_billing_address_1($yprint_selected['address_1'] ?? '');
-            $order->set_billing_address_2($yprint_selected['address_2'] ?? '');
-            $order->set_billing_city($yprint_selected['city'] ?? '');
-            $order->set_billing_postcode($yprint_selected['postcode'] ?? '');
-            $order->set_billing_country($yprint_selected['country'] ?? 'DE');
-            $order->set_billing_phone($yprint_selected['phone'] ?? '');
-        }
-        
-        error_log('🔍 YPRINT DEBUG: EXPRESS PAYMENT OVERRIDE COMPLETE - YPrint addresses applied');
-    } else {
-        error_log('🔍 YPRINT DEBUG: No manual YPrint selection found - Express Payment addresses retained');
-    }
-    
-    // Address Manager application (falls weitere Korrekturen nötig)
-    $address_manager = new YPrint_Address_Manager();
-    $address_manager->apply_addresses_to_order($order);
-    
-    error_log('🔍 YPRINT DEBUG: Final coordinated address resolution completed');
-}
+            // Address coordination delegated to AddressOrchestrator
+error_log('🔍 YPRINT DEBUG: Express Payment Order #' . $order->get_id() . ' - address coordination delegated to AddressOrchestrator');
             
             $order->save();
             

@@ -68,10 +68,10 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
-        // PILOT: AddressOrchestrator handles all order creation (Express Payment calls manually)
-add_action('woocommerce_checkout_create_order', array($this, 'orchestrator_aware_address_application'), 5, 2);
+        // KOORDINIERTE HOOK-STRATEGIE: AddressOrchestrator hat Priorität
+add_action('woocommerce_checkout_create_order', array($this, 'orchestrator_aware_address_application'), 10, 2);
 
-// Debug-Hook behalten (für Entwicklung)
+// Debug-Hook behalten (für Entwicklung) 
 add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 25, 1);
 
         // AJAX-Handler für Billing Different Flag
@@ -1405,11 +1405,15 @@ public function ajax_set_checkout_address() {
     }
 
     if (WC()->session) {
-        // Explicit address_type validation - no HTTP_REFERER fallback
+        // STRICT address_type validation - nur explizite POST Parameter akzeptiert
 if (empty($address_type) || !in_array($address_type, ['shipping', 'billing'])) {
     $address_type = 'shipping'; // Default to shipping if invalid or empty
-    error_log('🚀 AJAX DEBUG: Invalid address_type - defaulting to shipping');
+    error_log('🚀 AJAX DEBUG: Invalid or missing address_type - defaulting to shipping (NO HTTP_REFERER fallback)');
 }
+
+// CRITICAL: Keine HTTP_REFERER basierte Context-Erkennung mehr
+// Das verhindert Race Conditions zwischen URL-Parametern und POST-Daten
+error_log('🚀 AJAX DEBUG: Using EXPLICIT address_type only: ' . $address_type);
         
         error_log('🚀 AJAX DEBUG: Entering session logic with resolved address_type: ' . $address_type); // Log resolved value
         

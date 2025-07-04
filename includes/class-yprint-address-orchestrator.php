@@ -82,8 +82,8 @@ private function init_wallet_payment_hooks() {
     // Hook into Stripe payment processing for wallet payments
     add_action('yprint_wallet_payment_processing', [$this, 'process_wallet_payment_addresses'], 5, 2);
     
-    // HOOK ENTFERNT: Verhindert doppelten Aufruf - Orchestrator wird manuell von Payment Gateways aufgerufen
-    // add_action('woocommerce_checkout_create_order', [$this, 'orchestrate_addresses_for_order'], 5, 2);
+    // KRITISCH: Aktiviere automatischen Hook für Express Payment Koordination
+    add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 15, 2);
     
     // Hook for Express Payment processing
     add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 10, 2);
