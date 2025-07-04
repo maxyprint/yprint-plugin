@@ -174,25 +174,236 @@ public function add_admin_menu() {
     }
     
     private function analyze_order_consistency($order) {
-        $problems = [];
+        // 🎯 KERN-ANALYSE: Session-zu-Order Transfer (DAS WIRKLICHE PROBLEM)
+        $session_analysis = $this->analyze_session_to_order_transfer($order);
         
-        // 1. 🏗️ WooCommerce Order (REFERENZ - das was funktioniert)
-        $wc_data = $this->analyze_woocommerce_order($order);
+        // 🔍 Express Payment Override Detection 
+        $express_payment_analysis = $this->analyze_express_payment_override($order);
         
-        // 2. 🔴 Stripe Payment Method (PROBLEM: zeigt falsche Adressen)
-        $stripe_data = $this->analyze_stripe_addresses($order);
+        // ⚖️ Symmetrie-Analyse: Shipping vs Billing Behandlung
+        $symmetry_analysis = $this->analyze_shipping_billing_symmetry($order);
         
-        // 3. 🔴 E-Mail System (PROBLEM: leere Adressen)
-        $email_data = $this->analyze_email_addresses($order);
+        // 🏗️ WooCommerce Order (Baseline - was steht tatsächlich drin)
+        $wc_data = $this->analyze_woocommerce_order_real($order);
         
-        // 4. ✅ Confirmation Page (FUNKTIONIERT)
-        $confirmation_data = $this->analyze_confirmation_addresses($order);
+        // 🔴 Nachgelagerte Systeme (werden alle von WC Order beeinflusst)
+        $downstream_analysis = $this->analyze_downstream_systems($order);
         
         return [
-            'woocommerce' => $wc_data,
-            'stripe' => $stripe_data,
-            'email' => $email_data,
-            'confirmation' => $confirmation_data
+            'session_transfer' => $session_analysis,
+            'express_override' => $express_payment_analysis,
+            'symmetry' => $symmetry_analysis,
+            'wc_order' => $wc_data,
+            'downstream' => $downstream_analysis
+        ];
+    }
+    
+    /**
+     * 🎯 KERN-ANALYSE: Session-zu-Order Transfer
+     * Das ist das Hauptproblem - User wählt "Liefer Adresse", Order enthält "Buchental 15"
+     */
+    private function analyze_session_to_order_transfer($order) {
+        $problems = [];
+        $status = 'success';
+        
+        // Session-Daten (was User gewählt hat)
+        $session_shipping = WC()->session ? WC()->session->get('yprint_selected_address', []) : [];
+        $session_billing = WC()->session ? WC()->session->get('yprint_billing_address', []) : [];
+        $billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+        
+        // Order-Daten (was tatsächlich gespeichert wurde)
+        $order_shipping = [
+            'first_name' => $order->get_shipping_first_name(),
+            'last_name' => $order->get_shipping_last_name(),
+            'address_1' => $order->get_shipping_address_1(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode(),
+            'country' => $order->get_shipping_country()
+        ];
+        
+        $order_billing = [
+            'first_name' => $order->get_billing_first_name(),
+            'last_name' => $order->get_billing_last_name(),
+            'address_1' => $order->get_billing_address_1(),
+            'city' => $order->get_billing_city(),
+            'postcode' => $order->get_billing_postcode(),
+            'country' => $order->get_billing_country()
+        ];
+        
+        // 🔍 SHIPPING TRANSFER CHECK
+        if (!empty($session_shipping)) {
+            $shipping_matches = $this->compare_addresses_strict($session_shipping, $order_shipping);
+            if (!$shipping_matches) {
+                $status = 'critical';
+                $problems[] = '🔴 SHIPPING OVERRIDE: User wählte "' . ($session_shipping['address_1'] ?? 'N/A') . 
+                             '" aber Order enthält "' . ($order_shipping['address_1'] ?? 'N/A') . '"';
+            }
+        }
+        
+        // 🔍 BILLING TRANSFER CHECK
+        if ($billing_different && !empty($session_billing)) {
+            $billing_matches = $this->compare_addresses_strict($session_billing, $order_billing);
+            if (!$billing_matches) {
+                $status = 'critical';
+                $problems[] = '🔴 BILLING OVERRIDE: User wählte separate Billing aber wurde überschrieben';
+            }
+        }
+        
+        return [
+            'status' => $status,
+            'session_shipping' => $session_shipping,
+            'session_billing' => $session_billing,
+            'order_shipping' => $order_shipping,
+            'order_billing' => $order_billing,
+            'billing_different' => $billing_different,
+            'problems' => $problems,
+            'note' => empty($problems) ? 'Session-zu-Order Transfer funktioniert korrekt' : 'KRITISCH: Session-Auswahl wird überschrieben!'
+        ];
+    }
+    
+    /**
+     * 🔍 Express Payment Override Detection
+     */
+    private function analyze_express_payment_override($order) {
+        $payment_method = $order->get_payment_method();
+        $stripe_payment_method = $order->get_meta('_stripe_payment_method_id');
+        $apple_pay_data = $order->get_meta('_stripe_payment_request_data');
+        
+        $is_express_payment = !empty($apple_pay_data) || 
+                             strpos($stripe_payment_method, 'pm_') === 0;
+        
+        if ($is_express_payment) {
+            // Express Payment Daten aus Meta
+            $express_billing = $order->get_meta('_stripe_billing_details');
+            $express_address = $express_billing['address'] ?? [];
+            
+            return [
+                'status' => 'warning',
+                'is_express' => true,
+                'payment_method' => $payment_method,
+                'stripe_pm_id' => $stripe_payment_method,
+                'express_address' => $express_address,
+                'note' => 'Express Payment erkannt - potentielle Adress-Überschreibung durch Apple Pay/Google Pay'
+            ];
+        }
+        
+        return [
+            'status' => 'success',
+            'is_express' => false,
+            'note' => 'Standard Payment - keine Express Payment Überschreibung'
+        ];
+    }
+    
+    /**
+     * ⚖️ Symmetrie-Analyse: Shipping vs Billing Behandlung
+     */
+    private function analyze_shipping_billing_symmetry($order) {
+        $session_shipping = WC()->session ? WC()->session->get('yprint_selected_address', []) : [];
+        $session_billing = WC()->session ? WC()->session->get('yprint_billing_address', []) : [];
+        $billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
+        
+        $order_shipping = [
+            'address_1' => $order->get_shipping_address_1(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode()
+        ];
+        
+        $order_billing = [
+            'address_1' => $order->get_billing_address_1(),
+            'city' => $order->get_billing_city(),
+            'postcode' => $order->get_billing_postcode()
+        ];
+        
+        $shipping_preserved = empty($session_shipping) || $this->compare_addresses_strict($session_shipping, $order_shipping);
+        $billing_preserved = !$billing_different || empty($session_billing) || $this->compare_addresses_strict($session_billing, $order_billing);
+        
+        $status = 'success';
+        $problems = [];
+        
+        if ($shipping_preserved && !$billing_preserved) {
+            $status = 'warning';
+            $problems[] = 'Asymmetrie: Shipping OK, Billing überschrieben';
+        } elseif (!$shipping_preserved && $billing_preserved) {
+            $status = 'critical';
+            $problems[] = 'HAUPTPROBLEM: Shipping überschrieben, Billing OK - ungleiche Behandlung!';
+        } elseif (!$shipping_preserved && !$billing_preserved) {
+            $status = 'critical';
+            $problems[] = 'Beide Adressen überschrieben';
+        }
+        
+        return [
+            'status' => $status,
+            'shipping_preserved' => $shipping_preserved,
+            'billing_preserved' => $billing_preserved,
+            'problems' => $problems,
+            'note' => empty($problems) ? 'Symmetrische Behandlung - beide Adressen korrekt' : implode(', ', $problems)
+        ];
+    }
+    
+    /**
+     * Strict address comparison for exact matching
+     */
+    private function compare_addresses_strict($addr1, $addr2) {
+        if (empty($addr1) || empty($addr2)) {
+            return false;
+        }
+        
+        $key_fields = ['address_1', 'city', 'postcode'];
+        foreach ($key_fields as $field) {
+            $val1 = trim($addr1[$field] ?? '');
+            $val2 = trim($addr2[$field] ?? '');
+            if ($val1 !== $val2) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 🏗️ WooCommerce Order - Echte Daten (nicht "korrekt" annehmen)
+     */
+    private function analyze_woocommerce_order_real($order) {
+        $shipping = [
+            'first_name' => $order->get_shipping_first_name(),
+            'last_name' => $order->get_shipping_last_name(),
+            'address_1' => $order->get_shipping_address_1(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode(),
+            'country' => $order->get_shipping_country()
+        ];
+        
+        $billing = [
+            'first_name' => $order->get_billing_first_name(),
+            'last_name' => $order->get_billing_last_name(),
+            'address_1' => $order->get_billing_address_1(),
+            'city' => $order->get_billing_city(),
+            'postcode' => $order->get_billing_postcode(),
+            'country' => $order->get_billing_country()
+        ];
+        
+        return [
+            'status' => 'baseline',
+            'shipping' => $shipping,
+            'billing' => $billing,
+            'note' => 'WooCommerce Order Baseline - diese Daten werden an alle nachgelagerten Systeme weitergegeben'
+        ];
+    }
+    
+    /**
+     * 🔴 Nachgelagerte Systeme (alle bekommen falsche Daten von WC Order)
+     */
+    private function analyze_downstream_systems($order) {
+        return [
+            'status' => 'inherited_problems',
+            'note' => 'E-Mail, Stripe, Confirmation, Admin - alle Systeme erben die Inkonsistenzen aus der WooCommerce Order',
+            'affected_systems' => [
+                'E-Mail Templates',
+                'Stripe Dashboard', 
+                'Admin Backend',
+                'Confirmation Page (teilweise)',
+                'Fulfillment/Logistik'
+            ]
         ];
     }
     
