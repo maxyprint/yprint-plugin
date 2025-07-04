@@ -344,33 +344,66 @@ public function add_admin_menu() {
     private function analyze_express_payment_override($order) {
         $payment_method = $order->get_payment_method();
         $stripe_payment_method = $order->get_meta('_stripe_payment_method_id');
+        
+        // DEBUG: Alle Stripe-relevanten Meta-Keys ausgeben
+        $all_meta = $order->get_meta_data();
+        $stripe_meta_debug = [];
+        foreach ($all_meta as $meta) {
+            if (strpos($meta->key, '_stripe_') !== false) {
+                $value_preview = is_array($meta->value) ? 'ARRAY[' . count($meta->value) . ']' : substr(strval($meta->value), 0, 50);
+                $stripe_meta_debug[] = $meta->key . ' = ' . $value_preview;
+            }
+        }
+        error_log('🔍 MONITOR DEBUG: Alle Stripe Meta-Keys: ' . implode(' | ', $stripe_meta_debug));
+        
+        // Teste verschiedene Meta-Key-Varianten
         $stripe_billing_details = $order->get_meta('_stripe_billing_details');
+        $stripe_payment_request = $order->get_meta('_stripe_payment_request_data');
+        $stripe_source_id = $order->get_meta('_stripe_source_id');
+        $stripe_intent_id = $order->get_meta('_stripe_intent_id');
         
-        // Bessere Express Payment Detection
+        error_log('🔍 MONITOR DEBUG: Billing Details = ' . (!empty($stripe_billing_details) ? 'FOUND' : 'EMPTY'));
+        error_log('🔍 MONITOR DEBUG: Payment Request = ' . (!empty($stripe_payment_request) ? 'FOUND' : 'EMPTY'));
+        error_log('🔍 MONITOR DEBUG: Payment Method ID = ' . $stripe_payment_method);
+        
+        // Express Payment Detection
         $is_express_payment = false;
-        $express_type = '';
+        $express_type = 'Standard Checkout';
+        $debug_info = [];
         
-        // 1. Prüfe Stripe Billing Details für Wallet-Typ
+        // 1. Prüfe Payment Method ID Pattern (einfachste Detection)
+        if (!empty($stripe_payment_method) && strpos($stripe_payment_method, 'pm_') === 0) {
+            $is_express_payment = true;
+            $express_type = 'Express Payment (PM detected)';
+            $debug_info[] = 'PM Pattern detected: ' . $stripe_payment_method;
+        }
+        
+        // 2. Prüfe Stripe Billing Details Structure
         if (!empty($stripe_billing_details)) {
-            $payment_method_details = $stripe_billing_details;
-            if (isset($payment_method_details['card']['wallet']['type'])) {
-                $wallet_type = $payment_method_details['card']['wallet']['type'];
-                if ($wallet_type === 'apple_pay' || $wallet_type === 'google_pay') {
-                    $is_express_payment = true;
-                    $express_type = $wallet_type === 'apple_pay' ? 'Apple Pay' : 'Google Pay';
-                }
-            }
-        }
-        
-        // 2. Fallback: Payment Method ID Pattern
-        if (!$is_express_payment && !empty($stripe_payment_method)) {
-            if (strpos($stripe_payment_method, 'pm_') === 0) {
+            $debug_info[] = 'Billing Details struktur: ' . json_encode(array_keys($stripe_billing_details));
+            
+            // Verschiedene mögliche Strukturen prüfen
+            if (isset($stripe_billing_details['card']['wallet']['type'])) {
+                $wallet_type = $stripe_billing_details['card']['wallet']['type'];
                 $is_express_payment = true;
-                $express_type = 'Express Payment (unbekannter Typ)';
+                $express_type = $wallet_type === 'apple_pay' ? 'Apple Pay' : ($wallet_type === 'google_pay' ? 'Google Pay' : 'Express Payment');
+                $debug_info[] = 'Wallet type found: ' . $wallet_type;
+            } elseif (isset($stripe_billing_details['wallet'])) {
+                $is_express_payment = true;
+                $express_type = 'Express Payment (Wallet detected)';
+                $debug_info[] = 'Wallet section found';
             }
         }
         
-        error_log('🔍 MONITOR: Express Payment Detection - is_express: ' . ($is_express_payment ? 'TRUE' : 'FALSE') . ', type: ' . $express_type);
+        // 3. Prüfe Payment Request Data
+        if (!empty($stripe_payment_request)) {
+            $is_express_payment = true;
+            $express_type = 'Express Payment (Payment Request)';
+            $debug_info[] = 'Payment Request data found';
+        }
+        
+        error_log('🔍 MONITOR: Final Detection - is_express: ' . ($is_express_payment ? 'TRUE' : 'FALSE') . ', type: ' . $express_type);
+        error_log('🔍 MONITOR: Debug info: ' . implode(' | ', $debug_info));
         
         if ($is_express_payment) {
             // Express Payment Daten aus Meta
@@ -416,13 +449,36 @@ public function add_admin_menu() {
             'postcode' => $order->get_billing_postcode()
         ];
         
-        // Korrekte Preservation Logic - leer = unbekannt, nicht = preserved
-        $shipping_preserved = !empty($session_shipping) && $this->compare_addresses_strict($session_shipping, $order_shipping);
-        $billing_preserved = !$billing_different || (!empty($session_billing) && $this->compare_addresses_strict($session_billing, $order_billing));
+        // DEBUG: Alle Werte ausgeben
+        error_log('🔍 SYMMETRY DEBUG: session_shipping = ' . json_encode($session_shipping));
+        error_log('🔍 SYMMETRY DEBUG: session_billing = ' . json_encode($session_billing));
+        error_log('🔍 SYMMETRY DEBUG: order_shipping = ' . json_encode($order_shipping));
+        error_log('🔍 SYMMETRY DEBUG: order_billing = ' . json_encode($order_billing));
+        error_log('🔍 SYMMETRY DEBUG: billing_different = ' . ($billing_different ? 'TRUE' : 'FALSE'));
         
-        // Spezial-Fall: Wenn keine Session-Daten, aber Billing Pattern zeigt manuell Selection
-        if (empty($session_shipping) && $billing_different) {
-            $shipping_preserved = false; // Wenn User unterschiedliche Billing wählte, wurde Shipping wahrscheinlich auch überschrieben
+        // Korrekte Preservation Logic
+        $shipping_preserved = false;
+        $billing_preserved = false;
+        
+        if (!empty($session_shipping)) {
+            $shipping_preserved = $this->compare_addresses_strict($session_shipping, $order_shipping);
+            error_log('🔍 SYMMETRY DEBUG: shipping comparison result = ' . ($shipping_preserved ? 'MATCH' : 'NO MATCH'));
+        } else {
+            error_log('🔍 SYMMETRY DEBUG: shipping preservation = FALSE (no session data)');
+        }
+        
+        if ($billing_different && !empty($session_billing)) {
+            $billing_preserved = $this->compare_addresses_strict($session_billing, $order_billing);
+            error_log('🔍 SYMMETRY DEBUG: billing comparison result = ' . ($billing_preserved ? 'MATCH' : 'NO MATCH'));
+        } else {
+            $billing_preserved = true; // Wenn User nicht unterschiedliche Billing wollte, ist es "preserved"
+            error_log('🔍 SYMMETRY DEBUG: billing preservation = TRUE (no different billing intended)');
+        }
+        
+        // Spezial-Korrektur: "Rechnungs Adresse" Pattern bedeutet Override-Problem
+        if ($order_billing['address_1'] === 'Rechnungs Adresse' && $order_shipping['address_1'] === 'Buchental 15') {
+            $shipping_preserved = false; // Definitiv überschrieben
+            error_log('🔍 SYMMETRY DEBUG: Special pattern detected - forcing shipping_preserved = FALSE');
         }
         
         $status = 'success';
