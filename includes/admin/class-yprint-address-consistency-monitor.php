@@ -402,8 +402,21 @@ public function add_admin_menu() {
             $debug_info[] = 'Payment Request data found';
         }
         
-        error_log('🔍 MONITOR: Final Detection - is_express: ' . ($is_express_payment ? 'TRUE' : 'FALSE') . ', type: ' . $express_type);
-        error_log('🔍 MONITOR: Debug info: ' . implode(' | ', $debug_info));
+        // SUPER DEBUG: Alle Meta-Daten ausgeben 
+        $all_meta_complete = [];
+        foreach ($all_meta as $meta) {
+            $value_str = is_array($meta->value) ? json_encode($meta->value) : strval($meta->value);
+            $all_meta_complete[] = $meta->key . ' = ' . $value_str;
+        }
+        error_log('🔍 SUPER DEBUG: ALLE ORDER META-DATEN: ' . implode(' || ', $all_meta_complete));
+        
+        // Zusätzlich: Prüfe ob Apple Pay Daten irgendwo versteckt sind
+        foreach ($all_meta as $meta) {
+            $value_str = json_encode($meta->value);
+            if (strpos($value_str, 'apple_pay') !== false || strpos($value_str, 'google_pay') !== false) {
+                error_log('🔍 APPLE PAY FOUND in meta key: ' . $meta->key . ' = ' . $value_str);
+            }
+        }
         
         if ($is_express_payment) {
             // Express Payment Daten aus Meta
