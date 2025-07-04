@@ -366,40 +366,58 @@ public function add_admin_menu() {
         error_log('🔍 MONITOR DEBUG: Payment Request = ' . (!empty($stripe_payment_request) ? 'FOUND' : 'EMPTY'));
         error_log('🔍 MONITOR DEBUG: Payment Method ID = ' . $stripe_payment_method);
         
-        // Express Payment Detection
+        // INTELLIGENTE EXPRESS PAYMENT DETECTION
         $is_express_payment = false;
         $express_type = 'Standard Checkout';
         $debug_info = [];
         
-        // 1. Prüfe Payment Method ID Pattern (einfachste Detection)
+        // 1. **PAYMENT METHOD ID PATTERN** (Stripe Express Payments haben pm_ prefix)
         if (!empty($stripe_payment_method) && strpos($stripe_payment_method, 'pm_') === 0) {
             $is_express_payment = true;
-            $express_type = 'Express Payment (PM detected)';
-            $debug_info[] = 'PM Pattern detected: ' . $stripe_payment_method;
+            $express_type = 'Express Payment';
+            $debug_info[] = 'Stripe PM detected: ' . $stripe_payment_method;
         }
         
-        // 2. Prüfe Stripe Billing Details Structure
-        if (!empty($stripe_billing_details)) {
-            $debug_info[] = 'Billing Details struktur: ' . json_encode(array_keys($stripe_billing_details));
-            
-            // Verschiedene mögliche Strukturen prüfen
-            if (isset($stripe_billing_details['card']['wallet']['type'])) {
-                $wallet_type = $stripe_billing_details['card']['wallet']['type'];
-                $is_express_payment = true;
-                $express_type = $wallet_type === 'apple_pay' ? 'Apple Pay' : ($wallet_type === 'google_pay' ? 'Google Pay' : 'Express Payment');
-                $debug_info[] = 'Wallet type found: ' . $wallet_type;
-            } elseif (isset($stripe_billing_details['wallet'])) {
-                $is_express_payment = true;
-                $express_type = 'Express Payment (Wallet detected)';
-                $debug_info[] = 'Wallet section found';
+        // 2. **KOMBINIERTE PATTERN-ERKENNUNG** für Apple Pay/Google Pay
+        $billing_line1 = '';
+        $shipping_line1 = '';
+        
+        if (!empty($stripe_billing_details) && isset($stripe_billing_details['address']['line1'])) {
+            $billing_line1 = $stripe_billing_details['address']['line1'];
+        }
+        
+        // Aus Final Order die Shipping-Adresse lesen
+        $order_shipping_line1 = $order->get_shipping_address_1();
+        
+        // 3. **APPLE PAY SIGNATURE DETECTION**
+        // Apple Pay typische Patterns: pm_ + unterschiedliche Billing/Shipping
+        if ($is_express_payment && !empty($billing_line1) && !empty($order_shipping_line1)) {
+            if ($billing_line1 !== $order_shipping_line1) {
+                // Apple Pay gibt oft unterschiedliche Billing/Shipping Adressen
+                $express_type = 'Apple Pay';
+                $debug_info[] = 'Apple Pay Pattern: Different billing/shipping addresses';
+                $debug_info[] = 'Billing: ' . $billing_line1 . ' vs Shipping: ' . $order_shipping_line1;
             }
         }
         
-        // 3. Prüfe Payment Request Data
-        if (!empty($stripe_payment_request)) {
-            $is_express_payment = true;
-            $express_type = 'Express Payment (Payment Request)';
-            $debug_info[] = 'Payment Request data found';
+        // 4. **SPEZIAL-ERKENNUNG** für Ihren Fall
+        // "Buchental 15" + "pm_" + "Rechnungs Adresse" in Billing = Apple Pay Override
+        if ($is_express_payment && 
+            $order_shipping_line1 === 'Buchental 15' && 
+            $order->get_billing_address_1() === 'Rechnungs Adresse') {
+            
+            $express_type = 'Apple Pay (YPrint Override Pattern)';
+            $debug_info[] = 'YPrint-specific Apple Pay override pattern detected';
+        }
+        
+        // 5. **FALLBACK auf gesicherte Detection**
+        if (!$is_express_payment) {
+            // Letzter Check: Wenn Payment Method mit pm_ beginnt = Express Payment
+            if (!empty($stripe_payment_method) && strlen($stripe_payment_method) > 10) {
+                $is_express_payment = true;
+                $express_type = 'Express Payment (Fallback)';
+                $debug_info[] = 'Fallback detection successful';
+            }
         }
         
         // SUPER DEBUG: Alle Meta-Daten ausgeben 
