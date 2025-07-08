@@ -8,9 +8,17 @@
 class YPrint_Email_Address_Integration {
     
     public function __construct() {
-        // Hook into WooCommerce email system
-        add_filter('woocommerce_email_order_meta', [$this, 'add_orchestrated_addresses_to_email'], 10, 4);
-        add_action('woocommerce_email_order_details', [$this, 'override_email_addresses'], 5, 4);
+        // Hook into WooCommerce email system - korrekte E-Mail-spezifische Hooks
+        add_filter('woocommerce_email_order_meta', [$this, 'add_orchestrated_addresses_to_email'], 999, 4);
+        add_action('woocommerce_email_order_details', [$this, 'override_email_addresses'], 1, 4);
+    
+        // KORREKT: Direct Override der Order-Methoden für E-Mails
+        add_filter('woocommerce_order_get_billing_first_name', [$this, 'override_billing_first_name'], 999, 2);
+        add_filter('woocommerce_order_get_billing_last_name', [$this, 'override_billing_last_name'], 999, 2);
+        add_filter('woocommerce_order_get_billing_address_1', [$this, 'override_billing_address_1'], 999, 2);
+        add_filter('woocommerce_order_get_shipping_first_name', [$this, 'override_shipping_first_name'], 999, 2);
+        add_filter('woocommerce_order_get_shipping_last_name', [$this, 'override_shipping_last_name'], 999, 2);
+        add_filter('woocommerce_order_get_shipping_address_1', [$this, 'override_shipping_address_1'], 999, 2);
     }
     
     /**
@@ -73,6 +81,91 @@ class YPrint_Email_Address_Integration {
         
         return implode("\n", $lines);
     }
+
+    /**
+ * Override individual address fields for emails
+ */
+public function override_billing_first_name($value, $order) {
+    if (!$order instanceof WC_Order) {
+        return $value;
+    }
+    
+    $email_billing = $order->get_meta('_email_template_billing_address');
+    if (!empty($email_billing['first_name'])) {
+        error_log('✅ YPrint Email: Override billing first_name für Order #' . $order->get_id() . ': ' . $email_billing['first_name']);
+        return $email_billing['first_name'];
+    }
+    
+    return $value;
+}
+
+public function override_billing_last_name($value, $order) {
+    if (!$order instanceof WC_Order) {
+        return $value;
+    }
+    
+    $email_billing = $order->get_meta('_email_template_billing_address');
+    if (!empty($email_billing['last_name'])) {
+        return $email_billing['last_name'];
+    }
+    
+    return $value;
+}
+
+public function override_billing_address_1($value, $order) {
+    if (!$order instanceof WC_Order) {
+        return $value;
+    }
+    
+    $email_billing = $order->get_meta('_email_template_billing_address');
+    if (!empty($email_billing['address_1'])) {
+        error_log('✅ YPrint Email: Override billing address_1 für Order #' . $order->get_id() . ': ' . $email_billing['address_1']);
+        return $email_billing['address_1'];
+    }
+    
+    return $value;
+}
+
+public function override_shipping_first_name($value, $order) {
+    if (!$order instanceof WC_Order) {
+        return $value;
+    }
+    
+    $email_shipping = $order->get_meta('_email_template_shipping_address');
+    if (!empty($email_shipping['first_name'])) {
+        error_log('✅ YPrint Email: Override shipping first_name für Order #' . $order->get_id() . ': ' . $email_shipping['first_name']);
+        return $email_shipping['first_name'];
+    }
+    
+    return $value;
+}
+
+public function override_shipping_last_name($value, $order) {
+    if (!$order instanceof WC_Order) {
+        return $value;
+    }
+    
+    $email_shipping = $order->get_meta('_email_template_shipping_address');
+    if (!empty($email_shipping['last_name'])) {
+        return $email_shipping['last_name'];
+    }
+    
+    return $value;
+}
+
+public function override_shipping_address_1($value, $order) {
+    if (!$order instanceof WC_Order) {
+        return $value;
+    }
+    
+    $email_shipping = $order->get_meta('_email_template_shipping_address');
+    if (!empty($email_shipping['address_1'])) {
+        error_log('✅ YPrint Email: Override shipping address_1 für Order #' . $order->get_id() . ': ' . $email_shipping['address_1']);
+        return $email_shipping['address_1'];
+    }
+    
+    return $value;
+}
     
     /**
      * Format address for HTML email
