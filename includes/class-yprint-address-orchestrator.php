@@ -82,11 +82,16 @@ private function init_wallet_payment_hooks() {
     // Hook into Stripe payment processing for wallet payments
     add_action('yprint_wallet_payment_processing', [$this, 'process_wallet_payment_addresses'], 5, 2);
     
-    // KRITISCH: Aktiviere automatischen Hook für Express Payment Koordination
-    add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 15, 2);
+    // KRITISCH: Aktiviere automatischen Hook für Express Payment Koordination mit höherer Priorität
+    add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 5, 2);
     
     // Hook for Express Payment processing
     add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 10, 2);
+    
+    // ZUSÄTZLICH: Hook für Standard Payment Methods
+    add_action('woocommerce_payment_complete', [$this, 'orchestrate_addresses_for_order'], 5, 1);
+    
+    error_log('🎯 AddressOrchestrator: Wallet payment hooks initialisiert mit Priority 5');
 }
 
     /**
@@ -836,14 +841,28 @@ private function apply_protected_order_update($order) {
      * @param WC_Order $order WooCommerce order object
      */
     private function distribute_to_email_templates($order) {
-        $this->log_step('Verteile an E-Mail Templates...', 'distribution');
+        $this->log_step('🎯 VERTEILE AN E-MAIL TEMPLATES (KRITISCH)...', 'distribution');
         
-        // Setze spezielle Meta-Daten für E-Mail Templates
-        $order->update_meta_data('_email_template_shipping_address', $this->final_addresses['shipping']);
-        $order->update_meta_data('_email_template_billing_address', $this->final_addresses['billing']);
+        $shipping = $this->final_addresses['shipping'];
+        $billing = $this->final_addresses['billing'];
+        
+        // Validiere Daten vor Verteilung
+        if (empty($shipping['address_1']) || empty($billing['address_1'])) {
+            $this->log_step('🔴 WARNUNG: Unvollständige Adressdaten für E-Mail Templates', 'distribution');
+            $this->log_step('🔍 Shipping Address: ' . ($shipping['address_1'] ?? 'LEER'), 'distribution');
+            $this->log_step('🔍 Billing Address: ' . ($billing['address_1'] ?? 'LEER'), 'distribution');
+        }
+        
+        // Setze Meta-Daten für E-Mail Templates
+        $order->update_meta_data('_email_template_shipping_address', $shipping);
+        $order->update_meta_data('_email_template_billing_address', $billing);
         $order->update_meta_data('_email_template_addresses_ready', true);
+        $order->update_meta_data('_email_template_timestamp', current_time('mysql'));
         
-        $this->log_step('└─ E-Mail Template Meta-Daten gesetzt', 'distribution');
+        // Log finale Daten für Debugging
+        $this->log_step('✅ E-Mail Shipping gesetzt: ' . ($shipping['first_name'] ?? '') . ' ' . ($shipping['last_name'] ?? '') . ', ' . ($shipping['address_1'] ?? ''), 'distribution');
+        $this->log_step('✅ E-Mail Billing gesetzt: ' . ($billing['first_name'] ?? '') . ' ' . ($billing['last_name'] ?? '') . ', ' . ($billing['address_1'] ?? ''), 'distribution');
+        $this->log_step('✅ E-Mail Template Meta-Daten VOLLSTÄNDIG gesetzt', 'distribution');
     }
 
     /**
