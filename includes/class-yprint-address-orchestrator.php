@@ -865,44 +865,144 @@ private function distribute_to_consistency_monitor($order) {
 }
 
     /**
-     * Validate consistency across all distribution targets
-     * 
-     * @param WC_Order $order WooCommerce order object
-     */
-    private function validate_distribution_consistency($order) {
-        $this->log_step('Validiere Verteilungs-Konsistenz...', 'validation');
-        
-        $shipping = $this->final_addresses['shipping'];
-        $billing = $this->final_addresses['billing'];
-        
-        // Check WooCommerce Order
-        $order_shipping = $order->get_shipping_address_1();
-        $order_billing = $order->get_billing_address_1();
-        
-        if ($order_shipping !== $shipping['address_1']) {
-            $this->log_step('WARNING: Order Shipping Inkonsistenz - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $order_shipping, 'validation');
-        } else {
-            $this->log_step('✅ Order Shipping konsistent: ' . $shipping['address_1'], 'validation');
-        }
-        
-        if ($order_billing !== $billing['address_1']) {
-            $this->log_step('WARNING: Order Billing Inkonsistenz - Erwartet: ' . $billing['address_1'] . ', Gefunden: ' . $order_billing, 'validation');
-        } else {
-            $this->log_step('✅ Order Billing konsistent: ' . $billing['address_1'], 'validation');
-        }
-        
-        // Check Session
-        if (WC()->session) {
-            $session_shipping = WC()->session->get('yprint_selected_address');
-            if ($session_shipping && $session_shipping['address_1'] !== $shipping['address_1']) {
-                $this->log_step('WARNING: Session Shipping Inkonsistenz - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $session_shipping['address_1'], 'validation');
-            } else {
-                $this->log_step('✅ Session Shipping konsistent', 'validation');
-            }
-        }
-        
-        $this->log_step('└─ Konsistenz-Validierung abgeschlossen', 'validation');
+ * Validate consistency across all distribution targets - ERWEITERT für Checkout/Stripe/Email
+ * 
+ * @param WC_Order $order WooCommerce order object
+ */
+private function validate_distribution_consistency($order) {
+    $this->log_step('=== ERWEITERTE KONSISTENZ-VALIDIERUNG START ===', 'validation');
+    
+    $shipping = $this->final_addresses['shipping'];
+    $billing = $this->final_addresses['billing'];
+    $order_id = $order->get_id();
+    
+    // 1. BESTEHENDE WOOCOMMERCE ORDER VALIDIERUNG (erweitert)
+    $this->log_step('🎯 1. WOOCOMMERCE ORDER VALIDIERUNG', 'validation');
+    
+    $order_shipping = $order->get_shipping_address_1();
+    $order_billing = $order->get_billing_address_1();
+    
+    if ($order_shipping !== $shipping['address_1']) {
+        $this->log_step('🔴 ORDER SHIPPING INKONSISTENZ - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $order_shipping, 'validation');
+    } else {
+        $this->log_step('✅ Order Shipping konsistent: ' . $shipping['address_1'], 'validation');
     }
+    
+    if ($order_billing !== $billing['address_1']) {
+        $this->log_step('🔴 ORDER BILLING INKONSISTENZ - Erwartet: ' . $billing['address_1'] . ', Gefunden: ' . $order_billing, 'validation');
+    } else {
+        $this->log_step('✅ Order Billing konsistent: ' . $billing['address_1'], 'validation');
+    }
+    
+    // 2. BESTEHENDE SESSION VALIDIERUNG (erweitert)
+    $this->log_step('🎯 2. SESSION VALIDIERUNG', 'validation');
+    
+    if (WC()->session) {
+        $session_shipping = WC()->session->get('yprint_selected_address');
+        $session_billing = WC()->session->get('yprint_billing_address');
+        $session_billing_different = WC()->session->get('yprint_billing_address_different', false);
+        
+        if ($session_shipping && $session_shipping['address_1'] !== $shipping['address_1']) {
+            $this->log_step('🔴 SESSION SHIPPING INKONSISTENZ - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $session_shipping['address_1'], 'validation');
+        } else {
+            $this->log_step('✅ Session Shipping konsistent', 'validation');
+        }
+        
+        if ($session_billing_different && $session_billing && $session_billing['address_1'] !== $billing['address_1']) {
+            $this->log_step('🔴 SESSION BILLING INKONSISTENZ - Erwartet: ' . $billing['address_1'] . ', Gefunden: ' . $session_billing['address_1'], 'validation');
+        } else {
+            $this->log_step('✅ Session Billing konsistent', 'validation');
+        }
+        
+        // Store session state for confirmation display validation
+        $order->update_meta_data('_yprint_session_state_shipping', $session_shipping);
+        $order->update_meta_data('_yprint_session_state_billing', $session_billing);
+        $order->update_meta_data('_yprint_session_state_billing_different', $session_billing_different);
+    }
+    
+    // 3. NEUE: CHECKOUT STEP CONFIRMATION VALIDIERUNG
+    $this->log_step('🎯 3. CHECKOUT CONFIRMATION STEP VALIDIERUNG', 'validation');
+    
+    // Meta-Daten für Confirmation Step setzen
+    $order->update_meta_data('_yprint_confirmation_shipping_expected', $shipping);
+    $order->update_meta_data('_yprint_confirmation_billing_expected', $billing);
+    $order->update_meta_data('_yprint_confirmation_validation_timestamp', current_time('mysql'));
+    
+    $this->log_step('✅ Confirmation Step Meta-Daten gesetzt für Validierung', 'validation');
+    
+    // 4. NEUE: STRIPE METADATA KONSISTENZ
+    $this->log_step('🎯 4. STRIPE METADATA VALIDIERUNG', 'validation');
+    
+    // Prüfe ob Stripe Meta-Daten korrekt gesetzt wurden
+    $stripe_shipping_meta = $order->get_meta('_stripe_display_shipping_address');
+    $stripe_billing_meta = $order->get_meta('_stripe_display_billing_address');
+    
+    if (!empty($stripe_shipping_meta) && $stripe_shipping_meta['address_1'] !== $shipping['address_1']) {
+        $this->log_step('🔴 STRIPE SHIPPING META INKONSISTENZ - Erwartet: ' . $shipping['address_1'] . ', Gefunden: ' . $stripe_shipping_meta['address_1'], 'validation');
+    } else {
+        $this->log_step('✅ Stripe Shipping Metadata konsistent', 'validation');
+    }
+    
+    if (!empty($stripe_billing_meta) && $stripe_billing_meta['address_1'] !== $billing['address_1']) {
+        $this->log_step('🔴 STRIPE BILLING META INKONSISTENZ - Erwartet: ' . $billing['address_1'] . ', Gefunden: ' . $stripe_billing_meta['address_1'], 'validation');
+    } else {
+        $this->log_step('✅ Stripe Billing Metadata konsistent', 'validation');
+    }
+    
+    // 5. NEUE: E-MAIL TEMPLATE KONSISTENZ
+    $this->log_step('🎯 5. E-MAIL TEMPLATE VALIDIERUNG', 'validation');
+    
+    // Prüfe E-Mail Template Meta-Daten
+    $email_shipping_meta = $order->get_meta('_email_template_shipping_address');
+    $email_billing_meta = $order->get_meta('_email_template_billing_address');
+    $email_ready = $order->get_meta('_email_template_addresses_ready');
+    
+    if (!$email_ready) {
+        $this->log_step('🔴 E-MAIL TEMPLATE NICHT BEREIT - Meta-Flag fehlt', 'validation');
+    } else {
+        $this->log_step('✅ E-Mail Template bereit für Versendung', 'validation');
+    }
+    
+    if (!empty($email_shipping_meta) && $email_shipping_meta['address_1'] !== $shipping['address_1']) {
+        $this->log_step('🔴 E-MAIL SHIPPING TEMPLATE INKONSISTENZ - Erwartet: ' . $shipping['address_1'] . ', Template: ' . $email_shipping_meta['address_1'], 'validation');
+    } else {
+        $this->log_step('✅ E-Mail Shipping Template konsistent', 'validation');
+    }
+    
+    if (!empty($email_billing_meta) && $email_billing_meta['address_1'] !== $billing['address_1']) {
+        $this->log_step('🔴 E-MAIL BILLING TEMPLATE INKONSISTENZ - Erwartet: ' . $billing['address_1'] . ', Template: ' . $email_billing_meta['address_1'], 'validation');
+    } else {
+        $this->log_step('✅ E-Mail Billing Template konsistent', 'validation');
+    }
+    
+    // 6. NEUE: BESTELLBESTÄTIGUNG KONSISTENZ (WooCommerce E-Mail)
+    $this->log_step('🎯 6. BESTELLBESTÄTIGUNG VALIDIERUNG', 'validation');
+    
+    // WooCommerce E-Mails verwenden direkt die Order-Methoden
+    $wc_email_shipping = $order->get_shipping_address_1();
+    $wc_email_billing = $order->get_billing_address_1();
+    
+    if ($wc_email_shipping !== $shipping['address_1']) {
+        $this->log_step('🔴 WOOCOMMERCE E-MAIL SHIPPING INKONSISTENZ - Erwartet: ' . $shipping['address_1'] . ', E-Mail: ' . $wc_email_shipping, 'validation');
+    } else {
+        $this->log_step('✅ WooCommerce E-Mail Shipping konsistent', 'validation');
+    }
+    
+    if ($wc_email_billing !== $billing['address_1']) {
+        $this->log_step('🔴 WOOCOMMERCE E-MAIL BILLING INKONSISTENZ - Erwartet: ' . $billing['address_1'] . ', E-Mail: ' . $wc_email_billing, 'validation');
+    } else {
+        $this->log_step('✅ WooCommerce E-Mail Billing konsistent', 'validation');
+    }
+    
+    // 7. FINALE KONSISTENZ-BEWERTUNG
+    $this->log_step('🎯 7. FINALE KONSISTENZ-BEWERTUNG', 'validation');
+    
+    // Setze Konsistenz-Status Meta-Daten für Admin-Monitoring
+    $order->update_meta_data('_yprint_consistency_check_timestamp', current_time('mysql'));
+    $order->update_meta_data('_yprint_consistency_validation_extended', true);
+    
+    $this->log_step('=== ERWEITERTE KONSISTENZ-VALIDIERUNG END ===', 'validation');
+}
 
     /**
      * Distribute addresses to WooCommerce order fields
