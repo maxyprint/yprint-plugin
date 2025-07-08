@@ -274,38 +274,59 @@ function yprint_build_order_confirmation_content($order) {
     error_log('🔍 E-Mail Meta Check - billing_address empty: ' . (empty($billing_address) ? 'TRUE' : 'FALSE'));
     error_log('🔍 E-Mail Meta Check - template_timestamp: ' . ($template_timestamp ?: 'NICHT GESETZT'));
     
-    // Detailed logging if orchestrated addresses available
-    if ($addresses_ready && !empty($shipping_address) && !empty($billing_address)) {
-        error_log('✅ YPrint Email: SUCCESS - Nutze orchestrierte Adressen');
-        error_log('✅ Orchestrierte Shipping: ' . ($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? '') . ', ' . ($shipping_address['address_1'] ?? ''));
-        error_log('✅ Orchestrierte Billing: ' . ($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? '') . ', ' . ($billing_address['address_1'] ?? ''));
-    } else {
-        error_log('🔴 YPrint Email: FALLBACK - Nutze Standard Order-Adressen (PROBLEM!)');
-        error_log('🔴 URSACHE: AddressOrchestrator Meta-Daten nicht verfügbar für Order #' . $order_id);
-        
-        // Fallback auf Standard-Order-Felder
-        $shipping_address = [
-            'first_name' => $order->get_shipping_first_name(),
-            'last_name' => $order->get_shipping_last_name(),
-            'address_1' => $order->get_shipping_address_1(),
-            'address_2' => $order->get_shipping_address_2(),
-            'city' => $order->get_shipping_city(),
-            'postcode' => $order->get_shipping_postcode(),
-            'country' => $order->get_shipping_country()
-        ];
-        $billing_address = [
-            'first_name' => $order->get_billing_first_name(),
-            'last_name' => $order->get_billing_last_name(),
-            'address_1' => $order->get_billing_address_1(),
-            'address_2' => $order->get_billing_address_2(),
-            'city' => $order->get_billing_city(),
-            'postcode' => $order->get_billing_postcode(),
-            'country' => $order->get_billing_country()
-        ];
-        
-        error_log('🔍 Fallback Shipping: ' . ($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? '') . ', ' . ($shipping_address['address_1'] ?? ''));
-        error_log('🔍 Fallback Billing: ' . ($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? '') . ', ' . ($billing_address['address_1'] ?? ''));
+    // ROBUSTE RETRY-LOGIK für Meta-Daten-Abruf
+$max_retries = 3;
+$retry_count = 0;
+
+while ($retry_count < $max_retries && (!$addresses_ready || empty($shipping_address) || empty($billing_address))) {
+    if ($retry_count > 0) {
+        error_log('🔄 YPrint Email: RETRY #' . $retry_count . ' - Warte auf AddressOrchestrator Meta-Daten...');
+        usleep(500000); // 0.5 Sekunden warten
     }
+    
+    // Meta-Daten erneut abrufen
+    $shipping_address = $order->get_meta('_email_template_shipping_address');
+    $billing_address = $order->get_meta('_email_template_billing_address');
+    $addresses_ready = $order->get_meta('_email_template_addresses_ready');
+    
+    $retry_count++;
+}
+
+// Prüfung nach Retry-Loop
+if ($addresses_ready && !empty($shipping_address) && !empty($billing_address)) {
+    error_log('✅ YPrint Email: SUCCESS - Nutze orchestrierte Adressen (nach ' . $retry_count . ' Versuchen)');
+    error_log('✅ Orchestrierte Shipping: ' . ($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? '') . ', ' . ($shipping_address['address_1'] ?? ''));
+    error_log('✅ Orchestrierte Billing: ' . ($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? '') . ', ' . ($billing_address['address_1'] ?? ''));
+} else {
+    error_log('🔴 YPrint Email: KRITISCHER FALLBACK nach ' . $max_retries . ' Versuchen - Nutze Standard Order-Adressen');
+    error_log('🔴 URSACHE: AddressOrchestrator Meta-Daten nach ' . ($retry_count - 1) . ' Retries nicht verfügbar für Order #' . $order_id);
+    
+    // Fallback auf Standard-Order-Felder mit Warnung
+    $shipping_address = [
+        'first_name' => $order->get_shipping_first_name(),
+        'last_name' => $order->get_shipping_last_name(),
+        'address_1' => $order->get_shipping_address_1(),
+        'address_2' => $order->get_shipping_address_2(),
+        'city' => $order->get_shipping_city(),
+        'postcode' => $order->get_shipping_postcode(),
+        'country' => $order->get_shipping_country()
+    ];
+    $billing_address = [
+        'first_name' => $order->get_billing_first_name(),
+        'last_name' => $order->get_billing_last_name(),
+        'address_1' => $order->get_billing_address_1(),
+        'address_2' => $order->get_billing_address_2(),
+        'city' => $order->get_billing_city(),
+        'postcode' => $order->get_billing_postcode(),
+        'country' => $order->get_billing_country()
+    ];
+    
+    // Admin-Benachrichtigung bei kritischem Fallback
+    $order->add_order_note('⚠️ E-Mail mit Fallback-Adressen versendet - AddressOrchestrator Meta-Daten nicht verfügbar', 0, false);
+    
+    error_log('🔍 Fallback Shipping: ' . ($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? '') . ', ' . ($shipping_address['address_1'] ?? ''));
+    error_log('🔍 Fallback Billing: ' . ($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? '') . ', ' . ($billing_address['address_1'] ?? ''));
+}
     
     error_log('🎯 === E-MAIL CONTENT BUILD END - Order #' . $order_id . ' ===');
     

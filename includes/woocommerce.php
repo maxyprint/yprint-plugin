@@ -2948,7 +2948,8 @@ add_action('wp_ajax_nopriv_yprint_get_payment_method_details', 'yprint_get_payme
  * Automatische Bestellbestätigung über WooCommerce Hooks
  * Fallback für Zahlungsarten, die nicht über Stripe Webhooks abgewickelt werden
  */
-add_action('woocommerce_payment_complete', 'yprint_automatic_order_confirmation_on_payment', 10, 1);
+// E-Mail Hook mit höherer Priority - NACH AddressOrchestrator (Priority 1)
+add_action('woocommerce_payment_complete', 'yprint_automatic_order_confirmation_on_payment', 20, 1);
 function yprint_automatic_order_confirmation_on_payment($order_id) {
     error_log('=== YPRINT AUTO EMAIL: Payment Complete Hook ausgelöst ===');
     error_log('YPrint Auto Email: Order ID: ' . $order_id);

@@ -85,11 +85,14 @@ private function init_wallet_payment_hooks() {
     // KRITISCH: Aktiviere automatischen Hook für Express Payment Koordination mit höherer Priorität
     add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 5, 2);
     
-    // Hook for Express Payment processing
-    add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 10, 2);
-    
-    // ZUSÄTZLICH: Hook für Standard Payment Methods
-    add_action('woocommerce_payment_complete', [$this, 'orchestrate_addresses_for_order'], 5, 1);
+    // Hook for Express Payment processing - HÖCHSTE PRIORITÄT
+    add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 1, 2);
+
+    // KRITISCH: Hook für Standard Payment Methods - VOR E-Mail Hook (Priority 10)
+    add_action('woocommerce_payment_complete', [$this, 'orchestrate_addresses_for_order'], 1, 1);
+
+    // ZUSÄTZLICH: Extra Hook für nach Order Creation (für Express Payments)
+    add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 1, 3);
     
     error_log('🎯 AddressOrchestrator: Wallet payment hooks initialisiert mit Priority 5');
 }
@@ -853,11 +856,31 @@ private function apply_protected_order_update($order) {
             $this->log_step('🔍 Billing Address: ' . ($billing['address_1'] ?? 'LEER'), 'distribution');
         }
         
-        // Setze Meta-Daten für E-Mail Templates
-        $order->update_meta_data('_email_template_shipping_address', $shipping);
-        $order->update_meta_data('_email_template_billing_address', $billing);
-        $order->update_meta_data('_email_template_addresses_ready', true);
-        $order->update_meta_data('_email_template_timestamp', current_time('mysql'));
+        // Setze Meta-Daten für E-Mail Templates mit sofortiger Validierung
+$order->update_meta_data('_email_template_shipping_address', $shipping);
+$order->update_meta_data('_email_template_billing_address', $billing);
+$order->update_meta_data('_email_template_addresses_ready', true);
+$order->update_meta_data('_email_template_timestamp', current_time('mysql'));
+
+// KRITISCH: Sofort speichern um Race Conditions zu vermeiden
+$order->save();
+
+// VALIDIERUNG: Prüfe ob Meta-Daten korrekt geschrieben wurden
+$saved_shipping = $order->get_meta('_email_template_shipping_address');
+$saved_billing = $order->get_meta('_email_template_billing_address');
+
+if (empty($saved_shipping['address_1']) || empty($saved_billing['address_1'])) {
+    $this->log_step('🔴 KRITISCHER FEHLER: E-Mail Meta-Daten nicht korrekt gespeichert!', 'distribution');
+    
+    // Retry-Mechanismus
+    $order->update_meta_data('_email_template_shipping_address', $shipping);
+    $order->update_meta_data('_email_template_billing_address', $billing);
+    $order->save();
+    
+    $this->log_step('🔄 RETRY: E-Mail Meta-Daten erneut gespeichert', 'distribution');
+} else {
+    $this->log_step('✅ E-Mail Meta-Daten erfolgreich validiert und gespeichert', 'distribution');
+}
         
         // Log finale Daten für Debugging
         $this->log_step('✅ E-Mail Shipping gesetzt: ' . ($shipping['first_name'] ?? '') . ' ' . ($shipping['last_name'] ?? '') . ', ' . ($shipping['address_1'] ?? ''), 'distribution');
