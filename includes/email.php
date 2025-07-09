@@ -255,223 +255,466 @@ function yprint_send_order_confirmation_email($order) {
 
 /**
  * Erstellt den HTML-Inhalt für die Bestellbestätigungsmail
+ * VOLLSTÄNDIG ÜBERARBEITETE VERSION mit robusten Fallbacks
  *
  * @param WC_Order $order Das WooCommerce Bestellobjekt
- * @return string Der HTML-Inhalt
+ * @return string Der HTML-Inhalt für die E-Mail
  */
 function yprint_build_order_confirmation_content($order) {
+    if (!$order || !is_a($order, 'WC_Order')) {
+        error_log('🔴 YPrint Email: Ungültiges Order-Objekt für Content-Build');
+        return yprint_build_error_email_content();
+    }
+    
     $order_id = $order->get_id();
     error_log('🎯 === E-MAIL CONTENT BUILD START - Order #' . $order_id . ' ===');
     
-    // 🔥 KRITISCH: Nutze orchestrierte Adressen für E-Mail-Templates
-    $shipping_address = $order->get_meta('_email_template_shipping_address');
-    $billing_address = $order->get_meta('_email_template_billing_address');
-    $addresses_ready = $order->get_meta('_email_template_addresses_ready');
-    $template_timestamp = $order->get_meta('_email_template_timestamp');
+    // 📊 SCHRITT 1: Robuste Datensammlung
+    $email_data = yprint_collect_email_data($order);
     
-    error_log('🔍 E-Mail Meta Check - addresses_ready: ' . ($addresses_ready ? 'TRUE' : 'FALSE'));
-    error_log('🔍 E-Mail Meta Check - shipping_address empty: ' . (empty($shipping_address) ? 'TRUE' : 'FALSE'));
-    error_log('🔍 E-Mail Meta Check - billing_address empty: ' . (empty($billing_address) ? 'TRUE' : 'FALSE'));
-    error_log('🔍 E-Mail Meta Check - template_timestamp: ' . ($template_timestamp ?: 'NICHT GESETZT'));
-    
-    // ROBUSTE RETRY-LOGIK für Meta-Daten-Abruf
-$max_retries = 3;
-$retry_count = 0;
-
-while ($retry_count < $max_retries && (!$addresses_ready || empty($shipping_address) || empty($billing_address))) {
-    if ($retry_count > 0) {
-        error_log('🔄 YPrint Email: RETRY #' . $retry_count . ' - Warte auf AddressOrchestrator Meta-Daten...');
-        usleep(500000); // 0.5 Sekunden warten
+    if (empty($email_data)) {
+        error_log('🔴 Kritischer Fehler: Keine E-Mail-Daten verfügbar für Order #' . $order_id);
+        return yprint_build_fallback_email_content($order);
     }
     
-    // Meta-Daten erneut abrufen
-    $shipping_address = $order->get_meta('_email_template_shipping_address');
-    $billing_address = $order->get_meta('_email_template_billing_address');
-    $addresses_ready = $order->get_meta('_email_template_addresses_ready');
+    error_log('✅ E-Mail-Daten gesammelt: Shipping=' . ($email_data['shipping']['address_1'] ?? 'FEHLT') . 
+              ', Items=' . count($email_data['items']));
     
-    $retry_count++;
+    // 🎨 SCHRITT 2: HTML-Template generieren
+    ob_start();
+    ?>
+    
+    <!-- Bestellbestätigung Header -->
+    <div style="background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+        <h1 style="color: #FFFFFF; margin: 0; font-size: 28px; font-weight: 600;">
+            ✅ Bestellung bestätigt!
+        </h1>
+        <p style="color: #E6F3FF; margin: 10px 0 0 0; font-size: 16px;">
+            Vielen Dank für Ihre Bestellung bei YPrint
+        </p>
+    </div>
+    
+    <!-- Bestellinformationen -->
+    <div style="background-color: #F8F9FA; padding: 25px; border-left: 4px solid #0079FF;">
+        <h2 style="margin: 0 0 15px 0; color: #1d1d1f; font-size: 20px;">📋 Ihre Bestelldetails</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px 0; color: #6e6e73; font-weight: 500;">Bestellnummer:</td>
+                <td style="padding: 8px 0; text-align: right; font-weight: 600; color: #1d1d1f;">
+                    <?php echo esc_html($email_data['order_number']); ?>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #6e6e73; font-weight: 500;">Bestelldatum:</td>
+                <td style="padding: 8px 0; text-align: right; color: #1d1d1f;">
+                    <?php echo esc_html($email_data['order_date']); ?>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #6e6e73; font-weight: 500;">Status:</td>
+                <td style="padding: 8px 0; text-align: right; color: #28a745; font-weight: 600;">
+                    <?php echo esc_html($email_data['status_text']); ?>
+                </td>
+            </tr>
+            <tr>
+                <td style="padding: 8px 0; color: #6e6e73; font-weight: 500;">Zahlungsart:</td>
+                <td style="padding: 8px 0; text-align: right; color: #1d1d1f;">
+                    <?php echo esc_html($email_data['payment_method']); ?>
+                    <?php if ($email_data['is_paid']): ?>
+                        <span style="color: #28a745; font-weight: 600;"> ✓ Bezahlt</span>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Bestellte Artikel -->
+    <div style="margin: 25px 0;">
+        <h2 style="margin: 0 0 20px 0; color: #1d1d1f; font-size: 20px; border-bottom: 2px solid #e5e5e5; padding-bottom: 10px;">
+            🛍️ Ihre bestellten Artikel
+        </h2>
+        
+        <?php foreach ($email_data['items'] as $item): ?>
+        <div style="background-color: #FFFFFF; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; margin-bottom: 15px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <h3 style="margin: 0 0 10px 0; color: #1d1d1f; font-size: 18px; font-weight: 600;">
+                        <?php echo esc_html($item['display_name']); ?>
+                    </h3>
+                    
+                    <?php if ($item['is_design_product'] && !empty($item['design_details'])): ?>
+                    <div style="background-color: #E6F3FF; padding: 12px; border-radius: 6px; margin: 10px 0;">
+                        <p style="margin: 0; color: #0079FF; font-weight: 600; font-size: 14px;">🎨 Design-Details:</p>
+                        <?php if (!empty($item['design_details']['color'])): ?>
+                        <p style="margin: 5px 0 0 0; color: #1d1d1f; font-size: 14px;">
+                            Farbe: <?php echo esc_html($item['design_details']['color']); ?>
+                        </p>
+                        <?php endif; ?>
+                        <?php if (!empty($item['design_details']['size'])): ?>
+                        <p style="margin: 5px 0 0 0; color: #1d1d1f; font-size: 14px;">
+                            Größe: <?php echo esc_html($item['design_details']['size']); ?>
+                        </p>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <p style="margin: 5px 0 0 0; color: #6e6e73; font-size: 14px;">
+                        Menge: <?php echo esc_html($item['quantity']); ?> Stück
+                    </p>
+                </div>
+                
+                <div style="text-align: right; margin-left: 20px;">
+                    <p style="margin: 0; color: #6e6e73; font-size: 14px;">Einzelpreis</p>
+                    <p style="margin: 5px 0; color: #1d1d1f; font-size: 16px;">
+                        <?php echo $item['unit_price_formatted']; ?>
+                    </p>
+                    <p style="margin: 10px 0 0 0; color: #0079FF; font-size: 18px; font-weight: 600;">
+                        Gesamt: <?php echo $item['total_formatted']; ?>
+                    </p>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    
+    <!-- Gesamtsumme -->
+    <div style="background-color: #F8F9FA; padding: 20px; border-radius: 8px; border: 2px solid #0079FF;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 5px 0; color: #6e6e73;">Zwischensumme:</td>
+                <td style="padding: 5px 0; text-align: right; color: #1d1d1f;">
+                    <?php echo esc_html($email_data['subtotal_formatted']); ?>
+                </td>
+            </tr>
+            <?php if ($email_data['tax_total'] > 0): ?>
+            <tr>
+                <td style="padding: 5px 0; color: #6e6e73;">MwSt. (19%):</td>
+                <td style="padding: 5px 0; text-align: right; color: #1d1d1f;">
+                    <?php echo esc_html($email_data['tax_formatted']); ?>
+                </td>
+            </tr>
+            <?php endif; ?>
+            <?php if ($email_data['shipping_total'] > 0): ?>
+            <tr>
+                <td style="padding: 5px 0; color: #6e6e73;">Versand:</td>
+                <td style="padding: 5px 0; text-align: right; color: #1d1d1f;">
+                    <?php echo esc_html($email_data['shipping_formatted']); ?>
+                </td>
+            </tr>
+            <?php else: ?>
+            <tr>
+                <td style="padding: 5px 0; color: #6e6e73;">Versand:</td>
+                <td style="padding: 5px 0; text-align: right; color: #28a745; font-weight: 600;">Kostenlos</td>
+            </tr>
+            <?php endif; ?>
+            <tr style="border-top: 2px solid #e5e5e5;">
+                <td style="padding: 15px 0 5px 0; color: #1d1d1f; font-size: 20px; font-weight: 700;">Gesamtbetrag:</td>
+                <td style="padding: 15px 0 5px 0; text-align: right; color: #0079FF; font-size: 24px; font-weight: 700;">
+                    <?php echo esc_html($email_data['total_formatted']); ?>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Adressen -->
+    <div style="margin: 30px 0;">
+        <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+            <!-- Lieferadresse -->
+            <div style="flex: 1; min-width: 250px; background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <h3 style="margin: 0 0 15px 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">
+                    🚚 Lieferadresse
+                </h3>
+                <div style="color: #1d1d1f; line-height: 1.6;">
+                    <?php echo yprint_format_address_html($email_data['shipping']); ?>
+                </div>
+            </div>
+            
+            <!-- Rechnungsadresse -->
+            <div style="flex: 1; min-width: 250px; background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
+                <h3 style="margin: 0 0 15px 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">
+                    🧾 Rechnungsadresse
+                </h3>
+                <div style="color: #1d1d1f; line-height: 1.6;">
+                    <?php echo yprint_format_address_html($email_data['billing']); ?>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Call-to-Action -->
+    <div style="text-align: center; margin: 30px 0;">
+        <a href="<?php echo esc_url(wc_get_account_endpoint_url('orders')); ?>" 
+           style="background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%); color: #FFFFFF; 
+                  padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: 600; 
+                  display: inline-block; font-size: 16px;">
+            📋 Bestellung anzeigen
+        </a>
+    </div>
+    
+    <!-- Rechtliche Hinweise -->
+    <div style="background-color: #F1F1F1; padding: 20px; border-radius: 8px; margin-top: 30px;">
+        <h3 style="margin: 0 0 15px 0; color: #1d1d1f; font-size: 16px;">⚖️ Rechtliche Hinweise</h3>
+        <p style="margin: 0 0 15px 0; color: #6e6e73; font-size: 13px; line-height: 1.5;">
+            <strong>Widerrufsrecht:</strong> Sie haben das Recht, binnen 14 Tagen ohne Angabe von Gründen 
+            diesen Vertrag zu widerrufen. Die vollständige 
+            <a href="<?php echo esc_url(home_url('/widerruf')); ?>" style="color: #0079FF;">Widerrufsbelehrung</a> 
+            finden Sie auf unserer Website.
+        </p>
+        <p style="margin: 0; color: #6e6e73; font-size: 13px; line-height: 1.5;">
+            Mit der Bestellbestätigung kommt ein rechtsverbindlicher Kaufvertrag zustande. 
+            Es gelten unsere <a href="<?php echo esc_url(home_url('/agb')); ?>" style="color: #0079FF;">AGB</a>.
+        </p>
+    </div>
+    
+    <?php
+    error_log('✅ E-Mail HTML erfolgreich generiert für Order #' . $order_id);
+    return ob_get_clean();
 }
 
-// Prüfung nach Retry-Loop
-if ($addresses_ready && !empty($shipping_address) && !empty($billing_address)) {
-    error_log('✅ YPrint Email: SUCCESS - Nutze orchestrierte Adressen (nach ' . $retry_count . ' Versuchen)');
-    error_log('✅ Orchestrierte Shipping: ' . ($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? '') . ', ' . ($shipping_address['address_1'] ?? ''));
-    error_log('✅ Orchestrierte Billing: ' . ($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? '') . ', ' . ($billing_address['address_1'] ?? ''));
-} else {
-    error_log('🔴 YPrint Email: KRITISCHER FALLBACK nach ' . $max_retries . ' Versuchen - Nutze Standard Order-Adressen');
-    error_log('🔴 URSACHE: AddressOrchestrator Meta-Daten nach ' . ($retry_count - 1) . ' Retries nicht verfügbar für Order #' . $order_id);
+/**
+ * Sammelt alle benötigten Daten für die E-Mail mit robusten Fallbacks
+ *
+ * @param WC_Order $order
+ * @return array|null
+ */
+function yprint_collect_email_data($order) {
+    $order_id = $order->get_id();
     
-    // Fallback auf Standard-Order-Felder mit Warnung
-    $shipping_address = [
+    // 1. ADRESSEN mit hierarchischen Fallbacks
+    $addresses = yprint_get_email_addresses_with_fallbacks($order);
+    if (empty($addresses)) {
+        error_log('🔴 Keine gültigen Adressen für Order #' . $order_id);
+        return null;
+    }
+    
+    // 2. BESTELLINFORMATIONEN
+    $order_data = [
+        'order_number' => '#YP-' . date('Ymd', $order->get_date_created()->getTimestamp()) . '-' . $order->get_id(),
+        'order_date' => yprint_format_german_date($order->get_date_created()),
+        'status_text' => yprint_get_german_order_status($order->get_status()),
+        'total_formatted' => $order->get_formatted_order_total(),
+        'subtotal_formatted' => wc_price($order->get_subtotal()),
+        'tax_total' => $order->get_total_tax(),
+        'tax_formatted' => wc_price($order->get_total_tax()),
+        'shipping_total' => $order->get_shipping_total(),
+        'shipping_formatted' => wc_price($order->get_shipping_total()),
+        'is_paid' => $order->is_paid()
+    ];
+    
+    // 3. PAYMENT-INFORMATIONEN
+    $payment_data = yprint_get_payment_display_info($order);
+    
+    // 4. ARTIKEL-DATEN
+    $items_data = yprint_get_email_items_data($order);
+    
+    return array_merge($addresses, $order_data, $payment_data, ['items' => $items_data]);
+}
+
+/**
+ * Robuste Adressauflösung mit Prioritäten-System
+ */
+function yprint_get_email_addresses_with_fallbacks($order) {
+    $order_id = $order->get_id();
+    error_log('📍 Adressauflösung für Order #' . $order_id);
+    
+    // PRIORITÄT 1: Orchestrierte Adressen (korrekte Quelle)
+    $email_shipping = $order->get_meta('_email_template_shipping_address');
+    $email_billing = $order->get_meta('_email_template_billing_address');
+    $addresses_ready = $order->get_meta('_email_template_addresses_ready');
+    
+    if ($addresses_ready && !empty($email_shipping['address_1']) && !empty($email_billing['address_1'])) {
+        error_log('✅ Verwendet: Orchestrierte E-Mail-Adressen');
+        return [
+            'shipping' => $email_shipping,
+            'billing' => $email_billing
+        ];
+    }
+    
+    // PRIORITÄT 2: Standard WooCommerce Fields (Fallback)
+    $wc_shipping = [
         'first_name' => $order->get_shipping_first_name(),
         'last_name' => $order->get_shipping_last_name(),
+        'company' => $order->get_shipping_company(),
         'address_1' => $order->get_shipping_address_1(),
         'address_2' => $order->get_shipping_address_2(),
         'city' => $order->get_shipping_city(),
         'postcode' => $order->get_shipping_postcode(),
         'country' => $order->get_shipping_country()
     ];
-    $billing_address = [
+    
+    $wc_billing = [
         'first_name' => $order->get_billing_first_name(),
         'last_name' => $order->get_billing_last_name(),
+        'company' => $order->get_billing_company(),
         'address_1' => $order->get_billing_address_1(),
         'address_2' => $order->get_billing_address_2(),
         'city' => $order->get_billing_city(),
         'postcode' => $order->get_billing_postcode(),
-        'country' => $order->get_billing_country()
+        'country' => $order->get_billing_country(),
+        'email' => $order->get_billing_email()
     ];
     
-    // Admin-Benachrichtigung bei kritischem Fallback
-    $order->add_order_note('⚠️ E-Mail mit Fallback-Adressen versendet - AddressOrchestrator Meta-Daten nicht verfügbar', 0, false);
+    if (!empty($wc_shipping['address_1']) && !empty($wc_billing['address_1'])) {
+        error_log('⚠️ Verwendet: WooCommerce Standard-Felder (Fallback)');
+        return [
+            'shipping' => $wc_shipping,
+            'billing' => $wc_billing
+        ];
+    }
     
-    error_log('🔍 Fallback Shipping: ' . ($shipping_address['first_name'] ?? '') . ' ' . ($shipping_address['last_name'] ?? '') . ', ' . ($shipping_address['address_1'] ?? ''));
-    error_log('🔍 Fallback Billing: ' . ($billing_address['first_name'] ?? '') . ' ' . ($billing_address['last_name'] ?? '') . ', ' . ($billing_address['address_1'] ?? ''));
+    error_log('🔴 Keine gültigen Adressen gefunden');
+    return null;
 }
+
+/**
+ * Sammelt Artikel-Daten mit Design-Integration
+ */
+function yprint_get_email_items_data($order) {
+    $items = [];
     
-    error_log('🎯 === E-MAIL CONTENT BUILD END - Order #' . $order_id . ' ===');
+    foreach ($order->get_items() as $item_id => $item) {
+        $design_id = $item->get_meta('_design_id');
+        $has_design = $item->get_meta('_has_print_design') === 'yes';
+        
+        $item_data = [
+            'name' => $item->get_name(),
+            'quantity' => $item->get_quantity(),
+            'total_formatted' => wc_price($item->get_total()),
+            'unit_price_formatted' => wc_price($item->get_total() / $item->get_quantity()),
+            'is_design_product' => $has_design
+        ];
+        
+        if ($has_design && $design_id) {
+            // Design-Produkt: Erweiterte Informationen
+            $design_name = $item->get_meta('_design_name');
+            $product_name = $item->get_meta('_db_design_product_name') ?: $item->get_name();
+            
+            $item_data['display_name'] = $design_name . ' - gedruckt auf ' . $product_name;
+            $item_data['design_details'] = [
+                'color' => $item->get_meta('_design_color'),
+                'size' => $item->get_meta('_design_size')
+            ];
+        } else {
+            // Standard-Produkt
+            $item_data['display_name'] = $item->get_name();
+        }
+        
+        $items[] = $item_data;
+    }
+    
+    return $items;
+}
+
+/**
+ * Payment-Informationen mit Stripe-Integration
+ */
+function yprint_get_payment_display_info($order) {
+    $payment_method = $order->get_payment_method_title();
+    
+    // Stripe-spezifische Verbesserungen
+    if ($order->get_payment_method() === 'yprint_stripe') {
+        $stripe_pm_id = $order->get_meta('_yprint_stripe_payment_method_id');
+        if ($stripe_pm_id) {
+            // Versuche bessere Darstellung (basierend auf deiner AJAX-Logik)
+            $display_method = yprint_get_stripe_display_method_safe($stripe_pm_id);
+            if ($display_method) {
+                $payment_method = $display_method;
+            }
+        }
+    }
+    
+    return ['payment_method' => $payment_method];
+}
+
+/**
+ * Helper: Sichere Stripe-Darstellung
+ */
+function yprint_get_stripe_display_method_safe($payment_method_id) {
+    // Simplified version - implement full logic based on your AJAX handler
+    return 'Kreditkarte (Stripe)';
+}
+
+/**
+ * Helper: Adresse als HTML formatieren
+ */
+function yprint_format_address_html($address) {
+    $lines = [];
+    
+    if (!empty($address['first_name']) || !empty($address['last_name'])) {
+        $lines[] = esc_html(trim(($address['first_name'] ?? '') . ' ' . ($address['last_name'] ?? '')));
+    }
+    if (!empty($address['company'])) {
+        $lines[] = esc_html($address['company']);
+    }
+    if (!empty($address['address_1'])) {
+        $lines[] = esc_html($address['address_1']);
+    }
+    if (!empty($address['address_2'])) {
+        $lines[] = esc_html($address['address_2']);
+    }
+    if (!empty($address['postcode']) || !empty($address['city'])) {
+        $lines[] = esc_html(trim(($address['postcode'] ?? '') . ' ' . ($address['city'] ?? '')));
+    }
+    if (!empty($address['country'])) {
+        $lines[] = esc_html($address['country']);
+    }
+    
+    return !empty($lines) ? implode('<br>', $lines) : 'Keine Adresse verfügbar';
+}
+
+/**
+ * Helper: Deutsche Datumsformatierung
+ */
+function yprint_format_german_date($date) {
+    $german_months = [
+        1 => 'Januar', 2 => 'Februar', 3 => 'März', 4 => 'April',
+        5 => 'Mai', 6 => 'Juni', 7 => 'Juli', 8 => 'August',
+        9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Dezember'
+    ];
+    
+    return $date->format('d') . '. ' . $german_months[(int)$date->format('m')] . ' ' . $date->format('Y');
+}
+
+/**
+ * Helper: Deutsche Status-Übersetzung
+ */
+function yprint_get_german_order_status($status) {
+    $translations = [
+        'pending' => 'Ausstehend',
+        'processing' => 'In Bearbeitung', 
+        'completed' => 'Abgeschlossen',
+        'on-hold' => 'In Warteschleife',
+        'cancelled' => 'Storniert',
+        'refunded' => 'Erstattet',
+        'failed' => 'Fehlgeschlagen'
+    ];
+    
+    return $translations[$status] ?? 'Unbekannt';
+}
+
+/**
+ * Fallback für kritische Fehler
+ */
+function yprint_build_fallback_email_content($order) {
+    error_log('🆘 Generiere Fallback-E-Mail für Order #' . $order->get_id());
     
     ob_start();
-    $accent_color = '#007BFF'; // A clean, modern blue
-    $text_color_dark = '#333333';
-    $text_color_light = '#666666';
-    $border_color = '#EEEEEE';
     ?>
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; line-height: 1.6; color: <?php echo esc_attr($text_color_dark); ?>; max-width: 600px; margin: 20px auto; padding: 20px;">
-
-
-        <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px;">
-            <h2 style="margin: 0 0 25px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 22px; font-weight: 600;">
-                Ihre Bestelldetails
-            </h2>
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="font-size: 16px;">
-                <tr>
-                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($text_color_light); ?>;">Bestellnummer:</td>
-                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; text-align: right; color: <?php echo esc_attr($text_color_dark); ?>; font-weight: 600;">#<?php echo esc_html($order->get_order_number()); ?></td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($text_color_light); ?>;">Bestelldatum:</td>
-                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; text-align: right; color: <?php echo esc_attr($text_color_dark); ?>;"><?php echo esc_html($order->get_date_created()->format('d.m.Y H:i')); ?></td>
-                </tr>
-                <tr>
-                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; color: <?php echo esc_attr($text_color_light); ?>;">Status:</td>
-                    <td style="padding: 10px 0; border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; text-align: right;">
-                        <span style="background-color: #D4EDDA; color: #155724; padding: 5px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;"><?php echo esc_html(wc_get_order_status_name($order->get_status())); ?></span>
-                    </td>
-                </tr>
-                <tr>
-                    <td style="padding: 15px 0 5px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-weight: 700; font-size: 18px;">Gesamtbetrag:</td>
-                    <td style="padding: 15px 0 5px 0; text-align: right; color: <?php echo esc_attr($accent_color); ?>; font-weight: 700; font-size: 24px;"><?php echo wp_kses_post($order->get_formatted_order_total()); ?></td>
-                </tr>
-            </table>
-        </div>
-
-        <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px;">
-            <h2 style="margin: 0 0 25px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 22px; font-weight: 600;">
-                Ihre bestellten Artikel
-            </h2>
-            <?php
-            foreach ($order->get_items() as $item_id => $item) {
-                $product = $item->get_product();
-                if (!$product) continue;
-
-                // Bestimme den Artikelnamen basierend auf Design-Daten
-                $design_name = $item->get_meta('_design_name');
-                $product_name = $product->get_name();
-
-                if (!empty($design_name)) {
-                    $display_name = esc_html($design_name) . ' - gedruckt auf ' . esc_html($product_name);
-                } else {
-                    $display_name = esc_html($product_name);
-                }
-
-                // Design-Details sammeln
-                $design_details = [];
-                $design_color = $item->get_meta('_design_color');
-                $design_size = $item->get_meta('_design_size');
-
-                if (!empty($design_color)) {
-                    $design_details[] = $design_color;
-                }
-                if (!empty($design_size)) {
-                    $design_details[] = 'Größe ' . $design_size;
-                }
-
-                $individual_price = $item->get_subtotal() / $item->get_quantity();
-                ?>
-                <div style="border-bottom: 1px solid <?php echo esc_attr($border_color); ?>; padding-bottom: 20px; margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="flex: 1;">
-                            <h3 style="margin: 0 0 5px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 17px; font-weight: 600; line-height: 1.4;">
-                                <?php echo $display_name; ?>
-                            </h3>
-                            <?php if (!empty($design_details)): ?>
-                            <div style="margin-bottom: 8px;">
-                                <?php foreach ($design_details as $detail): ?>
-                                <span style="background-color: <?php echo esc_attr($accent_color); ?>; color: white; padding: 4px 10px; border-radius: 15px; font-size: 12px; font-weight: 500; margin-right: 8px; display: inline-block;">
-                                    <?php echo esc_html($detail); ?>
-                                </span>
-                                <?php endforeach; ?>
-                            </div>
-                            <?php endif; ?>
-                            <p style="margin: 0; color: <?php echo esc_attr($text_color_light); ?>; font-size: 14px;">
-                                Menge: <?php echo esc_html($item->get_quantity()); ?> × <?php echo wp_kses_post(wc_price($individual_price)); ?>
-                            </p>
-                        </div>
-                        <div style="text-align: right; margin-left: 20px;">
-                            <div style="color: <?php echo esc_attr($text_color_dark); ?>; font-weight: 700; font-size: 18px;">
-                                <?php echo wp_kses_post(wc_price($item->get_total())); ?>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <?php
-            }
-            ?>
-        </div>
-
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; margin-top: 20px;">
-            <?php if ($order->has_shipping_address()) : ?>
-            <div style="background-color: #FFFFFF; padding: 25px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px; width: 48%; box-sizing: border-box; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 18px; font-weight: 600;">
-                    Lieferadresse
-                </h3>
-                <div style="color: <?php echo esc_attr($text_color_light); ?>; line-height: 1.6; font-size: 15px;">
-                    <?php echo wp_kses_post($order->get_formatted_shipping_address()); ?>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <div style="background-color: #FFFFFF; padding: 25px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px; width: 48%; box-sizing: border-box; margin-bottom: 20px;">
-                <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 18px; font-weight: 600;">
-                    Rechnungsadresse
-                </h3>
-                <div style="color: <?php echo esc_attr($text_color_light); ?>; line-height: 1.6; font-size: 15px;">
-                    <?php echo wp_kses_post($order->get_formatted_billing_address()); ?>
-                </div>
-            </div>
-        </div>
-
-        <div style="background-color: #FFFFFF; padding: 30px; margin-top: 20px; border: 1px solid <?php echo esc_attr($border_color); ?>; border-radius: 8px; text-align: center;">
-            <h3 style="margin: 0 0 15px 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 20px; font-weight: 700;">
-                Was passiert als Nächstes?
-            </h3>
-            <p style="margin: 0 0 20px 0; color: <?php echo esc_attr($text_color_light); ?>; line-height: 1.6; font-size: 16px;">
-                Wir bearbeiten Ihre Bestellung innerhalb der <strong>nächsten 24 Stunden</strong> und senden Ihnen eine Versandbestätigung mit Tracking-Informationen.
-            </p>
-            <p style="margin: 0; color: <?php echo esc_attr($text_color_dark); ?>; font-size: 15px; line-height: 1.5;">
-                Haben Sie Fragen? Kontaktieren Sie uns jederzeit unter Angabe Ihrer Bestellnummer <strong style="color: <?php echo esc_attr($accent_color); ?>;">#<?php echo esc_html($order->get_order_number()); ?></strong>.
-            </p>
-        </div>
-
-        <div style="text-align: center; padding: 30px 20px; margin-top: 30px; border-top: 1px solid <?php echo esc_attr($border_color); ?>;">
-            <p style="margin: 0; font-size: 16px; color: <?php echo esc_attr($text_color_light); ?>;">
-                Vielen Dank für Ihr Vertrauen!
-            </p>
-            <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 600; color: <?php echo esc_attr($accent_color); ?>;">
-                Ihr YPrint Team
-            </p>
-        </div>
+    <div style="padding: 20px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+        <h2 style="color: #856404;">Bestellbestätigung</h2>
+        <p>Ihre Bestellung wurde erfolgreich aufgegeben.</p>
+        <p><strong>Bestellnummer:</strong> <?php echo esc_html($order->get_order_number()); ?></p>
+        <p><strong>Gesamtbetrag:</strong> <?php echo $order->get_formatted_order_total(); ?></p>
+        <p>Weitere Details finden Sie in Ihrem Kundenkonto.</p>
     </div>
     <?php
     return ob_get_clean();
+}
+
+/**
+ * Error-E-Mail für kritische Systemfehler
+ */
+function yprint_build_error_email_content() {
+    error_log('🆘 Generiere Error-E-Mail - kritischer Systemfehler');
+    return '<div style="padding: 20px; color: red;">Es ist ein Fehler bei der E-Mail-Generierung aufgetreten.</div>';
 }
