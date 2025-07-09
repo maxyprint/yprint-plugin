@@ -502,12 +502,22 @@ function yprint_collect_email_data($order) {
     ];
     
     // 3. PAYMENT-INFORMATIONEN
-    $payment_data = yprint_get_payment_display_info($order);
-    
-    // 4. ARTIKEL-DATEN
-    $items_data = yprint_get_email_items_data($order);
-    
-    return array_merge($addresses, $order_data, $payment_data, ['items' => $items_data]);
+$payment_data = yprint_get_payment_display_info($order);
+
+// 4. ARTIKEL-DATEN
+$items_data = yprint_get_email_items_data($order);
+
+// 5. DATEN ZUSAMMENFÜHREN UND VALIDIEREN
+$email_data = array_merge($addresses, $order_data, $payment_data, ['items' => $items_data]);
+
+// 6. KRITISCHE VALIDIERUNG
+if (!yprint_validate_email_data($email_data)) {
+    error_log('🔴 E-Mail-Daten-Validierung fehlgeschlagen für Order #' . $order_id);
+    return null;
+}
+
+error_log('✅ Vollständige E-Mail-Daten erfolgreich gesammelt und validiert für Order #' . $order_id);
+return $email_data;
 }
 
 /**
@@ -606,32 +616,165 @@ function yprint_get_email_items_data($order) {
 }
 
 /**
- * Payment-Informationen mit Stripe-Integration
+ * Payment-Informationen mit vollständiger Stripe-Integration
  */
 function yprint_get_payment_display_info($order) {
-    $payment_method = $order->get_payment_method_title();
+    $base_payment_method = $order->get_payment_method_title();
+    $payment_method = $base_payment_method; // Fallback
     
-    // Stripe-spezifische Verbesserungen
+    // Stripe-spezifische Verbesserungen mit bewährter Logik
     if ($order->get_payment_method() === 'yprint_stripe') {
-        $stripe_pm_id = $order->get_meta('_yprint_stripe_payment_method_id');
-        if ($stripe_pm_id) {
-            // Versuche bessere Darstellung (basierend auf deiner AJAX-Logik)
-            $display_method = yprint_get_stripe_display_method_safe($stripe_pm_id);
-            if ($display_method) {
-                $payment_method = $display_method;
-            }
+        $enhanced_method = yprint_get_stripe_payment_display_for_email($order);
+        if ($enhanced_method) {
+            $payment_method = $enhanced_method;
         }
     }
+    
+    error_log('🎯 Payment Display: Base="' . $base_payment_method . '", Enhanced="' . $payment_method . '"');
     
     return ['payment_method' => $payment_method];
 }
 
 /**
- * Helper: Sichere Stripe-Darstellung
+ * Ermittelt benutzerfreundliche Stripe Payment Method Darstellung für E-Mails
+ * Nutzt die bewährte Logik aus yprint_get_payment_method_details_callback()
  */
-function yprint_get_stripe_display_method_safe($payment_method_id) {
-    // Simplified version - implement full logic based on your AJAX handler
-    return 'Kreditkarte (Stripe)';
+function yprint_get_stripe_payment_display_for_email($order) {
+    if (!$order || $order->get_payment_method() !== 'yprint_stripe') {
+        return null;
+    }
+    
+    $order_id = $order->get_id();
+    error_log('🎯 Stripe Payment Display für E-Mail - Order #' . $order_id);
+    
+    // 1. PAYMENT METHOD ID ermitteln (gleiche Logik wie AJAX-Handler)
+    $payment_method_id = $order->get_meta('_yprint_stripe_payment_method_id');
+    
+    // Fallback: Transaction ID könnte Payment Method ID sein
+    if (empty($payment_method_id)) {
+        $transaction_id = $order->get_transaction_id();
+        if (strpos($transaction_id, 'pm_') === 0) {
+            $payment_method_id = $transaction_id;
+        } elseif (strpos($transaction_id, 'pi_') === 0) {
+            // Payment Intent -> Payment Method ID extrahieren
+            $payment_method_id = yprint_extract_payment_method_from_intent($transaction_id);
+        }
+    }
+    
+    if (empty($payment_method_id) || strpos($payment_method_id, 'pm_') !== 0) {
+        error_log('🔴 Keine gültige Payment Method ID gefunden für Order #' . $order_id);
+        return 'Stripe Payment'; // Basis-Fallback
+    }
+    
+    error_log('✅ Payment Method ID gefunden: ' . $payment_method_id);
+    
+    // 2. STRIPE API CALL (gleiche Logik wie AJAX-Handler)
+    $display_info = yprint_fetch_stripe_payment_method_display($payment_method_id);
+    
+    if ($display_info) {
+        error_log('✅ Stripe Display ermittelt: ' . $display_info);
+        return $display_info;
+    }
+    
+    error_log('⚠️ Fallback auf Standard-Darstellung für Order #' . $order_id);
+    return 'Kreditkarte (Stripe)'; // Robuster Fallback
+}
+
+/**
+ * Extrahiert Payment Method ID aus Payment Intent (bewährte Logik)
+ */
+function yprint_extract_payment_method_from_intent($payment_intent_id) {
+    if (!class_exists('YPrint_Stripe_API')) {
+        error_log('🔴 YPrint_Stripe_API Klasse nicht verfügbar');
+        return null;
+    }
+    
+    try {
+        $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $payment_intent_id);
+        if (!empty($intent->payment_method)) {
+            error_log('✅ Payment Method aus Intent extrahiert: ' . $intent->payment_method);
+            return $intent->payment_method;
+        }
+    } catch (Exception $e) {
+        error_log('🔴 Fehler beim Abrufen der Payment Intent: ' . $e->getMessage());
+    }
+    
+    return null;
+}
+
+/**
+ * Ruft Stripe Payment Method Details ab und formatiert sie benutzerfreundlich
+ * Basiert auf der bewährten Logik aus yprint_get_payment_method_details_callback()
+ */
+function yprint_fetch_stripe_payment_method_display($payment_method_id) {
+    if (!class_exists('YPrint_Stripe_API')) {
+        error_log('🔴 YPrint_Stripe_API Klasse nicht verfügbar');
+        return null;
+    }
+    
+    try {
+        // API-Call (gleiche Logik wie AJAX-Handler)
+        $payment_method = YPrint_Stripe_API::request(array(), 'payment_methods/' . $payment_method_id);
+        
+        if (empty($payment_method) || isset($payment_method->error)) {
+            error_log('🔴 Stripe Payment Method nicht gefunden oder Fehler: ' . $payment_method_id);
+            return null;
+        }
+        
+        // Formatierung (gleiche Logik wie AJAX-Handler)
+        $display_method = 'Stripe Payment';
+        
+        if ($payment_method->type === 'card' && !empty($payment_method->card)) {
+            $card = $payment_method->card;
+            $brand = ucfirst($card->brand);
+            $last4 = $card->last4;
+            $display_method = $brand . ' ****' . $last4;
+            
+        } elseif ($payment_method->type === 'sepa_debit' && !empty($payment_method->sepa_debit)) {
+            $sepa = $payment_method->sepa_debit;
+            $last4 = $sepa->last4;
+            $display_method = 'SEPA-Lastschrift ****' . $last4;
+        }
+        
+        error_log('✅ Stripe Payment Method formatiert: ' . $display_method);
+        return $display_method;
+        
+    } catch (Exception $e) {
+        error_log('🔴 Stripe API Fehler: ' . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Validiert und bereinigt E-Mail-Daten vor der Template-Generierung
+ */
+function yprint_validate_email_data($email_data) {
+    $order_id = $email_data['order_number'] ?? 'UNKNOWN';
+    error_log('🔍 Validiere E-Mail-Daten für Order: ' . $order_id);
+    
+    // Kritische Felder prüfen
+    $required_fields = ['shipping', 'billing', 'items', 'payment_method', 'total_formatted'];
+    $missing_fields = [];
+    
+    foreach ($required_fields as $field) {
+        if (empty($email_data[$field])) {
+            $missing_fields[] = $field;
+        }
+    }
+    
+    if (!empty($missing_fields)) {
+        error_log('🔴 Fehlende E-Mail-Daten: ' . implode(', ', $missing_fields));
+        return false;
+    }
+    
+    // Adressen-Validierung
+    if (empty($email_data['shipping']['address_1']) || empty($email_data['billing']['address_1'])) {
+        error_log('🔴 Unvollständige Adressen in E-Mail-Daten');
+        return false;
+    }
+    
+    error_log('✅ E-Mail-Daten-Validierung erfolgreich');
+    return true;
 }
 
 /**
