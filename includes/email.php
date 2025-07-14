@@ -320,23 +320,23 @@ function yprint_build_order_confirmation_content($order) {
             <tr>
                 <td style="padding: 3px 0; color: #6e6e73;">Zwischensumme:</td>
                 <td style="padding: 3px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['subtotal_formatted']); ?>
+                <?php echo wp_kses_post($email_data['subtotal_formatted']); ?>
                 </td>
             </tr>
             <?php if ($email_data['tax_total'] > 0): ?>
             <tr>
                 <td style="padding: 3px 0; color: #6e6e73;">MwSt. (19%):</td>
                 <td style="padding: 3px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['tax_formatted']); ?>
-                </td>
+    <?php echo wp_kses_post($email_data['tax_formatted']); ?>
+</td>
             </tr>
             <?php endif; ?>
             <?php if ($email_data['shipping_total'] > 0): ?>
             <tr>
                 <td style="padding: 3px 0; color: #6e6e73;">Versand:</td>
                 <td style="padding: 3px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['shipping_formatted']); ?>
-                </td>
+    <?php echo wp_kses_post($email_data['shipping_formatted']); ?>
+</td>
             </tr>
             <?php else: ?>
             <tr>
@@ -347,8 +347,8 @@ function yprint_build_order_confirmation_content($order) {
             <tr style="border-top: 2px solid #e5e5e5;">
                 <td style="padding: 12px 0 5px 0; color: #1d1d1f; font-size: 18px; font-weight: 700;">Gesamtbetrag:</td>
                 <td style="padding: 12px 0 5px 0; text-align: right; color: #0079FF; font-size: 20px; font-weight: 700;">
-                    <?php echo esc_html($email_data['total_formatted']); ?>
-                </td>
+    <?php echo wp_kses_post($email_data['total_formatted']); ?>
+</td>
             </tr>
         </table>
     </div>
@@ -623,55 +623,87 @@ function yprint_get_payment_display_info($order) {
     
     error_log('🎯 Payment Display: Base="' . $base_payment_method . '", Enhanced="' . $payment_method . '"');
     
-    return ['payment_method' => $payment_method];
+    return [
+        'method' => $payment_method,
+        'gateway' => $order->get_payment_method()
+    ];
 }
 
 /**
- * Ermittelt benutzerfreundliche Stripe Payment Method Darstellung für E-Mails
- * Nutzt die bewährte Logik aus yprint_get_payment_method_details_callback()
+ * Erweiterte Stripe Payment Method Detection für E-Mails
+ * Nutzt die gleiche Logik wie das Frontend (yprint_get_payment_method_details_callback)
  * 
  * @param WC_Order $order
  * @return string|null
  */
 function yprint_get_stripe_payment_display_for_email($order) {
-    if (!$order || $order->get_payment_method() !== 'yprint_stripe') {
+    if (!class_exists('YPrint_Stripe_API')) {
         return null;
     }
     
-    $order_id = $order->get_id();
-    error_log('🎯 Stripe Payment Display für E-Mail - Order #' . $order_id);
-    
-    // 1. PAYMENT METHOD ID ermitteln (gleiche Logik wie AJAX-Handler)
+    // Versuche Payment Method ID zu finden
     $payment_method_id = $order->get_meta('_yprint_stripe_payment_method_id');
     
-    // Fallback: Transaction ID könnte Payment Method ID sein
     if (empty($payment_method_id)) {
+        // Fallback: Versuche über Payment Intent
         $transaction_id = $order->get_transaction_id();
-        if (strpos($transaction_id, 'pm_') === 0) {
-            $payment_method_id = $transaction_id;
-        } elseif (strpos($transaction_id, 'pi_') === 0) {
-            // Payment Intent → Payment Method ID extrahieren
-            $payment_method_id = yprint_extract_payment_method_from_intent($transaction_id);
+        if (!empty($transaction_id) && strpos($transaction_id, 'pi_') === 0) {
+            try {
+                $intent = YPrint_Stripe_API::request(array(), 'payment_intents/' . $transaction_id, 'GET');
+                if (!empty($intent->payment_method)) {
+                    $payment_method_id = $intent->payment_method;
+                }
+            } catch (Exception $e) {
+                error_log('🔴 E-Mail Payment Detection: Stripe API Fehler - ' . $e->getMessage());
+                return null;
+            }
         }
     }
     
     if (empty($payment_method_id) || strpos($payment_method_id, 'pm_') !== 0) {
-        error_log('🔴 Keine gültige Payment Method ID gefunden für Order #' . $order_id);
-        return 'Stripe Payment'; // Basis-Fallback
+        error_log('⚠️ E-Mail Payment Detection: Keine gültige Payment Method ID gefunden');
+        return null;
     }
     
-    error_log('✅ Payment Method ID gefunden: ' . $payment_method_id);
-    
-    // 2. STRIPE API CALL (gleiche Logik wie AJAX-Handler)
-    $display_info = yprint_fetch_stripe_payment_method_display($payment_method_id);
-    
-    if ($display_info) {
-        error_log('✅ Stripe Display ermittelt: ' . $display_info);
-        return $display_info;
+    try {
+        $payment_method = YPrint_Stripe_API::request(array(), 'payment_methods/' . $payment_method_id, 'GET');
+        
+        if (empty($payment_method) || isset($payment_method->error)) {
+            error_log('🔴 E-Mail Payment Detection: Stripe Payment Method nicht gefunden');
+            return null;
+        }
+        
+        // Apple Pay / Google Pay Detection (gleiche Logik wie Frontend)
+        if ($payment_method->type === 'card' && isset($payment_method->card->wallet)) {
+            $wallet = $payment_method->card->wallet;
+            
+            if ($wallet->type === 'apple_pay') {
+                error_log('✅ E-Mail Payment Detection: Apple Pay erkannt');
+                return 'Apple Pay (Stripe)';
+            } elseif ($wallet->type === 'google_pay') {
+                error_log('✅ E-Mail Payment Detection: Google Pay erkannt');
+                return 'Google Pay (Stripe)';
+            }
+        } elseif ($payment_method->type === 'card') {
+            // Normale Kartenzahlung
+            $brand = ucfirst($payment_method->card->brand ?? 'Kreditkarte');
+            $last4 = isset($payment_method->card->last4) ? ' ****' . $payment_method->card->last4 : '';
+            error_log('✅ E-Mail Payment Detection: Normale Karte erkannt - ' . $brand);
+            return $brand . $last4 . ' (Stripe)';
+        } elseif ($payment_method->type === 'sepa_debit') {
+            // SEPA Lastschrift
+            $last4 = isset($payment_method->sepa_debit->last4) ? ' ****' . $payment_method->sepa_debit->last4 : '';
+            error_log('✅ E-Mail Payment Detection: SEPA erkannt');
+            return 'SEPA-Lastschrift' . $last4 . ' (Stripe)';
+        }
+        
+        error_log('⚠️ E-Mail Payment Detection: Unbekannter Payment Method Typ - ' . $payment_method->type);
+        return null;
+        
+    } catch (Exception $e) {
+        error_log('🔴 E-Mail Payment Detection: Stripe API Fehler - ' . $e->getMessage());
+        return null;
     }
-    
-    error_log('⚠️ Fallback auf Standard-Darstellung für Order #' . $order_id);
-    return 'Kreditkarte (Stripe)'; // Robuster Fallback
 }
 
 /**
