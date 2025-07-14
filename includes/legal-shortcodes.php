@@ -12,9 +12,9 @@ if (!defined('ABSPATH')) {
 
 /**
  * Shortcode für die Navigation der rechtlichen Seiten
- * 
+ *
  * Usage: [legal_navigation]
- * 
+ *
  * @return string The formatted HTML output
  */
 function legal_navigation_shortcode() {
@@ -34,6 +34,11 @@ function legal_navigation_shortcode() {
             'title' => 'Datenschutz',
             'id' => get_page_by_path('datenschutz')->ID,
             'icon' => 'shield'
+        ),
+        'agb' => array( // NEU: AGB hinzugefügt
+            'title' => 'AGB',
+            'id' => get_page_by_path('agb')->ID,
+            'icon' => 'file-contract' // Ein passendes Icon für AGB
         ),
         'rechtlicher-hinweis' => array(
             'title' => 'Rechtlicher Hinweis',
@@ -61,8 +66,9 @@ function legal_navigation_shortcode() {
         session_start();
     }
 
+    // Erweitere das Regex um 'agb'
     $referer = wp_get_referer();
-    if ($referer && !preg_match('/(cookies|impressum|datenschutz|rechtlicher-hinweis|gesetz-ueber-digitale-dienste|produktsicherheitsverordnung)/i', $referer)) {
+    if ($referer && !preg_match('/(cookies|impressum|datenschutz|agb|rechtlicher-hinweis|gesetz-ueber-digitale-dienste|produktsicherheitsverordnung)/i', $referer)) {
         $_SESSION['previous_page'] = $referer;
     }
 
@@ -74,25 +80,21 @@ function legal_navigation_shortcode() {
     // Beginne mit dem Output-Buffering
     ob_start();
     ?>
-    <!-- Google Fonts für Roboto -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <!-- Font Awesome für Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <div class="yprint-legal-container">
         <div class="yprint-legal-sidebar">
-            <!-- Zurück-Button immer als erster Button -->
             <a href="<?php echo $_SESSION['previous_page']; ?>" class="yprint-legal-button yprint-back-button">
                 <i class="fas fa-arrow-left"></i> Zurück
             </a>
-            
-            <!-- Navigation für rechtliche Seiten -->
+
             <div class="yprint-legal-nav-title">Rechtliche Informationen</div>
-            
+
             <?php foreach ($legal_pages as $slug => $page): ?>
-                <?php 
+                <?php
                 // Prüfe, ob dies die aktuelle Seite ist
                 $is_current = ($page['id'] == $current_page_id || $slug == $current_page_slug);
                 $class = $is_current ? 'yprint-current-legal-page' : '';
@@ -101,13 +103,12 @@ function legal_navigation_shortcode() {
                     <i class="fas fa-<?php echo $page['icon']; ?>"></i> <?php echo $page['title']; ?>
                 </a>
             <?php endforeach; ?>
-            
-            <!-- Logo im Footer -->
+
             <div class="yprint-legal-footer">
                 <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="yprint Logo" class="yprint-footer-logo">
             </div>
         </div>
-        
+
         <style>
             .yprint-legal-container {
                 font-family: 'Roboto', sans-serif;
@@ -228,7 +229,7 @@ function legal_navigation_shortcode() {
                 .yprint-legal-container {
                     flex-direction: row;
                 }
-                
+
                 .yprint-legal-sidebar {
                     width: 280px;
                     position: sticky;
@@ -258,7 +259,7 @@ function start_session_for_legal_pages() {
         session_start();
     }
     
-    // Handler für das Beenden der Session nach der Anfrage
+    // Handler für das Beenden der Session nach der Anfrage!
     add_action('shutdown', function() {
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();
