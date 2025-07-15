@@ -592,7 +592,6 @@ add_action('wp_footer', function() {
 });
 
 function my_designtool_section_shortcode($atts) {
-    // Standardwerte setzen
     $atts = shortcode_atts(array(
         'template_id' => '3657',
     ), $atts);
@@ -608,10 +607,13 @@ function my_designtool_section_shortcode($atts) {
                 Hier kannst du dein eigenes Design hochladen und direkt am Produkt ausprobieren.
             </p>
 
-            <!-- Shortcode direkt und nackt eingebunden, ohne Styling-Wrapper -->
-            <div class="flex justify-center">
-                <?php echo do_shortcode('[ops-designer template_id="' . esc_attr($atts['template_id']) . '"]'); ?>
+            <!-- Zentriert ohne Flex: Shortcode sauber mittig platzieren -->
+            <div style="display: block; text-align: center;">
+                <div style="display: inline-block; max-width: 100%;">
+                    <?php echo do_shortcode('[ops-designer template_id="' . esc_attr($atts['template_id']) . '"]'); ?>
+                </div>
             </div>
+
         </div>
     </section>
     <?php
