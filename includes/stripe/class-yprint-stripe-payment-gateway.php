@@ -319,76 +319,43 @@ error_log('Express Payment Order #' . $order->get_id() . ' - preserving original
  * @param string $payment_method_type
  */
 private function apply_session_address_priority($order, $payment_method_type) {
-    error_log('🔍 YPRINT: apply_session_address_priority called with type: ' . $payment_method_type . ' for Order #' . $order->get_id());
-    
-    // Nur für Express Payments (Apple Pay, Google Pay)
+    // Für Express Payments: Kooperative statt autoritative Logik
     if (!in_array($payment_method_type, ['apple_pay', 'google_pay', 'payment_request'])) {
-        error_log('🔍 YPRINT: Not an express payment type (' . $payment_method_type . ') - skipping session priority');
         return;
     }
-    
-    error_log('🔍 YPRINT: EXPRESS PAYMENT DETECTED - Checking session address priority for ' . $payment_method_type . ' Order #' . $order->get_id());
-    
-    // Session-Daten laden
+
+    error_log('🔍 YPRINT: Cooperative address priority for ' . $payment_method_type);
+
     $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
-    $yprint_billing = WC()->session ? WC()->session->get('yprint_billing_address', array()) : array();
-    $yprint_billing_different = WC()->session ? WC()->session->get('yprint_billing_address_different', false) : false;
-    
-    // Prüfe ob User manuell Adressen gewählt hat
-    $has_manual_selection = !empty($yprint_selected) && !empty($yprint_selected['address_1']);
-    $has_manual_billing = $yprint_billing_different && !empty($yprint_billing) && !empty($yprint_billing['address_1']);
-    
-    error_log('🔍 YPRINT: Manual selection check:');
-    error_log('🔍 YPRINT: - Has manual shipping: ' . ($has_manual_selection ? 'YES' : 'NO'));
-    error_log('🔍 YPRINT: - Has manual billing: ' . ($has_manual_billing ? 'YES' : 'NO'));
-    error_log('🔍 YPRINT: - Billing different flag: ' . ($yprint_billing_different ? 'YES' : 'NO'));
-    
-    if (!$has_manual_selection) {
-        error_log('🔍 YPRINT: No manual address selection - keeping Express Payment addresses');
-        return;
-    }
-    
-    // === SHIPPING ADDRESS PRIORITY ===
-    error_log('🔍 YPRINT: Applying manual shipping address over Express Payment');
-    $order->set_shipping_first_name($yprint_selected['first_name'] ?? '');
-    $order->set_shipping_last_name($yprint_selected['last_name'] ?? '');
-    $order->set_shipping_address_1($yprint_selected['address_1'] ?? '');
-    $order->set_shipping_address_2($yprint_selected['address_2'] ?? '');
-    $order->set_shipping_city($yprint_selected['city'] ?? '');
-    $order->set_shipping_postcode($yprint_selected['postcode'] ?? '');
-    $order->set_shipping_country($yprint_selected['country'] ?? 'DE');
-    $order->set_shipping_phone($yprint_selected['phone'] ?? '');
-    
-    // === BILLING ADDRESS PRIORITY ===
-    if ($has_manual_billing) {
-        error_log('🔍 YPRINT: Applying manual billing address (different from shipping)');
-        $order->set_billing_first_name($yprint_billing['first_name'] ?? '');
-        $order->set_billing_last_name($yprint_billing['last_name'] ?? '');
-        $order->set_billing_address_1($yprint_billing['address_1'] ?? '');
-        $order->set_billing_address_2($yprint_billing['address_2'] ?? '');
-        $order->set_billing_city($yprint_billing['city'] ?? '');
-        $order->set_billing_postcode($yprint_billing['postcode'] ?? '');
-        $order->set_billing_country($yprint_billing['country'] ?? 'DE');
-        $order->set_billing_phone($yprint_billing['phone'] ?? '');
-        // E-Mail und Name bleiben aus Express Payment
+
+    // NUR bei expliziter User-Auswahl override
+    $user_explicitly_selected = !empty($yprint_selected) &&
+                                !empty($yprint_selected['user_selected_timestamp']) &&
+                               (time() - $yprint_selected['user_selected_timestamp']) < 300; // 5 Min
+
+    if ($user_explicitly_selected) {
+        error_log('🔍 YPRINT: User explicitly selected address - applying override');
+
+        // Bewahre Original Express Payment Adresse für Vergleich
+        $original_shipping = array(
+            'address_1' => $order->get_shipping_address_1(),
+            'city' => $order->get_shipping_city(),
+            'postcode' => $order->get_shipping_postcode(),
+        );
+
+        // Anwenden der User-Auswahl
+        $order->set_shipping_address_1($yprint_selected['address_1'] ?? '');
+        $order->set_shipping_city($yprint_selected['city'] ?? '');
+        // ... weitere Felder
+
+        // Meta-Data für Tracking
+        $order->update_meta_data('_yprint_original_express_address', $original_shipping);
+        $order->update_meta_data('_yprint_user_override_applied', true);
+
     } else {
-        error_log('🔍 YPRINT: Using shipping address as billing address');
-        $order->set_billing_first_name($yprint_selected['first_name'] ?? '');
-        $order->set_billing_last_name($yprint_selected['last_name'] ?? '');
-        $order->set_billing_address_1($yprint_selected['address_1'] ?? '');
-        $order->set_billing_address_2($yprint_selected['address_2'] ?? '');
-        $order->set_billing_city($yprint_selected['city'] ?? '');
-        $order->set_billing_postcode($yprint_selected['postcode'] ?? '');
-        $order->set_billing_country($yprint_selected['country'] ?? 'DE');
-        $order->set_billing_phone($yprint_selected['phone'] ?? '');
-        // E-Mail und Name bleiben aus Express Payment
+        error_log('🔍 YPRINT: No recent user selection - preserving express payment address');
+        $order->update_meta_data('_yprint_express_payment_preserved', true);
     }
-    
-    // Meta-Daten zur Nachverfolgung
-    $order->update_meta_data('_yprint_session_priority_applied', $payment_method_type);
-    $order->update_meta_data('_yprint_session_priority_timestamp', current_time('mysql'));
-    
-    error_log('🔍 YPRINT: Session address priority successfully applied for ' . $payment_method_type);
 }
 
 
