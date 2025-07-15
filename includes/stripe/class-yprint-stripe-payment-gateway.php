@@ -319,12 +319,15 @@ error_log('Express Payment Order #' . $order->get_id() . ' - preserving original
  * @param string $payment_method_type
  */
 private function apply_session_address_priority($order, $payment_method_type) {
+    error_log('🔍 YPRINT: apply_session_address_priority called with type: ' . $payment_method_type . ' for Order #' . $order->get_id());
+    
     // Nur für Express Payments (Apple Pay, Google Pay)
     if (!in_array($payment_method_type, ['apple_pay', 'google_pay', 'payment_request'])) {
+        error_log('🔍 YPRINT: Not an express payment type (' . $payment_method_type . ') - skipping session priority');
         return;
     }
     
-    error_log('🔍 YPRINT: Checking session address priority for ' . $payment_method_type . ' Order #' . $order->get_id());
+    error_log('🔍 YPRINT: EXPRESS PAYMENT DETECTED - Checking session address priority for ' . $payment_method_type . ' Order #' . $order->get_id());
     
     // Session-Daten laden
     $yprint_selected = WC()->session ? WC()->session->get('yprint_selected_address', array()) : array();
@@ -394,29 +397,59 @@ private function apply_session_address_priority($order, $payment_method_type) {
  * Detect the specific payment method type being processed
  */
 private function detect_payment_method_type() {
-    // Check POST data für explizite Payment Method
-    if (isset($_POST['payment_method']) && $_POST['payment_method'] === 'yprint_stripe_sepa') {
-        return 'sepa_debit';
+    // PRIORITÄT 1: Express Payment Detection (Apple Pay, Google Pay)
+    if (isset($_POST['payment_request_type'])) {
+        $request_type = wc_clean(wp_unslash($_POST['payment_request_type']));
+        error_log('🔍 YPRINT: Payment request type detected: ' . $request_type);
+        return $request_type; // 'apple_pay', 'google_pay', etc.
     }
     
-    // Check für Payment Method ID pattern
+    // PRIORITÄT 2: Source-basierte Detection
+    if (isset($_POST['source']) && $_POST['source'] === 'express_checkout') {
+        error_log('🔍 YPRINT: Express checkout source detected - treating as payment_request');
+        return 'payment_request';
+    }
+    
+    // PRIORITÄT 3: Payment Method ID pattern für Express Payments
     $payment_method_id = isset($_POST['yprint_stripe_payment_method_id']) 
         ? wc_clean(wp_unslash($_POST['yprint_stripe_payment_method_id'])) 
         : '';
         
     if (strpos($payment_method_id, 'pm_') === 0) {
-        // Retrieve payment method from Stripe to get exact type
+        error_log('🔍 YPRINT: Payment Method ID detected: ' . $payment_method_id);
+        
+        // Apple Pay/Google Pay haben meist Wallet-Daten - prüfe Stripe API
         try {
             $payment_method = YPrint_Stripe_API::request([], 'payment_methods/' . $payment_method_id);
+            
+            // Prüfe auf Wallet-Payment (Apple Pay, Google Pay)
+            if (isset($payment_method->card->wallet->type)) {
+                $wallet_type = $payment_method->card->wallet->type;
+                error_log('🔍 YPRINT: Wallet type detected from Stripe: ' . $wallet_type);
+                return $wallet_type; // 'apple_pay', 'google_pay'
+            }
+            
+            // Fallback: Payment Method Type
             if (isset($payment_method->type)) {
+                error_log('🔍 YPRINT: Payment method type from Stripe: ' . $payment_method->type);
                 return $payment_method->type;
             }
         } catch (Exception $e) {
-            error_log('Could not retrieve payment method type: ' . $e->getMessage());
+            error_log('🔍 YPRINT: Could not retrieve payment method type: ' . $e->getMessage());
         }
+        
+        // Wenn Stripe API fehlschlägt, aber pm_ prefix vorhanden - assume Express Payment
+        error_log('🔍 YPRINT: Stripe API failed but pm_ prefix detected - assuming payment_request');
+        return 'payment_request';
     }
     
-    // Default fallback
+    // PRIORITÄT 4: SEPA Detection
+    if (isset($_POST['payment_method']) && $_POST['payment_method'] === 'yprint_stripe_sepa') {
+        return 'sepa_debit';
+    }
+    
+    // Default fallback für Standard Credit Card
+    error_log('🔍 YPRINT: No express payment indicators found - defaulting to card');
     return 'card';
 }
 
