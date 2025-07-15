@@ -64,37 +64,124 @@ class YPrint_Address_Orchestrator {
         return self::$instance;
     }
 
-    /**
-     * Private constructor (singleton)
-     */
     private function __construct() {
-        // Initialize hooks for pilot wallet payment integration
-        $this->init_wallet_payment_hooks();
+        // Initialize hooks for ALL payment methods (Universal System)
+        $this->init_all_payment_hooks();
         
         // Initialize AJAX handlers for frontend communication
         $this->init_ajax_handlers();
+        
+        // Initialize payment method type detection
+        $this->init_payment_method_detection();
+    }
+    
+    /**
+     * Initialize payment method detection capabilities
+     */
+    private function init_payment_method_detection() {
+        // Add filter for payment method type detection
+        add_filter('yprint_detected_payment_method_type', [$this, 'filter_payment_method_type'], 10, 2);
+        
+        error_log('🎯 AddressOrchestrator: Payment method detection initialized');
     }
 
     /**
  * Initialize hooks for wallet payment integration (pilot)
  */
-private function init_wallet_payment_hooks() {
-    // Hook into Stripe payment processing for wallet payments
-    add_action('yprint_wallet_payment_processing', [$this, 'process_wallet_payment_addresses'], 5, 2);
+private function init_all_payment_hooks() {
+    // === UNIVERSAL PAYMENT HOOKS (ALLE STRIPE ZAHLUNGEN) ===
     
-    // KRITISCH: Aktiviere automatischen Hook für Express Payment Koordination mit höherer Priorität
+    // 1. Hook in Stripe Payment Gateway für alle Payment-Methoden
+    add_action('yprint_stripe_payment_processing', [$this, 'process_stripe_payment_addresses'], 5, 3);
+    
+    // 2. Hook für Express Payment processing (Apple Pay, Google Pay)
+    add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 1, 2);
+    
+    // 3. Hook für alle WooCommerce Order Creation Events
     add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 5, 2);
     
-    // Hook for Express Payment processing - HÖCHSTE PRIORITÄT
-    add_action('yprint_express_payment_complete', [$this, 'finalize_wallet_addresses'], 1, 2);
-
-    // KRITISCH: Hook für Standard Payment Methods - VOR E-Mail Hook (Priority 10)
+    // 4. Hook für Payment Complete (alle Zahlungsarten)
     add_action('woocommerce_payment_complete', [$this, 'orchestrate_addresses_for_order'], 1, 1);
-
-    // ZUSÄTZLICH: Extra Hook für nach Order Creation (für Express Payments)
-    add_action('woocommerce_checkout_order_processed', [$this, 'orchestrate_addresses_for_order'], 1, 3);
     
-    error_log('🎯 AddressOrchestrator: Wallet payment hooks initialisiert mit Priority 5');
+    // 5. Spezifischer Hook für Stripe Payment Gateway Integration
+    add_action('woocommerce_api_yprint_stripe', [$this, 'handle_stripe_webhook_addresses'], 10, 1);
+    
+    // 6. SEPA und Card-spezifische Hooks
+    add_action('yprint_sepa_payment_processing', [$this, 'process_sepa_payment_addresses'], 5, 2);
+    add_action('yprint_card_payment_processing', [$this, 'process_card_payment_addresses'], 5, 2);
+    
+    error_log('🎯 AddressOrchestrator: Universal payment hooks initialisiert (ALL STRIPE PAYMENTS)');
+}
+
+/**
+ * Process addresses for all Stripe payment methods (Universal Handler)
+ * 
+ * @param WC_Order $order WooCommerce order object
+ * @param string $payment_method_type Type of payment (card, sepa_debit, etc.)
+ * @param array $payment_data Payment method data from Stripe
+ */
+public function process_stripe_payment_addresses($order, $payment_method_type, $payment_data = null) {
+    $this->context = 'Stripe ' . strtoupper($payment_method_type) . ' Payment - Order #' . $order->get_id();
+    $this->log_step('=== UNIVERSAL STRIPE PAYMENT PROCESSING ===', 'info');
+    $this->log_step('Payment Method Type: ' . $payment_method_type, 'info');
+    
+    // Sammle Payment-Method-spezifische Daten
+    $enhanced_payment_data = $this->enhance_payment_data($payment_data, $payment_method_type);
+    
+    // Orchestriere Adressen für alle Stripe-Zahlungen
+    return $this->orchestrate_addresses_for_order($order, $enhanced_payment_data);
+}
+
+/**
+ * Process SEPA-specific address handling
+ */
+public function process_sepa_payment_addresses($order, $payment_data) {
+    $this->log_step('SEPA Payment Address Processing', 'info');
+    
+    // SEPA benötigt oft Billing = Shipping wegen Mandat-Anforderungen
+    if (empty($payment_data['billing']) && !empty($payment_data['shipping'])) {
+        $payment_data['billing'] = $payment_data['shipping'];
+        $this->log_step('SEPA: Copied shipping to billing for mandate compliance', 'info');
+    }
+    
+    return $this->process_stripe_payment_addresses($order, 'sepa_debit', $payment_data);
+}
+
+/**
+ * Process Card-specific address handling
+ */
+public function process_card_payment_addresses($order, $payment_data) {
+    $this->log_step('Card Payment Address Processing', 'info');
+    
+    // Check für Wallet-Karten (Apple Pay, Google Pay als Karte verarbeitet)
+    if (isset($payment_data['card']['wallet'])) {
+        $wallet_type = $payment_data['card']['wallet']['type'];
+        $this->log_step('Card is Wallet Payment: ' . $wallet_type, 'info');
+        
+        // Route to wallet handler if needed
+        return $this->finalize_wallet_addresses($order, $payment_data);
+    }
+    
+    return $this->process_stripe_payment_addresses($order, 'card', $payment_data);
+}
+
+/**
+ * Enhance payment data with type-specific information
+ */
+private function enhance_payment_data($payment_data, $payment_method_type) {
+    if (!is_array($payment_data)) {
+        $payment_data = [];
+    }
+    
+    // Add metadata für bessere Traceability
+    $payment_data['orchestrator_metadata'] = [
+        'payment_method_type' => $payment_method_type,
+        'processed_at' => current_time('mysql'),
+        'source' => 'stripe_payment_gateway',
+        'orchestrator_version' => '2.0.0'
+    ];
+    
+    return $payment_data;
 }
 
     /**

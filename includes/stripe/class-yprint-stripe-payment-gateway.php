@@ -127,7 +127,25 @@ public function process_payment($order_id) {
 
     error_log('Processing payment for order: ' . $order_id);
     
-    // YPRINT DEBUG: Session-Daten vor Zahlungsverarbeitung
+    // === ADDRESS ORCHESTRATOR INTEGRATION (ALLE STRIPE PAYMENTS) ===
+    
+    // Bestimme Payment-Method-Type
+    $payment_method_type = $this->detect_payment_method_type();
+    
+    // Sammle Payment-spezifische Daten
+    $payment_data = $this->collect_payment_specific_data();
+    
+    // Trigger Address Orchestrator für ALLE Stripe-Zahlungen
+    if (class_exists('YPrint_Address_Orchestrator')) {
+        $orchestrator = YPrint_Address_Orchestrator::get_instance();
+        
+        // Universal Stripe Payment Hook
+        do_action('yprint_stripe_payment_processing', $order, $payment_method_type, $payment_data);
+        
+        error_log('🎯 AddressOrchestrator: Triggered for ' . $payment_method_type . ' payment');
+    }
+    
+    // Legacy Debug (jetzt ergänzt)
     if (class_exists('YPrint_Address_Manager')) {
         YPrint_Address_Manager::debug_session_data('stripe_process_payment_start');
         YPrint_Address_Manager::debug_order_addresses($order, 'stripe_before_processing');
@@ -271,6 +289,99 @@ error_log('Express Payment Order #' . $order->get_id() . ' - preserving original
             'redirect' => wc_get_checkout_url(),
         );
     }
+}
+
+/**
+ * Detect the specific payment method type being processed
+ */
+private function detect_payment_method_type() {
+    // Check POST data für explizite Payment Method
+    if (isset($_POST['payment_method']) && $_POST['payment_method'] === 'yprint_stripe_sepa') {
+        return 'sepa_debit';
+    }
+    
+    // Check für Payment Method ID pattern
+    $payment_method_id = isset($_POST['yprint_stripe_payment_method_id']) 
+        ? wc_clean(wp_unslash($_POST['yprint_stripe_payment_method_id'])) 
+        : '';
+        
+    if (strpos($payment_method_id, 'pm_') === 0) {
+        // Retrieve payment method from Stripe to get exact type
+        try {
+            $payment_method = YPrint_Stripe_API::request([], 'payment_methods/' . $payment_method_id);
+            if (isset($payment_method->type)) {
+                return $payment_method->type;
+            }
+        } catch (Exception $e) {
+            error_log('Could not retrieve payment method type: ' . $e->getMessage());
+        }
+    }
+    
+    // Default fallback
+    return 'card';
+}
+
+/**
+ * Collect payment-specific data for Address Orchestrator
+ */
+private function collect_payment_specific_data() {
+    $data = [
+        'source' => 'stripe_payment_gateway',
+        'timestamp' => current_time('mysql'),
+        'post_data' => $_POST
+    ];
+    
+    // Add Stripe-specific data if available
+    if (isset($_POST['yprint_stripe_payment_method_id'])) {
+        $data['stripe_payment_method_id'] = wc_clean(wp_unslash($_POST['yprint_stripe_payment_method_id']));
+    }
+    
+    // Add form addresses if present
+    $form_addresses = $this->extract_form_addresses();
+    if (!empty($form_addresses)) {
+        $data['form_addresses'] = $form_addresses;
+    }
+    
+    return $data;
+}
+
+/**
+ * Extract address data from checkout form
+ */
+private function extract_form_addresses() {
+    $addresses = [];
+    
+    // Shipping address from form
+    if (isset($_POST['shipping_address_1'])) {
+        $addresses['shipping'] = [
+            'first_name' => $_POST['shipping_first_name'] ?? '',
+            'last_name' => $_POST['shipping_last_name'] ?? '',
+            'address_1' => $_POST['shipping_address_1'] ?? '',
+            'address_2' => $_POST['shipping_address_2'] ?? '',
+            'city' => $_POST['shipping_city'] ?? '',
+            'state' => $_POST['shipping_state'] ?? '',
+            'postcode' => $_POST['shipping_postcode'] ?? '',
+            'country' => $_POST['shipping_country'] ?? ''
+        ];
+    }
+    
+    // Billing address from form
+    if (isset($_POST['billing_address_1'])) {
+        $addresses['billing'] = [
+            'first_name' => $_POST['billing_first_name'] ?? '',
+            'last_name' => $_POST['billing_last_name'] ?? '',
+            'address_1' => $_POST['billing_address_1'] ?? '',
+            'address_2' => $_POST['billing_address_2'] ?? '',
+            'city' => $_POST['billing_city'] ?? '',
+            'state' => $_POST['billing_state'] ?? '',
+            'postcode' => $_POST['billing_postcode'] ?? '',
+            'country' => $_POST['billing_country'] ?? '',
+            'email' => $_POST['billing_email'] ?? '',
+            'phone' => $_POST['billing_phone'] ?? ''
+        ];
+    }
+    
+    return $addresses;
 }
 
 /**
