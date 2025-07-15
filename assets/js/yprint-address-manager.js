@@ -899,28 +899,39 @@ addWooCommerceDefaultAddress: function(grid) {
             const originalBtnText = btnSelectAddress.html();
             btnSelectAddress.html('<i class="fas fa-spinner fa-spin mr-2"></i>Wird ausgewählt...');
         
-            // CRITICAL: Absolute Priorität für Billing Context - nur Context-basierte Erkennung
-            // Hier wird der 'addressType' kontextbasiert ermittelt.
-            let addressType = 'shipping'; // Standardwert
+            // KONSISTENTE CONTEXT DETECTION: Eindeutige Prioritätsreihenfolge
+            let addressType = 'shipping'; // Sicherer Default, wird von der Logik überschrieben
+            let billingContext = false;
         
-            // Methode 1: URL-basierte Erkennung (höchste Priorität)
-            if (window.location.href.includes('step=billing')) {
+            // Priorität 1: Explizite DOM-Kontext-Attribute
+            // Hier wird direkt auf das Element zugegriffen, das die Funktion aufgerufen hat oder ein Elternelement davon.
+            const containerContext = $(event.target).closest('[data-address-type]').attr('data-address-type');
+            if (containerContext === 'billing') {
                 addressType = 'billing';
+                billingContext = true;
             }
         
-            // Methode 2: DOM-basierte Step-Erkennung (hohe Priorität)
-            const billingStepActive = $('#step-2-5').hasClass('active') || $('.checkout-step[data-step="billing"]').hasClass('active');
-            if (billingStepActive) {
+            // Priorität 2: URL-Parameter (nur wenn DOM-Kontext fehlt)
+            if (!billingContext && window.location.href.includes('step=billing')) {
                 addressType = 'billing';
+                billingContext = true;
             }
         
-            // Methode 3: Globaler Kontext (mittlere Priorität)
-            if (window.currentAddressContext === 'billing') {
-                addressType = 'billing';
+            // Priorität 3: Step-Status (nur wenn andere Methoden fehlschlagen)
+            if (!billingContext) {
+                const billingStepActive = $('#step-2-5').hasClass('active') || $('.checkout-step[data-step="billing"]').hasClass('active');
+                if (billingStepActive) {
+                    addressType = 'billing';
+                    billingContext = true;
+                }
             }
         
-            // OVERRIDE: Ignoriere DOM data-address-type komplett, nutze nur den ermittelten Context
-            // Dies löst das Problem mit falsch gesetzten data-address-type Attributen
+            // Methode 4 (Fallback/Globaler Kontext): Nur anwenden, wenn der Kontext noch nicht eindeutig ist
+            // Dies ist eine niedrigere Priorität, um die konsistente Erkennung nicht zu überschreiben.
+            if (!billingContext && window.currentAddressContext === 'billing') {
+                addressType = 'billing';
+                billingContext = true; // Setzen, damit spätere Checks nicht erneut überschreiben
+            }
         
             console.log('🎯 Address Manager Context erkannt:', addressType);
             console.log('🔍 [DEBUG-AM] ========================================');
@@ -931,6 +942,41 @@ addWooCommerceDefaultAddress: function(grid) {
                 url: window.location.href,
                 callStack: new Error().stack.split('\n').slice(1, 4)
             });
+        
+            // AJAX-Aufruf, um die Adresse zu speichern
+            $.ajax({
+                url: yprint_address_ajax.ajax_url, // Annahme: Deine AJAX-URL ist hier definiert
+                method: 'POST',
+                data: {
+                    action: 'yprint_set_checkout_address',
+                    nonce: yprint_address_ajax.nonce,
+                    address_id: addressId,
+                    address_type: addressType,
+                    billing_context: billingContext ? 'true' : 'false', // Explizite Kontext-Info
+                    step: billingContext ? 'billing' : 'shipping' // Zusätzlicher Fallback-Parameter
+                },
+                success: function(response) {
+                    if (response.success) {
+                        console.log('Adresse erfolgreich ausgewählt und gespeichert:', response.data);
+                        // Optional: Weiterleitung oder DOM-Update basierend auf der Antwort
+                        if (response.data.redirect_url) {
+                            window.location.href = response.data.redirect_url;
+                        }
+                    } else {
+                        console.error('Fehler beim Auswählen der Adresse:', response.data.message);
+                        alert('Es gab einen Fehler: ' + response.data.message);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Fehler:', status, error);
+                    alert('Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
+                },
+                complete: function() {
+                    // Originaltext des Buttons wiederherstellen
+                    btnSelectAddress.html(originalBtnText);
+                }
+            });
+        
         
             // Adresse für Checkout setzen und Formular füllen
             $.ajax({

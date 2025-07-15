@@ -68,8 +68,14 @@ class YPrint_Address_Manager {
         add_action('wp_ajax_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         add_action('wp_ajax_nopriv_yprint_clear_billing_session', array($this, 'ajax_clear_billing_session'));
         
-        // KOORDINIERTE HOOK-STRATEGIE: AddressOrchestrator hat Priorität
-add_action('woocommerce_checkout_create_order', array($this, 'orchestrator_aware_address_application'), 10, 2);
+// BALANCED HOOK APPROACH: Sicherstellung aller Checkout-Szenarien
+add_action('woocommerce_checkout_create_order', array($this, 'apply_addresses_to_order'), 10, 2);
+
+// Store API Support (für Block-Checkout und mobile Apps)
+add_action('woocommerce_store_api_checkout_update_order_from_request', array($this, 'apply_addresses_to_order'), 10, 2);
+
+// Conditional Express Payment Hook nur wenn Session-Daten vorhanden
+add_action('woocommerce_checkout_order_processed', array($this, 'conditional_address_application'), 15, 3);
 
 // Debug-Hook behalten (für Entwicklung) 
 add_action('woocommerce_checkout_order_processed', array($this, 'debug_order_after_processing'), 25, 1);
@@ -142,6 +148,24 @@ public function ajax_activate_billing_different() {
         wp_send_json_error(array('message' => __('Session nicht verfügbar.', 'yprint-plugin')));
     }
 }
+
+/**
+ * Conditional address application für Express Payments
+ */
+public function conditional_address_application($order_id, $posted_data, $order) {
+    // Nur anwenden wenn YPrint Session-Daten existieren UND keine Standard-Hooks gegriffen haben
+    $yprint_selected = WC()->session->get('yprint_selected_address');
+    $already_applied = $order->get_meta('_yprint_addresses_applied');
+    
+    if (!empty($yprint_selected) && empty($already_applied)) {
+        error_log('🚀 CONDITIONAL: Applying YPrint addresses for Express Payment Order #' . $order_id);
+        $this->apply_addresses_to_order($order, null);
+        $order->update_meta_data('_yprint_addresses_applied', 'conditional_express');
+        $order->save();
+    }
+}
+
+
 
 /**
  * AJAX-Handler zum Speichern einer Adresse während des Checkouts
@@ -1405,10 +1429,19 @@ public function ajax_set_checkout_address() {
     }
 
     if (WC()->session) {
-        // STRICT address_type validation - nur explizite POST Parameter akzeptiert
+        // ROBUST CONTEXT DETECTION: Multiple Fallback-Mechanismen ohne HTTP_REFERER
 if (empty($address_type) || !in_array($address_type, ['shipping', 'billing'])) {
-    $address_type = 'shipping'; // Default to shipping if invalid or empty
-    error_log('🚀 AJAX DEBUG: Invalid or missing address_type - defaulting to shipping (NO HTTP_REFERER fallback)');
+    // Prüfe POST Parameter für explizite Context-Information
+    if (isset($_POST['billing_context']) && $_POST['billing_context'] === 'true') {
+        $address_type = 'billing';
+        error_log('🚀 AJAX DEBUG: Context auf billing gesetzt (billing_context Parameter)');
+    } elseif (isset($_POST['step']) && $_POST['step'] === 'billing') {
+        $address_type = 'billing';
+        error_log('🚀 AJAX DEBUG: Context auf billing gesetzt (step Parameter)');
+    } else {
+        $address_type = 'shipping'; // Sicherer Default
+        error_log('🚀 AJAX DEBUG: Context auf shipping gesetzt (Default)');
+    }
 }
 
 // CRITICAL: Keine HTTP_REFERER basierte Context-Erkennung mehr
