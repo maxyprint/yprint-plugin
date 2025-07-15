@@ -590,3 +590,32 @@ add_action('wp_footer', function() {
         <?php
     }
 });
+
+function my_designtool_section_shortcode($atts) {
+    // Standardwerte setzen
+    $atts = shortcode_atts(array(
+        'template_id' => '3657', // Default-Wert
+    ), $atts);
+
+    // Shortcode-Ausgabe (inkl. eingebettetem ops-designer)
+    ob_start();
+    ?>
+    <section id="design-tool-section" class="py-16 md:py-24 pt-[150px]">
+      <div class="container mx-auto px-6 text-center">
+        <h2 class="text-3xl md:text-4xl font-semibold text-yprint-dark-gray mb-4 fade-in fade-in-up !leading-tight tracking-tight">
+          Teste unser Designtool
+        </h2>
+        <p class="text-lg text-yprint-medium-gray max-w-2xl mx-auto mb-10 fade-in fade-in-up" style="animation-delay: 0.1s;">
+          Hier kannst du dein eigenes Design hochladen und direkt am Produkt ausprobieren.
+        </p>
+        <div class="bg-white p-8 rounded-16px shadow-card max-w-4xl mx-auto fade-in fade-in-up" style="animation-delay: 0.2s;">
+          <div id="ops-designer-embed" class="h-96 flex items-center justify-center border-2 border-dashed border-yprint-border-gray rounded-10px text-yprint-medium-gray text-xl">
+            <?php echo do_shortcode('[ops-designer template_id="' . esc_attr($atts['template_id']) . '"]'); ?>
+          </div>
+        </div>
+      </div>
+    </section>
+    <?php
+    return ob_get_clean();
+}
+add_shortcode('my_designtool_section', 'my_designtool_section_shortcode');
