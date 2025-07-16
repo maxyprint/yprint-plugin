@@ -3970,12 +3970,31 @@ async function ensureStripeCardElementReady() {
             continue;
         }
         
-        // Prüfe Initialisierung
-        if (!window.YPrintStripeCheckout.initialized) {
-            console.log('DEBUG MOUNT: YPrintStripeCheckout not initialized, waiting...');
-            await new Promise(resolve => setTimeout(resolve, 1000));
+        // Prüfe Initialisierung mit aktiver Initialisierung
+if (!window.YPrintStripeCheckout.initialized) {
+    console.log('DEBUG MOUNT: YPrintStripeCheckout not initialized, trying to initialize...');
+    
+    try {
+        // Versuche aktive Initialisierung
+        const initResult = await window.YPrintStripeCheckout.init();
+        console.log('DEBUG MOUNT: Initialization attempt result:', initResult);
+        
+        if (initResult) {
+            console.log('DEBUG MOUNT: Successfully initialized YPrintStripeCheckout');
+            // Kurz warten nach erfolgreicher Initialisierung
+            await new Promise(resolve => setTimeout(resolve, 300));
             continue;
+        } else {
+            console.log('DEBUG MOUNT: Initialization failed, waiting before retry...');
         }
+    } catch (error) {
+        console.error('DEBUG MOUNT: Error during initialization:', error);
+    }
+    
+    // Fallback: warten falls Initialisierung fehlschlägt
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    continue;
+}
         
         // DETAILLIERTE DEBUG-INFOS mit robustem Container-Targeting
 let cardContainer = document.getElementById('stripe-card-element');
