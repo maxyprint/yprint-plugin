@@ -1998,128 +1998,35 @@ public static function get_stripe_amount($amount, $currency = null) {
 public function ajax_process_payment_method() {
     error_log('=== YPRINT EXPRESS PAYMENT METHOD PROCESSING START ===');
     
-    // Force WooCommerce initialization if not already done
-    if (!did_action('woocommerce_loaded')) {
-        // Include WooCommerce if not loaded
-        if (!class_exists('WooCommerce') && file_exists(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php')) {
-            include_once(WP_PLUGIN_DIR . '/woocommerce/woocommerce.php');
-            
-            // Initialize WooCommerce manually
-            if (class_exists('WooCommerce')) {
-                WooCommerce::instance();
-            }
-        }
-    }
-    
-    // Ensure WC() function is available after initialization
-    if (!function_exists('WC')) {
-        error_log('ERROR: WC() function not available after initialization attempt');
-        wp_send_json_error(array('message' => 'WooCommerce not available'));
+    // ========================================
+    // 1. WOOCOMMERCE VALIDATION
+    // ========================================
+    if (!function_exists('WC') || !WC()->session) {
+        error_log('ERROR: WooCommerce not properly initialized in AJAX context');
+        wp_send_json_error(array('message' => 'WooCommerce session not available'));
         return;
     }
+    error_log('✅ WooCommerce available for payment processing');
     
-    // Initialize WooCommerce core components if needed
-    if (!WC()->session) {
-        WC()->init();
-    }
-
-    // Debug WooCommerce availability
-    error_log('=== WOOCOMMERCE AVAILABILITY CHECK ===');
-    error_log('WooCommerce class exists: ' . (class_exists('WooCommerce') ? 'YES' : 'NO'));
-    error_log('WC function exists: ' . (function_exists('WC') ? 'YES' : 'NO'));
-    
-    // **KRITISCHER SESSION-DATEN-BACKUP vor Payment Processing**
-    // Verhindert Datenverlust durch konkurrierende Systeme
-    error_log('🔍 YPRINT SESSION BACKUP: ==========================================');
-    error_log('🔍 YPRINT SESSION BACKUP: Securing session data before payment processing');
-    $backup_selected = WC()->session->get('yprint_selected_address');
-    $backup_billing = WC()->session->get('yprint_billing_address');     
-    $backup_billing_different = WC()->session->get('yprint_billing_address_different');
-        
-    // Session-Backup-Status protokollieren
-    error_log('🔍 YPRINT SESSION BACKUP: Selected exists: ' . (!empty($backup_selected) ? 'YES' : 'NO'));
-    error_log('🔍 YPRINT SESSION BACKUP: Billing exists: ' . (!empty($backup_billing) ? 'YES' : 'NO'));
-    error_log('🔍 YPRINT SESSION BACKUP: Billing different: ' . ($backup_billing_different ? 'YES' : 'NO'));
-        
-    if (!empty($backup_selected)) {        
-        error_log('🔍 YPRINT SESSION BACKUP: Selected address secured: ' . $backup_selected['address_1'] . ', ' . $backup_selected['city']);
-    }    
-    if (!empty($backup_billing) && $backup_billing_different) {        
-        error_log('🔍 YPRINT SESSION BACKUP: Billing address secured: ' . $backup_billing['address_1'] . ', ' . $backup_billing['city']);
-    }    
-    error_log('🔍 YPRINT SESSION BACKUP: ==========================================');
-
-    // Debug WooCommerce availability (this line was moved down from the original position
-    // to keep the WC_VERSION check if still desired)
+    // ========================================
+    // 2. SESSION DATA DEBUG
+    // ========================================
+    $session_data = array(
+        'selected_address' => WC()->session->get('yprint_selected_address'),
+        'billing_address' => WC()->session->get('yprint_billing_address'),
+        'billing_different' => WC()->session->get('yprint_billing_address_different')
+    );
+    error_log('Session data available: ' . ($session_data['selected_address'] ? 'YES' : 'NO'));
     error_log('WooCommerce version: ' . (defined('WC_VERSION') ? WC_VERSION : 'Not defined'));
-
-    // Vereinfachte Express Payment Debug-Ausgabe
-    error_log('EXPRESS PAYMENT: Design data check...');
-            
-    if (WC()->cart && !WC()->cart->is_empty()) {
-        $design_items = 0;
-        $cart_debug = array();
-        
-        foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
-            $has_design = isset($cart_item['print_design']);
-            if ($has_design) {
-                $design_items++;
-                $cart_debug[] = $cart_item_key . ' ✓';
-                
-                // Sichere nur wenn nötig
-                if (!WC()->session->get('yprint_express_design_backup')) {
-                    $existing_backup = WC()->session->get('yprint_express_design_backup', array());
-                    $existing_backup[$cart_item_key] = $cart_item['print_design'];
-                    WC()->session->set('yprint_express_design_backup', $existing_backup);
-                }
-            } else {
-                $cart_debug[] = $cart_item_key . ' ✗';
-            }
-        }
-        
-        error_log("EXPRESS: $design_items design items found [" . implode(', ', $cart_debug) . "]");
-    } else {
-        error_log('EXPRESS: Cart empty or unavailable');
-    }
-
-
-    // Try to access WC()
-    try {
-        $wc_instance = WC();
-        error_log('WC() instance available: YES');
-        error_log('WC() instance type: ' . get_class($wc_instance));
-    } catch (Exception $e) {
-        error_log('WC() instance error: ' . $e->getMessage());
-        wp_send_json_error(array('message' => 'WooCommerce instance not accessible: ' . $e->getMessage()));
-        return;
-    }
-        
-    // Load WooCommerce frontend
-    WC()->frontend_includes();
     
-    // Initialize session
-    if (is_null(WC()->session)) {
-        $session_class = apply_filters('woocommerce_session_handler', 'WC_Session_Handler');
-        WC()->session = new $session_class();
-        WC()->session->init();
-    }
-    
-    // Initialize cart
-    if (is_null(WC()->cart)) {
-        WC()->cart = new WC_Cart();
-        WC()->cart->get_cart();
-    }
-    
-    // Initialize customer
-    if (is_null(WC()->customer)) {
-        WC()->customer = new WC_Customer(get_current_user_id(), true);
-    }
-    
+    // ========================================
+    // 3. REQUEST VALIDATION
+    // ========================================
     error_log('=== RAW REQUEST DEBUGGING ===');
     error_log('POST Data: ' . print_r($_POST, true));
     error_log('Request Method: ' . $_SERVER['REQUEST_METHOD']);
     
-    // Nonce Verification
+    // Nonce verification
     if (!isset($_POST['nonce'])) {
         error_log('ERROR: Nonce not provided in request');
         wp_send_json_error(array('message' => 'Nonce missing'));
@@ -2135,92 +2042,30 @@ public function ajax_process_payment_method() {
         return;
     }
     
-    // Validate and sanitize boolean parameters to prevent "Invalid boolean: 1" error
-    $source = isset($_POST['source']) ? sanitize_text_field($_POST['source']) : '';
-    $type = isset($_POST['type']) ? sanitize_text_field($_POST['type']) : '';
-    
-    // Explicitly validate boolean parameters
-    if (isset($_POST['capture_payment'])) {
-        $capture_value = $_POST['capture_payment'];
-        if (!in_array($capture_value, array('0', '1', 'true', 'false', 0, 1, true, false), true)) {
-            error_log('ERROR: Invalid boolean value for capture_payment: ' . $capture_value);
-            wp_send_json_error(array('message' => 'Invalid boolean: ' . $capture_value));
-            return;
-        }
-    }
-    
-    if (isset($_POST['save_payment_method'])) {
-        $save_value = $_POST['save_payment_method'];
-        if (!in_array($save_value, array('0', '1', 'true', 'false', 0, 1, true, false), true)) {
-            error_log('ERROR: Invalid boolean value for save_payment_method: ' . $save_value);
-            wp_send_json_error(array('message' => 'Invalid boolean: ' . $save_value));
-            return;
-        }
-    }
-    
-    // Payment Method Data - Fix URL encoding issues
-    $payment_method_json = isset($_POST['payment_method']) ? wp_unslash($_POST['payment_method']) : '';
-    error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
-    error_log('Payment Method JSON length: ' . strlen($payment_method_json));
-
-    // Try different decoding approaches
-    if (empty($payment_method_json)) {
-        error_log('ERROR: Payment method data is empty');
-        wp_send_json_error(array('message' => 'Payment method data missing'));
-        return;
-    }
-
-    // Method 1: Direct decode
-    $payment_method = json_decode($payment_method_json, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        error_log('Method 1 failed - JSON error: ' . json_last_error_msg());
-        
-        // Method 2: Strip slashes then decode
-        $stripped_json = stripslashes($payment_method_json);
-        $payment_method = json_decode($stripped_json, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            error_log('Method 2 failed - JSON error after stripslashes: ' . json_last_error_msg());
-            wp_send_json_error(array('message' => 'Invalid payment method data - JSON decode failed: ' . json_last_error_msg()));
-            return;
-        } else {
-            error_log('Method 2 SUCCESS - stripslashes worked');
-        }
-    } else {
-        error_log('Method 1 SUCCESS - direct decode worked');
-    }
-
-    // Validate payment method structure
-    if (!is_array($payment_method) || !isset($payment_method['id'])) {
-        error_log('ERROR: Invalid payment method structure');
-        wp_send_json_error(array('message' => 'Invalid payment method structure'));
-        return;
-    }
-
-    error_log('Payment method validation PASSED');
-    error_log('Payment Method ID: ' . $payment_method['id']);
-        
-    // Shipping Address Data
-    $shipping_address_json = isset($_POST['shipping_address']) ? wp_unslash($_POST['shipping_address']) : '';
-    $shipping_address = null;
-    if (!empty($shipping_address_json)) {
-        $shipping_address = json_decode($shipping_address_json, true);
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            $shipping_address = json_decode(stripslashes($shipping_address_json), true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log('WARNING: Shipping address JSON decode error: ' . json_last_error_msg());
+    // Boolean parameter validation
+    $boolean_params = array('capture_payment', 'save_payment_method');
+    foreach ($boolean_params as $param) {
+        if (isset($_POST[$param])) {
+            $value = $_POST[$param];
+            if (!in_array($value, array('0', '1', 'true', 'false', 0, 1, true, false), true)) {
+                error_log('ERROR: Invalid boolean value for ' . $param . ': ' . $value);
+                wp_send_json_error(array('message' => 'Invalid boolean: ' . $value));
+                return;
             }
         }
     }
     
-    // Define WooCommerce cart constant
+    // ========================================
+    // 4. WOOCOMMERCE INITIALIZATION
+    // ========================================
+    WC()->frontend_includes();
+    
     if (!defined('WOOCOMMERCE_CART')) {
         define('WOOCOMMERCE_CART', true);
     }
-
-    // Ensure all WooCommerce components are initialized
+    
     try {
-        // Initialize session if needed
+        // Initialize session
         if (is_null(WC()->session)) {
             $session_class = apply_filters('woocommerce_session_handler', 'WC_Session_Handler');
             if (class_exists($session_class)) {
@@ -2229,12 +2074,12 @@ public function ajax_process_payment_method() {
             }
         }
         
-        // Initialize customer if needed
+        // Initialize customer
         if (is_null(WC()->customer)) {
             WC()->customer = new WC_Customer(get_current_user_id(), true);
         }
         
-        // Initialize cart if needed
+        // Initialize cart
         if (is_null(WC()->cart)) {
             WC()->cart = new WC_Cart();
             WC()->cart->get_cart();
@@ -2246,25 +2091,75 @@ public function ajax_process_payment_method() {
         wp_send_json_error(array('message' => 'Failed to initialize WooCommerce: ' . $e->getMessage()));
         return;
     }
-
-    // User and Cart Verification
+    
+    // ========================================
+    // 5. PAYMENT DATA PROCESSING
+    // ========================================
+    error_log('=== PAYMENT METHOD DATA DEBUGGING ===');
+    
+    // Decode payment method
+    $payment_method_json = isset($_POST['payment_method']) ? wp_unslash($_POST['payment_method']) : '';
+    if (empty($payment_method_json)) {
+        error_log('ERROR: Payment method data is empty');
+        wp_send_json_error(array('message' => 'Payment method data missing'));
+        return;
+    }
+    
+    $payment_method = json_decode($payment_method_json, true);
+    if (json_last_error() !== JSON_ERROR_NONE) {
+        $stripped_json = stripslashes($payment_method_json);
+        $payment_method = json_decode($stripped_json, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            error_log('Method 2 failed - JSON error after stripslashes: ' . json_last_error_msg());
+            wp_send_json_error(array('message' => 'Invalid payment method data - JSON decode failed: ' . json_last_error_msg()));
+            return;
+        } else {
+            error_log('Method 2 SUCCESS - stripslashes worked');
+        }
+    } else {
+        error_log('Method 1 SUCCESS - direct decode worked');
+    }
+    
+    if (!is_array($payment_method) || !isset($payment_method['id'])) {
+        error_log('ERROR: Invalid payment method structure');
+        wp_send_json_error(array('message' => 'Invalid payment method structure'));
+        return;
+    }
+    
+    error_log('Payment method validation PASSED');
+    error_log('Payment Method ID: ' . $payment_method['id']);
+    
+    // Decode shipping address
+    $shipping_address = null;
+    $shipping_address_json = isset($_POST['shipping_address']) ? wp_unslash($_POST['shipping_address']) : '';
+    if (!empty($shipping_address_json)) {
+        $shipping_address = json_decode($shipping_address_json, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            $shipping_address = json_decode(stripslashes($shipping_address_json), true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log('WARNING: Shipping address JSON decode error: ' . json_last_error_msg());
+            }
+        }
+    }
+    
+    // ========================================
+    // 6. CART VALIDATION
+    // ========================================
     error_log('Current User ID: ' . get_current_user_id());
     error_log('WC Cart Available: ' . (WC()->cart ? 'Yes' : 'No'));
-
-    if (WC()->cart) {
-        error_log('Cart Items Count: ' . WC()->cart->get_cart_contents_count());
-        error_log('Cart Is Empty: ' . (WC()->cart->is_empty() ? 'Yes' : 'No'));
-    } else {
+    
+    if (!WC()->cart) {
         error_log('ERROR: Cart could not be initialized');
         wp_send_json_error(array('message' => 'Cart initialization failed'));
         return;
     }
-
-    // Cart Fallback
+    
+    error_log('Cart Items Count: ' . WC()->cart->get_cart_contents_count());
+    error_log('Cart Is Empty: ' . (WC()->cart->is_empty() ? 'Yes' : 'No'));
+    
+    // Handle empty cart
     if (WC()->cart->is_empty()) {
         error_log('Cart is empty - checking for session cart data');
-        
-        // Try to restore cart from session
         $session_cart = WC()->session->get('cart', null);
         if ($session_cart) {
             error_log('Found session cart data');
@@ -2272,8 +2167,6 @@ public function ajax_process_payment_method() {
             WC()->cart->get_cart_from_session();
         } else {
             error_log('No session cart data found');
-            
-            // For Express checkout, proceed without cart validation
             if (isset($_POST['source']) && $_POST['source'] === 'express_checkout') {
                 error_log('Express checkout detected - proceeding without cart validation');
             } else {
@@ -2282,17 +2175,21 @@ public function ajax_process_payment_method() {
             }
         }
     }
-
-    // Stripe API Check
+    
+    // ========================================
+    // 7. STRIPE API CHECK
+    // ========================================
     if (!class_exists('YPrint_Stripe_API')) {
         error_log('ERROR: YPrint_Stripe_API class not found');
         wp_send_json_error(array('message' => 'Stripe API not available'));
         return;
     }
     
-    // Create actual WooCommerce order for Express Checkout with design data transfer
+    // ========================================
+    // 8. ORDER CREATION
+    // ========================================
     try {
-        // Get customer email from different sources
+        // Get customer email
         $customer_email = '';
         if (isset($payment_method['billing_details']['email']) && !empty($payment_method['billing_details']['email'])) {
             $customer_email = $payment_method['billing_details']['email'];
@@ -2300,7 +2197,6 @@ public function ajax_process_payment_method() {
             $current_user = wp_get_current_user();
             $customer_email = $current_user->user_email;
         } else {
-            // Fallback: Check for email in form data or session
             $checkout_data = WC()->session->get('yprint_checkout_address');
             if ($checkout_data && isset($checkout_data['billing_email'])) {
                 $customer_email = $checkout_data['billing_email'];
@@ -2308,11 +2204,10 @@ public function ajax_process_payment_method() {
         }
         
         error_log('=== YPRINT EXPRESS ORDER CREATION ===');
-        error_log('Kunden-E-Mail ermittelt: ' . $customer_email);
+        error_log('Customer email determined: ' . $customer_email);
         
-        // Create actual WooCommerce order
+        // Create order
         $order = wc_create_order();
-        
         if (is_wp_error($order)) {
             error_log('ERROR creating order: ' . $order->get_error_message());
             throw new Exception('Failed to create order: ' . $order->get_error_message());
@@ -2321,45 +2216,48 @@ public function ajax_process_payment_method() {
         $order_id = $order->get_id();
         error_log('Created order with ID: ' . $order_id);
         
-        // CRITICAL: Prüfe ob YPrint-Adressen bereits gesetzt wurden
-        $yprint_addresses_set = $order->get_meta('_yprint_addresses_applied', true);
-
-        if (!$yprint_addresses_set) {
-            // Set customer details nur wenn YPrint-Adressen noch nicht angewendet wurden
-            if (!empty($customer_email)) {
-                $order->set_billing_email($customer_email);
-            }
-
-            if (isset($payment_method['billing_details']['name'])) {
-                $name_parts = explode(' ', $payment_method['billing_details']['name']);
-                $order->set_billing_first_name($name_parts[0]);
-                if (count($name_parts) > 1) {
-                    $order->set_billing_last_name(end($name_parts));
-                }
-            }
-        } else {
-            error_log('YPRINT DEBUG: Skipping Stripe address override - YPrint addresses already applied');
+        // Set customer details
+        if (!empty($customer_email)) {
+            $order->set_billing_email($customer_email);
         }
         
-        // Critical YPrint address application temporarily disabled - removing override logic
-error_log('🔍 YPRINT: Order #' . $order->get_id() . ' - critical address application disabled during cleanup phase');
-            
+        if (isset($payment_method['billing_details']['name'])) {
+            $name_parts = explode(' ', $payment_method['billing_details']['name']);
+            $order->set_billing_first_name($name_parts[0]);
+            if (count($name_parts) > 1) {
+                $order->set_billing_last_name(end($name_parts));
+            }
+        }
         
-        
-        // Set payment method
         $order->set_payment_method('yprint_stripe');
         $order->set_payment_method_title('Stripe Express');
         
-        // Add cart items to order WITH design data transfer
+        // ========================================
+        // 9. DESIGN DATA TRANSFER
+        // ========================================
         error_log('Adding cart items with design data transfer...');
         $design_transfers_success = 0;
         $design_transfers_failed = 0;
         
+        // Create design backup
+        $design_backup = array();
+        foreach (WC()->cart->get_cart() as $cart_key => $cart_item) {
+            if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
+                $design_backup[$cart_key] = $cart_item['print_design'];
+                error_log('Design backup created for: ' . $cart_key);
+            }
+        }
+        
+        if (!empty($design_backup)) {
+            WC()->session->set('yprint_express_design_backup_active', $design_backup);
+            error_log('Design backup stored in session with ' . count($design_backup) . ' items');
+        }
+        
+        // Add cart items to order
         if (!WC()->cart->is_empty()) {
             foreach (WC()->cart->get_cart() as $cart_item_key => $cart_item) {
                 error_log('Processing cart item: ' . $cart_item_key);
                 
-                // Add product to order
                 $order_item = new WC_Order_Item_Product();
                 $order_item->set_product($cart_item['data']);
                 $order_item->set_quantity($cart_item['quantity']);
@@ -2367,684 +2265,267 @@ error_log('🔍 YPRINT: Order #' . $order->get_id() . ' - critical address appli
                 $order_item->set_subtotal($cart_item['line_subtotal']);
                 $order_item->set_total($cart_item['line_total']);
                 
-                // === SICHERE DESIGN-BACKUP-ERSTELLUNG VOR CART-PROCESSING ===
-                // Diese Backup-Erstellung muss VOR jeder Cart-Manipulation stehen!
-                if (!isset($express_design_backup_created)) {
-                    $express_design_backup_created = true;
-                    error_log('🎯 EXPRESS SECURE: Creating fresh design backup from active cart');
-                    
-                    $active_design_backup = array();
-                    $active_design_count = 0;
-                    
-                    foreach (WC()->cart->get_cart() as $backup_cart_key => $backup_cart_item) {
-                        if (isset($backup_cart_item['print_design']) && !empty($backup_cart_item['print_design'])) {
-                            $active_design_backup[$backup_cart_key] = array(
-                                'design_data' => $backup_cart_item['print_design'],
-                                'product_id' => $backup_cart_item['product_id'],
-                                'variation_id' => $backup_cart_item['variation_id'] ?? 0,
-                                'quantity' => $backup_cart_item['quantity'],
-                                'line_subtotal' => $backup_cart_item['line_subtotal'],
-                                'line_total' => $backup_cart_item['line_total'],
-                                'secured_timestamp' => current_time('mysql')
-                            );
-                            $active_design_count++;
-                            error_log('🎯 EXPRESS SECURE: Active backup created for: ' . $backup_cart_key . ' (Design ID: ' . ($backup_cart_item['print_design']['design_id'] ?? 'unknown') . ')');
-                        }
-                    }
-                    
-                    // Triple-Session-Backup mit aktiven Daten
-                    if ($active_design_count > 0) {
-                        WC()->session->set('yprint_express_design_backup_active', $active_design_backup);
-                        WC()->session->set('yprint_express_design_backup_v2_active', $active_design_backup);
-                        WC()->session->set('yprint_express_design_backup_v3_active', $active_design_backup);
-                        error_log('🎯 EXPRESS SECURE: Active triple-backup created with ' . $active_design_count . ' design items');
-                    }
-                }
-                
-                // === INTELLIGENTE DESIGN DATA RECOVERY ===
+                // Design data transfer
                 $design_data = null;
-                $data_source = 'none';
-                
-                // PRIO 1: Direkter Cart-Zugriff (falls Cart noch aktiv)
                 if (isset($cart_item['print_design']) && !empty($cart_item['print_design'])) {
                     $design_data = $cart_item['print_design'];
-                    $data_source = 'direct_cart_access';
-                    error_log('🎯 CART URL QUALITY DEBUG: Using direct cart design data for: ' . $cart_item_key);
+                    error_log('Using direct cart design data for: ' . $cart_item_key);
+                } elseif (isset($design_backup[$cart_item_key])) {
+                    $design_data = $design_backup[$cart_item_key];
+                    error_log('Using backup design data for: ' . $cart_item_key);
                 }
-                // PRIO 2: Aktives Session-Backup (frisch erstellt)
-                elseif (isset($active_design_backup[$cart_item_key]['design_data'])) {
-                    $design_data = $active_design_backup[$cart_item_key]['design_data'];
-                    $data_source = 'active_session_backup';
-                    error_log('🎯 CART URL QUALITY DEBUG: Using active session backup for: ' . $cart_item_key);
-                }
-                // PRIO 3: Bestehende Session-Backups
-                else {
-                    $existing_backup_keys = array(
-                        'yprint_express_design_backup_active',
-                        'yprint_express_design_backup',
-                        'yprint_express_design_backup_v2',
-                        'yprint_express_design_backup_v3'
-                    );
-                    
-                    foreach ($existing_backup_keys as $backup_key) {
-                        $existing_backup = WC()->session->get($backup_key, array());
-                        if (isset($existing_backup[$cart_item_key])) {
-                            // Flexible Datenstruktur-Behandlung
-                            if (isset($existing_backup[$cart_item_key]['design_data'])) {
-                                $design_data = $existing_backup[$cart_item_key]['design_data'];
-                            } elseif (is_array($existing_backup[$cart_item_key]) && isset($existing_backup[$cart_item_key]['design_id'])) {
-                                $design_data = $existing_backup[$cart_item_key];
-                            }
-                            
-                            if (!empty($design_data)) {
-                                $data_source = 'existing_backup_' . $backup_key;
-                                error_log('🎯 CART URL QUALITY DEBUG: Recovered from existing backup: ' . $backup_key . ' for: ' . $cart_item_key);
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // DESIGN-TRANSFER MIT QUALITÄTSKONTROLLE
-                if (!empty($design_data)) {
-                    error_log('Found design data for cart item: ' . $cart_item_key . ' (Source: ' . $data_source . ')');
-                    error_log('🔍 EXPRESS CHECKOUT: Processing cart item: ' . $cart_item_key);
-                    error_log('🔍 Found design data for cart item: ' . $cart_item_key);
-                    
-                    // Use central design transfer function if available
+                
+                if ($design_data) {
                     if (function_exists('yprint_complete_design_transfer')) {
-                        // Erstelle temporären Cart-Item für Transfer-Funktion
                         $temp_cart_item = $cart_item;
                         $temp_cart_item['print_design'] = $design_data;
                         
-                        error_log('🎯 EXPRESS CHECKOUT: Calling yprint_complete_design_transfer for: ' . $cart_item_key);
-                        $transfer_success = yprint_complete_design_transfer($order_item, $temp_cart_item, $cart_item_key);
-                        
-                        if ($transfer_success) {
+                        if (yprint_complete_design_transfer($order_item, $temp_cart_item, $cart_item_key)) {
                             $order_item->update_meta_data('_express_checkout_transfer', 'yes');
                             $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
-                            $order_item->update_meta_data('_design_transfer_source', $data_source);
                             $design_transfers_success++;
-                            error_log('🎯 EXPRESS SUCCESS: Design data transferred using central function for: ' . $cart_item_key);
+                            error_log('Design transferred using central function for: ' . $cart_item_key);
                         } else {
-                            error_log('🎯 EXPRESS FAILED: Central design transfer failed for: ' . $cart_item_key);
                             $design_transfers_failed++;
+                            error_log('Central design transfer failed for: ' . $cart_item_key);
                         }
                     } else {
-                        error_log('🎯 EXPRESS FALLBACK: Central function not available, using manual transfer for: ' . $cart_item_key);
-                        // Fallback: manual design data transfer
-                        if (is_array($design_data)) {
-                            foreach ($design_data as $key => $value) {
-                                $order_item->update_meta_data('_yprint_' . $key, $value);
-                            }
-                            $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
-                            $order_item->update_meta_data('_design_transfer_source', $data_source);
-                            $design_transfers_success++;
-                            error_log('🎯 EXPRESS MANUAL: Design data transferred manually for: ' . $cart_item_key);
-                        } else {
-                            error_log('🎯 EXPRESS ERROR: Invalid design data format for: ' . $cart_item_key);
-                            $design_transfers_failed++;
+                        // Manual transfer
+                        $order_item->update_meta_data('print_design', $design_data);
+                        $order_item->update_meta_data('_is_design_product', true);
+                        $order_item->update_meta_data('_has_print_design', 'yes');
+                        foreach ($design_data as $key => $value) {
+                            $order_item->update_meta_data('_yprint_' . $key, $value);
                         }
+                        $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
+                        $design_transfers_success++;
+                        error_log('Manual design transfer for: ' . $cart_item_key);
                     }
                 } else {
-                    error_log('🎯 EXPRESS MISSING: No design data found for cart item: ' . $cart_item_key);
                     $design_transfers_failed++;
+                    error_log('No design data found for: ' . $cart_item_key);
                 }
                 
-                // === VOLLSTÄNDIGE DESIGN-TRANSFER-LOGIK ===
-                if (!empty($design_data)) {
-                    error_log('🎯 EXPRESS CHECKOUT: Found design data for cart item: ' . $cart_item_key . ' (Source: ' . $data_source . ')');
-                    
-                    // Use central design transfer function if available
-                    if (function_exists('yprint_complete_design_transfer')) {
-                        // Erstelle vollständigen Cart-Item für Transfer-Funktion
-                        $complete_cart_item = $cart_item;
-                        $complete_cart_item['print_design'] = $design_data;
-                        
-                        error_log('🎯 EXPRESS CHECKOUT: Calling yprint_complete_design_transfer for: ' . $cart_item_key);
-                        $transfer_success = yprint_complete_design_transfer($order_item, $complete_cart_item, $cart_item_key);
-                        
-                        if ($transfer_success) {
-                            $order_item->update_meta_data('_express_checkout_transfer', 'yes');
-                            $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
-                            $order_item->update_meta_data('_design_transfer_source', $data_source);
-                            $design_transfers_success++;
-                            error_log('🎯 EXPRESS SUCCESS: Design data transferred using central function for: ' . $cart_item_key);
-                        } else {
-                            error_log('🎯 EXPRESS FAILED: Central design transfer failed for: ' . $cart_item_key);
-                            $design_transfers_failed++;
-                        }
-                    } else {
-                        error_log('🎯 EXPRESS FALLBACK: Central function not available, using manual transfer for: ' . $cart_item_key);
-                        
-                        // Fallback: manual design data transfer with validation
-                        if (is_array($design_data) && !empty($design_data)) {
-                            // Legacy format compatibility
-                            $order_item->update_meta_data('print_design', $design_data);
-                            $order_item->update_meta_data('_is_design_product', true);
-                            $order_item->update_meta_data('_has_print_design', 'yes');
-                            
-                            // Individual design data fields
-                            foreach ($design_data as $key => $value) {
-                                $order_item->update_meta_data('_yprint_' . $key, $value);
-                            }
-                            
-                            // Transfer metadata
-                            $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
-                            $order_item->update_meta_data('_design_transfer_source', $data_source);
-                            $order_item->update_meta_data('_express_manual_transfer', 'yes');
-                            
-                            $design_transfers_success++;
-                            error_log('🎯 EXPRESS MANUAL: Design data transferred manually for: ' . $cart_item_key);
-                        } else {
-                            error_log('🎯 EXPRESS ERROR: Invalid design data format for: ' . $cart_item_key . ' - Data: ' . print_r($design_data, true));
-                            $design_transfers_failed++;
-                        }
-                    }
-                } else {
-                    error_log('🎯 EXPRESS MISSING: No design data found for cart item: ' . $cart_item_key . ' from any source');
-                    $design_transfers_failed++;
-                }
-                
-                // Add item to order
                 $order->add_item($order_item);
             }
         }
         
-        // === FINAL DESIGN-TRANSFER-STATISTIK ===
-        error_log('🎯 EXPRESS FINAL: Design transfers completed - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
+        error_log('Design transfers completed - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
         
-        // Design-Transfer-Status in Order Meta speichern
+        // Store design transfer stats
         $order->update_meta_data('_express_design_transfers_success', $design_transfers_success);
         $order->update_meta_data('_express_design_transfers_failed', $design_transfers_failed);
         $order->update_meta_data('_express_design_transfer_timestamp', current_time('mysql'));
         
-        // Empty cart NACH der Design-Daten-Übertragung
+        // Empty cart after transfer
         WC()->cart->empty_cart();
-        error_log('EXPRESS CHECKOUT: Cart emptied after design transfer');
-
-        // Calculate totals and save order
+        error_log('Cart emptied after design transfer');
+        
+        // Calculate totals and save
         $order->calculate_totals();
         $order->save();
-        
         error_log('Order saved with ID: ' . $order_id);
-        error_log('Design transfers - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
-        
-        // CRITICAL: Create and confirm Payment Intent with corrected method
-        error_log('=== CREATING PAYMENT INTENT ===');
-        
-        // Use the static method from YPrint_Stripe_API class instead of local closure
-// The static method YPrint_Stripe_API::get_stripe_amount() will be used consistently
-        
-        // Convert boolean parameters correctly
-        $capture_payment = isset($_POST['capture_payment']) ? wc_string_to_bool($_POST['capture_payment']) : true;
-        $save_payment_method = isset($_POST['save_payment_method']) ? wc_string_to_bool($_POST['save_payment_method']) : false;
-        
-        $intent_data = array(
-            'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
-            'currency' => strtolower($order->get_currency()),
-            'payment_method' => $payment_method['id'],
-            'confirmation_method' => 'manual',
-            'confirm' => true,  // Native boolean
-            'capture_method' => $capture_payment ? 'automatic' : 'manual',
-            'description' => sprintf('Order #%s from %s', $order->get_order_number(), get_bloginfo('name')),
-            'metadata' => array(
-                'order_id' => (string) $order->get_id(),  // Ensure string for metadata
-                'site_url' => get_site_url(),
-            ),
-            'receipt_email' => $order->get_billing_email(),
-            // CRITICAL: Add return_url as required by Stripe (without automatic_payment_methods to avoid conflict)
-            'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id())
-        );
-        
-        // Add save payment method if requested
-        if ($save_payment_method && is_user_logged_in()) {
-            $intent_data['setup_future_usage'] = 'off_session';
-        }
-
-        // CRITICAL DEBUG: Validate all data before sending to Stripe
-error_log('=== STRIPE PAYMENT INTENT DEBUG ===');
-error_log('Order ID: ' . $order->get_id());
-error_log('Order Total: ' . $order->get_total());
-error_log('Order Currency: ' . $order->get_currency());
-error_log('Stripe Amount: ' . YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()));
-error_log('Billing Email: ' . $order->get_billing_email());
-error_log('Payment Method ID: ' . $payment_method['id']);
-error_log('Return URL: ' . home_url('/checkout/?step=confirmation&order_id=' . $order->get_id()));
-        
-        // Validate critical fields
-        if (empty($order->get_billing_email())) {
-            error_log('WARNING: Billing email is empty');
-            $order->set_billing_email('noreply@yprint.de'); // Fallback email
-            $order->save();
-        }
-        
-        if ($order->get_total() <= 0) {
-            error_log('ERROR: Order total is zero or negative: ' . $order->get_total());
-            wp_send_json_error(array('message' => 'Invalid order amount'));
-            return;
-        }
-        
-        // Determine payment method types based on PaymentMethod type
-        $payment_method_types = ['card']; // Default
-        if (isset($payment_method['type'])) {
-            switch ($payment_method['type']) {
-                case 'sepa_debit':
-                    $payment_method_types = ['sepa_debit'];
-                    break;
-                case 'card':
-                    $payment_method_types = ['card'];
-                    break;
-                default:
-                    $payment_method_types = [$payment_method['type']];
-            }
-        }
-        
-        error_log('🚀 SEPA DEBUG: PaymentIntent will be created with payment_method_types: ' . wp_json_encode($payment_method_types));
-        error_log('🚀 SEPA DEBUG: PaymentMethod type detected: ' . ($payment_method['type'] ?? 'unknown'));
-
-        // Enhanced intent data with better validation and dynamic payment_method_types
-// KORREKTUR: SEPA-optimierte PaymentIntent-Konfiguration
-$is_sepa_payment = isset($payment_method['type']) && $payment_method['type'] === 'sepa_debit';
-
-$intent_data = array(
-    'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
-    'currency' => strtolower($order->get_currency()),
-    'payment_method_types' => $payment_method_types,
-    'payment_method' => $payment_method['id'],
-    // KORREKTUR: SEPA muss confirm=true haben wegen mandate_data Requirement
-    'confirmation_method' => 'automatic',
-    'confirm' => true, // Beide Payment-Arten benötigen confirm=true für mandate_data
-    'capture_method' => 'automatic',
-    'description' => sprintf('YPrint Order #%s - %s', $order->get_order_number(), get_bloginfo('name')),
-    'metadata' => array(
-        'order_id' => (string) $order->get_id(),
-        'order_number' => $order->get_order_number(),
-        'site_url' => get_site_url(),
-        'customer_email' => $order->get_billing_email(),
-        'payment_method_type' => $payment_method['type'] ?? 'unknown',
-    ),
-    'receipt_email' => $order->get_billing_email(),
-    'payment_method_options' => array(
-        'card' => array(
-            'request_three_d_secure' => 'automatic'
-        )
-    ) 
-);
-
-// return_url für beide Payment-Arten setzen
-$intent_data['return_url'] = home_url('/checkout/?step=confirmation&order_id=' . $order->get_id());
-
-// SEPA-spezifische Erweiterungen für Mandat
-if (isset($payment_method['type']) && $payment_method['type'] === 'sepa_debit') {
-    error_log('🚀 SEPA MANDATE: Adding mandate_data for SEPA payment');
-    
-    // SEPA-Mandat-Daten hinzufügen (EU-Recht konform)
-    $intent_data['mandate_data'] = array(
-        'customer_acceptance' => array(
-            'type' => 'online',
-            'online' => array(
-                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
-                'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'YPrint Checkout'
-            )
-        )
-    );
-    
-    // SEPA-spezifische Payment Method Options
-    $intent_data['payment_method_options']['sepa_debit'] = array(
-        'mandate_options' => array()
-    );
-    
-    error_log('🚀 SEPA MANDATE: mandate_data added: ' . wp_json_encode($intent_data['mandate_data']));
-}
-        
-        // Debug: Log complete intent data
-        error_log('Complete Intent data being sent to Stripe: ' . wp_json_encode($intent_data));
-        
-        // Create and confirm Payment Intent
-        $intent = YPrint_Stripe_API::request($intent_data, 'payment_intents');
-
-        if (!empty($intent->error)) {
-            error_log('Payment Intent creation failed: ' . $intent->error->message);
-            error_log('Intent data that caused error: ' . wp_json_encode($intent_data));
-            
-            // Check for specific test card declined error
-            $error_message = $intent->error->message;
-            if (strpos($error_message, 'card was declined') !== false) {
-                $error_message = 'Payment was declined. Please try with a different card or contact your bank. (This might be due to using test card 4000000000003012 which simulates declines)';
-            }
-            
-            wp_send_json_error(array('message' => $error_message));
-            return;
-        }
-
-        // Debug: Check if this is a test card that simulates decline
-if (isset($payment_method['card']['last4']) && $payment_method['card']['last4'] === '3012') {
-    error_log('WARNING: Using test card 4000000000003012 which always declines. Use 4242424242424242 for successful test payments.');
-}
-
-        error_log('Payment Intent created: ' . $intent->id . ' with status: ' . $intent->status);
-
-        // KORREKTUR: SEPA "processing" Status als Erfolg behandeln
-if ('succeeded' === $intent->status) {
-    // Sofortiger Erfolg - bei Cards
-    $order->payment_complete($intent->id);
-    $order->add_order_note(sprintf(__('Stripe payment completed (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
-    $order->set_transaction_id($intent->id);
-    $order->save();
-    error_log('Payment completed for order: ' . $order->get_id());
-    
-} elseif ('processing' === $intent->status) {
-    // SEPA oder andere asynchrone Zahlungen in Bearbeitung
-    if ($is_sepa_payment) {
-        // SEPA: "processing" ist der normale Erfolgsstatus
-        $order->update_status('processing', sprintf(__('SEPA payment confirmed and processing (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
-        $order->set_transaction_id($intent->id);
-        $order->add_order_note(__('SEPA payment successfully initiated. The payment is being processed and will be completed automatically.', 'yprint-plugin'));
-        $order->save();
-        error_log('SEPA payment successfully initiated for order: ' . $order->get_id());
-        
-        // WICHTIG: Als Erfolg zurückgeben für Frontend mit korrekter Redirect URL
-        $confirmation_url = add_query_arg(array(
-            'step' => 'confirmation',
-            'order_id' => $order->get_id()
-        ), get_permalink());
-        
-        // Erstelle order_data wie bei Express Payments für Konsistenz
-        $order_data = array(
-            'order_id' => $order->get_id(),
-            'payment_method_id' => $payment_method['id'],
-            'payment_intent_id' => $intent->id,
-            'amount' => $order->get_total(),
-            'currency' => get_woocommerce_currency(),
-            'customer_details' => array(
-                'name' => $payment_method['billing_details']['name'] ?? $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-                'email' => $payment_method['billing_details']['email'] ?? $order->get_billing_email(),
-                'phone' => $payment_method['billing_details']['phone'] ?? $order->get_billing_phone(),
-            ),
-            'billing_address' => $order->get_billing_address(),
-            'shipping_address' => $order->get_shipping_address(),
-            // KRITISCH: payment_method_details für Frontend-Konsistenz
-            'payment_method_details' => array(
-                'type' => $payment_method['type'] ?? 'sepa_debit',
-                'sepa_debit' => array(
-                    'last4' => $payment_method['sepa_debit']['last4'] ?? '',
-                    'bank_code' => $payment_method['sepa_debit']['bank_code'] ?? '',
-                    'country' => $payment_method['sepa_debit']['country'] ?? 'DE'
-                )
-            )
-        );
-
-        wp_send_json_success(array(
-            'next_step' => 'confirmation',
-            'order_id' => $order->get_id(),
-            'payment_status' => 'processing',
-            'redirect_url' => $confirmation_url,
-            'message' => __('SEPA payment initiated successfully', 'yprint-plugin'),
-            'order_data' => $order_data,  // HINZUGEFÜGT: Gleiche Struktur wie Express Payments
-            'payment_method_id' => $payment_method['id'],
-            'payment_intent_id' => $intent->id
-        ));
-        return;
-    } else {
-        // Andere Payment-Arten: processing als pending behandeln
-        $order->update_status('pending-payment', sprintf(__('Payment is being processed (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
-        $order->set_transaction_id($intent->id);
-        $order->add_order_note(__('Payment initiated. Waiting for final confirmation.', 'yprint-plugin'));
-        $order->save();
-        error_log('Payment initiated and pending for order: ' . $order->get_id());
-        
-        // Erstelle order_data auch für Kreditkarten für Konsistenz
-        $confirmation_url = add_query_arg(array(
-            'step' => 'confirmation',
-            'order_id' => $order->get_id()
-        ), get_permalink());
-        
-        $order_data = array(
-            'order_id' => $order->get_id(),
-            'payment_method_id' => $payment_method['id'],
-            'payment_intent_id' => $intent->id,
-            'amount' => $order->get_total(),
-            'currency' => get_woocommerce_currency(),
-            'customer_details' => array(
-                'name' => $payment_method['billing_details']['name'] ?? $order->get_billing_first_name() . ' ' . $order->get_billing_last_name(),
-                'email' => $payment_method['billing_details']['email'] ?? $order->get_billing_email(),
-                'phone' => $payment_method['billing_details']['phone'] ?? $order->get_billing_phone(),
-            ),
-            'billing_address' => $payment_method['billing_details']['address'] ?? array(),
-            'shipping_address' => array(),
-            // KRITISCH: payment_method_details für Frontend-Konsistenz
-            'payment_method_details' => array(
-                'type' => $payment_method['type'] ?? 'card',
-                'card' => array(
-                    'last4' => $payment_method['card']['last4'] ?? '',
-                    'brand' => $payment_method['card']['brand'] ?? 'unknown',
-                    'exp_month' => $payment_method['card']['exp_month'] ?? '',
-                    'exp_year' => $payment_method['card']['exp_year'] ?? ''
-                )
-            )
-        );
-
-        wp_send_json_success(array(
-            'next_step' => 'confirmation',
-            'order_id' => $order->get_id(),
-            'payment_status' => 'pending',
-            'redirect_url' => $confirmation_url,
-            'message' => __('Card payment initiated successfully', 'yprint-plugin'),
-            'order_data' => $order_data,  // HINZUGEFÜGT: Gleiche Struktur wie Express Payments
-            'payment_method_id' => $payment_method['id'],
-            'payment_intent_id' => $intent->id
-        ));
-        return;
-    }
-    
-} elseif ('requires_action' === $intent->status || 'requires_source_action' === $intent->status) {
-    // 3D Secure oder weitere Aktionen erforderlich
-    error_log('Payment requires additional action: ' . $intent->status);
-    wp_send_json_error(array(
-        'message' => 'Additional authentication required',
-        'requires_action' => true,
-        'payment_intent_client_secret' => $intent->client_secret
-    ));
-    return;
-    
-} else {
-    // Alle anderen Status sind echte Fehler
-    error_log('Payment Intent failed with status: ' . $intent->status);
-    wp_send_json_error(array('message' => 'Payment Intent confirmation failed: ' . $intent->status));
-    return;
-}
-        
-        // Create order data for session storage
-        $order_data = array(
-            'order_id' => $order_id,
-            'payment_method_id' => $payment_method['id'],
-            'payment_intent_id' => $intent->id,
-            'amount' => $order->get_total(),
-            'currency' => get_woocommerce_currency(),
-            'customer_details' => array(
-                'name' => $payment_method['billing_details']['name'] ?? 'Test Kunde',
-                'email' => $customer_email,
-                'phone' => $payment_method['billing_details']['phone'] ?? '',
-            ),
-            'billing_address' => $payment_method['billing_details']['address'] ?? array(),
-            'shipping_address' => $shipping_address ?? array(),
-            'payment_method_details' => $payment_method, // HINZUGEFÜGT: Vollständige Payment Method Details mit Wallet-Info
-            'design_transfers_success' => $design_transfers_success,
-            'design_transfers_failed' => $design_transfers_failed,
-            'status' => 'completed',
-            'simple_order_id' => 'YP-' . $order_id
-        );
-        
-        // Store order data in session for confirmation page
-        WC()->session->set('yprint_pending_order', $order_data);
-        WC()->session->set('yprint_last_order_id', $order_id);
-        
-        // Clear cart after successful payment
-        if (WC()->cart && !WC()->cart->is_empty()) {
-            error_log('Clearing cart after successful checkout: ' . $order_id);
-            
-            try {
-                WC()->cart->empty_cart();
-                error_log('Cart successfully cleared for order: ' . $order_id);
-            } catch (Exception $e) {
-                error_log('ERROR clearing cart: ' . $e->getMessage());
-            }
-        }
-        
-        // Store simple order ID for display
-        $simple_order_id = 'YP-' . $order_id;
-        WC()->session->set('yprint_last_order_id', $simple_order_id);
-        $order_data['simple_order_id'] = $simple_order_id;
-        
-        error_log('Order creation successful for payment method: ' . $payment_method['id']);
-        
-        // ===== ROBUSTE ORCHESTRATOR INTEGRATION MIT CONSOLE DEBUGGING (CHECKOUT) =====
-// Für AJAX Responses müssen wir die Console Logs in die JSON Response einbetten
-$debug_logs = [];
-$debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Starting AddressOrchestrator integration for Order #' . $order_id;
-$debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Class exists check: ' . (class_exists('YPrint_Address_Orchestrator') ? 'TRUE' : 'FALSE');
-
-if (class_exists('YPrint_Address_Orchestrator')) {
-    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Getting orchestrator instance...';
-    
-    try {
-        $orchestrator = YPrint_Address_Orchestrator::get_instance();
-        $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Instance retrieved: ' . (is_object($orchestrator) ? 'SUCCESS' : 'FAILED');
-        
-        // Reload order for orchestrator processing
-        $final_order = wc_get_order($order_id);
-        $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Order reload: ' . ($final_order ? 'SUCCESS' : 'FAILED');
-        
-        if ($final_order && is_object($orchestrator)) {
-            // Extract payment method data if available
-            $payment_method_data = null;
-            if (isset($payment_method) && is_array($payment_method)) {
-                $payment_method_data = $payment_method;
-                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Payment method data available: ' . implode(', ', array_keys($payment_method));
-            } else {
-                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): No payment method data available';
-            }
-            
-            // Method existence check
-            if (method_exists($orchestrator, 'orchestrate_addresses_for_order')) {
-                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Method orchestrate_addresses_for_order EXISTS - calling now...';
-                
-                // CALL ORCHESTRATOR
-                $result = $orchestrator->orchestrate_addresses_for_order($final_order, $payment_method_data);
-                
-                $debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Orchestrator returned: ' . ($result ? 'SUCCESS' : 'FAILED');
-                
-                // Save order after orchestrator processing
-                $final_order->save();
-                $debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Order saved after orchestrator processing';
-                
-                $debug_logs[] = '🎯 AddressOrchestrator: Stripe Checkout processed for Order #' . $order_id;
-            } else {
-                $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): ERROR - Method orchestrate_addresses_for_order NOT FOUND';
-            }
-        } else {
-            $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): ERROR - Order reload or orchestrator instance failed';
-        }
         
     } catch (Exception $e) {
-        $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): EXCEPTION during orchestrator processing: ' . $e->getMessage();
+        error_log('Order creation failed: ' . $e->getMessage());
+        wp_send_json_error(array('message' => 'Order creation failed: ' . $e->getMessage()));
+        return;
     }
-} else {
-    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): AddressOrchestrator class NOT AVAILABLE';
-}
-
-$debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Integration attempt completed for Order #' . $order_id;
-
-// Für AJAX: Debug logs in die Success Response einbetten, damit sie im Frontend per Console ausgegeben werden können
+    
+    // ========================================
+    // 10. STRIPE PAYMENT PROCESSING
+    // ========================================
+    error_log('=== CREATING PAYMENT INTENT ===');
+    
+    $capture_payment = isset($_POST['capture_payment']) ? wc_string_to_bool($_POST['capture_payment']) : true;
+    $save_payment_method = isset($_POST['save_payment_method']) ? wc_string_to_bool($_POST['save_payment_method']) : false;
+    $is_sepa_payment = isset($payment_method['type']) && $payment_method['type'] === 'sepa_debit';
+    
+    // Prepare payment intent data
+    $payment_method_types = $is_sepa_payment ? ['sepa_debit'] : ['card'];
+    
+    $intent_data = array(
+        'amount' => YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()),
+        'currency' => strtolower($order->get_currency()),
+        'payment_method_types' => $payment_method_types,
+        'payment_method' => $payment_method['id'],
+        'confirmation_method' => 'automatic',
+        'confirm' => true,
+        'capture_method' => 'automatic',
+        'description' => sprintf('YPrint Order #%s - %s', $order->get_order_number(), get_bloginfo('name')),
+        'metadata' => array(
+            'order_id' => (string) $order->get_id(),
+            'order_number' => $order->get_order_number(),
+            'site_url' => get_site_url(),
+            'customer_email' => $order->get_billing_email(),
+            'payment_method_type' => $payment_method['type'] ?? 'unknown',
+        ),
+        'receipt_email' => $order->get_billing_email(),
+        'return_url' => home_url('/checkout/?step=confirmation&order_id=' . $order->get_id())
+    );
+    
+    // Add SEPA mandate data if needed
+    if ($is_sepa_payment) {
+        $intent_data['mandate_data'] = array(
+            'customer_acceptance' => array(
+                'type' => 'online',
+                'online' => array(
+                    'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
+                    'user_agent' => $_SERVER['HTTP_USER_AGENT'] ?? 'YPrint Checkout'
+                )
+            )
+        );
+        error_log('SEPA mandate data added');
+    }
+    
+    // Debug validation
+    error_log('Order ID: ' . $order->get_id());
+    error_log('Order Total: ' . $order->get_total());
+    error_log('Stripe Amount: ' . YPrint_Stripe_API::get_stripe_amount($order->get_total(), $order->get_currency()));
+    error_log('Payment Method ID: ' . $payment_method['id']);
+    
+    if (empty($order->get_billing_email())) {
+        error_log('WARNING: Billing email is empty');
+        $order->set_billing_email('noreply@yprint.de');
+        $order->save();
+    }
+    
+    if ($order->get_total() <= 0) {
+        error_log('ERROR: Order total is zero or negative: ' . $order->get_total());
+        wp_send_json_error(array('message' => 'Invalid order amount'));
+        return;
+    }
+    
+    error_log('Creating payment intent for amount: ' . $intent_data['amount']);
+    
+    // Create payment intent
+    $intent = YPrint_Stripe_API::request($intent_data, 'payment_intents');
+    
+    if (!empty($intent->error)) {
+        error_log('Payment Intent creation failed: ' . $intent->error->message);
+        $error_message = $intent->error->message;
+        if (strpos($error_message, 'card was declined') !== false) {
+            $error_message = 'Payment was declined. Please try with a different card or contact your bank.';
+        }
+        wp_send_json_error(array('message' => $error_message));
+        return;
+    }
+    
+    error_log('Payment Intent created: ' . $intent->id . ' with status: ' . $intent->status);
+    
+    // Handle payment status
+    if ('succeeded' === $intent->status) {
+        $order->payment_complete($intent->id);
+        $order->add_order_note(sprintf(__('Stripe payment completed (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+        $order->set_transaction_id($intent->id);
+        $order->save();
+        error_log('Payment completed for order: ' . $order->get_id());
         
-        // Return success with payment intent ID und Redirect URL
-        $confirmation_url = add_query_arg(array(
-            'step' => 'confirmation',
-            'order_id' => $order_id
-        ), get_permalink());
-        
-        wp_send_json_success(array(
-            'message' => 'Express order created and payment confirmed',
-            'payment_method_id' => $payment_method['id'],
-            'payment_intent_id' => $intent->id,
-            'order_id' => $order_id,
-            'order_data' => $order_data,
-            'next_step' => 'confirmation',
-            'redirect_url' => $confirmation_url,
-            'design_transfers' => array(
-                'success' => $design_transfers_success,
-                'failed' => $design_transfers_failed
-            ),
-            'test_mode' => YPrint_Stripe_API::is_testmode(),
-            'debug_logs' => $debug_logs
-        ));
-        
-        } catch (Exception $e) {
-            error_log('Payment processing error: ' . $e->getMessage());
-            wp_send_json_error(array(
-                'message' => 'Payment processing failed: ' . $e->getMessage()
-            ));
-        }}
-
-
-
-
-
-    /**
-     * Handler für Bestellstatus-Änderungen
-     *
-     * @param int $order_id
-     * @param string $old_status
-     * @param string $new_status
-     * @param WC_Order $order
-     */
-    public function handle_order_status_change($order_id, $old_status, $new_status, $order) {
-        error_log('=== YPRINT STATUS CHANGE DEBUG: Bestellstatus-Änderung erkannt ===');
-        error_log('YPrint STATUS DEBUG: Bestell-ID: ' . $order_id);
-        error_log('YPrint STATUS DEBUG: Alter Status: ' . $old_status);
-        error_log('YPrint STATUS DEBUG: Neuer Status: ' . $new_status);
-        error_log('YPrint STATUS DEBUG: Ist bezahlt: ' . ($order->is_paid() ? 'JA' : 'NEIN'));
-        
-        // Sende Bestätigungsmail bei Statuswechsel zu "processing" oder "completed"
-        $trigger_statuses = array('processing', 'completed');
-        $should_trigger = in_array($new_status, $trigger_statuses) && $order->is_paid();
-        
-        error_log('YPrint STATUS DEBUG: Status löst E-Mail aus: ' . ($should_trigger ? 'JA' : 'NEIN'));
-        error_log('YPrint STATUS DEBUG: Trigger-Status-Liste: ' . implode(', ', $trigger_statuses));
-        
-        if ($should_trigger) {
-            error_log('YPrint STATUS DEBUG: Trigger E-Mail-Versendung für Status-Änderung...');
-            $this->send_confirmation_email_if_needed($order);
+    } elseif ('processing' === $intent->status) {
+        if ($is_sepa_payment) {
+            $order->update_status('processing', sprintf(__('SEPA payment confirmed and processing (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+            $order->set_transaction_id($intent->id);
+            $order->add_order_note(__('SEPA payment successfully initiated.', 'yprint-plugin'));
+            error_log('SEPA payment successfully initiated for order: ' . $order->get_id());
         } else {
-            error_log('YPrint STATUS DEBUG: E-Mail-Versendung NICHT ausgelöst für Status-Änderung');
+            $order->update_status('pending-payment', sprintf(__('Payment is being processed (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
+            $order->set_transaction_id($intent->id);
+            $order->add_order_note(__('Payment initiated. Waiting for final confirmation.', 'yprint-plugin'));
+            error_log('Payment initiated and pending for order: ' . $order->get_id());
         }
+        $order->save();
         
-        error_log('=== YPRINT STATUS CHANGE DEBUG: Handler beendet ===');
+    } elseif ('requires_action' === $intent->status || 'requires_source_action' === $intent->status) {
+        error_log('Payment requires additional action: ' . $intent->status);
+        wp_send_json_error(array(
+            'message' => 'Additional authentication required',
+            'requires_action' => true,
+            'payment_intent_client_secret' => $intent->client_secret
+        ));
+        return;
+        
+    } else {
+        error_log('Payment Intent failed with status: ' . $intent->status);
+        wp_send_json_error(array('message' => 'Payment Intent confirmation failed: ' . $intent->status));
+        return;
     }
-
-    /**
-     * Capture additional order details during checkout
-     *
-     * @param int $order_id The order ID
-     */
-    public static function capture_order_details($order_id) {
-        if (!$order_id) {
-            return;
-        }
-
-        $order = wc_get_order($order_id);
-        $checkout_data = WC()->session->get('yprint_checkout_data');
-
-        if (empty($checkout_data)) {
-            return;
-        }
-
-        // Store terms acceptance
-        if (isset($checkout_data['terms_accepted']) && $checkout_data['terms_accepted']) {
-            update_post_meta($order_id, '_terms_accepted', 'yes');
+    
+    // ========================================
+    // 11. ADDRESS ORCHESTRATION
+    // ========================================
+    $debug_logs = array();
+    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Starting AddressOrchestrator integration for Order #' . $order_id;
+    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): Class exists check: ' . (class_exists('YPrint_Address_Orchestrator') ? 'TRUE' : 'FALSE');
+    
+    if (class_exists('YPrint_Address_Orchestrator')) {
+        try {
+            $orchestrator = YPrint_Address_Orchestrator::get_instance();
+            $final_order = wc_get_order($order_id);
+            
+            if ($final_order && is_object($orchestrator)) {
+                if (method_exists($orchestrator, 'orchestrate_addresses_for_order')) {
+                    $result = $orchestrator->orchestrate_addresses_for_order($final_order, $payment_method);
+                    $final_order->save();
+                    $debug_logs[] = '🔍 POST-ORCHESTRATOR (CHECKOUT): Orchestrator returned: ' . ($result ? 'SUCCESS' : 'FAILED');
+                    error_log('AddressOrchestrator: Stripe Checkout processed for Order #' . $order_id);
+                } else {
+                    $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): ERROR - Method not found';
+                }
+            }
+        } catch (Exception $e) {
+            $debug_logs[] = '🔍 PRE-ORCHESTRATOR (CHECKOUT): EXCEPTION: ' . $e->getMessage();
         }
     }
+    
+    // ========================================
+    // 12. FINALIZATION & SUCCESS RESPONSE
+    // ========================================
+    $order_data = array(
+        'order_id' => $order_id,
+        'payment_method_id' => $payment_method['id'],
+        'payment_intent_id' => $intent->id,
+        'amount' => $order->get_total(),
+        'currency' => get_woocommerce_currency(),
+        'customer_details' => array(
+            'name' => $payment_method['billing_details']['name'] ?? 'Test Customer',
+            'email' => $customer_email,
+            'phone' => $payment_method['billing_details']['phone'] ?? '',
+        ),
+        'billing_address' => $payment_method['billing_details']['address'] ?? array(),
+        'shipping_address' => $shipping_address ?? array(),
+        'payment_method_details' => $payment_method,
+        'design_transfers_success' => $design_transfers_success,
+        'design_transfers_failed' => $design_transfers_failed,
+        'status' => 'completed',
+        'simple_order_id' => 'YP-' . $order_id
+    );
+    
+    // Store in session
+    WC()->session->set('yprint_pending_order', $order_data);
+    WC()->session->set('yprint_last_order_id', $order_id);
+    
+    $confirmation_url = add_query_arg(array(
+        'step' => 'confirmation',
+        'order_id' => $order_id
+    ), get_permalink());
+    
+    error_log('Order creation successful for payment method: ' . $payment_method['id']);
+    
+    wp_send_json_success(array(
+        'message' => 'Express order created and payment confirmed',
+        'payment_method_id' => $payment_method['id'],
+        'payment_intent_id' => $intent->id,
+        'order_id' => $order_id,
+        'order_data' => $order_data,
+        'next_step' => 'confirmation',
+        'redirect_url' => $confirmation_url,
+        'design_transfers' => array(
+            'success' => $design_transfers_success,
+            'failed' => $design_transfers_failed
+        ),
+        'test_mode' => YPrint_Stripe_API::is_testmode(),
+        'debug_logs' => $debug_logs
+    ));
 }
 
 /**
@@ -3169,309 +2650,4 @@ $order->set_payment_method_title($title);
         error_log('Exception Stack Trace: ' . $e->getTraceAsString());
         return false;
     }
-}
-
-/**
- * Zentrale Funktion für Design Data Transfer mit Print Provider E-Mail Kompatibilität
- *
- * @param WC_Order_Item_Product $order_item    The order item object.
- * @param array                 $cart_data     The cart item data. This can be either the full cart_item array or a $values array from normal checkout.
- * @param string                $cart_item_key The cart item key.
- * @return bool True if data was transferred, false otherwise.
- */
-if (!function_exists('yprint_complete_design_transfer')) {
-    function yprint_complete_design_transfer($order_item, $cart_data, $cart_item_key) {
-        // UNIVERSAL PARAMETER HANDLING für Express und Normal Checkout
-        $cart_item = $cart_data;
-
-        // Wenn $cart_data von Normal Checkout kommt (ist $values), extrahiere cart_item
-        // Ein $values-Array aus dem Normal-Checkout hat üblicherweise den 'data'-Schlüssel, aber nicht 'print_design' direkt.
-        if (!isset($cart_data['print_design']) && isset($cart_data['data'])) {
-            // Dies ist ein $values Array vom Normal Checkout, hole cart_item vom WC()->cart
-            $current_cart = WC()->cart->get_cart();
-            if (isset($current_cart[$cart_item_key])) {
-                $cart_item = $current_cart[$cart_item_key];
-                error_log('COMPLETE TRANSFER: Using cart item from WC()->cart for Normal Checkout');
-            } else {
-                error_log('COMPLETE TRANSFER: ERROR - Cannot find cart item for key: ' . $cart_item_key . ' in WC()->cart.');
-                return false;
-            }
-        }
-
-        if (!isset($cart_item['print_design']) || empty($cart_item['print_design'])) {
-            error_log('COMPLETE TRANSFER: No print_design found in cart item for key: ' . $cart_item_key);
-            return false;
-        }
-
-        $design_data = $cart_item['print_design'];
-        error_log('COMPLETE TRANSFER: Processing design data for cart key: ' . $cart_item_key);
-
-        // ---
-        // ## LEGACY FORMAT (für Kompatibilität)
-        // ---
-
-        $order_item->update_meta_data('print_design', $design_data);
-        $order_item->update_meta_data('_is_design_product', true);
-        $order_item->update_meta_data('_has_print_design', 'yes');
-        $order_item->update_meta_data('_cart_item_key', $cart_item_key);
-        $order_item->update_meta_data('_yprint_design_transferred', current_time('mysql'));
-
-        // ---
-        // ## PRINT PROVIDER E-MAIL FORMAT
-        // ---
-
-        // Basis Design-Daten
-        $order_item->update_meta_data('design_id', $design_data['design_id'] ?? '');
-        $order_item->update_meta_data('name', $design_data['name'] ?? '');
-        $order_item->update_meta_data('template_id', $design_data['template_id'] ?? '');
-        $order_item->update_meta_data('variation_id', $design_data['variation_id'] ?? '');
-        $order_item->update_meta_data('size_id', $design_data['size_id'] ?? '');
-        $order_item->update_meta_data('preview_url', $design_data['preview_url'] ?? '');
-
-        // Dimensionen
-        $order_item->update_meta_data('width_cm', $design_data['width_cm'] ?? $design_data['width'] ?? '25.4');
-        $order_item->update_meta_data('height_cm', $design_data['height_cm'] ?? $design_data['height'] ?? '30.2');
-
-        // ---
-        // ## INTELLIGENTE DESIGN IMAGE URL AUSWAHL MIT DATENBANKPRIORITÄT
-        // ---
-
-        $final_design_url = '';
-        $url_source = 'none';
-
-        // PRIORITÄT 1: Finale Design-URL aus der Datenbank
-        if (!empty($design_data['design_id'])) {
-            error_log('COMPLETE TRANSFER: Integrating database design data for ID: ' . $design_data['design_id']);
-
-            global $wpdb;
-            $design_id = intval($design_data['design_id']);
-
-            // Hole vollständige Design-Daten aus der Datenbank
-            // Nutze die korrekte Tabellenpräfix-Variable für WordPress
-            $db_design = $wpdb->get_row($wpdb->prepare(
-                "SELECT id, user_id, template_id, name, design_data, created_at, product_name, product_description
-                 FROM {$wpdb->prefix}octo_user_designs
-                 WHERE id = %d",
-                $design_id
-            ), ARRAY_A); // ARRAY_A gibt ein assoziatives Array zurück
-
-            if ($db_design) {
-                error_log('COMPLETE TRANSFER: Database design found, processing...');
-
-                // Parse JSON design_data
-                $parsed_design_data = json_decode($db_design['design_data'], true);
-
-                if (json_last_error() === JSON_ERROR_NONE && $parsed_design_data) {
-                    // Erweiterte Datenbank-Meta-Daten
-                    $order_item->update_meta_data('_db_design_template_id', $db_design['template_id']);
-                    $order_item->update_meta_data('_db_design_user_id', $db_design['user_id']);
-                    $order_item->update_meta_data('_db_design_created_at', $db_design['created_at']);
-                    $order_item->update_meta_data('_db_design_product_name', $db_design['product_name']);
-                    $order_item->update_meta_data('_db_design_product_description', $db_design['product_description']);
-
-                    // KRITISCH: Suche nach finaler Design-URL in der Datenbank
-                    // Versuche verschiedene JSON-Felder für finale Design-Datei
-                    if (!empty($parsed_design_data['final_design_url'])) {
-                        $final_design_url = $parsed_design_data['final_design_url'];
-                        $url_source = 'database_final_design_url';
-                    } elseif (!empty($parsed_design_data['print_ready_url'])) {
-                        $final_design_url = $parsed_design_data['print_ready_url'];
-                        $url_source = 'database_print_ready_url';
-                    } elseif (!empty($parsed_design_data['high_res_url'])) {
-                        $final_design_url = $parsed_design_data['high_res_url'];
-                        $url_source = 'database_high_res_url';
-                    } elseif (!empty($parsed_design_data['design_image_url'])) {
-                        $final_design_url = $parsed_design_data['design_image_url'];
-                        $url_source = 'database_design_image_url';
-                    } elseif (!empty($parsed_design_data['original_url'])) { // Zusätzlicher Fallback auf original_url aus der DB
-                        $final_design_url = $parsed_design_data['original_url'];
-                        $url_source = 'database_original_url';
-                    }
-
-                    error_log('COMPLETE TRANSFER: Database URL search result - Source: ' . $url_source . ', URL: ' . $final_design_url);
-
-                    // Vollständige JSON-Daten speichern
-                    $order_item->update_meta_data('_db_design_raw_json', $db_design['design_data']);
-                    $order_item->update_meta_data('_db_design_parsed_data', wp_json_encode($parsed_design_data));
-
-                    // Template Info
-                    if (isset($parsed_design_data['templateId'])) {
-                        $order_item->update_meta_data('_db_template_id', $parsed_design_data['templateId']);
-                    }
-                    if (isset($parsed_design_data['currentVariation'])) {
-                        $order_item->update_meta_data('_db_current_variation', $parsed_design_data['currentVariation']);
-                    }
-
-                    // Verarbeite variationImages für detaillierte View-Daten
-                    if (isset($parsed_design_data['variationImages'])) {
-                        foreach ($parsed_design_data['variationImages'] as $variation_key => $variation_images) {
-                            if (is_array($variation_images) && isset($variation_images['views'])) {
-                                foreach ($variation_images['views'] as $view_name => $view_data) {
-                                    if (isset($view_data['layers']) && is_array($view_data['layers'])) {
-                                        foreach ($view_data['layers'] as $layer_index => $layer) {
-                                            if (isset($layer['printAreas']) && is_array($layer['printAreas'])) {
-                                                foreach ($layer['printAreas'] as $area_index => $print_area) {
-                                                    $area_key = "variation_{$variation_key}_view_{$view_name}_layer_{$layer_index}_area_{$area_index}";
-                                                    $order_item->update_meta_data("print_area_{$area_key}", wp_json_encode($print_area));
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    error_log('COMPLETE TRANSFER: Merged database design data with cart data for display.');
-                    // Merge database data with cart data (database takes priority for relevant fields)
-                    // Beachten Sie, dass $design_data selbst überschrieben wird, um die Datenbankdaten zu priorisieren
-                    $design_data = array_merge($design_data, $parsed_design_data);
-                    error_log('COMPLETE TRANSFER: Database integration completed successfully');
-                } else {
-                    error_log('COMPLETE TRANSFER: Failed to parse JSON design data from database for ID: ' . $design_id);
-                }
-            } else {
-                error_log('COMPLETE TRANSFER: No database design found for ID: ' . $design_data['design_id']);
-            }
-        }
-
-        // PRIORITÄT 2-4: Fallback auf Cart-Daten wenn Datenbank keine URL liefert
-        if (empty($final_design_url)) {
-            // Priorität 2: Explizite design_image_url aus Cart-Daten
-            if (!empty($design_data['design_image_url'])) {
-                $final_design_url = $design_data['design_image_url'];
-                $url_source = 'cart_design_image_url';
-            }
-            // Priorität 3: original_url als Fallback
-            elseif (!empty($design_data['original_url'])) {
-                $final_design_url = $design_data['original_url'];
-                $url_source = 'cart_original_url';
-            }
-            // Priorität 4: preview_url als letzter Ausweg (mit Warnung)
-            elseif (!empty($design_data['preview_url'])) {
-                $final_design_url = $design_data['preview_url'];
-                $url_source = 'cart_preview_url_fallback';
-                error_log('COMPLETE TRANSFER WARNING: Using preview_url as design_image_url - may not be print-ready quality!');
-            }
-        }
-
-        // Design Image URL mit intelligenter Quelle setzen
-        $order_item->update_meta_data('design_image_url', $final_design_url);
-        $order_item->update_meta_data('_design_url_source', $url_source);
-
-        error_log('COMPLETE TRANSFER: Final design URL selected from source "' . $url_source . '": ' . $final_design_url);
-
-        // ---
-        // ## Product Images (JSON)
-        // ---
-
-        if (isset($design_data['product_images']) && !empty($design_data['product_images'])) {
-            $product_images_json = is_string($design_data['product_images']) ?
-                $design_data['product_images'] :
-                wp_json_encode($design_data['product_images']);
-            $order_item->update_meta_data('product_images', $product_images_json);
-        } else {
-            // Fallback Product Images
-            $product_images = array(
-                array(
-                    'url' => $design_data['preview_url'] ?? '',
-                    'view_name' => 'Front View',
-                    'view_id' => 'front',
-                    'width_cm' => $design_data['width_cm'] ?? $design_data['width'] ?? '25.4',
-                    'height_cm' => $design_data['height_cm'] ?? $design_data['height'] ?? '30.2'
-                )
-            );
-            $order_item->update_meta_data('product_images', wp_json_encode($product_images));
-        }
-
-        // ---
-        // ## Design Images (JSON)
-        // ---
-
-        if (isset($design_data['design_images']) && !empty($design_data['design_images'])) {
-            $design_images_json = is_string($design_data['design_images']) ?
-                $design_data['design_images'] :
-                wp_json_encode($design_data['design_images']);
-            $order_item->update_meta_data('design_images', $design_images_json);
-        } else {
-            // Fallback Design Images
-            $design_images = array(
-                array(
-                    'url' => $design_data['design_image_url'] ?? $design_data['original_url'] ?? '',
-                    'scaleX' => $design_data['scaleX'] ?? 1,
-                    'scaleY' => $design_data['scaleY'] ?? 1,
-                    'width_cm' => $design_data['width_cm'] ?? $design_data['width'] ?? '25.4',
-                    'height_cm' => $design_data['height_cm'] ?? $design_data['height'] ?? '30.2',
-                    'view_name' => 'Front Design'
-                )
-            );
-            $order_item->update_meta_data('design_images', wp_json_encode($design_images));
-        }
-
-        // ---
-        // ## MULTIPLE IMAGES FLAG
-        // ---
-
-        $has_multiple_images = false;
-        if (isset($design_data['product_images'])) {
-            $images = is_string($design_data['product_images']) ?
-                json_decode($design_data['product_images'], true) :
-                $design_data['product_images'];
-            $has_multiple_images = is_array($images) && count($images) > 1;
-        }
-        // Also consider the explicit 'has_multiple_images' flag if present
-        $has_multiple_images = $design_data['has_multiple_images'] ?? $has_multiple_images;
-        $order_item->update_meta_data('has_multiple_images', $has_multiple_images);
-
-
-        // ---
-        // ## DISPLAY META-DATEN FÜR ADMIN
-        // ---
-
-        $order_item->update_meta_data('_design_id', $design_data['design_id'] ?? '');
-        $order_item->update_meta_data('_design_name', $design_data['name'] ?? '');
-        $order_item->update_meta_data('_design_color', $design_data['variation_name'] ?? '');
-        $order_item->update_meta_data('_design_size', $design_data['size_name'] ?? '');
-        $order_item->update_meta_data('_design_preview_url', $design_data['preview_url'] ?? '');
-        $order_item->update_meta_data('_design_width_cm', $order_item->get_meta('width_cm'));
-        $order_item->update_meta_data('_design_height_cm', $order_item->get_meta('height_cm'));
-        $order_item->update_meta_data('_design_image_url', $order_item->get_meta('design_image_url'));
-        $order_item->update_meta_data('_design_has_multiple_images', $has_multiple_images);
-        $order_item->update_meta_data('_design_product_images', $order_item->get_meta('product_images'));
-        $order_item->update_meta_data('_design_images', $order_item->get_meta('design_images'));
-
-        // Finale Datenqualitätskontrolle
-        if ($url_source === 'cart_preview_url_fallback') {
-            error_log('COMPLETE TRANSFER QUALITY WARNING: Order will be created with preview URL instead of final design file!');
-        } elseif ($url_source === 'none') {
-            error_log('COMPLETE TRANSFER QUALITY ERROR: No design URL found at all!');
-        } else {
-            error_log('COMPLETE TRANSFER QUALITY OK: Using ' . $url_source . ' as design source');
-        }
-
-        // Checkout-Pfad-Logging für Debugging
-        $checkout_type = isset($cart_data['data']) ? 'NORMAL' : 'EXPRESS';
-        error_log("COMPLETE TRANSFER ({$checkout_type}): Function completed for cart key: " . $cart_item_key);
-
-        return true;
-    }
-}
-
-/**
- * Hook for Standard WooCommerce Checkout
- */
-if (!function_exists('yprint_tracked_design_transfer')) {
-    function yprint_tracked_design_transfer($order_item, $cart_item_key, $values, $order) {
-        // Log hook execution
-        if (function_exists('yprint_log_hook_execution')) {
-            yprint_log_hook_execution('checkout_create_order_line_item', 'Standard checkout design transfer for cart key: ' . $cart_item_key);
-        }
-        
-        // Use central transfer function
-        return yprint_complete_design_transfer($order_item, $values, $cart_item_key);
-    }
-}
-
-// Register the hook
-add_action('woocommerce_checkout_create_order_line_item', 'yprint_tracked_design_transfer', 10, 4);
-
-YPrint_Stripe_Checkout::init();
+}}
