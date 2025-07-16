@@ -214,10 +214,9 @@
             }
         }
         
-        // Neue Methode zum Speichern der Apple Pay Adresse
         saveApplePayAddressForCheckout(shippingAddress) {
             console.log('YPrint Express Checkout: Saving Apple Pay address for checkout:', shippingAddress);
-            
+        
             // Konvertiere Apple Pay Adresse zu unserem Format
             const addressData = {
                 country: shippingAddress.country || 'DE',
@@ -230,7 +229,7 @@
                 last_name: '',
                 company: shippingAddress.organization || ''
             };
-            
+        
             // Sende an Backend um in WooCommerce Session zu speichern
             fetch(yprint_express_payment_params.ajax_url, {
                 method: 'POST',
@@ -242,16 +241,18 @@
                     nonce: yprint_express_payment_params.nonce,
                     address_data: JSON.stringify(addressData)
                 })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      console.log('YPrint Express Checkout: Apple Pay address saved successfully');
-                  } else {
-                      console.error('YPrint Express Checkout: Failed to save Apple Pay address');
-                  }
-              }).catch(error => {
-                  console.error('YPrint Express Checkout: Error saving Apple Pay address:', error);
-              });
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('🔍 YPrint Express: Apple Pay address saved successfully:', data.message);
+                } else {
+                    console.error('🔍 YPrint Express: Failed to save Apple Pay address:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('🔍 YPrint Express: Error saving Apple Pay address:', error);
+            });
         }
 
         async handlePaymentMethod(event) {

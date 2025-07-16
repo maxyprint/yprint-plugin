@@ -1235,12 +1235,12 @@ public function ajax_update_express_shipping() {
     error_log('=== EXPRESS SHIPPING UPDATE DEBUG END ===');
 }
 
-public function ajax_save_apple_pay_address() {
+public function save_apple_pay_address() {
     check_ajax_referer('yprint_checkout_nonce', 'nonce');
-    
+
     $address_data_json = isset($_POST['address_data']) ? wp_unslash($_POST['address_data']) : '';
     $address_data = json_decode($address_data_json, true);
-    
+
     if ($address_data) {
         // Apple Pay address storage temporarily disabled - avoiding session conflicts
         // The address will be handled directly by Stripe
