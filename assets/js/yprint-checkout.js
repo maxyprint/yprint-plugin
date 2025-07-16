@@ -3977,10 +3977,28 @@ async function ensureStripeCardElementReady() {
             continue;
         }
         
-        // DETAILLIERTE DEBUG-INFOS
-        const cardContainer = document.getElementById('stripe-card-element');
-        const hasContainer = !!cardContainer;
-        const hasStripeElement = cardContainer ? !!cardContainer.querySelector('.StripeElement') : false;
+        // DETAILLIERTE DEBUG-INFOS mit robustem Container-Targeting
+let cardContainer = document.getElementById('stripe-card-element');
+
+// Fallback Container-Suche falls Standard-ID nicht existiert
+if (!cardContainer) {
+    console.log('DEBUG MOUNT: Primary container not found, searching for fallbacks...');
+    cardContainer = document.querySelector('[id*="card-element"]') || 
+                   document.querySelector('.stripe-card-container') ||
+                   document.querySelector('#payment-form [data-stripe="card"]');
+    
+    if (cardContainer) {
+        console.log('DEBUG MOUNT: Found fallback container:', cardContainer.id || cardContainer.className);
+    }
+}
+
+const hasContainer = !!cardContainer;
+const hasStripeElement = cardContainer ? !!(
+    cardContainer.querySelector('.StripeElement') ||
+    cardContainer.querySelector('.__PrivateStripeElement') ||
+    cardContainer.querySelector('iframe[name*="__privateStripeFrame"]') ||
+    cardContainer.querySelector('iframe[name*="privateStripeFrame"]')
+) : false;
         const hasCardElement = !!window.YPrintStripeCheckout.cardElement;
         
         console.log('DEBUG MOUNT: Container exists:', hasContainer);
@@ -4026,12 +4044,32 @@ if (cardContainer && !isAlreadyMounted) {
         const success = await window.YPrintStripeCheckout.initCardElement();
         console.log('DEBUG MOUNT: Mount attempt returned:', success);
         
-        // Nach Mount prüfen mit korrigierten Selektoren
-        const afterMountHasElement = !!(
-            cardContainer.querySelector('.StripeElement') ||
-            cardContainer.querySelector('.__PrivateStripeElement') ||
-            cardContainer.querySelector('iframe[name*="privateStripeFrame"]')
-        );
+        // Nach Mount prüfen mit erweiterten Selektoren und Timing
+await new Promise(resolve => setTimeout(resolve, 300)); // Warten bis Mount complete
+
+const afterMountHasElement = !!(
+    cardContainer.querySelector('.StripeElement') ||
+    cardContainer.querySelector('.__PrivateStripeElement') ||
+    cardContainer.querySelector('iframe[name*="__privateStripeFrame"]') ||
+    cardContainer.querySelector('iframe[name*="privateStripeFrame"]') ||
+    cardContainer.querySelector('iframe[src*="js.stripe.com"]') ||
+    (cardContainer.innerHTML.length > 50 && cardContainer.innerHTML.includes('iframe'))
+);
+
+// Zusätzliche Validierung über Stripe API
+let stripeValidation = false;
+if (window.YPrintStripeCheckout?.cardElement) {
+    try {
+        // Teste ob Element responsive ist
+        window.YPrintStripeCheckout.cardElement.focus();
+        stripeValidation = true;
+        console.log('DEBUG MOUNT: Stripe Element API validation successful');
+    } catch (error) {
+        console.warn('DEBUG MOUNT: Stripe Element API validation failed:', error);
+    }
+}
+
+const finalValidation = afterMountHasElement || stripeValidation;
         console.log('DEBUG MOUNT: After mount - has Stripe element:', afterMountHasElement);
         console.log('DEBUG MOUNT: After mount - container content length:', cardContainer.innerHTML.length);
         

@@ -977,34 +977,66 @@ function updatePaymentMethodDisplay() {
     }
 }
 
-    // Mehrfache Update-Versuche für robuste Anzeige
-function attemptPaymentMethodUpdate(attempt = 1, maxAttempts = 10) {
-    console.log(`🔄 Payment Method Update Versuch ${attempt}/${maxAttempts}`);
+    // ✅ VERBESSERTE Race Condition-freie Update-Logik
+let paymentUpdateInProgress = false;
+let paymentUpdateQueue = [];
+
+function attemptPaymentMethodUpdate(attempt = 1, maxAttempts = 5, source = 'unknown') {
+    // Race Condition Prevention - nur ein Update zur Zeit
+    if (paymentUpdateInProgress) {
+        console.log(`🔄 Payment Update bereits aktiv - ${source} wird zur Queue hinzugefügt`);
+        paymentUpdateQueue.push({ attempt, maxAttempts, source });
+        return;
+    }
     
-    // Prüfe ob alle erforderlichen Daten verfügbar sind
-    const hasData = window.confirmationPaymentData && 
-                   window.confirmationPaymentData.order_data && 
-                   window.confirmationPaymentData.order_data.payment_method_details;
+    paymentUpdateInProgress = true;
+    console.log(`🔄 Payment Method Update Versuch ${attempt}/${maxAttempts} (${source})`);
     
-    const hasLocalization = typeof yprint_checkout_l10n !== 'undefined' && 
-                           yprint_checkout_l10n.payment_methods;
+    // Erweiterte Daten-Prüfung mit mehr Flexibilität
+    const hasConfirmationData = !!(window.confirmationPaymentData);
+    const hasOrderData = !!(window.confirmationPaymentData?.order_data);
+    const hasPaymentDetails = !!(window.confirmationPaymentData?.order_data?.payment_method_details);
+    const hasLocalization = !!(typeof yprint_checkout_l10n !== 'undefined' && yprint_checkout_l10n.payment_methods);
     
-    if (hasData && hasLocalization) {
-        console.log('✅ Alle Daten verfügbar - führe Update aus');
-        updatePaymentMethodDisplay();
+    // Mindestanforderungen prüfen - weniger strikt
+    const hasMinimalData = hasConfirmationData && (hasOrderData || window.confirmationPaymentData.payment_method_id);
+    
+    if ((hasMinimalData && hasLocalization) || attempt >= maxAttempts) {
+        console.log('✅ Ausreichende Daten verfügbar oder Max-Attempts erreicht - führe Update aus');
+        console.log(`   - confirmationData: ${hasConfirmationData}, orderData: ${hasOrderData}, paymentDetails: ${hasPaymentDetails}, localization: ${hasLocalization}`);
+        
+        try {
+            updatePaymentMethodDisplay();
+        } catch (error) {
+            console.error('❌ Error in updatePaymentMethodDisplay:', error);
+        }
+        
+        // Update abgeschlossen - Queue verarbeiten
+        paymentUpdateInProgress = false;
+        processPaymentUpdateQueue();
         return;
     }
     
     if (attempt < maxAttempts) {
-        console.log(`⏳ Daten noch nicht vollständig verfügbar - Retry in 500ms`);
-        console.log(`   - confirmationPaymentData: ${!!window.confirmationPaymentData}`);
-        console.log(`   - payment_method_details: ${hasData}`);
-        console.log(`   - yprint_checkout_l10n: ${hasLocalization}`);
-        
-        setTimeout(() => attemptPaymentMethodUpdate(attempt + 1, maxAttempts), 500);
+        console.log(`⏳ Minimal-Daten noch nicht verfügbar - Retry in 300ms (reduzierte Wartezeit)`);
+        setTimeout(() => {
+            attemptPaymentMethodUpdate(attempt + 1, maxAttempts, source);
+        }, 300); // Reduzierte Wartezeit
     } else {
-        console.log('❌ Max attempts reached - using fallback display');
-        updatePaymentMethodDisplay(); // Fallback ausführen
+        console.log('❌ Max attempts reached - Prozess beendet');
+        paymentUpdateInProgress = false;
+        processPaymentUpdateQueue();
+    }
+}
+
+// Queue Processor für Racing Updates
+function processPaymentUpdateQueue() {
+    if (paymentUpdateQueue.length > 0) {
+        const next = paymentUpdateQueue.shift();
+        console.log(`🔄 Verarbeite nächstes Update aus Queue: ${next.source}`);
+        setTimeout(() => {
+            attemptPaymentMethodUpdate(next.attempt, next.maxAttempts, next.source);
+        }, 100);
     }
 }
 
@@ -1036,45 +1068,113 @@ if (typeof window.populateConfirmationWithPaymentData === 'undefined') {
     };
 }
 
-// Alternative: Überwache window.confirmationPaymentData direkt
+// ✅ OPTIMIERTE Watcher-Logik mit intelligenter Beendigung
 let confirmationDataWatcher = null;
+let watcherActive = false;
+
 function startConfirmationDataWatcher() {
-    if (confirmationDataWatcher) clearInterval(confirmationDataWatcher);
+    if (confirmationDataWatcher || watcherActive) {
+        console.log('🔄 Watcher bereits aktiv - ignoriere neuen Start');
+        return;
+    }
     
+    watcherActive = true;
     let attempts = 0;
-    const maxAttempts = 20; // 10 Sekunden max
+    const maxAttempts = 10; // Reduziert von 20 auf 10
     
     confirmationDataWatcher = setInterval(() => {
         attempts++;
         
-        if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
-            console.log('✅ confirmationPaymentData via Watcher erkannt - aktualisiere Payment Method Display');
+        // Erweiterte Bedingungen für Watcher-Erfolg
+        const hasData = window.confirmationPaymentData && (
+            window.confirmationPaymentData.order_data || 
+            window.confirmationPaymentData.payment_method_id
+        );
+        
+        if (hasData) {
+            console.log('✅ confirmationPaymentData via Watcher erkannt - stoppe Watcher und starte Update');
             clearInterval(confirmationDataWatcher);
-            updatePaymentMethodDisplay();
-        } else if (attempts >= maxAttempts) {
-            console.log('⚠️ confirmationPaymentData Watcher timeout nach', maxAttempts, 'Versuchen');
-            clearInterval(confirmationDataWatcher);
+            watcherActive = false;
+            confirmationDataWatcher = null;
+            
+            // Verwende die neue Race-Condition-freie Update-Funktion
+            attemptPaymentMethodUpdate(1, 3, 'watcher');
+            return;
         }
-    }, 500);
+        
+        if (attempts >= maxAttempts) {
+            console.log('⚠️ confirmationPaymentData Watcher timeout nach', maxAttempts, 'Versuchen - verwende Fallback');
+            clearInterval(confirmationDataWatcher);
+            watcherActive = false;
+            confirmationDataWatcher = null;
+            
+            // Fallback: Zeige Standard-Display
+            try {
+                updatePaymentMethodDisplay();
+            } catch (error) {
+                console.error('❌ Fallback updatePaymentMethodDisplay failed:', error);
+            }
+        }
+    }, 400); // Reduzierte Intervall-Zeit von 500ms auf 400ms
 }
 
 // Starte Watcher nach 1 Sekunde
 setTimeout(startConfirmationDataWatcher, 1000);
 
-// Event Listener for updates on step change
-document.addEventListener('yprint_step_changed', (e) => {
-    if (e.detail.step === 3) {
-        console.log('🔄 Step 3 detected - aktualisiere Payment Method Display');
-        setTimeout(updatePaymentMethodDisplay, 100);
-        setTimeout(debugPaymentMethodDetection, 200); // Re-run debug on step 3
-    }
-});
+// ✅ KOORDINIERTE Event Handler ohne Race Conditions
+let eventHandlersSetup = false;
 
-// Global Event für Payment Data Updates
-window.addEventListener('yprint_payment_data_updated', () => {
-    console.log('🔄 yprint_payment_data_updated Event empfangen');
-    updatePaymentMethodDisplay();
-});
+function setupEventHandlers() {
+    if (eventHandlersSetup) {
+        console.log('🔄 Event handlers bereits setup - ignoriere');
+        return;
+    }
+    eventHandlersSetup = true;
+    
+    // Step Change Handler
+    document.addEventListener('yprint_step_changed', (e) => {
+        if (e.detail.step === 3) {
+            console.log('🔄 Step 3 detected - starte koordinierte Updates');
+            
+            // Stoppe laufende Watcher um Konflikte zu vermeiden
+            if (confirmationDataWatcher) {
+                clearInterval(confirmationDataWatcher);
+                watcherActive = false;
+                confirmationDataWatcher = null;
+            }
+            
+            // Starte Update mit Delay für DOM-Ready
+            setTimeout(() => {
+                attemptPaymentMethodUpdate(1, 3, 'step_change');
+            }, 150);
+            
+            // Debug nach Update
+            setTimeout(debugPaymentMethodDetection, 300);
+        }
+    });
+
+    // Payment Data Update Handler
+    window.addEventListener('yprint_payment_data_updated', (e) => {
+        console.log('🔄 yprint_payment_data_updated Event empfangen');
+        
+        // Stoppe Watcher da neue Daten verfügbar sind
+        if (confirmationDataWatcher) {
+            clearInterval(confirmationDataWatcher);
+            watcherActive = false;
+            confirmationDataWatcher = null;
+        }
+        
+        // Sofortiges Update mit neuen Daten
+        setTimeout(() => {
+            attemptPaymentMethodUpdate(1, 2, 'data_updated');
+        }, 50);
+    });
+    
+    console.log('✅ Event handlers koordiniert setup');
+}
+
+// Setup ausführen
+setupEventHandlers();
 
     // Event Listener for updates on step change
     document.addEventListener('yprint_step_changed', (e) => {
