@@ -175,12 +175,21 @@
             console.log('  - Container initial visibility:', this.addressContainer.is(':visible'));
             console.log('  - Container CSS display:', this.addressContainer.css('display'));
             
-            // Check for required dependencies
-            if (typeof yprint_address_ajax === 'undefined') {
-                console.error('ERROR: yprint_address_ajax object not found! Check wp_localize_script.');
-                return;
-            }
-            console.log('AJAX Config:', yprint_address_ajax);
+            // Check for required dependencies mit Fallback
+if (typeof yprint_address_ajax === 'undefined') {
+    console.error('ERROR: yprint_address_ajax object not found! Check wp_localize_script.');
+    console.warn('Creating fallback yprint_address_ajax object');
+    window.yprint_address_ajax = {
+        ajax_url: window.ajaxurl || '/wp-admin/admin-ajax.php',
+        nonce: '', // Beachten Sie: Ein leerer Nonce kann zu Sicherheitsproblemen führen, wenn Ihr Backend Nonces erwartet.
+        messages: {
+            address_saved: 'Adresse gespeichert',
+            error_saving: 'Fehler beim Speichern',
+            loading_addresses: 'Lade Adressen...'
+        }
+    };
+}
+console.log('AJAX Config:', yprint_address_ajax);
             
             // Events binden
             this.bindEvents();

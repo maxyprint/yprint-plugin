@@ -202,10 +202,10 @@ function yprint_enqueue_scripts() {
     // Explicitly enqueue jQuery first
     wp_enqueue_script('jquery');
     
-    // Enqueue JS with proper dependencies
-    wp_enqueue_script('yprint-scripts', YPRINT_PLUGIN_URL . 'assets/js/yprint-scripts.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
-    wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
-    wp_enqueue_script('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+    // Enqueue JS with proper dependencies - KORREKTE REIHENFOLGE
+wp_enqueue_script('yprint-scripts', YPRINT_PLUGIN_URL . 'assets/js/yprint-scripts.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
+wp_enqueue_script('yprint-checkout', YPRINT_PLUGIN_URL . 'assets/js/yprint-checkout.js', array('jquery', 'yprint-scripts'), YPRINT_PLUGIN_VERSION, true);
+wp_enqueue_script('yprint-address-manager', YPRINT_PLUGIN_URL . 'assets/js/yprint-address-manager.js', array('jquery', 'yprint-checkout'), YPRINT_PLUGIN_VERSION, true);
     
     // Turnstile Frontend JavaScript
     wp_enqueue_script('yprint-turnstile', YPRINT_PLUGIN_URL . 'assets/js/yprint-turnstile.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
@@ -216,10 +216,11 @@ function yprint_enqueue_scripts() {
         'nonce' => wp_create_nonce('yprint-ajax-nonce')
     ));
     
-    // Add address-specific AJAX settings
+    // Add address-specific AJAX settings - NACH Script-Enqueue
 wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
     'ajax_url' => admin_url('admin-ajax.php'),
     'nonce' => wp_create_nonce('yprint_save_address_action'),
+    'checkout_nonce' => wp_create_nonce('yprint_checkout_nonce'),
     'messages' => array(
         'set_as_default' => __('Als Standard setzen', 'yprint-plugin'),
         'delete_address' => __('Adresse löschen', 'yprint-plugin'),
@@ -231,6 +232,12 @@ wp_localize_script('yprint-address-manager', 'yprint_address_ajax', array(
         'standard_address' => __('Standard-Adresse', 'yprint-plugin'),
         'loading_addresses' => __('Adressen werden geladen...', 'yprint-plugin')
     )
+));
+
+// ZUSÄTZLICH: Checkout-spezifische Localization
+wp_localize_script('yprint-checkout', 'yprint_checkout_ajax', array(
+    'ajax_url' => admin_url('admin-ajax.php'),
+    'nonce' => wp_create_nonce('yprint_checkout_nonce')
 ));
 
 // Add checkout-specific localization for payment method display

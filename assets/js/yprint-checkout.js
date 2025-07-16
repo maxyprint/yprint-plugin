@@ -36,6 +36,16 @@ window.onerror = function(msg, url, line, col, error) {
 jQuery(document).ready(function($) {
     'use strict';
     
+    // Dependency Check vor Initialisierung
+    if (typeof $ === 'undefined') {
+        console.error('CRITICAL: jQuery not loaded!');
+        return;
+    }
+    
+    console.log('✅ Checkout Script Dependencies Check:');
+    console.log('  - jQuery loaded:', typeof $ !== 'undefined');
+    console.log('  - yprint_address_ajax loaded:', typeof yprint_address_ajax !== 'undefined');
+    
     // Globale Variablen und Zustand für den Checkout-Prozess
 window.currentStep = 1; // Startet immer mit dem ersten Schritt als Standard
 let currentStep = window.currentStep; // Lokale Referenz für Kompatibilität
@@ -231,7 +241,9 @@ function isElementVisible(element) {
  * Validiert das Adressformular.
  * @returns {boolean} - True, wenn das Formular gültig ist, sonst false.
  */
-function validateAddressForm() {
+// Globale Funktion für validateAddressForm
+window.validateAddressForm = function() {
+    const addressForm = document.getElementById('address-form') || document.getElementById('new-address-form');
     if (!addressForm) return true; // Wenn kein Adressformular auf der Seite ist, überspringen.
     let isValid = true;
 
