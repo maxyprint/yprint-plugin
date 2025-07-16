@@ -575,13 +575,20 @@ public function add_order_meta($order_id, $posted_data) {
         );
         
         // If it's a product page request, add product to cart first
-        if ($is_product && $product_id) {
-            // First empty the cart to prevent wrong calculation
-            WC()->cart->empty_cart();
-            
-            // Add the product to the cart
-            WC()->cart->add_to_cart($product_id);
-        }
+if ($is_product && $product_id) {
+    // First empty the cart to prevent wrong calculation
+    WC()->cart->empty_cart();
+    
+    // Add the product to the cart
+    WC()->cart->add_to_cart($product_id);
+    
+    // Store cart context for AddressOrchestrator
+    WC()->session->set('yprint_express_cart_context', array(
+        'source' => 'product_page',
+        'product_id' => $product_id,
+        'timestamp' => current_time('mysql')
+    ));
+}
         
         $data = $this->get_shipping_options($shipping_address);
         
@@ -597,12 +604,22 @@ public function add_order_meta($order_id, $posted_data) {
     protected function get_shipping_options($shipping_address) {
         $data = array();
         
-        // Set shipping address for calculation only - avoid session conflicts
-WC()->customer->set_shipping_country($shipping_address['country']);
-WC()->customer->set_shipping_state($shipping_address['state']);
-WC()->customer->set_shipping_postcode($shipping_address['postcode']);
-WC()->customer->set_shipping_city($shipping_address['city']);
-// Note: Not setting billing to avoid conflicts with manual selection
+        // Store shipping address temporarily for calculation without affecting customer data
+$temp_customer_data = array(
+    'country' => $shipping_address['country'],
+    'state' => $shipping_address['state'],
+    'postcode' => $shipping_address['postcode'],
+    'city' => $shipping_address['city']
+);
+
+// Store in session for AddressOrchestrator pickup without touching WC()->customer
+WC()->session->set('yprint_express_shipping_calculation', $temp_customer_data);
+
+// Calculate shipping using temporary address without customer data pollution
+$packages = WC()->cart->get_shipping_packages();
+foreach($packages as $package_key => $package) {
+    $package['destination'] = $temp_customer_data;
+}
         
         // Calculate shipping
         WC()->customer->set_calculated_shipping(true);
@@ -1015,9 +1032,17 @@ $order->save();
 
 console.log('EXPRESS: Order saved with ' + order.get_items().length + ' items');
 
-// AddressOrchestrator integration removed - will be handled by correct Express Payment handler
-console.log('EXPRESS: Payment processing without AddressOrchestrator - integration moved to correct handler');
-
+// EXPRESS PAYMENT: Ensure AddressOrchestrator integration before payment completion
+if (class_exists('YPrint_Address_Orchestrator')) {
+    $orchestrator = YPrint_Address_Orchestrator::get_instance();
+    if (method_exists($orchestrator, 'orchestrate_addresses_for_order')) {
+        $orchestrator->orchestrate_addresses_for_order($order, array(
+            'source' => 'express_payment',
+            'payment_method_type' => $payment_type_label
+        ));
+        $order->save(); // Save after orchestrator processing
+    }
+}
 
 // Mark order as paid
 $order->payment_complete($payment_method_id);

@@ -276,8 +276,27 @@ $this->apply_session_address_priority($order, $payment_method_type);
             
             $order->add_order_note(sprintf(__('Stripe payment complete (Payment Intent ID: %s)', 'yprint-plugin'), $intent->id));
             
-            // Address coordination delegated to AddressOrchestrator
-error_log('🔍 YPRINT DEBUG: Express Payment Order #' . $order->get_id() . ' - address coordination delegated to AddressOrchestrator');
+            // EXPRESS PAYMENT: Apply Session Priority Logic before AddressOrchestrator
+$yprint_selected = WC()->session->get('yprint_selected_address');
+$express_address = WC()->session->get('yprint_express_payment_address');
+
+// Priority: Manual selection > Express Payment address
+if (!empty($yprint_selected)) {
+    error_log('🔍 YPRINT DEBUG: Manual address has priority over Express Payment');
+    // AddressOrchestrator will handle the priority logic
+} elseif (!empty($express_address)) {
+    error_log('🔍 YPRINT DEBUG: Using Express Payment address as authoritative');
+    // Store for AddressOrchestrator processing
+    WC()->session->set('yprint_selected_address', $express_address['address_data']);
+}
+
+// Address coordination by AddressOrchestrator with proper priority
+if (class_exists('YPrint_Address_Orchestrator')) {
+    $orchestrator = YPrint_Address_Orchestrator::get_instance();
+    $orchestrator->orchestrate_addresses_for_order($order, array(
+        'payment_method_type' => $payment_type ?? 'express_payment'
+    ));
+}
             
             $order->save();
             
