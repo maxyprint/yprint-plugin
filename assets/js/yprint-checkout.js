@@ -3934,8 +3934,30 @@ if (window.YPrintAddressManager) {
             }
             
             // Für Shipping-Kontext: Formular ausfüllen
-            populateCheckoutFields(addressData);
-            validateAddressForm(); // Button-Status aktualisieren
+            if (typeof populateCheckoutFields === 'function') {
+                populateCheckoutFields(addressData);
+            } else {
+                console.error('📨 [DEBUG-CHECKOUT] ❌ populateCheckoutFields nicht verfügbar - Fallback verwenden');
+                // Direktes Ausfüllen als Fallback
+                const streetField = document.getElementById('street');
+                const housenumberField = document.getElementById('housenumber');
+                const zipField = document.getElementById('zip');
+                const cityField = document.getElementById('city');
+                const countryField = document.getElementById('country');
+                const phoneField = document.getElementById('phone');
+                
+                if (streetField) streetField.value = addressData.address_1 || '';
+                if (housenumberField) housenumberField.value = addressData.address_2 || '';
+                if (zipField) zipField.value = addressData.postcode || '';
+                if (cityField) cityField.value = addressData.city || '';
+                if (countryField) countryField.value = addressData.country || 'DE';
+                if (phoneField) phoneField.value = addressData.phone || '';
+            }
+            
+            // Validierung sicher ausführen
+            if (typeof validateAddressForm === 'function') {
+                validateAddressForm();
+            }
             
             // Session State NACH populateCheckoutFields (nach 100ms)
             setTimeout(() => {
