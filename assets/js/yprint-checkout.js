@@ -1319,11 +1319,7 @@ async function collectAddressData() {
 async function collectSessionAddressData() {
     console.log('🔍 Starte EINFACHE Session-Datensammlung');
 
-    // DIREKTE NUTZUNG des bestehenden Address Manager AJAX-Calls
-    // Der Address Manager ruft bereits yprint_debug_session_state auf!
-
     return new Promise((resolve, reject) => {
-        // Nutze den bereits vorhandenen Address Manager Session Call
         if (typeof yprint_address_ajax !== 'undefined') {
             jQuery.ajax({
                 url: yprint_address_ajax.ajax_url,
@@ -1334,46 +1330,56 @@ async function collectSessionAddressData() {
                 },
                 success: function(response) {
                     console.log('🔍 Direkte Session-Abfrage erfolgreich:', response);
-
-                    if (response.success && response.data) {
-                        // Session-Daten direkt in formData übertragen
-                        if (response.data.selected_address) {
-                            const addr = response.data.selected_address;
-                            formData.shipping = {
-                                first_name: addr.first_name || '',
-                                last_name: addr.last_name || '',
-                                street: addr.address_1 || '',
-                                housenumber: addr.address_2 || '',
-                                zip: addr.postcode || '',
-                                city: addr.city || '',
-                                country: addr.country || 'DE',
-                                phone: addr.phone || ''
-                            };
-                            console.log('✅ Shipping-Adresse direkt aus Session geladen:', formData.shipping);
+                    // === NEU: Ausführliche Debug-Ausgabe ===
+                    if (response.data) {
+                        console.log('🔍 [DEBUG] response.data:', response.data);
+                        console.log('🔍 [DEBUG] response.data KEYS:', Object.keys(response.data));
+                        for (const [key, value] of Object.entries(response.data)) {
+                            console.log(`🔍 [DEBUG] response.data[${key}]:`, value);
                         }
-
-                        // Billing-Adresse prüfen
-                        if (response.data.billing_different && response.data.billing_address) {
-                            const addr = response.data.billing_address;
-                            formData.billing = {
-                                first_name: addr.first_name || '',
-                                last_name: addr.last_name || '',
-                                street: addr.address_1 || '',
-                                housenumber: addr.address_2 || '',
-                                zip: addr.postcode || '',
-                                city: addr.city || '',
-                                country: addr.country || 'DE',
-                                phone: addr.phone || ''
-                            };
-                            formData.isBillingSameAsShipping = false;
-                            console.log('✅ Separate Billing-Adresse direkt aus Session geladen:', formData.billing);
-                        } else {
-                            // Billing = Shipping
-                            formData.billing = { ...formData.shipping };
-                            formData.isBillingSameAsShipping = true;
-                            console.log('✅ Billing = Shipping direkt aus Session');
-                        }
-
+                    }
+                    // === Extraktionslogik anpassen ===
+                    let foundShipping = false;
+                    let foundBilling = false;
+                    // Shipping-Adresse
+                    if (response.data.yprint_selected_address) {
+                        const addr = response.data.yprint_selected_address;
+                        formData.shipping = {
+                            first_name: addr.first_name || '',
+                            last_name: addr.last_name || '',
+                            street: addr.address_1 || '',
+                            housenumber: addr.address_2 || '',
+                            zip: addr.postcode || '',
+                            city: addr.city || '',
+                            country: addr.country || 'DE',
+                            phone: addr.phone || ''
+                        };
+                        foundShipping = true;
+                        console.log('✅ Shipping-Adresse aus yprint_selected_address:', formData.shipping);
+                    }
+                    // Billing-Adresse
+                    if (response.data.yprint_billing_address_different && response.data.yprint_billing_address) {
+                        const addr = response.data.yprint_billing_address;
+                        formData.billing = {
+                            first_name: addr.first_name || '',
+                            last_name: addr.last_name || '',
+                            street: addr.address_1 || '',
+                            housenumber: addr.address_2 || '',
+                            zip: addr.postcode || '',
+                            city: addr.city || '',
+                            country: addr.country || 'DE',
+                            phone: addr.phone || ''
+                        };
+                        formData.isBillingSameAsShipping = false;
+                        foundBilling = true;
+                        console.log('✅ Billing-Adresse aus yprint_billing_address:', formData.billing);
+                    } else if (foundShipping) {
+                        formData.billing = { ...formData.shipping };
+                        formData.isBillingSameAsShipping = true;
+                        foundBilling = true;
+                        console.log('✅ Billing = Shipping (aus Shipping übernommen)');
+                    }
+                    if (foundShipping || foundBilling) {
                         resolve();
                     } else {
                         console.log('⚠️ Session-Response leer oder fehlerhaft');
