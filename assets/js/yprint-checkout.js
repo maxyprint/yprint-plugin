@@ -3010,9 +3010,11 @@ async function createStripeCardPaymentMethod() {
     const stripe = window.YPrintStripeService.getStripe();
     console.log('Stripe instance:', stripe);
     
-    if (!stripe) {
-        console.error('DEBUG: Stripe instance not available from YPrintStripeService');
-        throw new Error('Stripe Service nicht verfügbar');
+    if (!stripe || typeof stripe.createPaymentMethod !== 'function') {
+        console.error('DEBUG: Stripe instance not available or incomplete from YPrintStripeService');
+        console.error('DEBUG: stripe object:', stripe);
+        console.error('DEBUG: stripe.createPaymentMethod type:', typeof stripe?.createPaymentMethod);
+        throw new Error('Stripe Service nicht verfügbar oder unvollständig');
     }
     
     if (!window.YPrintStripeCheckout.cardElement) {
