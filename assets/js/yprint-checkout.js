@@ -4041,3 +4041,53 @@ function updateConfirmationTotalsStatic() {
     }
     // Hier ggf. weitere Felder ergänzen (Zwischensumme, Versand, Rabatt, etc.)
 }
+
+// ... bestehender Code ...
+// Echte Implementierung für die Anzeige auf der Bestätigungsseite
+function updatePaymentMethodDisplay() {
+    // Zahlungsart
+    const paymentMethodEl = document.getElementById('payment-method');
+    let paymentText = 'Nicht gewählt';
+    if (formData && formData.payment && formData.payment.method) {
+        const method = formData.payment.method;
+        if (method.includes('stripe_card')) {
+            paymentText = '<i class="fas fa-credit-card mr-2"></i> Kreditkarte (Stripe)';
+        } else if (method.includes('stripe_sepa')) {
+            paymentText = '<i class="fas fa-university mr-2"></i> SEPA-Lastschrift (Stripe)';
+        } else if (method.includes('paypal')) {
+            paymentText = '<i class="fab fa-paypal mr-2"></i> PayPal';
+        } else if (method.includes('applepay')) {
+            paymentText = '<i class="fab fa-apple-pay mr-2"></i> Apple Pay';
+        } else {
+            paymentText = method;
+        }
+    }
+    if (paymentMethodEl) paymentMethodEl.innerHTML = paymentText;
+
+    // Lieferadresse
+    const shippingEl = document.getElementById('shipping-address');
+    if (shippingEl && formData && formData.shipping) {
+        const s = formData.shipping;
+        shippingEl.innerHTML = `
+            ${s.first_name || ''} ${s.last_name || ''}<br>
+            ${s.street || ''} ${s.housenumber || ''}<br>
+            ${s.zip || ''} ${s.city || ''}<br>
+            ${s.country || ''}
+            ${s.phone ? '<br>Tel: ' + s.phone : ''}
+        `;
+    }
+
+    // Rechnungsadresse
+    const billingEl = document.getElementById('billing-address');
+    if (billingEl && formData && formData.billing) {
+        const b = formData.billing;
+        billingEl.innerHTML = `
+            ${b.first_name || ''} ${b.last_name || ''}<br>
+            ${b.street || ''} ${b.housenumber || ''}<br>
+            ${b.zip || ''} ${b.city || ''}<br>
+            ${b.country || ''}
+            ${b.phone ? '<br>Tel: ' + b.phone : ''}
+        `;
+    }
+}
+// ... bestehender Code ...
