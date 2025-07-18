@@ -1393,6 +1393,40 @@ async function collectSessionAddressData() {
 }
 
 /**
+ * Sammelt Zahlungsdaten für die Confirmation
+ */
+function collectPaymentData() {
+    console.log('🔍 collectPaymentData: Sammle Payment-Informationen');
+    
+    // Payment Method aus verstecktem Input
+    const paymentMethodInput = document.getElementById('selected-payment-method');
+    if (paymentMethodInput && paymentMethodInput.value) {
+        formData.payment = formData.payment || {};
+        formData.payment.method = paymentMethodInput.value;
+        console.log('✅ Payment Method gefunden:', formData.payment.method);
+    }
+    
+    // Payment Method Display Name
+    const activePaymentOption = document.querySelector('.payment-option.active');
+    if (activePaymentOption) {
+        const displayName = activePaymentOption.querySelector('.payment-label')?.textContent || 'Unbekannt';
+        formData.payment = formData.payment || {};
+        formData.payment.display_name = displayName;
+        console.log('✅ Payment Display Name:', formData.payment.display_name);
+    }
+    
+    // Express Payment Check
+    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+        formData.payment = formData.payment || {};
+        formData.payment.method = 'express_payment';
+        formData.payment.display_name = 'Express Payment';
+        console.log('✅ Express Payment erkannt');
+    }
+    
+    console.log('🔍 Gesammelte Payment-Daten:', formData.payment);
+}
+
+/**
  * Extrahiert Adressdaten aus einer DOM Address Card
  */
 function extractAddressFromDOMCard(cardElement) {
