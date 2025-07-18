@@ -1330,6 +1330,7 @@ async function collectSessionAddressData() {
                 },
                 success: function(response) {
                     console.log('🔍 Direkte Session-Abfrage erfolgreich:', response);
+                    // Zusätzliches Logging für Debugging, falls response.data existiert
                     if (response.data) {
                         console.log('🔍 [DEBUG] response.data:', response.data);
                         console.log('🔍 [DEBUG] response.data KEYS:', Object.keys(response.data));
@@ -1337,52 +1338,120 @@ async function collectSessionAddressData() {
                             console.log(`🔍 [DEBUG] response.data[${key}]:`, value);
                         }
                     }
-                    // Shipping-Adresse extrahieren
-                    let shippingAddress = {};
-                    if (response.data.yprint_selected_address) {
-                        const addr = response.data.yprint_selected_address;
-                        shippingAddress = {
-                            first_name: addr.first_name || '',
-                            last_name: addr.last_name || '',
-                            street: addr.address_1 || '',
-                            housenumber: addr.address_2 || '',
-                            zip: addr.postcode || '',
-                            city: addr.city || '',
-                            country: addr.country || 'DE',
-                            phone: addr.phone || ''
-                        };
-                        console.log('✅ Shipping-Adresse aus yprint_selected_address:', shippingAddress);
-                    }
-                    // Billing-Adresse extrahieren
-                    let billingAddress = {};
-                    if (response.data.yprint_billing_address_different && response.data.yprint_billing_address) {
-                        const addr = response.data.yprint_billing_address;
-                        billingAddress = {
-                            first_name: addr.first_name || '',
-                            last_name: addr.last_name || '',
-                            street: addr.address_1 || '',
-                            housenumber: addr.address_2 || '',
-                            zip: addr.postcode || '',
-                            city: addr.city || '',
-                            country: addr.country || 'DE',
-                            phone: addr.phone || ''
-                        };
-                        formData.isBillingSameAsShipping = false;
-                        console.log('✅ Billing-Adresse aus yprint_billing_address:', billingAddress);
-                    } else if (Object.keys(shippingAddress).length > 0) {
-                        billingAddress = { ...shippingAddress };
-                        formData.isBillingSameAsShipping = true;
-                        console.log('✅ Billing = Shipping (aus Shipping übernommen)');
-                    }
-                    // Zuweisung an das globale formData Objekt
-                    formData.shipping = shippingAddress;
-                    formData.billing = billingAddress;
-                    // ... Rest wie gehabt ...
-                    if (Object.keys(shippingAddress).length > 0 || Object.keys(billingAddress).length > 0) {
-                        resolve();
+
+                    if (response.success && response.data) {
+                        // WICHTIG: Prüfe ob globales formData verfügbar ist und initialisiere es defensiv
+                        if (typeof window.formData === 'undefined' || window.formData === null) {
+                            window.formData = {
+                                shipping: {},
+                                billing: {},
+                                payment: {},
+                                isBillingSameAsShipping: true
+                            };
+                            console.log('🔧 Globales formData initialisiert, da es nicht existierte.');
+                        } else {
+                            // Stelle sicher, dass die Unterobjekte existieren, falls formData schon existiert, aber unvollständig ist
+                            window.formData.shipping = window.formData.shipping || {};
+                            window.formData.billing = window.formData.billing || {};
+                            window.formData.payment = window.formData.payment || {};
+                            // isBillingSameAsShipping kann bei Initialisierung auch true sein, falls nicht explizit gesetzt
+                            if (typeof window.formData.isBillingSameAsShipping === 'undefined') {
+                                window.formData.isBillingSameAsShipping = true;
+                            }
+                            console.log('🔧 Vorhandenes globales formData geprüft und nötigenfalls ergänzt.');
+                        }
+
+
+                        // Shipping-Adresse extrahieren
+                        let shippingAddress = {};
+                        // Hier wurde .city hinzugefügt, falls yprint_selected_address nicht alle nötigen Daten hat
+                        if (response.data.yprint_selected_address) {
+                            const addr = response.data.yprint_selected_address;
+                            shippingAddress = {
+                                first_name: addr.first_name || '',
+                                last_name: addr.last_name || '',
+                                street: addr.address_1 || '',
+                                housenumber: addr.address_2 || '',
+                                zip: addr.postcode || '',
+                                city: addr.city || '',
+                                country: addr.country || 'DE',
+                                phone: addr.phone || ''
+                            };
+                            console.log('✅ Shipping-Adresse aus yprint_selected_address:', shippingAddress);
+
+                            // SOFORTIGE ZUWEISUNG mit sofortiger Verifikation
+                            window.formData.shipping = shippingAddress;
+                            console.log('🔥 ZUWEISUNG: window.formData.shipping =', window.formData.shipping);
+                        }
+
+                        // Billing-Adresse extrahieren
+                        let billingAddress = {};
+                        // Hier wurde .city hinzugefügt, falls yprint_billing_address nicht alle nötigen Daten hat
+                        if (response.data.yprint_billing_address_different && response.data.yprint_billing_address) {
+                            const addr = response.data.yprint_billing_address;
+                            billingAddress = {
+                                first_name: addr.first_name || '',
+                                last_name: addr.last_name || '',
+                                street: addr.address_1 || '',
+                                housenumber: addr.address_2 || '',
+                                zip: addr.postcode || '',
+                                city: addr.city || '',
+                                country: addr.country || 'DE',
+                                phone: addr.phone || ''
+                            };
+                            window.formData.isBillingSameAsShipping = false;
+                            console.log('✅ Billing-Adresse aus yprint_billing_address:', billingAddress);
+
+                            // SOFORTIGE ZUWEISUNG mit sofortiger Verifikation
+                            window.formData.billing = billingAddress;
+                            console.log('🔥 ZUWEISUNG: window.formData.billing =', window.formData.billing);
+                        } else {
+                            // Wenn keine separate Rechnungsadresse oder die "different"-Flag false ist,
+                            // dann ist die Rechnungsadresse gleich der Versandadresse.
+                            billingAddress = { ...shippingAddress }; // Kopiere die Versandadresse
+                            window.formData.isBillingSameAsShipping = true;
+                            window.formData.billing = billingAddress;
+                            console.log('✅ Billing = Shipping (aus Shipping übernommen)');
+                            console.log('🔥 ZUWEISUNG: window.formData.billing = shipping =', window.formData.billing);
+                        }
+
+                        // FINALE VERIFIKATION
+                        console.log('🎯 FINALER formData STATUS:');
+                        console.log('   - formData existiert:', typeof window.formData !== 'undefined');
+                        console.log('   - formData.shipping:', window.formData.shipping);
+                        console.log('   - formData.billing:', window.formData.billing);
+                        console.log('   - formData.isBillingSameAsShipping:', window.formData.isBillingSameAsShipping);
+
+                        // Globale Referenz sicherstellen, falls 'formData' als lokale Variable existiert und auf 'window.formData' zeigen soll
+                        // Dies ist nur notwendig, wenn formData auch als nicht-globale Variable an anderer Stelle verwendet wird
+                        // und die Referenz auf das globale Objekt aktualisiert werden soll.
+                        if (typeof formData !== 'undefined' && formData !== window.formData) {
+                            // Hier direkt die Eigenschaften des lokalen formData-Objekts aktualisieren
+                            formData.shipping = window.formData.shipping;
+                            formData.billing = window.formData.billing;
+                            formData.isBillingSameAsShipping = window.formData.isBillingSameAsShipping;
+                            console.log('🔧 Lokale formData Referenz synchronisiert mit window.formData.');
+                        } else if (typeof formData === 'undefined') {
+                            // Wenn 'formData' im lokalen Scope noch nicht definiert ist, weise 'window.formData' zu.
+                            // Dies stellt sicher, dass 'formData' (ohne 'window.') im aktuellen Scope auf das globale Objekt verweist.
+                            window.formData = window.formData; // Die Zuweisung ist hier redundant, aber als Platzhalter für Klarheit.
+                            // Wenn Sie möchten, dass `formData` (ohne `window.`) direkt auf das globale Objekt zeigt,
+                            // muss dies *außerhalb* der Funktion geschehen, oder formData muss als var/let/const ohne 'window.' definiert sein.
+                            // Innerhalb dieser Funktion ist `window.formData` der korrekte Weg, um auf das globale Objekt zuzugreifen.
+                        }
+
+
+                        // Promise nur auflösen, wenn tatsächlich Adressdaten gefunden wurden.
+                        if (Object.keys(window.formData.shipping || {}).length > 0 || Object.keys(window.formData.billing || {}).length > 0) {
+                            resolve();
+                        } else {
+                            console.log('⚠️ Session-Response war erfolgreich, aber keine Adressdaten extrahiert.');
+                            reject(new Error('Session-Daten extrahiert, aber keine vollständigen Adressdaten gefunden.'));
+                        }
+
                     } else {
-                        console.log('⚠️ Session-Response leer oder fehlerhaft');
-                        reject(new Error('Keine Session-Daten gefunden'));
+                        console.log('⚠️ Session-Response leer oder fehlerhaft (response.success ist false oder response.data fehlt)');
+                        reject(new Error('Keine Session-Daten gefunden oder fehlerhafte Antwort vom Server'));
                     }
                 },
                 error: function(xhr, status, error) {
