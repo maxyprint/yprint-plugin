@@ -4000,3 +4000,16 @@ function safePopulateConfirmationWithPaymentData(data) {
         console.warn('⚠️ populateConfirmationWithPaymentData function not available');
     }
 }
+
+// Stelle sicher, dass die Funktion im globalen Scope verfügbar ist
+function populateConfirmationWithPaymentData(data) {
+    // ... bestehende Logik ...
+}
+window.populateConfirmationWithPaymentData = populateConfirmationWithPaymentData;
+// ... bestehender Code ...
+// Ersetze alle direkten Aufrufe:
+// ALT:
+// populateConfirmationWithPaymentData(data);
+// NEU:
+safePopulateConfirmationWithPaymentData(data);
+// ... bestehender Code ...
