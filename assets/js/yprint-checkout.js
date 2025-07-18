@@ -4013,3 +4013,31 @@ window.populateConfirmationWithPaymentData = populateConfirmationWithPaymentData
 // NEU:
 safePopulateConfirmationWithPaymentData(data);
 // ... bestehender Code ...
+
+// Utility-Funktionen ganz am Anfang platzieren:
+
+// Zeigt eine Nachricht für den Nutzer an
+function showMessage(message, type = 'info') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `checkout-message ${type} fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50`;
+    messageDiv.innerHTML = `
+        <div class="flex items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} mr-2"></i>
+            ${message}
+        </div>
+    `;
+    document.body.appendChild(messageDiv);
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+
+// Aktualisiert die Preisanzeige auf der Bestätigungsseite
+function updateConfirmationTotalsStatic() {
+    // Beispiel: Setze die Gesamtsumme auf der Bestätigungsseite
+    const totalEl = document.getElementById('confirmation-total');
+    if (totalEl && typeof cartTotals !== 'undefined') {
+        totalEl.textContent = `€${(cartTotals.total || 0).toFixed(2)}`;
+    }
+    // Hier ggf. weitere Felder ergänzen (Zwischensumme, Versand, Rabatt, etc.)
+}
