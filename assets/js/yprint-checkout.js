@@ -1467,61 +1467,120 @@ async function collectSessionAddressData() {
 }
 
 /**
- * Sammelt Zahlungsdaten für die Confirmation
+ * Sammelt Zahlungsdaten für die Confirmation mit Apple Pay Detection
  */
 function collectPaymentData() {
-    console.log('🔍 collectPaymentData: Sammle Payment-Informationen');
+    console.log('🔍 collectPaymentData: Starte erweiterte Payment-Informationen Sammlung');
+    
+    // Initialisiere formData.payment
+    formData.payment = formData.payment || {};
+    
+    // PRIORITÄT 1: Express Payment Data auswerten (Apple Pay, Google Pay, etc.)
+    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+        console.log('🎯 Express Payment Daten gefunden - analysiere Payment Method Details');
+        
+        const orderData = window.confirmationPaymentData.order_data;
+        const paymentMethodDetails = orderData.payment_method_details;
+        
+        if (paymentMethodDetails) {
+            console.log('🔍 Payment Method Details:', paymentMethodDetails);
+            
+            // Apple Pay Detection
+            if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'apple_pay') {
+                formData.payment.method = 'apple_pay';
+                formData.payment.display_name = 'Apple Pay';
+                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
+                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
+                formData.payment.source = 'express_payment';
+                console.log('✅ Apple Pay erkannt:', formData.payment);
+                
+            // Google Pay Detection  
+            } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'google_pay') {
+                formData.payment.method = 'google_pay';
+                formData.payment.display_name = 'Google Pay';
+                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
+                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
+                formData.payment.source = 'express_payment';
+                console.log('✅ Google Pay erkannt:', formData.payment);
+                
+            // Link Detection
+            } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'link') {
+                formData.payment.method = 'stripe_link';
+                formData.payment.display_name = 'Link';
+                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
+                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
+                formData.payment.source = 'express_payment';
+                console.log('✅ Stripe Link erkannt:', formData.payment);
+                
+            // Express Payment ohne Wallet (normale Karte via Express)
+            } else if (paymentMethodDetails.type === 'card') {
+                formData.payment.method = 'express_card';
+                formData.payment.display_name = 'Express Zahlung';
+                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
+                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
+                formData.payment.source = 'express_payment';
+                console.log('✅ Express Card Payment erkannt:', formData.payment);
+                
+            // SEPA via Express
+            } else if (paymentMethodDetails.type === 'sepa_debit') {
+                formData.payment.method = 'express_sepa';
+                formData.payment.display_name = 'SEPA Lastschrift';
+                formData.payment.last4 = paymentMethodDetails.sepa_debit?.last4 || '';
+                formData.payment.source = 'express_payment';
+                console.log('✅ Express SEPA erkannt:', formData.payment);
+            }
+        }
+        
+        // Falls Express Payment erkannt wurde, beende hier
+        if (formData.payment.source === 'express_payment') {
+            console.log('🎯 Express Payment erfolgreich klassifiziert:', formData.payment);
+            return;
+        }
+    }
+    
+    // PRIORITÄT 2: Standard Payment Method Detection (Manual Checkout)
+    console.log('🔍 Fallback zu Standard Payment Method Detection');
     
     // Payment Method aus verstecktem Input
     const paymentMethodInput = document.getElementById('selected-payment-method');
     if (paymentMethodInput && paymentMethodInput.value) {
-        formData.payment = formData.payment || {};
-        formData.payment.method = paymentMethodInput.value;
-        console.log('✅ Payment Method gefunden:', formData.payment.method);
+        const methodValue = paymentMethodInput.value;
+        formData.payment.method = methodValue;
+        console.log('✅ Standard Payment Method gefunden:', methodValue);
+        
+        // Display Name Mapping für Standard Methods
+        switch (methodValue) {
+            case 'yprint_stripe_card':
+                formData.payment.display_name = 'Kreditkarte';
+                break;
+            case 'yprint_stripe_sepa':
+                formData.payment.display_name = 'SEPA Lastschrift';
+                break;
+            default:
+                formData.payment.display_name = 'Nicht gewählt';
+        }
+        formData.payment.source = 'manual_checkout';
     }
     
-    // Payment Method Display Name
+    // Payment Method Display Name aus DOM
     const activePaymentOption = document.querySelector('.payment-option.active');
     if (activePaymentOption) {
-        const displayName = activePaymentOption.querySelector('.payment-label')?.textContent || 'Unbekannt';
-        formData.payment = formData.payment || {};
-        formData.payment.display_name = displayName;
-        console.log('✅ Payment Display Name:', formData.payment.display_name);
-    }
-    
-    // Express Payment Check
-    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
-        formData.payment = formData.payment || {};
-        formData.payment.method = 'express_payment';
-        // NEU: Wallet-Type aus Stripe-Daten extrahieren
-        const walletType = window.confirmationPaymentData.order_data?.payment_method_details?.wallet?.type;
-        let displayName = 'Express Payment';
-        if (walletType) {
-            switch (walletType) {
-                case 'apple_pay':
-                    displayName = 'Apple Pay';
-                    break;
-                case 'google_pay':
-                    displayName = 'Google Pay';
-                    break;
-                case 'link':
-                    displayName = 'Link (Stripe)';
-                    break;
-                default:
-                    displayName = walletType.charAt(0).toUpperCase() + walletType.slice(1);
-            }
-        } else {
-            // Fallback: Prüfe card/SEPA
-            const pmType = window.confirmationPaymentData.order_data?.payment_method_details?.type;
-            if (pmType === 'card') displayName = 'Kreditkarte';
-            if (pmType === 'sepa_debit') displayName = 'SEPA Lastschrift';
+        const displayName = activePaymentOption.querySelector('.payment-label')?.textContent || formData.payment.display_name;
+        if (displayName && displayName !== 'Nicht gewählt') {
+            formData.payment.display_name = displayName;
+            console.log('✅ Payment Display Name aus DOM:', displayName);
         }
-        formData.payment.display_name = displayName;
-        console.log('✅ Express Payment erkannt:', displayName);
-        return;
     }
     
-    console.log('🔍 Gesammelte Payment-Daten:', formData.payment);
+    // FINALE VALIDIERUNG
+    if (!formData.payment.method) {
+        formData.payment.method = 'unknown';
+        formData.payment.display_name = 'Nicht gewählt';
+        formData.payment.source = 'fallback';
+        console.log('⚠️ Keine Payment Method erkannt - Fallback verwendet');
+    }
+    
+    console.log('🔍 FINALE Payment-Daten:', formData.payment);
 }
 
 /**
