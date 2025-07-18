@@ -2900,12 +2900,18 @@ window.validatePaymentMethod = async function() {
                     console.log('DEBUG: Testing payment method creation with billing details:', billingDetails);
                     
                     // Teste Payment Method Creation (ohne zu speichern)
-                    const stripe = window.YPrintStripeCheckout.stripe;
-                    const {paymentMethod, error} = await stripe.createPaymentMethod({
-                        type: 'card',
-                        card: window.YPrintStripeCheckout.cardElement,
-                        billing_details: billingDetails
-                    });
+const stripe = window.YPrintStripeService.getStripe();
+if (!stripe || typeof stripe.createPaymentMethod !== 'function') {
+    console.error('DEBUG: Stripe service not available for validation');
+    showMessage('Stripe Service nicht verfügbar für Validierung.', 'error');
+    return false;
+}
+
+const {paymentMethod, error} = await stripe.createPaymentMethod({
+    type: 'card',
+    card: window.YPrintStripeCheckout.cardElement,
+    billing_details: billingDetails
+});
                     
                     if (error) {
                         console.error('DEBUG: Card validation error:', error.message);
