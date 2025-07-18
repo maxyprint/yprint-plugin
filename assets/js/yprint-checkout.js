@@ -1286,6 +1286,13 @@ function shouldLoadAddresses() {
 // Die showStep-Funktion global verfügbar machen
 window.showStep = showStep;
 
+// Globale formData Variable definieren
+window.formData = window.formData || {
+    shipping: {},
+    billing: {},
+    payment: {}
+};
+
     /**
  * Sammelt die Adressdaten aus dem Formular.
  */
@@ -4107,8 +4114,21 @@ function updatePaymentMethodDisplay() {
 // ... bestehender Code ...
 // Debug-Log für formData.shipping und formData.billing vor dem Rendern der Bestätigungsseite
 function debugLogAddresses() {
-    console.log('DEBUG: formData.shipping', formData.shipping);
-    console.log('DEBUG: formData.billing', formData.billing);
+    // Sichere Prüfung ob formData existiert
+    if (typeof formData !== 'undefined' && formData) {
+        console.log('DEBUG: formData.shipping', formData.shipping);
+        console.log('DEBUG: formData.billing', formData.billing);
+    } else {
+        console.log('DEBUG: formData ist nicht verfügbar, sammle Daten direkt');
+        // Fallback: Sammle aktuelle Daten direkt
+        collectAddressData();
+        if (typeof formData !== 'undefined' && formData) {
+            console.log('DEBUG: formData.shipping (nach collectAddressData)', formData.shipping);
+            console.log('DEBUG: formData.billing (nach collectAddressData)', formData.billing);
+        } else {
+            console.log('DEBUG: Kann formData nicht laden, Confirmation wird mit Session-Daten arbeiten');
+        }
+    }
 }
 
 // Stelle sicher, dass collectAddressData() und Debug-Log vor Schritt 3 (Bestätigung) aufgerufen werden
