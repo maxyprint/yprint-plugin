@@ -1488,15 +1488,8 @@ error_log('🚀 AJAX DEBUG: Skipping WC Customer direct updates to avoid conflic
             error_log('🚀 AJAX DEBUG: *** SHIPPING BRANCH ENTERED ***');
             error_log('🚀 AJAX DEBUG: Final address_type verification: ' . $address_type);
                         
-            // SICHERHEITS-CHECK: Ist das wirklich ein shipping context?
-            $referer = $_SERVER['HTTP_REFERER'] ?? '';
-            if (strpos($referer, 'step=billing') !== false) {
-                error_log('🚨 CRITICAL ERROR: Billing context detected but shipping branch executed!');
-                error_log('🚨 CRITICAL ERROR: Referer: ' . $referer);
-                error_log('🚨 CRITICAL ERROR: address_type: ' . $address_type);
-                wp_send_json_error(array('message' => __('Kontext-Fehler erkannt: Rechnungsadresse kann nicht als Versandadresse gesetzt werden.', 'yprint-plugin')));
-                return;
-            }
+            // HTTP_REFERER-basierte Prüfung entfernt - Frontend address_type Parameter ist autoritativ
+            error_log('🚀 AJAX DEBUG: Vertraue explizitem address_type Parameter: ' . $address_type);
             
             // Normale Shipping-Logik nur wenn wirklich Shipping-Context
             WC()->session->set('yprint_selected_address', $address_data);
