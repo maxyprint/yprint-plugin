@@ -2840,66 +2840,50 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
 // Globale validatePaymentMethod mit robustem Error-Handling
 window.validatePaymentMethod = async function() {
     console.log('=== PAYMENT METHOD VALIDATION START ===');
-    
     try {
         // Schritt 1: Payment Method Selection prüfen
         const selectedMethodInput = document.querySelector('input[name="payment_method"]:checked');
         const selectedMethodHidden = document.getElementById('selected-payment-method');
-        
         console.log('DEBUG: selectedMethodInput:', selectedMethodInput);
         console.log('DEBUG: selectedMethodHidden:', selectedMethodHidden);
-        
         const selectedMethod = selectedMethodInput?.value || selectedMethodHidden?.value;
-        
         console.log('DEBUG: Final selected method:', selectedMethod);
-        
         if (!selectedMethod) {
             console.error('DEBUG: No payment method selected at all');
             showMessage('Bitte wählen Sie eine Zahlungsmethode aus.', 'error');
             return false;
         }
-        
         // Schritt 2: Stripe-spezifische Validierung
         if (selectedMethod.includes('stripe')) {
             console.log('DEBUG: Validating Stripe payment method');
-            
             // Prüfe Stripe-Initialisierung mit Fallback
             if (!window.YPrintStripeCheckout) {
                 console.error('DEBUG: YPrintStripeCheckout not available');
                 showMessage('Stripe-System nicht verfügbar. Bitte laden Sie die Seite neu.', 'error');
                 return false;
             }
-            
             if (!window.YPrintStripeCheckout.initialized) {
                 console.error('DEBUG: YPrintStripeCheckout not initialized');
                 showMessage('Zahlungssystem wird noch geladen. Bitte warten Sie einen Moment.', 'warning');
-                
-                // Kurze Wartezeit für Initialisierung
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                
                 if (!window.YPrintStripeCheckout.initialized) {
                     showMessage('Zahlungssystem konnte nicht geladen werden. Bitte laden Sie die Seite neu.', 'error');
                     return false;
                 }
             }
-            
             // Prüfe aktive Payment Method
             const currentPaymentType = document.querySelector('.slider-option.active')?.dataset.method;
             console.log('DEBUG: Current payment type:', currentPaymentType);
-            
             if (currentPaymentType === 'card') {
-                // Karten-Validierung
+                // Karten-Validierung (wie gehabt)
                 if (!window.YPrintStripeCheckout.cardElement) {
                     console.error('DEBUG: Card element not available');
                     showMessage('Karten-Eingabefeld nicht verfügbar. Bitte laden Sie die Seite neu.', 'error');
                     return false;
                 }
-                
                 try {
-                    // Teste Billing Details sammeln
                     const formData = window.formData || {};
                     const shippingData = formData.shipping || {};
-                    
                     const billingDetails = {
                         name: `${shippingData.first_name || ''} ${shippingData.last_name || ''}`.trim() || 'Test Name',
                         email: document.getElementById('email')?.value || 'test@example.com',
@@ -2911,28 +2895,21 @@ window.validatePaymentMethod = async function() {
                             country: shippingData.country || 'DE',
                         }
                     };
-                    
                     console.log('DEBUG: Testing payment method creation with billing details:', billingDetails);
-                    
-                    // Teste Payment Method Creation (ohne zu speichern)
-const stripe = window.YPrintStripeService.getStripe();
-if (!stripe || typeof stripe.createPaymentMethod !== 'function') {
-    console.error('DEBUG: Stripe service not available for validation');
-    showMessage('Stripe Service nicht verfügbar für Validierung.', 'error');
-    return false;
-}
-
-const {paymentMethod, error} = await stripe.createPaymentMethod({
-    type: 'card',
-    card: window.YPrintStripeCheckout.cardElement,
-    billing_details: billingDetails
-});
-                    
+                    const stripe = window.YPrintStripeService.getStripe();
+                    if (!stripe || typeof stripe.createPaymentMethod !== 'function') {
+                        console.error('DEBUG: Stripe service not available for validation');
+                        showMessage('Stripe Service nicht verfügbar für Validierung.', 'error');
+                        return false;
+                    }
+                    const {paymentMethod, error} = await stripe.createPaymentMethod({
+                        type: 'card',
+                        card: window.YPrintStripeCheckout.cardElement,
+                        billing_details: billingDetails
+                    });
                     if (error) {
                         console.error('DEBUG: Card validation error:', error.message);
                         showMessage(`Kartendaten ungültig: ${error.message}`, 'error');
-                        
-                        // Zeige Fehler im Stripe-Element
                         const errorElement = document.getElementById('stripe-card-errors');
                         if (errorElement) {
                             errorElement.textContent = error.message;
@@ -2940,40 +2917,38 @@ const {paymentMethod, error} = await stripe.createPaymentMethod({
                         }
                         return false;
                     }
-                    
                     console.log('DEBUG: Card validation successful:', paymentMethod.id);
-                    
-                    // Verstecke Fehlermeldungen bei Erfolg
                     const errorElement = document.getElementById('stripe-card-errors');
                     if (errorElement) {
                         errorElement.style.display = 'none';
                     }
-                    
                 } catch (cardError) {
                     console.error('DEBUG: Card validation exception:', cardError);
                     showMessage('Fehler bei der Kartenvalidierung. Bitte prüfen Sie Ihre Eingaben.', 'error');
                     return false;
                 }
-                
             } else if (currentPaymentType === 'sepa') {
-                // SEPA-Validierung
-                if (!window.YPrintStripeCheckout.sepaElement) {
-                    console.error('DEBUG: SEPA element not available');
-                    showMessage('SEPA-Eingabefeld nicht verfügbar. Bitte laden Sie die Seite neu.', 'error');
+                // SEPA-Validierung: Rufe die zentrale Validierungsfunktion auf!
+                if (typeof validateStripeSepaElement === 'function') {
+                    const sepaValid = await validateStripeSepaElement();
+                    if (!sepaValid) {
+                        console.error('DEBUG: SEPA validation failed (per validateStripeSepaElement)');
+                        return false;
+                    }
+                    console.log('DEBUG: SEPA validation passed (per validateStripeSepaElement)');
+                } else {
+                    console.error('DEBUG: validateStripeSepaElement function not found!');
+                    showMessage('SEPA-Validierung nicht verfügbar. Bitte laden Sie die Seite neu.', 'error');
                     return false;
                 }
-                
-                console.log('DEBUG: SEPA validation passed');
             } else {
                 console.error('DEBUG: Unknown Stripe payment type:', currentPaymentType);
                 showMessage('Unbekannte Zahlungsmethode ausgewählt.', 'error');
                 return false;
             }
         }
-        
         console.log('DEBUG: Payment method validation successful');
         return true;
-        
     } catch (error) {
         console.error('DEBUG: Validation exception:', error);
         showMessage('Fehler bei der Zahlungsvalidierung. Bitte versuchen Sie es erneut.', 'error');
