@@ -2810,6 +2810,24 @@ return new Promise((resolve, reject) => {
         if (typeof window.populateConfirmationWithPaymentData === 'function') {
             console.log('✅ Calling populateConfirmationWithPaymentData for normal card payment');
             window.populateConfirmationWithPaymentData(data);
+
+            // ORDER ID STORAGE für Confirmation Page
+            if (data.order_id) {
+                console.log('💾 Speichere Order ID für Confirmation:', data.order_id);
+                // 1. Session Storage
+                sessionStorage.setItem('yprint_current_order_id', data.order_id);
+                // 2. URL Parameter
+                const currentUrl = new URL(window.location);
+                currentUrl.searchParams.set('order_id', data.order_id);
+                window.history.replaceState({}, '', currentUrl);
+                // 3. Global Window Variable
+                window.yprintCurrentOrderId = data.order_id;
+                console.log('✅ Order ID gespeichert in:', {
+                    sessionStorage: sessionStorage.getItem('yprint_current_order_id'),
+                    url: currentUrl.searchParams.get('order_id'),
+                    window: window.yprintCurrentOrderId
+                });
+            }
         } else {
             console.warn('⚠️ populateConfirmationWithPaymentData function not available');
         }
@@ -4316,29 +4334,32 @@ function updateConfirmationTotalsStatic() {
 // ... bestehender Code ...
 // Echte Implementierung für die Anzeige auf der Bestätigungsseite
 function updatePaymentMethodDisplay() {
-    // Zahlungsart
+    console.log('✅ Calling updatePaymentMethodDisplay()');
+    console.log('🔍 formData.payment:', formData.payment);
+    
+    // Payment Method anzeigen
     const paymentMethodEl = document.getElementById('payment-method');
-    let paymentText = 'Nicht gewählt';
-    if (formData && formData.payment) {
-        if (formData.payment.display_name) {
-            paymentText = formData.payment.display_name;
-        } else if (formData.payment.method) {
-            const method = formData.payment.method;
-            if (method.includes('stripe_card')) {
-                paymentText = '<i class="fas fa-credit-card mr-2"></i> Kreditkarte (Stripe)';
-            } else if (method.includes('stripe_sepa')) {
-                paymentText = '<i class="fas fa-university mr-2"></i> SEPA-Lastschrift (Stripe)';
-            } else if (method.includes('paypal')) {
-                paymentText = '<i class="fab fa-paypal mr-2"></i> PayPal';
-            } else if (method.includes('applepay')) {
-                paymentText = '<i class="fab fa-apple-pay mr-2"></i> Apple Pay';
-            } else {
-                paymentText = method;
+    if (paymentMethodEl && formData && formData.payment) {
+        const payment = formData.payment;
+        let paymentDisplay = '';
+        
+        if (payment.display_name) {
+            paymentDisplay = payment.display_name;
+            
+            // Zusätzliche Details für Karten
+            if (payment.brand && payment.last4) {
+                paymentDisplay += ` (${payment.brand.toUpperCase()} ****${payment.last4})`;
             }
+        } else {
+            paymentDisplay = 'Nicht gewählt';
         }
+        
+        paymentMethodEl.innerHTML = paymentDisplay;
+        console.log('✅ Payment Method angezeigt:', paymentDisplay);
+    } else {
+        console.log('⚠️ Payment Method Element oder formData.payment nicht gefunden');
     }
-    if (paymentMethodEl) paymentMethodEl.innerHTML = paymentText;
-
+    
     // Lieferadresse
     const shippingEl = document.getElementById('shipping-address');
     if (shippingEl && formData && formData.shipping) {
