@@ -1313,268 +1313,111 @@ async function collectAddressData() {
         console.log('⚠️ Keine Adressdaten verfügbar - weder Session noch Formular');
     }
 }
-
 /**
  * Sammelt Adressdaten aus der Session (höhere Priorität)
  */
 async function collectSessionAddressData() {
-    console.log('🔍 Starte Session-Datensammlung');
-    
-    // ROBUSTE Session-Datensammlung mit mehreren Fallback-Strategien
-    let sessionDataLoaded = false;
-    
-    // STRATEGIE 1: YPrint Address Manager direkte Session-Abfrage (wenn verfügbar)
-    if (window.YPrintAddressManager && typeof window.YPrintAddressManager.getSessionData === 'function') {
-        try {
-            const sessionData = await window.YPrintAddressManager.getSessionData();
-            if (sessionData && sessionData.selected_address) {
-                console.log('✅ STRATEGIE 1: YPrint Address Manager Session-Daten gefunden');
-                applySessionDataToFormData(sessionData);
-                sessionDataLoaded = true;
-            }
-        } catch (error) {
-            console.log('⚠️ STRATEGIE 1 fehlgeschlagen:', error);
-        }
-    }
-    
-    // STRATEGIE 2: AJAX-Call mit korrekten Nonce-Parametern
-    if (!sessionDataLoaded && typeof yprint_address_ajax !== 'undefined') {
-        try {
-            console.log('🔍 STRATEGIE 2: AJAX-Session-Abfrage mit Nonce:', yprint_address_ajax.nonce);
-            
-            // Verwende jQuery für bessere Nonce-Handhabung
-            const response = await new Promise((resolve, reject) => {
-                jQuery.post(yprint_address_ajax.ajax_url, {
+    console.log('🔍 Starte EINFACHE Session-Datensammlung');
+
+    // DIREKTE NUTZUNG des bestehenden Address Manager AJAX-Calls
+    // Der Address Manager ruft bereits yprint_debug_session_state auf!
+
+    return new Promise((resolve, reject) => {
+        // Nutze den bereits vorhandenen Address Manager Session Call
+        if (typeof yprint_address_ajax !== 'undefined') {
+            jQuery.ajax({
+                url: yprint_address_ajax.ajax_url,
+                type: 'POST',
+                data: {
                     action: 'yprint_debug_session_state',
                     nonce: yprint_address_ajax.nonce
-                })
-                .done(resolve)
-                .fail(reject);
-            });
-            
-            if (response.success && response.data) {
-                console.log('✅ STRATEGIE 2: AJAX Session-Daten erfolgreich geladen');
-                applySessionDataToFormData(response.data);
-                sessionDataLoaded = true;
-            }
-        } catch (error) {
-            console.log('⚠️ STRATEGIE 2 fehlgeschlagen:', error);
-        }
-    }
-    
-    // STRATEGIE 3: Express Payment Daten verwenden (falls verfügbar)
-    if (!sessionDataLoaded && window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
-        try {
-            console.log('🔍 STRATEGIE 3: Express Payment Daten verwenden');
-            const orderData = window.confirmationPaymentData.order_data;
-            
-            if (orderData.shipping_address) {
-                console.log('✅ STRATEGIE 3: Express Payment Shipping-Daten gefunden');
-                applyExpressPaymentDataToFormData(orderData);
-                sessionDataLoaded = true;
-            }
-        } catch (error) {
-            console.log('⚠️ STRATEGIE 3 fehlgeschlagen:', error);
-        }
-    }
-    
-    // STRATEGIE 4: Fallback zu aktuellen Session Storage (Browser)
-    if (!sessionDataLoaded) {
-        try {
-            console.log('🔍 STRATEGIE 4: Browser Session Storage Fallback');
-            const storageData = sessionStorage.getItem('yprint_confirmation_order_data');
-            if (storageData) {
-                const parsedData = JSON.parse(storageData);
-                if (parsedData.shipping || parsedData.billing) {
-                    console.log('✅ STRATEGIE 4: Browser Session Storage Daten gefunden');
-                    applyStorageDataToFormData(parsedData);
-                    sessionDataLoaded = true;
+                },
+                success: function(response) {
+                    console.log('🔍 Direkte Session-Abfrage erfolgreich:', response);
+
+                    if (response.success && response.data) {
+                        // Session-Daten direkt in formData übertragen
+                        if (response.data.selected_address) {
+                            const addr = response.data.selected_address;
+                            formData.shipping = {
+                                first_name: addr.first_name || '',
+                                last_name: addr.last_name || '',
+                                street: addr.address_1 || '',
+                                housenumber: addr.address_2 || '',
+                                zip: addr.postcode || '',
+                                city: addr.city || '',
+                                country: addr.country || 'DE',
+                                phone: addr.phone || ''
+                            };
+                            console.log('✅ Shipping-Adresse direkt aus Session geladen:', formData.shipping);
+                        }
+
+                        // Billing-Adresse prüfen
+                        if (response.data.billing_different && response.data.billing_address) {
+                            const addr = response.data.billing_address;
+                            formData.billing = {
+                                first_name: addr.first_name || '',
+                                last_name: addr.last_name || '',
+                                street: addr.address_1 || '',
+                                housenumber: addr.address_2 || '',
+                                zip: addr.postcode || '',
+                                city: addr.city || '',
+                                country: addr.country || 'DE',
+                                phone: addr.phone || ''
+                            };
+                            formData.isBillingSameAsShipping = false;
+                            console.log('✅ Separate Billing-Adresse direkt aus Session geladen:', formData.billing);
+                        } else {
+                            // Billing = Shipping
+                            formData.billing = { ...formData.shipping };
+                            formData.isBillingSameAsShipping = true;
+                            console.log('✅ Billing = Shipping direkt aus Session');
+                        }
+
+                        resolve();
+                    } else {
+                        console.log('⚠️ Session-Response leer oder fehlerhaft');
+                        reject(new Error('Keine Session-Daten gefunden'));
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.log('❌ Session-AJAX fehlgeschlagen:', error);
+                    reject(new Error(`Session-AJAX Fehler: ${error}`));
                 }
-            }
-        } catch (error) {
-            console.log('⚠️ STRATEGIE 4 fehlgeschlagen:', error);
+            });
+        } else {
+            console.log('❌ yprint_address_ajax nicht verfügbar');
+            reject(new Error('Address AJAX nicht verfügbar'));
         }
-    }
-    
-    if (!sessionDataLoaded) {
-        console.log('❌ Alle Session-Strategien fehlgeschlagen');
-        throw new Error('Keine Session-Daten verfügbar');
-    }
-    
-    console.log('✅ Session-Daten erfolgreich in formData geladen');
+    });
 }
 
 /**
- * Wendet YPrint Session-Daten auf formData an
+ * Extrahiert Adressdaten aus einer DOM Address Card
  */
-function applySessionDataToFormData(sessionData) {
-    // Shipping-Adresse anwenden
-    if (sessionData.selected_address) {
-        const addr = sessionData.selected_address;
-        formData.shipping = {
-            first_name: addr.first_name || '',
-            last_name: addr.last_name || '',
-            street: addr.address_1 || '',
-            housenumber: addr.address_2 || '',
-            zip: addr.postcode || '',
-            city: addr.city || '',
-            country: addr.country || 'DE',
-            phone: addr.phone || ''
-        };
-        console.log('✅ Shipping-Adresse aus YPrint Session angewendet:', formData.shipping);
+function extractAddressFromDOMCard(cardElement) {
+    try {
+        const textContent = cardElement.textContent || '';
+        const lines = textContent.split('\n').map(line => line.trim()).filter(line => line);
+        
+        if (lines.length >= 3) {
+            return {
+                first_name: lines[0].split(' ')[0] || '',
+                last_name: lines[0].split(' ').slice(1).join(' ') || '',
+                street: lines[1] || '',
+                housenumber: '',
+                zip: lines[2].split(' ')[0] || '',
+                city: lines[2].split(' ').slice(1).join(' ') || '',
+                country: 'DE',
+                phone: ''
+            };
+        }
+    } catch (error) {
+        console.log('⚠️ DOM Card Extraktion fehlgeschlagen:', error);
     }
-    
-    // Billing-Adresse anwenden
-    if (sessionData.billing_different && sessionData.billing_address) {
-        const addr = sessionData.billing_address;
-        formData.billing = {
-            first_name: addr.first_name || '',
-            last_name: addr.last_name || '',
-            street: addr.address_1 || '',
-            housenumber: addr.address_2 || '',
-            zip: addr.postcode || '',
-            city: addr.city || '',
-            country: addr.country || 'DE',
-            phone: addr.phone || ''
-        };
-        formData.isBillingSameAsShipping = false;
-        console.log('✅ Separate Billing-Adresse aus YPrint Session angewendet:', formData.billing);
-    } else {
-        // Billing = Shipping
-        formData.billing = { ...formData.shipping };
-        formData.isBillingSameAsShipping = true;
-        console.log('✅ Billing = Shipping aus YPrint Session');
-    }
+    return null;
 }
 
-/**
- * Wendet Express Payment Daten auf formData an
- */
-function applyExpressPaymentDataToFormData(orderData) {
-    // Shipping von Express Payment
-    if (orderData.shipping_address) {
-        const addr = orderData.shipping_address;
-        formData.shipping = {
-            first_name: addr.recipient ? addr.recipient.split(' ')[0] : '',
-            last_name: addr.recipient ? addr.recipient.split(' ').slice(1).join(' ') : '',
-            street: addr.addressLine ? addr.addressLine[0] : '',
-            housenumber: addr.addressLine ? addr.addressLine[1] || '' : '',
-            zip: addr.postalCode || '',
-            city: addr.city || '',
-            country: addr.country || 'DE',
-            phone: addr.phone || ''
-        };
-        console.log('✅ Shipping-Adresse aus Express Payment angewendet:', formData.shipping);
-    }
-    
-    // Billing von Express Payment
-    if (orderData.billing_address) {
-        const addr = orderData.billing_address;
-        formData.billing = {
-            first_name: orderData.customer_details.name ? orderData.customer_details.name.split(' ')[0] : '',
-            last_name: orderData.customer_details.name ? orderData.customer_details.name.split(' ').slice(1).join(' ') : '',
-            street: addr.line1 || '',
-            housenumber: addr.line2 || '',
-            zip: addr.postal_code || '',
-            city: addr.city || '',
-            country: addr.country || 'DE',
-            phone: orderData.customer_details.phone || ''
-        };
-        formData.isBillingSameAsShipping = false;
-        console.log('✅ Billing-Adresse aus Express Payment angewendet:', formData.billing);
-    } else {
-        formData.billing = { ...formData.shipping };
-        formData.isBillingSameAsShipping = true;
-        console.log('✅ Billing = Shipping aus Express Payment');
-    }
-}
-
-/**
- * Wendet Browser Session Storage Daten auf formData an
- */
-function applyStorageDataToFormData(storageData) {
-    if (storageData.shipping) {
-        formData.shipping = { ...storageData.shipping };
-        console.log('✅ Shipping-Adresse aus Browser Storage angewendet:', formData.shipping);
-    }
-    
-    if (storageData.billing) {
-        formData.billing = { ...storageData.billing };
-        formData.isBillingSameAsShipping = false;
-        console.log('✅ Billing-Adresse aus Browser Storage angewendet:', formData.billing);
-    } else {
-        formData.billing = { ...formData.shipping };
-        formData.isBillingSameAsShipping = true;
-        console.log('✅ Billing = Shipping aus Browser Storage');
-    }
-}
-
-/**
- * Sammelt Adressdaten aus Formularfeldern (Fallback)
- */
-function collectFormAddressData() {
-    console.log('🔍 Sammle Formular-Daten als Fallback');
-    
-    if (!addressForm) return;
-
-    // Sammle Lieferadressdaten, einschließlich Vor- und Nachname
-    formData.shipping.first_name = document.getElementById('first_name')?.value || '';
-    formData.shipping.last_name = document.getElementById('last_name')?.value || '';
-    formData.shipping.street = document.getElementById('street')?.value || '';
-    formData.shipping.housenumber = document.getElementById('housenumber')?.value || '';
-    formData.shipping.zip = document.getElementById('zip')?.value || '';
-    formData.shipping.city = document.getElementById('city')?.value || '';
-    formData.shipping.country = document.getElementById('country')?.value || '';
-    formData.shipping.phone = document.getElementById('phone')?.value || '';
-
-    if (formData.isBillingSameAsShipping) {
-        formData.billing = { ...formData.shipping };
-    } else {
-        formData.billing.first_name = document.getElementById('billing_first_name')?.value || '';
-        formData.billing.last_name = document.getElementById('billing_last_name')?.value || '';
-        formData.billing.street = document.getElementById('billing_street')?.value || '';
-        formData.billing.housenumber = document.getElementById('billing_housenumber')?.value || '';
-        formData.billing.zip = document.getElementById('billing_zip')?.value || '';
-        formData.billing.city = document.getElementById('billing_city')?.value || '';
-        formData.billing.country = document.getElementById('billing_country')?.value || '';
-    }
-    if (YPrintAddressManager && YPrintAddressManager.shouldSaveNewAddress && YPrintAddressManager.shouldSaveNewAddress()) {
-            // Adresse speichern mit Kontext
-jQuery.ajax({
-    url: yprint_checkout_params.ajax_url,
-    type: 'POST',
-    data: {
-        action: 'yprint_save_address',
-        context: 'checkout', // Kontext hinzufügen
-        yprint_address_nonce: yprint_address_ajax.nonce,
-        security: yprint_checkout_params.nonce,
-        first_name: formData.shipping.first_name || '',
-        last_name: formData.shipping.last_name || '',
-        company: formData.shipping.company || '',
-        address_1: formData.shipping.street || '',
-        address_2: formData.shipping.housenumber || '',
-        postcode: formData.shipping.zip || '',
-        city: formData.shipping.city || '',
-        country: formData.shipping.country || 'DE'
-    }
-});
-        }
-    }
-
-    /**
-     * Sammelt die Zahlungsdaten.
-     */
-    function collectPaymentData() {
-        const selectedPaymentMethod = document.querySelector('input[name="payment_method"]:checked');
-        if (selectedPaymentMethod) {
-            formData.payment.method = selectedPaymentMethod.value;
-        }
-        const voucherInput = document.getElementById('voucher');
-        if (voucherInput) {
-            formData.voucher = voucherInput.value;
-        }
-        // Zahlungsdaten sind gesammelt und bereit für Verarbeitung
-    }
 
     /**
      * Speichert die Bestelldaten vor der Zahlungsverarbeitung
