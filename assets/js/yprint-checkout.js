@@ -2769,13 +2769,8 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
                     console.log('DEBUG: Processing Stripe payment');
                     
                     try {
-                        // Sichere processStripePayment() Ausführung
-                        let paymentResult;
-                        if (typeof processStripePayment === 'function') {
-                            paymentResult = await processStripePayment(selectedMethod);
-                        } else {
-                            throw new Error('Stripe Payment Processor nicht verfügbar');
-                        }
+                        // Stripe-Zahlung über zentrale Funktion
+                        let paymentResult = await processStripePaymentImmediately();
                         
                         if (paymentResult && paymentResult.success) {
                             console.log('DEBUG: Stripe payment successful, populating confirmation');
