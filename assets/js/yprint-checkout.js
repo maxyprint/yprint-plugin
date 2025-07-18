@@ -3277,10 +3277,12 @@ async function validateStripeCardElement() {
     
     try {
         const stripe = window.YPrintStripeService.getStripe();
-        if (!stripe) {
-            console.log('Stripe not available');
-            return false;
-        }
+if (!stripe || typeof stripe.createPaymentMethod !== 'function') {
+    console.log('Stripe not available or incomplete');
+    console.log('DEBUG: stripe object:', stripe);
+    console.log('DEBUG: createPaymentMethod type:', typeof stripe?.createPaymentMethod);
+    return false;
+}
         
         // Prüfe erst den Status des Card Elements
         const cardElementContainer = document.getElementById('stripe-card-element');
@@ -3358,10 +3360,12 @@ async function validateStripeSepaElement() {
     
     try {
         const stripe = window.YPrintStripeService.getStripe();
-        if (!stripe) {
-            console.log('Stripe not available');
-            return false;
-        }
+if (!stripe || typeof stripe.createPaymentMethod !== 'function') {
+    console.log('Stripe not available or incomplete');
+    console.log('DEBUG: stripe object:', stripe);
+    console.log('DEBUG: createPaymentMethod type:', typeof stripe?.createPaymentMethod);
+    return false;
+}
         
         // Prüfe ob SEPA Element gemountet ist
         const sepaElementContainer = document.getElementById('stripe-sepa-element');
@@ -3524,72 +3528,6 @@ console.log('DEBUG: Available global variables:', {
         
     };
     
-}
-
-
-
-async function validateStripeSepaElement() {
-    if (!window.YPrintStripeCheckout.sepaElement) {
-        console.log('SEPA element not available');
-        return false;
-    }
-    
-    try {
-        const stripe = window.YPrintStripeService.getStripe();
-        if (!stripe) {
-            console.log('Stripe not available');
-            return false;
-        }
-        
-        // Prüfe ob SEPA Element gemountet ist
-        const sepaElementContainer = document.getElementById('stripe-sepa-element');
-        if (!sepaElementContainer || (!sepaElementContainer.querySelector('.StripeElement') && !sepaElementContainer.querySelector('.__PrivateStripeElement'))) {
-            console.log('SEPA element not mounted or visible');
-            return false;
-        }
-        
-        console.log('DEBUG: SEPA element is mounted and available');
-        
-        // Nutze zentrale Kundendaten-Funktion
-        const customerData = await getCustomerDataForPayment();
-        console.log('DEBUG: Customer data retrieved:', customerData);
-        
-        // SEPA-Validierung: Name UND Email sind für rechtsgültige Mandate erforderlich
-if (!customerData.name || !customerData.email) {
-    console.log('SEPA validation failed: Missing customer data');
-    console.log('DEBUG: Name available:', !!customerData.name);
-    console.log('DEBUG: Email available:', !!customerData.email);
-    console.log('DEBUG: Data source:', customerData.source);
-    return false;
-}
-
-// KRITISCH: Prüfe SEPA-Mandat-Zustimmung (EU-Recht erforderlich)
-const sepaMandateConsent = document.getElementById('sepa-mandate-consent');
-if (!sepaMandateConsent || !sepaMandateConsent.checked) {
-    console.log('SEPA validation failed: Missing mandate consent');
-    showMessage('Bitte stimmen Sie dem SEPA-Lastschriftmandat zu.', 'error');
-    return false;
-}
-
-console.log('DEBUG: SEPA validation passed - complete customer data and mandate consent available');
-console.log('DEBUG: Customer name:', customerData.name);
-console.log('DEBUG: Customer email:', customerData.email);
-console.log('DEBUG: Mandate consent given:', sepaMandateConsent.checked);
-console.log('DEBUG: Data source:', customerData.source);
-
-return true;
-        
-        console.log('DEBUG: SEPA validation passed - complete customer data available');
-        console.log('DEBUG: Customer name:', customerData.name);
-        console.log('DEBUG: Customer email:', customerData.email);
-        console.log('DEBUG: Data source:', customerData.source);
-        
-        return true;
-        
-    } catch (e) {
-        console.log('SEPA validation exception:', e);
-        return false;
-    }
 }
 
     
