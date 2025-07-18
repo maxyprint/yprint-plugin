@@ -2094,14 +2094,7 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
                             
                             // Force Payment Method Display Update mit Error-Handling
                             setTimeout(() => {
-                                try {
-                                    if (typeof updatePaymentMethodDisplay === 'function') {
-                                        console.log('🔄 Force updating payment method display for normal card');
-                                        updatePaymentMethodDisplay();
-                                    }
-                                } catch (displayError) {
-                                    console.warn('DEBUG: updatePaymentMethodDisplay failed:', displayError);
-                                }
+                                safeUpdatePaymentMethodDisplay();
                             }, 100);
                             
                         } else {
@@ -3934,3 +3927,76 @@ function getFallbackPaymentMethodText(paymentMethodId) {
 //         });
 //     }
 // };
+
+// === STELLE 1: updatePaymentMethodDisplay Retry-Loop absichern ===
+let updatePaymentMethodDisplayTries = 0;
+const maxUpdatePaymentMethodDisplayTries = 5;
+function safeUpdatePaymentMethodDisplay() {
+    if (typeof updatePaymentMethodDisplay === 'function') {
+        console.log('✅ Calling updatePaymentMethodDisplay()');
+        updatePaymentMethodDisplay();
+    } else if (updatePaymentMethodDisplayTries < maxUpdatePaymentMethodDisplayTries) {
+        updatePaymentMethodDisplayTries++;
+        console.log(`🔄 updatePaymentMethodDisplay function loading - retry ${updatePaymentMethodDisplayTries}/${maxUpdatePaymentMethodDisplayTries}`);
+        setTimeout(safeUpdatePaymentMethodDisplay, 400);
+    } else {
+        showMessage('Zahlungsanzeige konnte nicht geladen werden. Bitte Seite neu laden.', 'error');
+        console.error('❌ updatePaymentMethodDisplay function nicht verfügbar nach maximalen Versuchen.');
+    }
+}
+
+// === STELLE 2: attemptPaymentMethodUpdate Retry-Loop absichern ===
+let attemptPaymentMethodUpdateTries = 0;
+const maxAttemptPaymentMethodUpdateTries = 5;
+function safeAttemptPaymentMethodUpdate() {
+    if (typeof attemptPaymentMethodUpdate === 'function') {
+        console.log('✅ Calling attemptPaymentMethodUpdate()');
+        setTimeout(() => {
+            try {
+                attemptPaymentMethodUpdate(1, 5);
+            } catch (error) {
+                console.error('❌ Error in attemptPaymentMethodUpdate:', error);
+            }
+        }, 50);
+    } else if (attemptPaymentMethodUpdateTries < maxAttemptPaymentMethodUpdateTries) {
+        attemptPaymentMethodUpdateTries++;
+        console.log(`🔄 attemptPaymentMethodUpdate function loading - retry ${attemptPaymentMethodUpdateTries}/${maxAttemptPaymentMethodUpdateTries}`);
+        setTimeout(safeAttemptPaymentMethodUpdate, 400);
+    } else {
+        showMessage('Zahlungsdaten konnten nicht aktualisiert werden. Bitte Seite neu laden.', 'error');
+        console.error('❌ attemptPaymentMethodUpdate function nicht verfügbar nach maximalen Versuchen.');
+    }
+}
+
+// === STELLE 3: Backup-Event-Dispatcher absichern ===
+let dispatchPaymentEventTries = 0;
+const maxDispatchPaymentEventTries = 3;
+function safeDispatchPaymentEvent(paymentData) {
+    if (dispatchPaymentEventTries < maxDispatchPaymentEventTries) {
+        dispatchPaymentEventTries++;
+        setTimeout(() => {
+            try {
+                console.log('🔄 Dispatching backup yprint_payment_data_updated event (Try ' + dispatchPaymentEventTries + '/' + maxDispatchPaymentEventTries + ')');
+                window.dispatchEvent(new CustomEvent('yprint_payment_data_updated', {
+                    detail: { source: 'populateConfirmationWithPaymentData', paymentData: paymentData }
+                }));
+            } catch (error) {
+                console.error('❌ Error in backup event dispatch:', error);
+            }
+        }, 100);
+    } else {
+        showMessage('Zahlungsdaten konnten nicht synchronisiert werden. Bitte Seite neu laden.', 'error');
+        console.error('❌ Backup-Event-Dispatcher hat maximale Versuche erreicht.');
+    }
+}
+
+// === STELLE 4: populateConfirmationWithPaymentData not found absichern ===
+function safePopulateConfirmationWithPaymentData(data) {
+    if (typeof window.populateConfirmationWithPaymentData === 'function') {
+        console.log('✅ Calling populateConfirmationWithPaymentData for normal card payment');
+        window.populateConfirmationWithPaymentData(data);
+    } else {
+        showMessage('Bestellbestätigung konnte nicht geladen werden. Bitte Seite neu laden.', 'error');
+        console.warn('⚠️ populateConfirmationWithPaymentData function not available');
+    }
+}
