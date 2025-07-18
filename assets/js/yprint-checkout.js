@@ -1168,7 +1168,7 @@ document.addEventListener('DOMContentLoaded', function () {
  * Zeigt den angegebenen Checkout-Schritt an und aktualisiert die Fortschrittsanzeige.
  * @param {number} stepNumber - Die Nummer des anzuzeigenden Schritts (1-basiert, z.B. 1 für Adresse, 2 für Zahlung).
  */
-function showStep(stepNumber) {
+async function showStep(stepNumber) {
     // Konstruiere die erwartete ID für den aktiven Schritt (z.B. "step-2")
     const targetStepId = `step-${stepNumber}`;
 
@@ -1263,10 +1263,10 @@ function shouldLoadAddresses() {
 
     // Sammle Daten wenn zum Zahlungsschritt gewechselt wird
     if (stepNumber === 2) {
-        collectAddressData();
+        await collectAddressData();
         updatePaymentStepSummary();
     } else if (stepNumber === 3) {
-        collectAddressData();
+        await collectAddressData();
         debugLogAddresses();
         collectPaymentData();
         debugLogAddresses();
@@ -1294,9 +1294,114 @@ window.formData = window.formData || {
 };
 
     /**
- * Sammelt die Adressdaten aus dem Formular.
+ * Sammelt die Adressdaten aus Session und Formular (Session hat Priorität).
  */
-function collectAddressData() {
+async function collectAddressData() {
+    console.log('🔍 collectAddressData: Starte Datensammlung');
+    
+    // PRIORITÄT 1: Session-Daten vom Address Manager abrufen
+    try {
+        await collectSessionAddressData();
+        console.log('✅ Session-Daten erfolgreich geladen');
+    } catch (error) {
+        console.log('⚠️ Session-Daten nicht verfügbar, nutze Formular-Fallback:', error);
+        collectFormAddressData();
+    }
+    
+    // Validierung der gesammelten Daten
+    if (!formData.shipping.city && !formData.billing.city) {
+        console.log('⚠️ Keine Adressdaten verfügbar - weder Session noch Formular');
+    }
+}
+
+/**
+ * Sammelt Adressdaten aus der Session (höhere Priorität)
+ */
+async function collectSessionAddressData() {
+    // 1. Shipping-Adresse aus Session abrufen
+    if (typeof yprint_address_ajax !== 'undefined') {
+        try {
+            const shippingResponse = await fetch(yprint_address_ajax.ajax_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'yprint_debug_session_state',
+                    nonce: yprint_address_ajax.nonce
+                })
+            });
+            
+            const shippingData = await shippingResponse.json();
+            if (shippingData.success && shippingData.data.selected_address) {
+                const addr = shippingData.data.selected_address;
+                formData.shipping = {
+                    first_name: addr.first_name || '',
+                    last_name: addr.last_name || '',
+                    street: addr.address_1 || '',
+                    housenumber: addr.address_2 || '',
+                    zip: addr.postcode || '',
+                    city: addr.city || '',
+                    country: addr.country || 'DE',
+                    phone: addr.phone || ''
+                };
+                console.log('✅ Shipping-Adresse aus Session geladen:', formData.shipping);
+            }
+        } catch (error) {
+            console.log('⚠️ Fehler beim Laden der Shipping-Session:', error);
+        }
+    }
+    
+    // 2. Billing-Adresse aus Session abrufen
+    if (typeof yprint_address_ajax !== 'undefined') {
+        try {
+            const billingResponse = await fetch(yprint_address_ajax.ajax_url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    action: 'yprint_get_billing_session',
+                    nonce: yprint_address_ajax.nonce
+                })
+            });
+            
+            const billingData = await billingResponse.json();
+            if (billingData.success && billingData.data.has_different_billing && billingData.data.billing_address) {
+                const addr = billingData.data.billing_address;
+                formData.billing = {
+                    first_name: addr.first_name || '',
+                    last_name: addr.last_name || '',
+                    street: addr.address_1 || '',
+                    housenumber: addr.address_2 || '',
+                    zip: addr.postcode || '',
+                    city: addr.city || '',
+                    country: addr.country || 'DE',
+                    phone: addr.phone || ''
+                };
+                formData.isBillingSameAsShipping = false;
+                console.log('✅ Separate Billing-Adresse aus Session geladen:', formData.billing);
+            } else {
+                // Billing = Shipping
+                formData.billing = { ...formData.shipping };
+                formData.isBillingSameAsShipping = true;
+                console.log('✅ Billing = Shipping aus Session');
+            }
+        } catch (error) {
+            console.log('⚠️ Fehler beim Laden der Billing-Session:', error);
+            // Fallback: Billing = Shipping
+            formData.billing = { ...formData.shipping };
+            formData.isBillingSameAsShipping = true;
+        }
+    }
+}
+
+/**
+ * Sammelt Adressdaten aus Formularfeldern (Fallback)
+ */
+function collectFormAddressData() {
+    console.log('🔍 Sammle Formular-Daten als Fallback');
+    
     if (!addressForm) return;
 
     // Sammle Lieferadressdaten, einschließlich Vor- und Nachname
@@ -1310,7 +1415,7 @@ function collectAddressData() {
     formData.shipping.phone = document.getElementById('phone')?.value || '';
 
     if (formData.isBillingSameAsShipping) {
-        formData.billing = { ...formData.shipping }; // Kopiert die Lieferadresse
+        formData.billing = { ...formData.shipping };
     } else {
         formData.billing.first_name = document.getElementById('billing_first_name')?.value || '';
         formData.billing.last_name = document.getElementById('billing_last_name')?.value || '';
@@ -4132,13 +4237,13 @@ function debugLogAddresses() {
 }
 
 // Stelle sicher, dass collectAddressData() und Debug-Log vor Schritt 3 (Bestätigung) aufgerufen werden
-function showStep(stepNumber) {
+async function showStep(stepNumber) {
     // ... bestehender Code ...
     if (stepNumber === 2) {
-        collectAddressData();
+        await collectAddressData();
         updatePaymentStepSummary();
     } else if (stepNumber === 3) {
-        collectAddressData();
+        await collectAddressData();
         debugLogAddresses();
         collectPaymentData();
         debugLogAddresses();
