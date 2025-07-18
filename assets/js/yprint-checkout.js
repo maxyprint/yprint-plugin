@@ -1266,8 +1266,20 @@ function shouldLoadAddresses() {
         collectAddressData();
         updatePaymentStepSummary();
     } else if (stepNumber === 3) {
+        collectAddressData();
+        debugLogAddresses();
         collectPaymentData();
+        debugLogAddresses();
+        updatePaymentMethodDisplay();
         populateConfirmation();
+    } else if (stepNumber === 4) {
+        populateThankYouPage();
+        progressSteps.forEach(pStep => pStep.classList.add('completed'));
+        const lastProgressStep = document.getElementById('progress-step-3');
+        if (lastProgressStep) {
+            lastProgressStep.classList.remove('active');
+            lastProgressStep.classList.add('completed');
+        }
     }
 }
 
@@ -4090,4 +4102,31 @@ function updatePaymentMethodDisplay() {
         `;
     }
 }
+// ... bestehender Code ...
+
+// ... bestehender Code ...
+// Debug-Log für formData.shipping und formData.billing vor dem Rendern der Bestätigungsseite
+function debugLogAddresses() {
+    console.log('DEBUG: formData.shipping', formData.shipping);
+    console.log('DEBUG: formData.billing', formData.billing);
+}
+
+// Stelle sicher, dass collectAddressData() und Debug-Log vor Schritt 3 (Bestätigung) aufgerufen werden
+function showStep(stepNumber) {
+    // ... bestehender Code ...
+    if (stepNumber === 2) {
+        collectAddressData();
+        updatePaymentStepSummary();
+    } else if (stepNumber === 3) {
+        collectAddressData();
+        debugLogAddresses();
+        collectPaymentData();
+        debugLogAddresses();
+        updatePaymentMethodDisplay();
+        populateConfirmation();
+    }
+    // ... bestehender Code ...
+}
+// ... bestehender Code ...
+// IDs im Template und im JS stimmen überein: #shipping-address, #billing-address, #payment-method
 // ... bestehender Code ...
