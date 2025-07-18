@@ -246,9 +246,9 @@ if (data.data && data.data.debug_logs && Array.isArray(data.data.debug_logs)) {
                         window.showStep(3); // Step 3 is confirmation
                         
                         // Populate confirmation with payment data
-                        if (typeof window.populateConfirmationWithPaymentData === 'function') {
-                            window.populateConfirmationWithPaymentData(data.data);
-                        }
+                        // if (typeof window.populateConfirmationWithPaymentData === 'function') {
+                        //     window.populateConfirmationWithPaymentData(data.data);
+                        // }
                     } else {
                         console.error('showStep function not available');
                     }
