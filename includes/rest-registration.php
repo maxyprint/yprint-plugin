@@ -1046,3 +1046,28 @@ function yprint_enqueue_registration_script() {
     ');
 }
 add_action('wp_enqueue_scripts', 'yprint_enqueue_registration_script');
+
+add_action('wp_ajax_yprint_check_confirmation_ready', 'yprint_check_confirmation_ready');
+add_action('wp_ajax_nopriv_yprint_check_confirmation_ready', 'yprint_check_confirmation_ready');
+function yprint_check_confirmation_ready() {
+    $order_id = intval($_POST['order_id'] ?? 0);
+    if (!$order_id) {
+        wp_send_json_error('Missing order_id');
+    }
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        wp_send_json_error('Order not found');
+    }
+    $shipping = $order->get_meta('_yprint_orchestrator_final_shipping', true);
+    $billing  = $order->get_meta('_yprint_orchestrator_final_billing', true);
+    $payment  = $order->get_meta('_yprint_stripe_payment_details', true);
+
+    $ready = !empty($shipping) && !empty($billing) && !empty($payment);
+
+    wp_send_json_success([
+        'ready' => $ready,
+        'shipping' => $shipping,
+        'billing' => $billing,
+        'payment' => $payment,
+    ]);
+}

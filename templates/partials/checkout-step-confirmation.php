@@ -517,7 +517,11 @@ function yprint_parse_stripe_payment_details($payment_details) {
 }
 ?>
 
-<div id="step-3" class="checkout-step">
+<div id="confirmation-loader" class="text-center py-10">
+    <i class="fas fa-spinner fa-spin text-2xl text-blue-600"></i><br>
+    <span>Bestellung wird finalisiert ...</span>
+</div>
+<div id="step-3" class="checkout-step" style="display:none">
     <div class="space-y-6 mt-6">
 
         <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
@@ -532,64 +536,18 @@ function yprint_parse_stripe_payment_details($payment_details) {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-                <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e( 'Lieferadresse', 'yprint-checkout' ); ?></h3>
-                <div class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
-                    <?php if ( ! empty( $customer_data['shipping']['address_1'] ) ) : ?>
-                        <?php echo esc_html( $customer_data['shipping']['first_name'] . ' ' . $customer_data['shipping']['last_name'] ); ?><br>
-                        <?php echo esc_html( $customer_data['shipping']['address_1'] ); ?>
-                        <?php if ( ! empty( $customer_data['shipping']['address_2'] ) ) : ?>
-                            <?php echo ' ' . esc_html( $customer_data['shipping']['address_2'] ); ?>
-                        <?php endif; ?><br>
-                        <?php echo esc_html( $customer_data['shipping']['postcode'] . ' ' . $customer_data['shipping']['city'] ); ?><br>
-                        <?php echo esc_html( WC()->countries->countries[ $customer_data['shipping']['country'] ] ?? $customer_data['shipping']['country'] ); ?>
-                    <?php else : ?>
-                        <span class="text-gray-500"><?php esc_html_e( 'Keine Lieferadresse angegeben.', 'yprint-checkout' ); ?></span>
-                    <?php endif; ?>
-                </div>
+                <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3">Lieferadresse</h3>
+                <div id="shipping-address" class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg"></div>
             </div>
             <div>
-                <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e( 'Rechnungsadresse', 'yprint-checkout' ); ?></h3>
-                <div class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg">
-                    <?php if ( ! empty( $customer_data['billing']['address_1'] ) ) : ?>
-                        <?php echo esc_html( $customer_data['billing']['first_name'] . ' ' . $customer_data['billing']['last_name'] ); ?><br>
-                        <?php echo esc_html( $customer_data['billing']['address_1'] ); ?>
-                        <?php if ( ! empty( $customer_data['billing']['address_2'] ) ) : ?>
-                            <?php echo ' ' . esc_html( $customer_data['billing']['address_2'] ); ?>
-                        <?php endif; ?><br>
-                        <?php echo esc_html( $customer_data['billing']['postcode'] . ' ' . $customer_data['billing']['city'] ); ?><br>
-                        <?php echo esc_html( WC()->countries->countries[ $customer_data['billing']['country'] ] ?? $customer_data['billing']['country'] ); ?>
-                        <?php if ( ! empty( $customer_data['email'] ) ) : ?>
-                            <br><?php echo esc_html( $customer_data['email'] ); ?>
-                        <?php endif; ?>
-                        <?php if ( ! empty( $customer_data['phone'] ) ) : ?>
-                            <br><?php echo esc_html( $customer_data['phone'] ); ?>
-                        <?php endif; ?>
-                    <?php else : ?>
-                        <span class="text-gray-500"><?php esc_html_e( 'Keine Rechnungsadresse angegeben.', 'yprint-checkout' ); ?></span>
-                    <?php endif; ?>
-                </div>
+                <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3">Rechnungsadresse</h3>
+                <div id="billing-address" class="text-yprint-text-secondary text-sm leading-relaxed bg-gray-50 p-4 rounded-lg"></div>
             </div>
         </div>
 
         <div>
-            <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3"><?php esc_html_e( 'Gewählte Zahlungsart', 'yprint-checkout' ); ?></h3>
-            <div class="text-yprint-text-secondary text-sm bg-gray-50 p-4 rounded-lg">
-            <?php
-// VEREINFACHTE ZAHLUNGSART-ANZEIGE: Session-Display-Namen nutzen
-$payment_method_display = WC()->session->get('yprint_checkout_payment_method_display');
-
-// Fallback falls Session-Display-Name nicht vorhanden
-if (empty($payment_method_display)) {
-    $chosen_payment_method = WC()->session->get('yprint_checkout_payment_method');
-    $payment_method_display = yprint_get_payment_method_display($chosen_payment_method);
-    error_log('YPrint: Using fallback payment method display for: ' . $chosen_payment_method);
-} else {
-    error_log('YPrint: Using session payment method display');
-}
-
-echo '<span id="dynamic-payment-method-display">' . wp_kses_post($payment_method_display) . '</span>';
-?>
-            </div>
+            <h3 class="text-lg font-semibold border-b border-yprint-medium-gray pb-2 mb-3">Gewählte Zahlungsart</h3>
+            <div id="payment-method" class="text-yprint-text-secondary text-sm bg-gray-50 p-4 rounded-lg"></div>
         </div>
         
         <script>

@@ -233,6 +233,18 @@ private function process_payment_intent_succeeded($payment_intent) {
     } else {
         error_log('YPrint Webhook: FEHLER - yprint_send_order_confirmation_email Funktion nicht gefunden');
     }
+
+    // Nach erfolgreichem Payment und Adress-Orchestrierung:
+    $payment_intent_id = $order->get_transaction_id();
+    if ($payment_intent_id && class_exists('\Stripe\Stripe')) {
+        $secret_key = YPrint_Stripe_API::get_secret_key();
+        \Stripe\Stripe::setApiKey($secret_key);
+        $intent = \Stripe\PaymentIntent::retrieve($payment_intent_id);
+        if ($intent && isset($intent->charges->data[0]->payment_method_details)) {
+            $order->update_meta_data('_yprint_stripe_payment_details', json_encode($intent->charges->data[0]->payment_method_details));
+            $order->save();
+        }
+    }
 }
 
     /**
