@@ -2742,29 +2742,28 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
                 
                 console.log('DEBUG: Payment validation passed, processing payment...');
                 
-                // Zahlungsverarbeitung mit robustem Error-Handling
-                // Robuste Payment Method Detection - berücksichtigt sowohl radio buttons als auch hidden inputs
-let selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
-
-// Fallback: Prüfe hidden input falls keine radio buttons checked
-if (!selectedMethod) {
-    const hiddenMethodInput = document.getElementById('selected-payment-method');
-    if (hiddenMethodInput) {
-        selectedMethod = hiddenMethodInput.value;
-        console.log('DEBUG: Using hidden input method:', selectedMethod);
-    }
-}
-
-// Weitere Fallback: Prüfe aktive UI-Elemente
-if (!selectedMethod) {
-    const activeSliderOption = document.querySelector('.slider-option.active');
-    if (activeSliderOption?.dataset.method) {
-        selectedMethod = 'yprint_stripe_' + activeSliderOption.dataset.method;
-        console.log('DEBUG: Using active slider method:', selectedMethod);
-    }
-}
-
-console.log('DEBUG: Final selected method for processing:', selectedMethod);
+                // Neue, robuste Payment Method Detection mit Debug-Logs
+                let selectedMethod = document.querySelector('input[name="payment_method"]:checked')?.value;
+                
+                // Fallback: Prüfe hidden input falls keine radio buttons checked
+                if (!selectedMethod) {
+                    const hiddenMethodInput = document.getElementById('selected-payment-method');
+                    if (hiddenMethodInput) {
+                        selectedMethod = hiddenMethodInput.value;
+                        console.log('DEBUG: Using hidden input method:', selectedMethod);
+                    }
+                }
+                
+                // Weitere Fallback: Prüfe aktive UI-Elemente
+                if (!selectedMethod) {
+                    const activeSliderOption = document.querySelector('.slider-option.active');
+                    if (activeSliderOption?.dataset.method) {
+                        selectedMethod = 'yprint_stripe_' + activeSliderOption.dataset.method;
+                        console.log('DEBUG: Using active slider method:', selectedMethod);
+                    }
+                }
+                
+                console.log('DEBUG: Final selected method for processing:', selectedMethod);
                 
                 if (selectedMethod && selectedMethod.includes('stripe')) {
                     console.log('DEBUG: Processing Stripe payment');
