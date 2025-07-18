@@ -1493,8 +1493,32 @@ function collectPaymentData() {
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
         formData.payment = formData.payment || {};
         formData.payment.method = 'express_payment';
-        formData.payment.display_name = 'Express Payment';
-        console.log('✅ Express Payment erkannt');
+        // NEU: Wallet-Type aus Stripe-Daten extrahieren
+        const walletType = window.confirmationPaymentData.order_data?.payment_method_details?.wallet?.type;
+        let displayName = 'Express Payment';
+        if (walletType) {
+            switch (walletType) {
+                case 'apple_pay':
+                    displayName = 'Apple Pay';
+                    break;
+                case 'google_pay':
+                    displayName = 'Google Pay';
+                    break;
+                case 'link':
+                    displayName = 'Link (Stripe)';
+                    break;
+                default:
+                    displayName = walletType.charAt(0).toUpperCase() + walletType.slice(1);
+            }
+        } else {
+            // Fallback: Prüfe card/SEPA
+            const pmType = window.confirmationPaymentData.order_data?.payment_method_details?.type;
+            if (pmType === 'card') displayName = 'Kreditkarte';
+            if (pmType === 'sepa_debit') displayName = 'SEPA Lastschrift';
+        }
+        formData.payment.display_name = displayName;
+        console.log('✅ Express Payment erkannt:', displayName);
+        return;
     }
     
     console.log('🔍 Gesammelte Payment-Daten:', formData.payment);
@@ -4236,18 +4260,22 @@ function updatePaymentMethodDisplay() {
     // Zahlungsart
     const paymentMethodEl = document.getElementById('payment-method');
     let paymentText = 'Nicht gewählt';
-    if (formData && formData.payment && formData.payment.method) {
-        const method = formData.payment.method;
-        if (method.includes('stripe_card')) {
-            paymentText = '<i class="fas fa-credit-card mr-2"></i> Kreditkarte (Stripe)';
-        } else if (method.includes('stripe_sepa')) {
-            paymentText = '<i class="fas fa-university mr-2"></i> SEPA-Lastschrift (Stripe)';
-        } else if (method.includes('paypal')) {
-            paymentText = '<i class="fab fa-paypal mr-2"></i> PayPal';
-        } else if (method.includes('applepay')) {
-            paymentText = '<i class="fab fa-apple-pay mr-2"></i> Apple Pay';
-        } else {
-            paymentText = method;
+    if (formData && formData.payment) {
+        if (formData.payment.display_name) {
+            paymentText = formData.payment.display_name;
+        } else if (formData.payment.method) {
+            const method = formData.payment.method;
+            if (method.includes('stripe_card')) {
+                paymentText = '<i class="fas fa-credit-card mr-2"></i> Kreditkarte (Stripe)';
+            } else if (method.includes('stripe_sepa')) {
+                paymentText = '<i class="fas fa-university mr-2"></i> SEPA-Lastschrift (Stripe)';
+            } else if (method.includes('paypal')) {
+                paymentText = '<i class="fab fa-paypal mr-2"></i> PayPal';
+            } else if (method.includes('applepay')) {
+                paymentText = '<i class="fab fa-apple-pay mr-2"></i> Apple Pay';
+            } else {
+                paymentText = method;
+            }
         }
     }
     if (paymentMethodEl) paymentMethodEl.innerHTML = paymentText;
