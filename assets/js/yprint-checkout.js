@@ -1330,7 +1330,6 @@ async function collectSessionAddressData() {
                 },
                 success: function(response) {
                     console.log('🔍 Direkte Session-Abfrage erfolgreich:', response);
-                    // === NEU: Ausführliche Debug-Ausgabe ===
                     if (response.data) {
                         console.log('🔍 [DEBUG] response.data:', response.data);
                         console.log('🔍 [DEBUG] response.data KEYS:', Object.keys(response.data));
@@ -1338,13 +1337,11 @@ async function collectSessionAddressData() {
                             console.log(`🔍 [DEBUG] response.data[${key}]:`, value);
                         }
                     }
-                    // === Extraktionslogik anpassen ===
-                    let foundShipping = false;
-                    let foundBilling = false;
-                    // Shipping-Adresse
+                    // Shipping-Adresse extrahieren
+                    let shippingAddress = {};
                     if (response.data.yprint_selected_address) {
                         const addr = response.data.yprint_selected_address;
-                        formData.shipping = {
+                        shippingAddress = {
                             first_name: addr.first_name || '',
                             last_name: addr.last_name || '',
                             street: addr.address_1 || '',
@@ -1354,13 +1351,13 @@ async function collectSessionAddressData() {
                             country: addr.country || 'DE',
                             phone: addr.phone || ''
                         };
-                        foundShipping = true;
-                        console.log('✅ Shipping-Adresse aus yprint_selected_address:', formData.shipping);
+                        console.log('✅ Shipping-Adresse aus yprint_selected_address:', shippingAddress);
                     }
-                    // Billing-Adresse
+                    // Billing-Adresse extrahieren
+                    let billingAddress = {};
                     if (response.data.yprint_billing_address_different && response.data.yprint_billing_address) {
                         const addr = response.data.yprint_billing_address;
-                        formData.billing = {
+                        billingAddress = {
                             first_name: addr.first_name || '',
                             last_name: addr.last_name || '',
                             street: addr.address_1 || '',
@@ -1371,15 +1368,17 @@ async function collectSessionAddressData() {
                             phone: addr.phone || ''
                         };
                         formData.isBillingSameAsShipping = false;
-                        foundBilling = true;
-                        console.log('✅ Billing-Adresse aus yprint_billing_address:', formData.billing);
-                    } else if (foundShipping) {
-                        formData.billing = { ...formData.shipping };
+                        console.log('✅ Billing-Adresse aus yprint_billing_address:', billingAddress);
+                    } else if (Object.keys(shippingAddress).length > 0) {
+                        billingAddress = { ...shippingAddress };
                         formData.isBillingSameAsShipping = true;
-                        foundBilling = true;
                         console.log('✅ Billing = Shipping (aus Shipping übernommen)');
                     }
-                    if (foundShipping || foundBilling) {
+                    // Zuweisung an das globale formData Objekt
+                    formData.shipping = shippingAddress;
+                    formData.billing = billingAddress;
+                    // ... Rest wie gehabt ...
+                    if (Object.keys(shippingAddress).length > 0 || Object.keys(billingAddress).length > 0) {
                         resolve();
                     } else {
                         console.log('⚠️ Session-Response leer oder fehlerhaft');
