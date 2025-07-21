@@ -214,11 +214,26 @@ function yprint_build_order_confirmation_content($order) {
     
     error_log('✅ E-Mail-Daten gesammelt: Shipping=' . ($email_data['shipping']['address_1'] ?? 'FEHLT') . 
               ', Items=' . count($email_data['items']));
-    
-    // 🎨 SCHRITT 2: Content-HTML generieren (OHNE äußere Wrapper)
+
+    // === ALLE BENÖTIGTEN VARIABLEN VORBEREITEN ===
+    $order_number = esc_html($email_data['order_number']);
+    $order_date = esc_html($email_data['order_date']);
+    $status_text = esc_html($email_data['status_text']);
+    $payment_method = esc_html($email_data['payment_method']);
+    $is_paid = $email_data['is_paid'];
+    $subtotal_formatted = $email_data['subtotal_formatted'];
+    $tax_total = $email_data['tax_total'];
+    $tax_formatted = $email_data['tax_formatted'];
+    $shipping_total = $email_data['shipping_total'];
+    $shipping_formatted = $email_data['shipping_formatted'];
+    $total_formatted = $email_data['total_formatted'];
+    $shipping = $email_data['shipping'];
+    $billing = $email_data['billing'];
+    $items = $email_data['items'];
+
+    // === TEMPLATE ===
     ob_start();
     ?>
-    
     <!-- Bestellstatus Header -->
     <div style="background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%); padding: 20px; text-align: center; border-radius: 8px; margin-bottom: 20px;">
         <h2 style="color: #FFFFFF; margin: 0; font-size: 24px; font-weight: 600;">
@@ -238,26 +253,26 @@ function yprint_build_order_confirmation_content($order) {
             <tr>
                 <td style="padding: 5px 0; color: #6e6e73; font-weight: 500;">Bestellnummer:</td>
                 <td style="padding: 5px 0; text-align: right; font-weight: 600; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['order_number']); ?>
+                    <?= $order_number ?>
                 </td>
             </tr>
             <tr>
                 <td style="padding: 5px 0; color: #6e6e73; font-weight: 500;">Bestelldatum:</td>
                 <td style="padding: 5px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['order_date']); ?>
+                    <?= $order_date ?>
                 </td>
             </tr>
             <tr>
                 <td style="padding: 5px 0; color: #6e6e73; font-weight: 500;">Status:</td>
                 <td style="padding: 5px 0; text-align: right; color: #28a745; font-weight: 600;">
-                    <?php echo esc_html($email_data['status_text']); ?>
+                    <?= $status_text ?>
                 </td>
             </tr>
             <tr>
                 <td style="padding: 5px 0; color: #6e6e73; font-weight: 500;">Zahlungsart:</td>
                 <td style="padding: 5px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['payment_method']); ?>
-                    <?php if ($email_data['is_paid']): ?>
+                    <?= $payment_method ?>
+                    <?php if ($is_paid): ?>
                         <span style="color: #28a745; font-weight: 600;"> ✓ Bezahlt</span>
                     <?php endif; ?>
                 </td>
@@ -271,42 +286,42 @@ function yprint_build_order_confirmation_content($order) {
             🛍️ Ihre bestellten Artikel
         </h3>
         
-        <?php foreach ($email_data['items'] as $item): ?>
+        <?php foreach ($items as $item): ?>
         <div style="background-color: #FFFFFF; border: 1px solid #e5e5e5; border-radius: 6px; padding: 15px; margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap;">
                 <div style="flex: 1; min-width: 200px;">
                     <h4 style="margin: 0 0 8px 0; color: #1d1d1f; font-size: 16px; font-weight: 600;">
-                        <?php echo esc_html($item['display_name']); ?>
+                        <?= esc_html($item['display_name']) ?>
                     </h4>
                     
-                    <?php if ($item['is_design_product'] && !empty($item['design_details'])): ?>
+                    <?php if (!empty($item['is_design_product']) && !empty($item['design_details'])): ?>
                     <div style="background-color: #E6F3FF; padding: 8px; border-radius: 4px; margin: 8px 0;">
                         <p style="margin: 0; color: #0079FF; font-weight: 600; font-size: 12px;">🎨 Design-Details:</p>
                         <?php if (!empty($item['design_details']['color'])): ?>
                         <p style="margin: 3px 0 0 0; color: #1d1d1f; font-size: 12px;">
-                            Farbe: <?php echo esc_html($item['design_details']['color']); ?>
+                            Farbe: <?= esc_html($item['design_details']['color']) ?>
                         </p>
                         <?php endif; ?>
                         <?php if (!empty($item['design_details']['size'])): ?>
                         <p style="margin: 3px 0 0 0; color: #1d1d1f; font-size: 12px;">
-                            Größe: <?php echo esc_html($item['design_details']['size']); ?>
+                            Größe: <?= esc_html($item['design_details']['size']) ?>
                         </p>
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
                     
                     <p style="margin: 3px 0 0 0; color: #6e6e73; font-size: 12px;">
-                        Menge: <?php echo esc_html($item['quantity']); ?> Stück
+                        Menge: <?= esc_html($item['quantity']) ?> Stück
                     </p>
                 </div>
                 
                 <div style="text-align: right; margin-left: 15px;">
                     <p style="margin: 0; color: #6e6e73; font-size: 12px;">Einzelpreis</p>
                     <p style="margin: 3px 0; color: #1d1d1f; font-size: 14px;">
-                        <?php echo $item['unit_price_formatted']; ?>
+                        <?= $item['unit_price_formatted'] ?>
                     </p>
                     <p style="margin: 8px 0 0 0; color: #0079FF; font-size: 16px; font-weight: 600;">
-                        Gesamt: <?php echo $item['total_formatted']; ?>
+                        Gesamt: <?= $item['total_formatted'] ?>
                     </p>
                 </div>
             </div>
@@ -320,22 +335,22 @@ function yprint_build_order_confirmation_content($order) {
             <tr>
                 <td style="padding: 3px 0; color: #6e6e73;">Zwischensumme:</td>
                 <td style="padding: 3px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['subtotal_formatted']); ?>
+                    <?= $subtotal_formatted ?>
                 </td>
             </tr>
-            <?php if ($email_data['tax_total'] > 0): ?>
+            <?php if ($tax_total > 0): ?>
             <tr>
                 <td style="padding: 3px 0; color: #6e6e73;">MwSt. (19%):</td>
                 <td style="padding: 3px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['tax_formatted']); ?>
+                    <?= $tax_formatted ?>
                 </td>
             </tr>
             <?php endif; ?>
-            <?php if ($email_data['shipping_total'] > 0): ?>
+            <?php if ($shipping_total > 0): ?>
             <tr>
                 <td style="padding: 3px 0; color: #6e6e73;">Versand:</td>
                 <td style="padding: 3px 0; text-align: right; color: #1d1d1f;">
-                    <?php echo esc_html($email_data['shipping_formatted']); ?>
+                    <?= $shipping_formatted ?>
                 </td>
             </tr>
             <?php else: ?>
@@ -347,7 +362,7 @@ function yprint_build_order_confirmation_content($order) {
             <tr style="border-top: 2px solid #e5e5e5;">
                 <td style="padding: 12px 0 5px 0; color: #1d1d1f; font-size: 18px; font-weight: 700;">Gesamtbetrag:</td>
                 <td style="padding: 12px 0 5px 0; text-align: right; color: #0079FF; font-size: 20px; font-weight: 700;">
-                    <?php echo esc_html($email_data['total_formatted']); ?>
+                    <?= $total_formatted ?>
                 </td>
             </tr>
         </table>
@@ -366,7 +381,7 @@ function yprint_build_order_confirmation_content($order) {
                     🚚 Lieferadresse
                 </h4>
                 <div style="color: #1d1d1f; line-height: 1.5; font-size: 13px;">
-                    <?php echo yprint_format_address_html($email_data['shipping']); ?>
+                    <?= yprint_format_address_html($shipping) ?>
                 </div>
             </div>
             
@@ -376,7 +391,7 @@ function yprint_build_order_confirmation_content($order) {
                     🧾 Rechnungsadresse
                 </h4>
                 <div style="color: #1d1d1f; line-height: 1.5; font-size: 13px;">
-                    <?php echo yprint_format_address_html($email_data['billing']); ?>
+                    <?= yprint_format_address_html($billing) ?>
                 </div>
             </div>
         </div>
@@ -384,7 +399,7 @@ function yprint_build_order_confirmation_content($order) {
     
     <!-- Call-to-Action -->
     <div style="text-align: center; margin-bottom: 20px;">
-        <a href="<?php echo esc_url(wc_get_account_endpoint_url('orders')); ?>" 
+        <a href="<?= esc_url(wc_get_account_endpoint_url('orders')) ?>" 
            style="background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%); color: #FFFFFF; 
                   padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: 600; 
                   display: inline-block; font-size: 14px;">
@@ -398,15 +413,14 @@ function yprint_build_order_confirmation_content($order) {
         <p style="margin: 0 0 10px 0; color: #6e6e73; font-size: 12px; line-height: 1.4;">
             <strong>Widerrufsrecht:</strong> Sie haben das Recht, binnen 14 Tagen ohne Angabe von Gründen 
             diesen Vertrag zu widerrufen. Die vollständige 
-            <a href="<?php echo esc_url(home_url('/widerruf')); ?>" style="color: #0079FF;">Widerrufsbelehrung</a> 
+            <a href="<?= esc_url(home_url('/widerruf')) ?>" style="color: #0079FF;">Widerrufsbelehrung</a> 
             finden Sie auf unserer Website.
         </p>
         <p style="margin: 0; color: #6e6e73; font-size: 12px; line-height: 1.4;">
             Mit der Bestellbestätigung kommt ein rechtsverbindlicher Kaufvertrag zustande. 
-            Es gelten unsere <a href="<?php echo esc_url(home_url('/agb')); ?>" style="color: #0079FF;">AGB</a>.
+            Es gelten unsere <a href="<?= esc_url(home_url('/agb')) ?>" style="color: #0079FF;">AGB</a>.
         </p>
     </div>
-    
     <?php
     error_log('✅ E-Mail CONTENT erfolgreich generiert für Order #' . $order_id);
     return ob_get_clean();
