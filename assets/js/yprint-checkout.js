@@ -1257,10 +1257,16 @@ function shouldLoadAddresses() {
         await collectAddressData();
         debugLogAddresses();
         
-        // Sichere Payment Data Collection mit Try-Catch
+        // Sichere Payment Data Collection mit Timing
         try {
+            console.log('[SHOWSTEP] Starte Payment Data Collection für Confirmation Step');
+            
             if (typeof collectPaymentData === 'function') {
                 collectPaymentData();
+                console.log('[SHOWSTEP] collectPaymentData abgeschlossen, formData.payment:', formData.payment);
+                
+                // Kurze Pause damit Daten verfügbar sind
+                await new Promise(resolve => setTimeout(resolve, 25));
             } else {
                 console.warn('[SHOWSTEP] collectPaymentData function not available');
             }
@@ -1268,10 +1274,11 @@ function shouldLoadAddresses() {
             console.error('[SHOWSTEP] Error in collectPaymentData:', error);
         }
         
-        // Sichere Payment Method Display Update mit Try-Catch
+        // Sichere Payment Method Display Update mit Timing
         try {
             if (typeof updatePaymentMethodDisplay === 'function') {
                 updatePaymentMethodDisplay();
+                console.log('[SHOWSTEP] updatePaymentMethodDisplay abgeschlossen');
             } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
                 retryUpdatePaymentMethodDisplay();
             } else {
@@ -1283,7 +1290,7 @@ function shouldLoadAddresses() {
         
         debugLogAddresses();
         
-        // Sichere Confirmation Population mit Try-Catch
+        // Sichere Confirmation Population
         try {
             if (typeof populateConfirmation === 'function') {
                 populateConfirmation();
@@ -1492,83 +1499,96 @@ async function collectSessionAddressData() {
  */
 function collectPaymentData() {
     console.log('🔍 collectPaymentData: Starte erweiterte Payment-Informationen Sammlung');
-    
+
     // Initialisiere formData.payment
     formData.payment = formData.payment || {};
-    
+
     // PRIORITÄT 1: Express Payment Data auswerten (Apple Pay, Google Pay, etc.)
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
         console.log('🎯 Express Payment Daten gefunden - analysiere Payment Method Details');
-        
+
         const orderData = window.confirmationPaymentData.order_data;
         const paymentMethodDetails = orderData.payment_method_details;
-        
+
         if (paymentMethodDetails) {
             console.log('🔍 Payment Method Details:', paymentMethodDetails);
-            
+
+            let paymentDataToAssign = null; // Temporäres Objekt für die Zuweisung
+
             // Apple Pay Detection
             if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'apple_pay') {
-                formData.payment.method = 'apple_pay';
-                formData.payment.display_name = 'Apple Pay';
-                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
-                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
-                formData.payment.source = 'express_payment';
-                console.log('✅ Apple Pay erkannt:', formData.payment);
-                
-            // Google Pay Detection  
+                paymentDataToAssign = {
+                    method: 'apple_pay',
+                    display_name: 'Apple Pay',
+                    brand: paymentMethodDetails.card?.brand || 'card',
+                    last4: paymentMethodDetails.card?.last4 || '',
+                    source: 'express_payment'
+                };
+                console.log('✅ Apple Pay erkannt:', paymentDataToAssign);
+
+            // Google Pay Detection
             } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'google_pay') {
-                formData.payment.method = 'google_pay';
-                formData.payment.display_name = 'Google Pay';
-                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
-                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
-                formData.payment.source = 'express_payment';
-                console.log('✅ Google Pay erkannt:', formData.payment);
-                
+                paymentDataToAssign = {
+                    method: 'google_pay',
+                    display_name: 'Google Pay',
+                    brand: paymentMethodDetails.card?.brand || 'card',
+                    last4: paymentMethodDetails.card?.last4 || '',
+                    source: 'express_payment'
+                };
+                console.log('✅ Google Pay erkannt:', paymentDataToAssign);
+
             // Link Detection
             } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'link') {
-                formData.payment.method = 'stripe_link';
-                formData.payment.display_name = 'Link';
-                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
-                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
-                formData.payment.source = 'express_payment';
-                console.log('✅ Stripe Link erkannt:', formData.payment);
-                
+                paymentDataToAssign = {
+                    method: 'stripe_link',
+                    display_name: 'Link',
+                    brand: paymentMethodDetails.card?.brand || 'card',
+                    last4: paymentMethodDetails.card?.last4 || '',
+                    source: 'express_payment'
+                };
+                console.log('✅ Stripe Link erkannt:', paymentDataToAssign);
+
             // Express Payment ohne Wallet (normale Karte via Express)
             } else if (paymentMethodDetails.type === 'card') {
-                formData.payment.method = 'express_card';
-                formData.payment.display_name = 'Express Zahlung';
-                formData.payment.brand = paymentMethodDetails.card?.brand || 'card';
-                formData.payment.last4 = paymentMethodDetails.card?.last4 || '';
-                formData.payment.source = 'express_payment';
-                console.log('✅ Express Card Payment erkannt:', formData.payment);
-                
+                paymentDataToAssign = {
+                    method: 'express_card',
+                    display_name: 'Express Zahlung',
+                    brand: paymentMethodDetails.card?.brand || 'card',
+                    last4: paymentMethodDetails.card?.last4 || '',
+                    source: 'express_payment'
+                };
+                console.log('✅ Express Card Payment erkannt:', paymentDataToAssign);
+
             // SEPA via Express
             } else if (paymentMethodDetails.type === 'sepa_debit') {
-                formData.payment.method = 'express_sepa';
-                formData.payment.display_name = 'SEPA Lastschrift';
-                formData.payment.last4 = paymentMethodDetails.sepa_debit?.last4 || '';
-                formData.payment.source = 'express_payment';
-                console.log('✅ Express SEPA erkannt:', formData.payment);
+                paymentDataToAssign = {
+                    method: 'express_sepa',
+                    display_name: 'SEPA Lastschrift',
+                    last4: paymentMethodDetails.sepa_debit?.last4 || '',
+                    source: 'express_payment'
+                };
+                console.log('✅ Express SEPA erkannt:', paymentDataToAssign);
+            }
+
+            // Wenn Express Payment erkannt wurde, weise Daten zu und beende
+            if (paymentDataToAssign) {
+                formData.payment = paymentDataToAssign;
+                console.log('🎯 Express Payment erfolgreich klassifiziert und in formData.payment gespeichert:', formData.payment);
+                return;
             }
         }
-        
-        // Falls Express Payment erkannt wurde, beende hier
-        if (formData.payment.source === 'express_payment') {
-            console.log('🎯 Express Payment erfolgreich klassifiziert:', formData.payment);
-            return;
-        }
     }
-    
+
     // PRIORITÄT 2: Standard Payment Method Detection (Manual Checkout)
     console.log('🔍 Fallback zu Standard Payment Method Detection');
-    
+
     // Payment Method aus verstecktem Input
     const paymentMethodInput = document.getElementById('selected-payment-method');
     if (paymentMethodInput && paymentMethodInput.value) {
         const methodValue = paymentMethodInput.value;
         formData.payment.method = methodValue;
         console.log('✅ Standard Payment Method gefunden:', methodValue);
-        
+
         // Display Name Mapping für Standard Methods
         switch (methodValue) {
             case 'yprint_stripe_card':
@@ -1582,7 +1602,7 @@ function collectPaymentData() {
         }
         formData.payment.source = 'manual_checkout';
     }
-    
+
     // Payment Method Display Name aus DOM
     const activePaymentOption = document.querySelector('.payment-option.active');
     if (activePaymentOption) {
@@ -1592,7 +1612,7 @@ function collectPaymentData() {
             console.log('✅ Payment Display Name aus DOM:', displayName);
         }
     }
-    
+
     // FINALE VALIDIERUNG
     if (!formData.payment.method) {
         formData.payment.method = 'unknown';
@@ -1600,7 +1620,7 @@ function collectPaymentData() {
         formData.payment.source = 'fallback';
         console.log('⚠️ Keine Payment Method erkannt - Fallback verwendet');
     }
-    
+
     console.log('🔍 FINALE Payment-Daten:', formData.payment);
 }
 
@@ -2394,20 +2414,30 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
                             // Force Payment Method Display Update mit Error-Handling
 setTimeout(async () => {
     try {
+        console.log('[PAYMENT-SUCCESS] Starte sichere Payment Method Display Update');
+        
+        // SCHRITT 1: Warte kurz dass window.confirmationPaymentData gesetzt wird
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // SCHRITT 2: Sammle Payment Daten (synchron)
         if (typeof collectPaymentData === 'function') {
-            await collectPaymentData();
+            collectPaymentData(); // Synchron - keine await nötig
+            console.log('[PAYMENT-SUCCESS] collectPaymentData completed, formData.payment:', formData.payment);
         } else {
             console.warn('[PAYMENT-SUCCESS] collectPaymentData not available, skipping');
         }
+        
+        // SCHRITT 3: Update Display (synchron)
         if (typeof updatePaymentMethodDisplay === 'function') {
             updatePaymentMethodDisplay();
+            console.log('[PAYMENT-SUCCESS] updatePaymentMethodDisplay completed');
         } else {
             console.warn('[PAYMENT-SUCCESS] updatePaymentMethodDisplay not available');
         }
     } catch (error) {
         console.error('[PAYMENT-SUCCESS] Error in payment method update:', error);
     }
-}, 100);
+}, 150); // Längere Wartezeit für Express Payment Data
                             
                         } else {
                             throw new Error(paymentResult?.message || 'Stripe-Zahlung fehlgeschlagen');
@@ -4465,10 +4495,16 @@ async function showStep(stepNumber) {
         await collectAddressData();
         debugLogAddresses();
         
-        // Sichere Payment Data Collection mit Try-Catch
+        // Sichere Payment Data Collection mit Timing
         try {
+            console.log('[SHOWSTEP] Starte Payment Data Collection für Confirmation Step');
+            
             if (typeof collectPaymentData === 'function') {
                 collectPaymentData();
+                console.log('[SHOWSTEP] collectPaymentData abgeschlossen, formData.payment:', formData.payment);
+                
+                // Kurze Pause damit Daten verfügbar sind
+                await new Promise(resolve => setTimeout(resolve, 25));
             } else {
                 console.warn('[SHOWSTEP] collectPaymentData function not available');
             }
@@ -4476,10 +4512,11 @@ async function showStep(stepNumber) {
             console.error('[SHOWSTEP] Error in collectPaymentData:', error);
         }
         
-        // Sichere Payment Method Display Update mit Try-Catch
+        // Sichere Payment Method Display Update mit Timing
         try {
             if (typeof updatePaymentMethodDisplay === 'function') {
                 updatePaymentMethodDisplay();
+                console.log('[SHOWSTEP] updatePaymentMethodDisplay abgeschlossen');
             } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
                 retryUpdatePaymentMethodDisplay();
             } else {
@@ -4491,7 +4528,7 @@ async function showStep(stepNumber) {
         
         debugLogAddresses();
         
-        // Sichere Confirmation Population mit Try-Catch
+        // Sichere Confirmation Population
         try {
             if (typeof populateConfirmation === 'function') {
                 populateConfirmation();
@@ -4596,33 +4633,46 @@ populateConfirmation = async function() {
 
 // ... bestehender Code ...
 
-// Patch: updatePaymentMethodDisplay mit Express Payment Support
+// Patch: updatePaymentMethodDisplay mit verbessertem Express Payment Support
 if (typeof window.originalUpdatePaymentMethodDisplay === 'undefined') {
     window.originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
     updatePaymentMethodDisplay = function() {
         console.log('[SAFE-PAYMENT] updatePaymentMethodDisplay aufgerufen');
         console.log('[SAFE-PAYMENT] formData.payment:', formData.payment);
-        console.log('[SAFE-PAYMENT] window.confirmationPaymentData:', window.confirmationPaymentData);
         
-        // PRIORITÄT 1: Express Payment Daten prüfen
-        if (window.confirmationPaymentData && window.confirmationPaymentData.order_data && window.confirmationPaymentData.order_data.payment_method_details) {
-            console.log('[SAFE-PAYMENT] Express Payment Daten gefunden - nutze diese für Anzeige');
+        // PRIORITÄT 1: Prüfe ob formData.payment leer ist UND Express Data verfügbar
+        if ((!formData.payment || Object.keys(formData.payment).length === 0) && 
+            window.confirmationPaymentData && 
+            window.confirmationPaymentData.order_data && 
+            window.confirmationPaymentData.order_data.payment_method_details) {
+            
+            console.log('[SAFE-PAYMENT] formData.payment leer aber Express Payment Daten verfügbar - führe direkte Zuweisung durch');
             const paymentDetails = window.confirmationPaymentData.order_data.payment_method_details;
             
-            // Setze formData.payment für Express Payments
-            formData.payment = {
-                method: paymentDetails.type === 'sepa_debit' ? 'express_sepa' : 'express_card',
-                display_name: paymentDetails.type === 'sepa_debit' ? 'SEPA Lastschrift' : 'Kreditkarte',
-                last4: paymentDetails.sepa_debit?.last4 || paymentDetails.card?.last4 || '',
-                source: 'express_payment'
-            };
-            console.log('[SAFE-PAYMENT] formData.payment aktualisiert:', formData.payment);
+            if (paymentDetails.type === 'sepa_debit') {
+                formData.payment = {
+                    method: 'express_sepa',
+                    display_name: 'SEPA Lastschrift',
+                    last4: paymentDetails.sepa_debit?.last4 || '',
+                    source: 'express_payment'
+                };
+            } else if (paymentDetails.type === 'card') {
+                formData.payment = {
+                    method: 'express_card',
+                    display_name: 'Kreditkarte',
+                    brand: paymentDetails.card?.brand || '',
+                    last4: paymentDetails.card?.last4 || '',
+                    source: 'express_payment'
+                };
+            }
+            console.log('[SAFE-PAYMENT] formData.payment direkt gesetzt:', formData.payment);
         }
-        // PRIORITÄT 2: Standard Payment Daten sammeln falls leer
+        // PRIORITÄT 2: Standard collectPaymentData falls immer noch leer
         else if (!formData.payment || Object.keys(formData.payment).length === 0) {
-            console.warn('[SAFE-PAYMENT] Keine Payment-Daten gefunden - collectPaymentData wird synchron nachgeladen');
+            console.warn('[SAFE-PAYMENT] Keine Payment-Daten gefunden - collectPaymentData wird nachgeladen');
             if (typeof collectPaymentData === 'function') {
                 collectPaymentData();
+                console.log('[SAFE-PAYMENT] collectPaymentData aufgerufen, formData.payment jetzt:', formData.payment);
             }
         }
         
