@@ -4451,14 +4451,14 @@ function updatePaymentMethodDisplay() {
 
     // Apple Pay
     if (payment.method === 'apple_pay') {
-        displayHtml = `<i class="fab fa-apple-pay mr-2" style="font-size: 1.2em;"></i> ${payment.display_name}`;
+        displayHtml = `${payment.display_name}`;
         if (payment.last4) {
             displayHtml += ` <span class="text-muted">•••• ${payment.last4}</span>`;
         }
         console.log('✅ Apple Pay angezeigt:', displayHtml);
     // Google Pay
     } else if (payment.method === 'google_pay') {
-        displayHtml = `<i class="fab fa-google-pay mr-2" style="font-size: 1.2em;"></i> ${payment.display_name}`;
+        displayHtml = `${payment.display_name}`;
         if (payment.last4) {
             displayHtml += ` <span class="text-muted">•••• ${payment.last4}</span>`;
         }
