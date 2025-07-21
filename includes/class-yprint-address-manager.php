@@ -91,6 +91,29 @@ add_action('wp_ajax_nopriv_yprint_debug_session_state', array($this, 'ajax_debug
 // AJAX handlers
 add_action('wp_ajax_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
 add_action('wp_ajax_nopriv_yprint_get_billing_session', array($this, 'ajax_get_billing_session'));
+
+        // Session-Reset beim Checkout-Start
+        add_action('wp', array($this, 'reset_billing_session_on_checkout'), 5);
+    }
+
+    /**
+     * Reset Billing Session beim Checkout-Start
+     */
+    public function reset_billing_session_on_checkout() {
+        // Nur auf Checkout-Seite
+        if (!function_exists('is_checkout') || !is_checkout() || (function_exists('is_wc_endpoint_url') && is_wc_endpoint_url('order-received'))) {
+            return;
+        }
+        // Nur bei neuem Checkout-Besuch (nicht bei AJAX)
+        if (function_exists('wp_doing_ajax') && wp_doing_ajax()) {
+            return;
+        }
+        // Reset Billing Session zu Default-State
+        if (function_exists('WC') && WC()->session) {
+            WC()->session->set('yprint_billing_address', array());
+            WC()->session->set('yprint_billing_address_different', false);
+            error_log('🔄 YPRINT: Billing session reset to default state');
+        }
     }
 
 /**
@@ -1429,94 +1452,35 @@ public function ajax_set_checkout_address() {
     }
 
     if (WC()->session) {
-        // ROBUST CONTEXT DETECTION: Multiple Fallback-Mechanismen ohne HTTP_REFERER
-if (empty($address_type) || !in_array($address_type, ['shipping', 'billing'])) {
-    // Prüfe POST Parameter für explizite Context-Information
-    if (isset($_POST['billing_context']) && $_POST['billing_context'] === 'true') {
-        $address_type = 'billing';
-        error_log('🚀 AJAX DEBUG: Context auf billing gesetzt (billing_context Parameter)');
-    } elseif (isset($_POST['step']) && $_POST['step'] === 'billing') {
-        $address_type = 'billing';
-        error_log('🚀 AJAX DEBUG: Context auf billing gesetzt (step Parameter)');
-    } else {
-        $address_type = 'shipping'; // Sicherer Default
-        error_log('🚀 AJAX DEBUG: Context auf shipping gesetzt (Default)');
-    }
-}
-
-// CRITICAL: Keine HTTP_REFERER basierte Context-Erkennung mehr
-// Das verhindert Race Conditions zwischen URL-Parametern und POST-Daten
-error_log('🚀 AJAX DEBUG: Using EXPLICIT address_type only: ' . $address_type);
-        
-        error_log('🚀 AJAX DEBUG: Entering session logic with resolved address_type: ' . $address_type); // Log resolved value
-        
+        // Context Detection ...
         if ($address_type === 'billing') {
-            error_log('🚀 AJAX DEBUG: *** BILLING BRANCH ENTERED ***');
-            
-            // ABSOLUTER SCHUTZ: yprint_selected_address darf NIEMALS überschrieben werden bei billing
-            $existing_shipping = WC()->session->get('yprint_selected_address', array());
-            error_log('🚀 AJAX DEBUG: Existing shipping address preserved: ' . (!empty($existing_shipping) ? ($existing_shipping['address_1'] ?? 'no address_1') : 'EMPTY'));
-            
-            // BILLING: Ausschließlich separate Billing-Session setzen
-            error_log('🚀 AJAX DEBUG: Setting yprint_billing_address...');
-            WC()->session->set('yprint_billing_address', $address_data);
-            
-            error_log('🚀 AJAX DEBUG: Setting yprint_billing_address_different = true...');
-            WC()->session->set('yprint_billing_address_different', true);
-            
-            // VERIFICATION: Prüfe ob Session korrekt gesetzt wurde
-            $verification_billing = WC()->session->get('yprint_billing_address', 'FAILED_TO_SET');
-            $verification_different = WC()->session->get('yprint_billing_address_different', 'FAILED_TO_SET');
-            $verification_shipping = WC()->session->get('yprint_selected_address', 'SHOULD_BE_UNCHANGED');
-            
-            error_log('🚀 AJAX DEBUG: VERIFICATION after setting:');
-            error_log('🚀 AJAX DEBUG: - yprint_billing_address: ' . (is_array($verification_billing) ? ($verification_billing['address_1'] ?? 'no address_1') : $verification_billing));
-            error_log('🚀 AJAX DEBUG: - yprint_billing_address_different: ' . ($verification_different ? 'TRUE' : 'FALSE')); // Corrected for boolean output
-            error_log('🚀 AJAX DEBUG: - yprint_selected_address (should be unchanged): ' . (is_array($verification_shipping) ? ($verification_shipping['address_1'] ?? 'no address_1') : $verification_shipping));
-            
-            // WooCommerce Customer updates temporarily limited - avoiding conflicts
-// Customer data will be updated through the standard order processing hooks
-error_log('🚀 AJAX DEBUG: Skipping WC Customer direct updates to avoid conflicts');
-            
-            error_log('🔍 YPRINT DEBUG: ========================================');
-            error_log('🔍 YPRINT DEBUG: BILLING Address ONLY saved to yprint_billing_address');
-            error_log('🔍 YPRINT DEBUG: yprint_selected_address STATUS: UNBERÜHRT');
-            error_log('🔍 YPRINT DEBUG: ========================================');
-
-        } else { // Dies ist der Shipping-Fall
-            // SHIPPING BRANCH mit zusätzlicher Validierung
-            error_log('🚀 AJAX DEBUG: *** SHIPPING BRANCH ENTERED ***');
-            error_log('🚀 AJAX DEBUG: Final address_type verification: ' . $address_type);
-                        
-            // HTTP_REFERER-basierte Prüfung entfernt - Frontend address_type Parameter ist autoritativ
-            error_log('🚀 AJAX DEBUG: Vertraue explizitem address_type Parameter: ' . $address_type);
-            
-            // Normale Shipping-Logik nur wenn wirklich Shipping-Context
+            // Änderung 3: Explizite Billing-Aktivierung nur bei Billing-Step
+            $current_shipping = WC()->session->get('yprint_selected_address', array());
+            $sanitized_address = $address_data;
+            // Prüfe ob Billing wirklich anders ist als Shipping
+            $is_actually_different = (
+                ($sanitized_address['address_1'] ?? '') !== ($current_shipping['address_1'] ?? '') ||
+                ($sanitized_address['postcode'] ?? '') !== ($current_shipping['postcode'] ?? '') ||
+                ($sanitized_address['first_name'] ?? '') !== ($current_shipping['first_name'] ?? '') ||
+                ($sanitized_address['last_name'] ?? '') !== ($current_shipping['last_name'] ?? '')
+            );
+            if ($is_actually_different) {
+                WC()->session->set('yprint_billing_address', $sanitized_address);
+                WC()->session->set('yprint_billing_address_different', true);
+                error_log('🔍 YPRINT: Different billing address saved to session');
+            } else {
+                // Gleiche Adresse = Reset zu Default
+                WC()->session->set('yprint_billing_address', array());
+                WC()->session->set('yprint_billing_address_different', false);
+                error_log('🔍 YPRINT: Billing same as shipping - reset to default');
+            }
+        } else {
+            // Änderung 2: Shipping-Adresse setzt automatisch Billing = Shipping
             WC()->session->set('yprint_selected_address', $address_data);
-            
-            // Prüfe ob bereits eine separate Rechnungsadresse existiert
-            $has_different_billing = WC()->session->get('yprint_billing_address_different', false);
-            if (!$has_different_billing) {
-                // Fallback: Setze auch als Billing wenn keine separate Billing-Adresse gewählt
-                WC()->session->set('yprint_billing_address', $address_data);
-            }
-            
-            error_log('🔍 YPRINT DEBUG: Shipping address set in session: ' . ($address_data['address_1'] ?? 'N/A'));
-            
-            // WooCommerce Customer Data aktualisieren
-            $this->update_woocommerce_customer_data($address_data, 'shipping');
-
-            if (!$has_different_billing) {
-                // Nur wenn KEINE separate Rechnungsadresse gewählt wurde, setze diese auch als Rechnungsadresse
-                $this->update_woocommerce_customer_data($address_data, 'billing');
-            }
-
-            error_log('🔍 YPRINT DEBUG: ========================================');
-            error_log('🔍 YPRINT DEBUG: SHIPPING Address saved to session');
-            error_log('🔍 YPRINT DEBUG: Selected Address: ' . print_r($address_data, true));
-            error_log('🔍 YPRINT DEBUG: Has Different Billing: ' . ($has_different_billing ? 'TRUE' : 'FALSE'));
-            self::debug_session_data('ajax_set_checkout_address_SHIPPING');
-            error_log('🔍 YPRINT DEBUG: ========================================');
+            // Reset Billing zu Default-State bei Shipping-Auswahl
+            WC()->session->set('yprint_billing_address', array());
+            WC()->session->set('yprint_billing_address_different', false);
+            error_log('🔍 YPRINT: Shipping address saved to session and billing reset to default');
         }
     } else {
         wp_send_json_error(array('message' => __('Fehler beim Setzen der Checkout-Adresse. WooCommerce Session ist nicht verfügbar.', 'yprint-plugin')));
