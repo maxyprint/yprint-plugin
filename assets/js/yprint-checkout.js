@@ -1257,29 +1257,41 @@ function shouldLoadAddresses() {
         await collectAddressData();
         debugLogAddresses();
         
-        // Sichere Payment Data Collection
-        if (typeof collectPaymentData === 'function') {
-            collectPaymentData();
-        } else {
-            console.warn('collectPaymentData function not available in showStep');
+        // Sichere Payment Data Collection mit Try-Catch
+        try {
+            if (typeof collectPaymentData === 'function') {
+                collectPaymentData();
+            } else {
+                console.warn('[SHOWSTEP] collectPaymentData function not available');
+            }
+        } catch (error) {
+            console.error('[SHOWSTEP] Error in collectPaymentData:', error);
         }
         
-        // Sichere Payment Method Display Update
-        if (typeof updatePaymentMethodDisplay === 'function') {
-            updatePaymentMethodDisplay();
-        } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
-            retryUpdatePaymentMethodDisplay();
-        } else {
-            console.warn('No payment method display function available in showStep');
+        // Sichere Payment Method Display Update mit Try-Catch
+        try {
+            if (typeof updatePaymentMethodDisplay === 'function') {
+                updatePaymentMethodDisplay();
+            } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
+                retryUpdatePaymentMethodDisplay();
+            } else {
+                console.warn('[SHOWSTEP] No payment method display function available');
+            }
+        } catch (error) {
+            console.error('[SHOWSTEP] Error in updatePaymentMethodDisplay:', error);
         }
         
         debugLogAddresses();
         
-        // Sichere Confirmation Population
-        if (typeof populateConfirmation === 'function') {
-            populateConfirmation();
-        } else {
-            console.warn('populateConfirmation function not available in showStep');
+        // Sichere Confirmation Population mit Try-Catch
+        try {
+            if (typeof populateConfirmation === 'function') {
+                populateConfirmation();
+            } else {
+                console.warn('[SHOWSTEP] populateConfirmation function not available');
+            }
+        } catch (error) {
+            console.error('[SHOWSTEP] Error in populateConfirmation:', error);
         }
     } else if (stepNumber === 4) {
         populateThankYouPage();
@@ -2381,7 +2393,20 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
                             
                             // Force Payment Method Display Update mit Error-Handling
 setTimeout(async () => {
-    await safeUpdatePaymentMethodDisplay();
+    try {
+        if (typeof collectPaymentData === 'function') {
+            await collectPaymentData();
+        } else {
+            console.warn('[PAYMENT-SUCCESS] collectPaymentData not available, skipping');
+        }
+        if (typeof updatePaymentMethodDisplay === 'function') {
+            updatePaymentMethodDisplay();
+        } else {
+            console.warn('[PAYMENT-SUCCESS] updatePaymentMethodDisplay not available');
+        }
+    } catch (error) {
+        console.error('[PAYMENT-SUCCESS] Error in payment method update:', error);
+    }
 }, 100);
                             
                         } else {
@@ -4440,29 +4465,41 @@ async function showStep(stepNumber) {
         await collectAddressData();
         debugLogAddresses();
         
-        // Sichere Payment Data Collection
-        if (typeof collectPaymentData === 'function') {
-            collectPaymentData();
-        } else {
-            console.warn('collectPaymentData function not available in showStep');
+        // Sichere Payment Data Collection mit Try-Catch
+        try {
+            if (typeof collectPaymentData === 'function') {
+                collectPaymentData();
+            } else {
+                console.warn('[SHOWSTEP] collectPaymentData function not available');
+            }
+        } catch (error) {
+            console.error('[SHOWSTEP] Error in collectPaymentData:', error);
         }
         
-        // Sichere Payment Method Display Update
-        if (typeof updatePaymentMethodDisplay === 'function') {
-            updatePaymentMethodDisplay();
-        } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
-            retryUpdatePaymentMethodDisplay();
-        } else {
-            console.warn('No payment method display function available in showStep');
+        // Sichere Payment Method Display Update mit Try-Catch
+        try {
+            if (typeof updatePaymentMethodDisplay === 'function') {
+                updatePaymentMethodDisplay();
+            } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
+                retryUpdatePaymentMethodDisplay();
+            } else {
+                console.warn('[SHOWSTEP] No payment method display function available');
+            }
+        } catch (error) {
+            console.error('[SHOWSTEP] Error in updatePaymentMethodDisplay:', error);
         }
         
         debugLogAddresses();
         
-        // Sichere Confirmation Population
-        if (typeof populateConfirmation === 'function') {
-            populateConfirmation();
-        } else {
-            console.warn('populateConfirmation function not available in showStep');
+        // Sichere Confirmation Population mit Try-Catch
+        try {
+            if (typeof populateConfirmation === 'function') {
+                populateConfirmation();
+            } else {
+                console.warn('[SHOWSTEP] populateConfirmation function not available');
+            }
+        } catch (error) {
+            console.error('[SHOWSTEP] Error in populateConfirmation:', error);
         }
     }
     }
@@ -4559,14 +4596,36 @@ populateConfirmation = async function() {
 
 // ... bestehender Code ...
 
-// Patch: updatePaymentMethodDisplay bleibt synchron und defensiv
+// Patch: updatePaymentMethodDisplay mit Express Payment Support
 if (typeof window.originalUpdatePaymentMethodDisplay === 'undefined') {
     window.originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
     updatePaymentMethodDisplay = function() {
-        if (!formData.payment || Object.keys(formData.payment).length === 0) {
-            console.warn('[SAFE-PAYMENT] formData.payment war leer, collectPaymentData() wird synchron nachgeladen!');
-            collectPaymentData(); // Synchroner Aufruf!
+        console.log('[SAFE-PAYMENT] updatePaymentMethodDisplay aufgerufen');
+        console.log('[SAFE-PAYMENT] formData.payment:', formData.payment);
+        console.log('[SAFE-PAYMENT] window.confirmationPaymentData:', window.confirmationPaymentData);
+        
+        // PRIORITÄT 1: Express Payment Daten prüfen
+        if (window.confirmationPaymentData && window.confirmationPaymentData.order_data && window.confirmationPaymentData.order_data.payment_method_details) {
+            console.log('[SAFE-PAYMENT] Express Payment Daten gefunden - nutze diese für Anzeige');
+            const paymentDetails = window.confirmationPaymentData.order_data.payment_method_details;
+            
+            // Setze formData.payment für Express Payments
+            formData.payment = {
+                method: paymentDetails.type === 'sepa_debit' ? 'express_sepa' : 'express_card',
+                display_name: paymentDetails.type === 'sepa_debit' ? 'SEPA Lastschrift' : 'Kreditkarte',
+                last4: paymentDetails.sepa_debit?.last4 || paymentDetails.card?.last4 || '',
+                source: 'express_payment'
+            };
+            console.log('[SAFE-PAYMENT] formData.payment aktualisiert:', formData.payment);
         }
+        // PRIORITÄT 2: Standard Payment Daten sammeln falls leer
+        else if (!formData.payment || Object.keys(formData.payment).length === 0) {
+            console.warn('[SAFE-PAYMENT] Keine Payment-Daten gefunden - collectPaymentData wird synchron nachgeladen');
+            if (typeof collectPaymentData === 'function') {
+                collectPaymentData();
+            }
+        }
+        
         window.originalUpdatePaymentMethodDisplay.apply(this, arguments);
     }
 }
