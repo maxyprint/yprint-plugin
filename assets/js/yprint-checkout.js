@@ -1522,18 +1522,20 @@ function collectPaymentData() {
     window.formData = window.formData || {shipping: {}, billing: {}, payment: {}};
     window.formData.payment = window.formData.payment || {};
 
-    // PRIORITÄT 1: Express Payment Data auswerten (Apple Pay, Google Pay, etc.)
+    // PRIORITÄT 1: Payment Method Data von Confirmation auswerten
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
-        console.log('🎯 Express Payment Daten gefunden - analysiere Payment Method Details');
+        console.log('🎯 Payment Daten gefunden - analysiere Payment Method Details');
         console.log('🔍 [DEBUG-PAYMENT] confirmationPaymentData:', window.confirmationPaymentData);
 
         const orderData = window.confirmationPaymentData.order_data;
         const paymentMethodDetails = orderData.payment_method_details;
 
         if (paymentMethodDetails) {
+            console.log('🔍 Payment Method Details:', paymentMethodDetails);
+
             let paymentDataToAssign = null;
 
-            // Verbesserte Apple Pay Detection
+            // 1. ECHTE EXPRESS PAYMENTS (Wallet-basiert)
             if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'apple_pay') {
                 paymentDataToAssign = {
                     method: 'apple_pay',
@@ -1543,9 +1545,8 @@ function collectPaymentData() {
                     source: 'express_payment',
                     payment_method_id: paymentMethodDetails.id
                 };
-                console.log('✅ Apple Pay erkannt und zugewiesen:', paymentDataToAssign);
+                console.log('✅ Apple Pay erkannt:', paymentDataToAssign);
 
-            // Google Pay Detection
             } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'google_pay') {
                 paymentDataToAssign = {
                     method: 'google_pay',
@@ -1557,63 +1558,50 @@ function collectPaymentData() {
                 };
                 console.log('✅ Google Pay erkannt:', paymentDataToAssign);
 
-            // Stripe Link Detection
-            } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.type === 'link') {
+            // 2. MANUELLE PAYMENTS (Form-basiert)
+            } else if (paymentMethodDetails.type === 'card' && !paymentMethodDetails.wallet) {
+                // Normale Kreditkartenzahlung über Formular
                 paymentDataToAssign = {
-                    method: 'stripe_link',
-                    display_name: 'Link',
+                    method: 'card',
+                    display_name: 'Kreditkarte',
                     brand: paymentMethodDetails.card?.brand || 'card',
                     last4: paymentMethodDetails.card?.last4 || '',
-                    source: 'express_payment',
+                    source: 'manual_payment',
                     payment_method_id: paymentMethodDetails.id
                 };
-                console.log('✅ Stripe Link erkannt:', paymentDataToAssign);
+                console.log('✅ Kreditkarte erkannt:', paymentDataToAssign);
 
-            // Express Card
-            } else if (paymentMethodDetails.type === 'card') {
-                paymentDataToAssign = {
-                    method: 'express_card',
-                    display_name: 'Express-Zahlung',
-                    brand: paymentMethodDetails.card?.brand || 'card',
-                    last4: paymentMethodDetails.card?.last4 || '',
-                    source: 'express_payment',
-                    payment_method_id: paymentMethodDetails.id
-                };
-                console.log('✅ Express Card Payment erkannt:', paymentDataToAssign);
-
-            // SEPA via Express
             } else if (paymentMethodDetails.type === 'sepa_debit') {
+                // SEPA Lastschrift über Formular
                 paymentDataToAssign = {
-                    method: 'express_sepa',
+                    method: 'sepa',
                     display_name: 'SEPA Lastschrift',
                     last4: paymentMethodDetails.sepa_debit?.last4 || '',
-                    source: 'express_payment',
+                    source: 'manual_payment',
                     payment_method_id: paymentMethodDetails.id
                 };
-                console.log('✅ Express SEPA erkannt:', paymentDataToAssign);
-            }
+                console.log('✅ SEPA Lastschrift erkannt:', paymentDataToAssign);
 
-            // Fallback für Express Payments ohne spezifischen Wallet Type
-            else if (window.confirmationPaymentData.source === 'express_payment') {
+            } else {
+                // Fallback für unbekannte Payment Methods
                 paymentDataToAssign = {
-                    method: 'express_card',
-                    display_name: 'Express-Zahlung',
-                    brand: paymentMethodDetails.card?.brand || 'card',
-                    last4: paymentMethodDetails.card?.last4 || '',
-                    source: 'express_payment',
+                    method: 'unknown',
+                    display_name: 'Unbekannte Zahlungsmethode',
+                    source: 'manual_payment',
                     payment_method_id: paymentMethodDetails.id
                 };
-                console.log('✅ Express Payment (unspezifisch) erkannt:', paymentDataToAssign);
+                console.log('⚠️ Unbekannte Payment Method erkannt:', paymentDataToAssign);
             }
 
+            // Zuweisung an window.formData.payment
             if (paymentDataToAssign) {
                 window.formData.payment = paymentDataToAssign;
                 console.log('🔥 ZUWEISUNG: window.formData.payment =', window.formData.payment);
-                return; // Wichtig: Return hier, damit kein Fallback verwendet wird
+                return; // Return hier, damit kein Fallback verwendet wird
             }
         }
     } else {
-        console.log('🔍 [DEBUG-PAYMENT] Keine Express Payment Daten gefunden, prüfe Standard-Methoden');
+        console.log('🔍 [DEBUG-PAYMENT] Keine Payment Daten gefunden, prüfe Standard-Methoden');
         console.log('🔍 [DEBUG-PAYMENT] window.confirmationPaymentData:', window.confirmationPaymentData);
     }
 
