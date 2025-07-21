@@ -1535,8 +1535,9 @@ function collectPaymentData() {
 
             let paymentDataToAssign = null;
 
-            // 1. ECHTE EXPRESS PAYMENTS (Wallet-basiert)
-            if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.apple_pay) {
+            // 1. ECHTE EXPRESS PAYMENTS (Wallet-basiert) - Verbesserte Detection
+            if (paymentMethodDetails.wallet && 
+                (paymentMethodDetails.wallet.type === 'apple_pay' || paymentMethodDetails.wallet.apple_pay)) {
                 paymentDataToAssign = {
                     method: 'apple_pay',
                     display_name: 'Apple Pay',
@@ -1547,7 +1548,8 @@ function collectPaymentData() {
                 };
                 console.log('✅ Apple Pay erkannt:', paymentDataToAssign);
 
-            } else if (paymentMethodDetails.wallet && paymentMethodDetails.wallet.google_pay) {
+            } else if (paymentMethodDetails.wallet && 
+                      (paymentMethodDetails.wallet.type === 'google_pay' || paymentMethodDetails.wallet.google_pay)) {
                 paymentDataToAssign = {
                     method: 'google_pay',
                     display_name: 'Google Pay',
