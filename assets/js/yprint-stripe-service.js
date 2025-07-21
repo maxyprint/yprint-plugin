@@ -237,18 +237,27 @@ if (data.data && data.data.debug_logs && Array.isArray(data.data.debug_logs)) {
             console.log('Success Data:', data.data);
             event.complete('success');
             this.emit('payment_success', data.data);
-            
+
+            // === STORING CONFIRMATION PAYMENT DATA FOR EXPRESS PAYMENTS ===
+            if (data.data && data.data.order_data && data.data.order_data.payment_method_details) {
+                const paymentMethodDetails = data.data.order_data.payment_method_details;
+                window.confirmationPaymentData = {
+                    order_data: {
+                        payment_method_details: paymentMethodDetails,
+                        order_id: data.data.order_id,
+                        payment_intent_id: data.data.payment_intent_id
+                    },
+                    source: 'express_payment',
+                    type: paymentMethodDetails.wallet?.type || paymentMethodDetails.type || 'unknown'
+                };
+                console.log('✅ Express Payment Confirmation Data gespeichert:', window.confirmationPaymentData);
+            }
             // Stay in checkout and go to confirmation step
             if (data.data && data.data.next_step === 'confirmation') {
                 setTimeout(() => {
                     // Use the global showStep function to go to confirmation
                     if (typeof window.showStep === 'function') {
                         window.showStep(3); // Step 3 is confirmation
-                        
-                        // Populate confirmation with payment data
-                        // if (typeof window.populateConfirmationWithPaymentData === 'function') {
-                        //     window.populateConfirmationWithPaymentData(data.data);
-                        // }
                     } else {
                         console.error('showStep function not available');
                     }
