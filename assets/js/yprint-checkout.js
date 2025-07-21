@@ -4503,3 +4503,22 @@ populateConfirmation = async function() {
 // === DEBUG PATCH END ===
 
 // ... bestehender Code ...
+
+// Hilfsfunktion: Payment-Daten immer aktuell vor Anzeige
+async function safeUpdatePaymentMethodDisplay() {
+    await collectPaymentData();
+    updatePaymentMethodDisplay();
+}
+
+// Patch: updatePaymentMethodDisplay defensiv machen
+if (typeof window.originalUpdatePaymentMethodDisplay === 'undefined') {
+    window.originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
+    updatePaymentMethodDisplay = function() {
+        if (!formData.payment || Object.keys(formData.payment).length === 0) {
+            console.warn('[SAFE-PAYMENT] formData.payment war leer, collectPaymentData() wird nachgeladen!');
+            collectPaymentData();
+        }
+        window.originalUpdatePaymentMethodDisplay.apply(this, arguments);
+    }
+}
+// ... bestehender Code ...
