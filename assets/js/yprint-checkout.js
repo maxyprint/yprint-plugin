@@ -1309,6 +1309,24 @@ function shouldLoadAddresses() {
             lastProgressStep.classList.add('completed');
         }
     }
+
+    // Loader-Cleanup für alle denkbaren Finalisierungs-Loader
+    if (stepNumber === 3) {
+        const possibleLoaders = [
+            'confirmation-loader',
+            'finalization-loader',
+            'payment-loader',
+            'checkout-loader',
+            'order-loader'
+        ];
+        possibleLoaders.forEach(id => {
+            const loader = document.getElementById(id);
+            if (loader) {
+                loader.style.display = 'none';
+                console.log(`✅ Versteckt: ${id}`);
+            }
+        });
+    }
 }
 
 // Die showStep-Funktion global verfügbar machen
