@@ -4427,3 +4427,84 @@ async function showStep(stepNumber) {
 // ... bestehender Code ...
 // IDs im Template und im JS stimmen überein: #shipping-address, #billing-address, #payment-method
 // ... bestehender Code ...
+
+// === DEBUG PATCH START ===
+// Zusätzliche Debug-Ausgaben für Payment- und Confirmation-Probleme
+
+// 1. Debug in collectPaymentData
+const originalCollectPaymentData = collectPaymentData;
+collectPaymentData = function() {
+    console.log('[DEBUG-PAYMENT] collectPaymentData: Start');
+    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+        console.log('[DEBUG-PAYMENT] Express Payment Daten gefunden:', window.confirmationPaymentData.order_data);
+    } else {
+        console.log('[DEBUG-PAYMENT] Keine Express Payment Daten gefunden, prüfe Standard-Methoden');
+    }
+    // Vorheriger Stand von formData.payment
+    console.log('[DEBUG-PAYMENT] formData.payment vor Verarbeitung:', formData.payment);
+    const result = originalCollectPaymentData.apply(this, arguments);
+    // Nachher
+    console.log('[DEBUG-PAYMENT] formData.payment nach Verarbeitung:', formData.payment);
+    return result;
+}
+
+// 2. Debug in updatePaymentMethodDisplay
+const originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
+updatePaymentMethodDisplay = function() {
+    console.log('[DEBUG-PAYMENT] updatePaymentMethodDisplay() aufgerufen');
+    console.log('[DEBUG-PAYMENT] formData.payment:', formData.payment);
+    const paymentMethodEl = document.getElementById('payment-method');
+    if (!paymentMethodEl) {
+        console.warn('[DEBUG-PAYMENT] payment-method Element nicht gefunden!');
+    }
+    if (formData && formData.payment) {
+        console.log('[DEBUG-PAYMENT] Payment-Objekt für Anzeige:', formData.payment);
+    } else {
+        console.warn('[DEBUG-PAYMENT] formData.payment nicht gesetzt!');
+    }
+    const result = originalUpdatePaymentMethodDisplay.apply(this, arguments);
+    if (paymentMethodEl && formData && formData.payment) {
+        console.log('[DEBUG-PAYMENT] Payment Method angezeigt:', paymentMethodEl.innerHTML);
+    } else {
+        console.log('[DEBUG-PAYMENT] Payment Method Element oder formData.payment nicht gefunden');
+    }
+    return result;
+}
+
+// 3. Debug in populateConfirmation
+const originalPopulateConfirmation = populateConfirmation;
+populateConfirmation = async function() {
+    console.log('[DEBUG-CONFIRMATION] populateConfirmation() START');
+    if (window.confirmationPaymentData) {
+        console.log('[DEBUG-CONFIRMATION] window.confirmationPaymentData:', window.confirmationPaymentData);
+    } else {
+        console.log('[DEBUG-CONFIRMATION] window.confirmationPaymentData NICHT gesetzt');
+    }
+    // Vorheriger Stand von formData
+    console.log('[DEBUG-CONFIRMATION] formData vor Verarbeitung:', formData);
+    const result = await originalPopulateConfirmation.apply(this, arguments);
+    // Nachher
+    console.log('[DEBUG-CONFIRMATION] formData nach Verarbeitung:', formData);
+    // Prüfe DOM-Elemente
+    const confirmPaymentMethodEl = document.getElementById('confirm-payment-method');
+    if (!confirmPaymentMethodEl) {
+        console.warn('[DEBUG-CONFIRMATION] confirm-payment-method Element nicht gefunden!');
+    } else {
+        console.log('[DEBUG-CONFIRMATION] confirm-payment-method Inhalt:', confirmPaymentMethodEl.innerHTML);
+    }
+    console.log('[DEBUG-CONFIRMATION] populateConfirmation() END');
+    return result;
+}
+
+// 4. Debug beim Setzen von window.confirmationPaymentData
+// (Im Stripe-Callback und überall, wo window.confirmationPaymentData gesetzt wird)
+// Beispiel in processPaymentViaStripeService:
+// ...
+// Suche nach window.YPrintStripeService.on('payment_success', ...)
+// und ergänze dort:
+// window.confirmationPaymentData = data;
+// console.log('[DEBUG-PAYMENT] window.confirmationPaymentData gesetzt:', window.confirmationPaymentData);
+// ...
+// === DEBUG PATCH END ===
+
+// ... bestehender Code ...
