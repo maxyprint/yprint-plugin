@@ -2031,18 +2031,20 @@ if (voucherButton) {
     
     // Prüfe ob Order-ID verfügbar ist
     const urlParams = new URLSearchParams(window.location.search);
-    const orderIdFromUrl = urlParams.get('order_id') || urlParams.get('order');
+    const urlOrderId = urlParams.get('order_id') || urlParams.get('order');
     const sessionOrderId = sessionStorage.getItem('yprint_last_order_id');
-    // Prüfe auch Express Payment Order ID
-    const expressOrderId = window.confirmationPaymentData && window.confirmationPaymentData.order_id ? 
-                          window.confirmationPaymentData.order_id.toString() : null;
+    const expressOrderId = window.confirmationPaymentData && window.confirmationPaymentData.order_id ?
+        window.confirmationPaymentData.order_id.toString() : null;
     const shouldCreateButton = urlOrderId || sessionOrderId || expressOrderId;
 
     console.log('🔍 ORDER-ID VERFÜGBARKEIT:');
-    console.log('   - URL Parameter:', urlOrderId);
+    console.log('   - URL Parameter (order_id):', urlParams.get('order_id'));
+    console.log('   - URL Parameter (order):', urlParams.get('order'));
+    console.log('   - Final URL Order ID:', urlOrderId);
     console.log('   - Session Storage:', sessionOrderId);
     console.log('   - Express Payment ID:', expressOrderId);
     console.log('   - Should create button:', shouldCreateButton);
+    console.log('   - Current URL:', window.location.href);
     
     console.log('=== POPULATE CONFIRMATION DEBUG END ===');
 
