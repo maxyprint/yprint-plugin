@@ -419,25 +419,13 @@ function secureExpressDesignData() {
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                console.log('EXPRESS SECURE: Design data secured successfully');
-                console.log('Design count:', data.data.design_count);
-                console.log('Backup keys:', data.data.backup_keys);
-                
-                // ZUSÄTZLICHE SICHERHEIT: Lokale Browser-Session-Speicherung
-                if (data.data.design_count > 0) {
-                    sessionStorage.setItem('yprint_express_design_backup_browser', JSON.stringify({
-                        backup_created: new Date().toISOString(),
-                        design_count: data.data.design_count,
-                        backup_keys: data.data.backup_keys
-                    }));
-                    console.log('EXPRESS SECURE: Browser session backup created');
-                }
-                
-                resolve(data.data);
+            if (data && data.success) {
+                console.log('Design data secured successfully');
+                resolve(data.data ? data.data.message : 'Design data secured');
             } else {
-                console.log('EXPRESS SECURE: No design data found or error:', data.data.message);
-                resolve(null); // Nicht rejekten, da leerer Cart okay ist
+                const errorMsg = data && data.data && data.data.message ? data.data.message : 'Unknown error';
+                console.error('EXPRESS SECURE: Error securing design data:', errorMsg);
+                reject(new Error('Failed to secure design data: ' + errorMsg));
             }
         })
         .catch(error => {
@@ -450,16 +438,16 @@ function secureExpressDesignData() {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
+                    if (data && data.success) {
                         console.log('EXPRESS SECURE: Retry successful');
-                        resolve(data.data);
+                        resolve(data.data ? data.data.message : 'Design data secured');
                     } else {
-                        resolve(null);
+                        reject(new Error('Failed to secure design data: ' + (data && data.data && data.data.message ? data.data.message : 'Unknown error')));
                     }
                 })
                 .catch(retryError => {
                     console.error('EXPRESS SECURE: Retry failed:', retryError);
-                    resolve(null); // Auch bei Retry-Fehler nicht blockieren
+                    reject(new Error('Failed to secure design data: ' + (retryError && retryError.message ? retryError.message : 'Unknown error')));
                 });
             }, 1000);
         });
@@ -2044,12 +2032,17 @@ if (voucherButton) {
     // Prüfe ob Order-ID verfügbar ist
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdFromUrl = urlParams.get('order_id') || urlParams.get('order');
-    const orderIdFromSession = sessionStorage.getItem('yprint_last_order_id');
-    
+    const sessionOrderId = sessionStorage.getItem('yprint_last_order_id');
+    // Prüfe auch Express Payment Order ID
+    const expressOrderId = window.confirmationPaymentData && window.confirmationPaymentData.order_id ? 
+                          window.confirmationPaymentData.order_id.toString() : null;
+    const shouldCreateButton = urlOrderId || sessionOrderId || expressOrderId;
+
     console.log('🔍 ORDER-ID VERFÜGBARKEIT:');
-    console.log(`   - URL Parameter: ${orderIdFromUrl}`);
-    console.log(`   - Session Storage: ${orderIdFromSession}`);
-    console.log(`   - Should create button: ${!!(orderIdFromUrl || orderIdFromSession)}`);
+    console.log('   - URL Parameter:', urlOrderId);
+    console.log('   - Session Storage:', sessionOrderId);
+    console.log('   - Express Payment ID:', expressOrderId);
+    console.log('   - Should create button:', shouldCreateButton);
     
     console.log('=== POPULATE CONFIRMATION DEBUG END ===');
 
