@@ -1256,10 +1256,31 @@ function shouldLoadAddresses() {
     } else if (stepNumber === 3) {
         await collectAddressData();
         debugLogAddresses();
-        await safeUpdatePaymentMethodDisplay(); // Async für garantiert aktuelle Daten
+        
+        // Sichere Payment Data Collection
+        if (typeof collectPaymentData === 'function') {
+            collectPaymentData();
+        } else {
+            console.warn('collectPaymentData function not available in showStep');
+        }
+        
+        // Sichere Payment Method Display Update
+        if (typeof updatePaymentMethodDisplay === 'function') {
+            updatePaymentMethodDisplay();
+        } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
+            retryUpdatePaymentMethodDisplay();
+        } else {
+            console.warn('No payment method display function available in showStep');
+        }
+        
         debugLogAddresses();
-        populateConfirmation();
-    
+        
+        // Sichere Confirmation Population
+        if (typeof populateConfirmation === 'function') {
+            populateConfirmation();
+        } else {
+            console.warn('populateConfirmation function not available in showStep');
+        }
     } else if (stepNumber === 4) {
         populateThankYouPage();
         progressSteps.forEach(pStep => pStep.classList.add('completed'));
@@ -4149,12 +4170,18 @@ jQuery(document).ready(function($) {
 function updatePaymentMethodSession(paymentMethod) {
     console.log('DEBUG: Updating payment method session:', paymentMethod);
     
+    // Prüfe Verfügbarkeit der globalen Checkout-Parameter
+    if (typeof yprint_checkout_params === 'undefined') {
+        console.error('CRITICAL: yprint_checkout_params not available for updatePaymentMethodSession');
+        return;
+    }
+    
     const formData = new FormData();
     formData.append('action', 'yprint_set_payment_method');
     formData.append('payment_method', paymentMethod);
-    formData.append('security', yprint_checkout.nonce);
+    formData.append('security', yprint_checkout_params.nonce);
 
-    fetch(yprint_checkout.ajax_url, {
+    fetch(yprint_checkout_params.ajax_url, {
         method: 'POST',
         body: formData
     })
@@ -4412,9 +4439,31 @@ async function showStep(stepNumber) {
     } else if (stepNumber === 3) {
         await collectAddressData();
         debugLogAddresses();
-        await safeUpdatePaymentMethodDisplay(); // Async für garantiert aktuelle Daten
+        
+        // Sichere Payment Data Collection
+        if (typeof collectPaymentData === 'function') {
+            collectPaymentData();
+        } else {
+            console.warn('collectPaymentData function not available in showStep');
+        }
+        
+        // Sichere Payment Method Display Update
+        if (typeof updatePaymentMethodDisplay === 'function') {
+            updatePaymentMethodDisplay();
+        } else if (typeof retryUpdatePaymentMethodDisplay === 'function') {
+            retryUpdatePaymentMethodDisplay();
+        } else {
+            console.warn('No payment method display function available in showStep');
+        }
+        
         debugLogAddresses();
-        populateConfirmation();
+        
+        // Sichere Confirmation Population
+        if (typeof populateConfirmation === 'function') {
+            populateConfirmation();
+        } else {
+            console.warn('populateConfirmation function not available in showStep');
+        }
     }
     }
     // ... bestehender Code ...
@@ -4424,46 +4473,52 @@ async function showStep(stepNumber) {
 // ... bestehender Code ...
 
 // === DEBUG PATCH START ===
-// Zusätzliche Debug-Ausgaben für Payment- und Confirmation-Probleme
-
-// 1. Debug in collectPaymentData
-const originalCollectPaymentData = collectPaymentData;
-collectPaymentData = function() {
-    console.log('[DEBUG-PAYMENT] collectPaymentData: Start');
-    if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
-        console.log('[DEBUG-PAYMENT] Express Payment Daten gefunden:', window.confirmationPaymentData.order_data);
-    } else {
-        console.log('[DEBUG-PAYMENT] Keine Express Payment Daten gefunden, prüfe Standard-Methoden');
+// 1. Debug in collectPaymentData - mit Availability Check
+if (typeof collectPaymentData === 'function') {
+    const originalCollectPaymentData = collectPaymentData;
+    collectPaymentData = function() {
+        console.log('[DEBUG-PAYMENT] collectPaymentData: Start');
+        if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
+            console.log('[DEBUG-PAYMENT] Express Payment Daten gefunden:', window.confirmationPaymentData.order_data);
+        } else {
+            console.log('[DEBUG-PAYMENT] Keine Express Payment Daten gefunden, prüfe Standard-Methoden');
+        }
+        // Vorheriger Stand von formData.payment
+        console.log('[DEBUG-PAYMENT] formData.payment vor Verarbeitung:', formData.payment);
+        const result = originalCollectPaymentData.apply(this, arguments);
+        // Nachher
+        console.log('[DEBUG-PAYMENT] formData.payment nach Verarbeitung:', formData.payment);
+        return result;
     }
-    // Vorheriger Stand von formData.payment
-    console.log('[DEBUG-PAYMENT] formData.payment vor Verarbeitung:', formData.payment);
-    const result = originalCollectPaymentData.apply(this, arguments);
-    // Nachher
-    console.log('[DEBUG-PAYMENT] formData.payment nach Verarbeitung:', formData.payment);
-    return result;
+} else {
+    console.warn('[DEBUG-PAYMENT] collectPaymentData function not available for patching');
 }
 
-// 2. Debug in updatePaymentMethodDisplay
-const originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
-updatePaymentMethodDisplay = function() {
-    console.log('[DEBUG-PAYMENT] updatePaymentMethodDisplay() aufgerufen');
-    console.log('[DEBUG-PAYMENT] formData.payment:', formData.payment);
-    const paymentMethodEl = document.getElementById('payment-method');
-    if (!paymentMethodEl) {
-        console.warn('[DEBUG-PAYMENT] payment-method Element nicht gefunden!');
+// 2. Debug in updatePaymentMethodDisplay - mit Availability Check
+if (typeof updatePaymentMethodDisplay === 'function') {
+    const originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
+    updatePaymentMethodDisplay = function() {
+        console.log('[DEBUG-PAYMENT] updatePaymentMethodDisplay() aufgerufen');
+        console.log('[DEBUG-PAYMENT] formData.payment:', formData.payment);
+        const paymentMethodEl = document.getElementById('payment-method');
+        if (!paymentMethodEl) {
+            console.warn('[DEBUG-PAYMENT] payment-method Element nicht gefunden!');
+        }
+        if (formData && formData.payment) {
+            console.log('[DEBUG-PAYMENT] Payment-Objekt für Anzeige:', formData.payment);
+        } else {
+            console.warn('[DEBUG-PAYMENT] formData.payment nicht gesetzt!');
+        }
+        const result = originalUpdatePaymentMethodDisplay.apply(this, arguments);
+        if (paymentMethodEl && formData && formData.payment) {
+            console.log('[DEBUG-PAYMENT] Payment Method angezeigt:', paymentMethodEl.innerHTML);
+        } else {
+            console.log('[DEBUG-PAYMENT] Payment Method Element oder formData.payment nicht gefunden');
+        }
+        return result;
     }
-    if (formData && formData.payment) {
-        console.log('[DEBUG-PAYMENT] Payment-Objekt für Anzeige:', formData.payment);
-    } else {
-        console.warn('[DEBUG-PAYMENT] formData.payment nicht gesetzt!');
-    }
-    const result = originalUpdatePaymentMethodDisplay.apply(this, arguments);
-    if (paymentMethodEl && formData && formData.payment) {
-        console.log('[DEBUG-PAYMENT] Payment Method angezeigt:', paymentMethodEl.innerHTML);
-    } else {
-        console.log('[DEBUG-PAYMENT] Payment Method Element oder formData.payment nicht gefunden');
-    }
-    return result;
+} else {
+    console.warn('[DEBUG-PAYMENT] updatePaymentMethodDisplay function not available for patching');
 }
 
 // 3. Debug in populateConfirmation
