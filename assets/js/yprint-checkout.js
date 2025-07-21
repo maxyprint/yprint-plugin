@@ -1256,10 +1256,10 @@ function shouldLoadAddresses() {
     } else if (stepNumber === 3) {
         await collectAddressData();
         debugLogAddresses();
-        collectPaymentData();
+        await safeUpdatePaymentMethodDisplay(); // Async für garantiert aktuelle Daten
         debugLogAddresses();
-        updatePaymentMethodDisplay();
         populateConfirmation();
+    
     } else if (stepNumber === 4) {
         populateThankYouPage();
         progressSteps.forEach(pStep => pStep.classList.add('completed'));
@@ -2359,9 +2359,9 @@ window.toggleLoadingOverlay = function(show, containerId = null, message = 'Läd
                             showStep(3);
                             
                             // Force Payment Method Display Update mit Error-Handling
-                            setTimeout(() => {
-                                safeUpdatePaymentMethodDisplay();
-                            }, 100);
+setTimeout(async () => {
+    await safeUpdatePaymentMethodDisplay();
+}, 100);
                             
                         } else {
                             throw new Error(paymentResult?.message || 'Stripe-Zahlung fehlgeschlagen');
@@ -4212,17 +4212,17 @@ function getFallbackPaymentMethodText(paymentMethodId) {
 //     }
 // };
 
-// === STELLE 1: updatePaymentMethodDisplay Retry-Loop absichern ===
+// === STELLE 1: Synchroner Retry-Mechanismus (für Funktionsverfügbarkeit) ===
 let updatePaymentMethodDisplayTries = 0;
 const maxUpdatePaymentMethodDisplayTries = 5;
-function safeUpdatePaymentMethodDisplay() {
+function retryUpdatePaymentMethodDisplay() {
     if (typeof updatePaymentMethodDisplay === 'function') {
-        console.log('✅ Calling updatePaymentMethodDisplay()');
+        console.log('✅ Calling updatePaymentMethodDisplay() (sync retry)');
         updatePaymentMethodDisplay();
     } else if (updatePaymentMethodDisplayTries < maxUpdatePaymentMethodDisplayTries) {
         updatePaymentMethodDisplayTries++;
         console.log(`🔄 updatePaymentMethodDisplay function loading - retry ${updatePaymentMethodDisplayTries}/${maxUpdatePaymentMethodDisplayTries}`);
-        setTimeout(safeUpdatePaymentMethodDisplay, 400);
+        setTimeout(retryUpdatePaymentMethodDisplay, 400);
     } else {
         showMessage('Zahlungsanzeige konnte nicht geladen werden. Bitte Seite neu laden.', 'error');
         console.error('❌ updatePaymentMethodDisplay function nicht verfügbar nach maximalen Versuchen.');
@@ -4412,13 +4412,13 @@ async function showStep(stepNumber) {
     } else if (stepNumber === 3) {
         await collectAddressData();
         debugLogAddresses();
-        collectPaymentData();
+        await safeUpdatePaymentMethodDisplay(); // Async für garantiert aktuelle Daten
         debugLogAddresses();
-        updatePaymentMethodDisplay();
         populateConfirmation();
     }
+    }
     // ... bestehender Code ...
-}
+
 // ... bestehender Code ...
 // IDs im Template und im JS stimmen überein: #shipping-address, #billing-address, #payment-method
 // ... bestehender Code ...
@@ -4504,21 +4504,21 @@ populateConfirmation = async function() {
 
 // ... bestehender Code ...
 
-// Hilfsfunktion: Payment-Daten immer aktuell vor Anzeige
-async function safeUpdatePaymentMethodDisplay() {
-    await collectPaymentData();
-    updatePaymentMethodDisplay();
-}
-
-// Patch: updatePaymentMethodDisplay defensiv machen
+// Patch: updatePaymentMethodDisplay bleibt synchron und defensiv
 if (typeof window.originalUpdatePaymentMethodDisplay === 'undefined') {
     window.originalUpdatePaymentMethodDisplay = updatePaymentMethodDisplay;
     updatePaymentMethodDisplay = function() {
         if (!formData.payment || Object.keys(formData.payment).length === 0) {
-            console.warn('[SAFE-PAYMENT] formData.payment war leer, collectPaymentData() wird nachgeladen!');
-            collectPaymentData();
+            console.warn('[SAFE-PAYMENT] formData.payment war leer, collectPaymentData() wird synchron nachgeladen!');
+            collectPaymentData(); // Synchroner Aufruf!
         }
         window.originalUpdatePaymentMethodDisplay.apply(this, arguments);
     }
+}
+
+// Asynchrone Hilfsfunktion für garantiert aktuelle Payment-Daten
+async function safeUpdatePaymentMethodDisplay() {
+    await collectPaymentData();
+    updatePaymentMethodDisplay();
 }
 // ... bestehender Code ...
