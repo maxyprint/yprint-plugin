@@ -1500,8 +1500,9 @@ async function collectSessionAddressData() {
 function collectPaymentData() {
     console.log('🔍 collectPaymentData: Starte erweiterte Payment-Informationen Sammlung');
 
-    // Initialisiere formData.payment
-    formData.payment = formData.payment || {};
+    // Initialisiere window.formData global
+    window.formData = window.formData || {shipping: {}, billing: {}, payment: {}};
+    window.formData.payment = window.formData.payment || {};
 
     // PRIORITÄT 1: Express Payment Data auswerten (Apple Pay, Google Pay, etc.)
     if (window.confirmationPaymentData && window.confirmationPaymentData.order_data) {
@@ -1572,8 +1573,8 @@ function collectPaymentData() {
 
             // Wenn Express Payment erkannt wurde, weise Daten zu und beende
             if (paymentDataToAssign) {
-                formData.payment = paymentDataToAssign;
-                console.log('🎯 Express Payment erfolgreich klassifiziert und in formData.payment gespeichert:', formData.payment);
+                window.formData.payment = paymentDataToAssign;
+                console.log('🎯 Express Payment erfolgreich klassifiziert und in window.formData.payment gespeichert:', window.formData.payment);
                 return;
             }
         }
@@ -1586,42 +1587,26 @@ function collectPaymentData() {
     const paymentMethodInput = document.getElementById('selected-payment-method');
     if (paymentMethodInput && paymentMethodInput.value) {
         const methodValue = paymentMethodInput.value;
-        formData.payment.method = methodValue;
+        window.formData.payment.method = methodValue;
         console.log('✅ Standard Payment Method gefunden:', methodValue);
 
         // Display Name Mapping für Standard Methods
         switch (methodValue) {
             case 'yprint_stripe_card':
-                formData.payment.display_name = 'Kreditkarte';
+                window.formData.payment.display_name = 'Kreditkarte';
+                window.formData.payment.source = 'manual_checkout';
                 break;
             case 'yprint_stripe_sepa':
-                formData.payment.display_name = 'SEPA Lastschrift';
+                window.formData.payment.display_name = 'SEPA Lastschrift';
+                window.formData.payment.source = 'manual_checkout';
                 break;
             default:
-                formData.payment.display_name = 'Nicht gewählt';
-        }
-        formData.payment.source = 'manual_checkout';
-    }
-
-    // Payment Method Display Name aus DOM
-    const activePaymentOption = document.querySelector('.payment-option.active');
-    if (activePaymentOption) {
-        const displayName = activePaymentOption.querySelector('.payment-label')?.textContent || formData.payment.display_name;
-        if (displayName && displayName !== 'Nicht gewählt') {
-            formData.payment.display_name = displayName;
-            console.log('✅ Payment Display Name aus DOM:', displayName);
+                window.formData.payment.display_name = 'Unbekannte Zahlungsart';
+                window.formData.payment.source = 'manual_checkout';
         }
     }
 
-    // FINALE VALIDIERUNG
-    if (!formData.payment.method) {
-        formData.payment.method = 'unknown';
-        formData.payment.display_name = 'Nicht gewählt';
-        formData.payment.source = 'fallback';
-        console.log('⚠️ Keine Payment Method erkannt - Fallback verwendet');
-    }
-
-    console.log('🔍 FINALE Payment-Daten:', formData.payment);
+    console.log('🔥 ZUWEISUNG: window.formData.payment =', window.formData.payment);
 }
 
 /**
@@ -4412,35 +4397,49 @@ function updateConfirmationTotalsStatic() {
 // Echte Implementierung für die Anzeige auf der Bestätigungsseite
 function updatePaymentMethodDisplay() {
     console.log('✅ Calling updatePaymentMethodDisplay()');
-    console.log('🔍 formData.payment:', formData.payment);
+    
+    // Sichere Prüfung der window.formData Struktur
+    if (!window.formData) {
+        console.warn('⚠️ window.formData ist nicht initialisiert');
+        window.formData = {shipping: {}, billing: {}, payment: {}};
+    }
+    
+    console.log('🔍 window.formData.payment:', window.formData.payment);
     
     // Payment Method anzeigen
     const paymentMethodEl = document.getElementById('payment-method');
-    if (paymentMethodEl && formData && formData.payment) {
-        const payment = formData.payment;
-        let paymentDisplay = '';
+    if (!paymentMethodEl) {
+        console.warn('⚠️ Payment Method Element nicht gefunden');
+        return;
+    }
+
+    if (!window.formData.payment || Object.keys(window.formData.payment).length === 0) {
+        console.warn('⚠️ Keine Payment Daten verfügbar');
+        paymentMethodEl.innerHTML = 'Nicht gewählt';
+        return;
+    }
+
+    const payment = window.formData.payment;
+    let paymentDisplay = '';
+    
+    if (payment.display_name) {
+        paymentDisplay = payment.display_name;
         
-        if (payment.display_name) {
-            paymentDisplay = payment.display_name;
-            
-            // Zusätzliche Details für Karten
-            if (payment.brand && payment.last4) {
-                paymentDisplay += ` (${payment.brand.toUpperCase()} ****${payment.last4})`;
-            }
-        } else {
-            paymentDisplay = 'Nicht gewählt';
+        // Zusätzliche Details für Karten
+        if (payment.brand && payment.last4) {
+            paymentDisplay += ` (${payment.brand.toUpperCase()} ****${payment.last4})`;
         }
-        
-        paymentMethodEl.innerHTML = paymentDisplay;
-        console.log('✅ Payment Method angezeigt:', paymentDisplay);
     } else {
-        console.log('⚠️ Payment Method Element oder formData.payment nicht gefunden');
+        paymentDisplay = 'Nicht gewählt';
     }
     
+    paymentMethodEl.innerHTML = paymentDisplay;
+    console.log('✅ Payment Method angezeigt:', paymentDisplay);
+
     // Lieferadresse
     const shippingEl = document.getElementById('shipping-address');
-    if (shippingEl && formData && formData.shipping) {
-        const s = formData.shipping;
+    if (shippingEl && window.formData.shipping) {
+        const s = window.formData.shipping;
         shippingEl.innerHTML = `
             ${s.first_name || ''} ${s.last_name || ''}<br>
             ${s.street || ''} ${s.housenumber || ''}<br>
@@ -4452,8 +4451,8 @@ function updatePaymentMethodDisplay() {
 
     // Rechnungsadresse
     const billingEl = document.getElementById('billing-address');
-    if (billingEl && formData && formData.billing) {
-        const b = formData.billing;
+    if (billingEl && window.formData.billing) {
+        const b = window.formData.billing;
         billingEl.innerHTML = `
             ${b.first_name || ''} ${b.last_name || ''}<br>
             ${b.street || ''} ${b.housenumber || ''}<br>
