@@ -739,6 +739,7 @@ function yprint_process_custom_login() {
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
     $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
     $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
+    echo '<script>console.log("🔍 SERVER DEBUG: Username: ' . $username . ', Password: ' . (empty($password) ? 'leer' : 'gesetzt') . '");</script>';
     // Leere Felder prüfen
     if (empty($username) || empty($password)) {
         echo '<script>console.log("🔍 SERVER DEBUG: Leere Felder erkannt, Redirect.");</script>';
@@ -748,6 +749,7 @@ function yprint_process_custom_login() {
     }
     echo '<script>console.log("🔍 SERVER DEBUG: Authentifiziere User: ' . $username . '");</script>';
     $user = wp_authenticate($username, $password);
+    echo '<script>console.log("🔍 SERVER DEBUG: Nach wp_authenticate, User-Objekt: ' . (is_wp_error($user) ? 'WP_Error' : (is_object($user) ? 'User-ID: ' . $user->ID : 'NULL')) . '");</script>';
     if (is_wp_error($user)) {
         echo '<script>console.log("🔍 SERVER DEBUG: Authentifizierung fehlgeschlagen, Redirect.");</script>';
         error_log('YPrint Custom Login: Authentication failed for user: ' . $username);
