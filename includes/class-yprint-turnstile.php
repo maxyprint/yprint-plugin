@@ -420,5 +420,5 @@ if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute(
 // Singleton initialisieren
 $turnstile_instance = YPrint_Turnstile::get_instance();
 
-// Auto-Injection aktiviert
-add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
+// Auto-Injection komplett deaktiviert für Debugging
+// add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));

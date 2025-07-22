@@ -520,11 +520,14 @@ function yprint_login_form_shortcode() {
                     </div>
                     
                     <?php
-                    // Turnstile Widget direkt einbinden
+                    // Turnstile Widget direkt einbinden - mit Duplikats-Schutz
                     if (class_exists('YPrint_Turnstile')) {
                         $turnstile = YPrint_Turnstile::get_instance();
                         if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
-                            echo $turnstile->render_widget('login');
+                            echo '<div class="yprint-input-group turnstile-widget-container" style="text-align: center !important; margin: 20px 0 !important;">';
+                            echo '<div class="cf-turnstile" data-sitekey="' . esc_attr($turnstile->get_site_key()) . '" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>';
+                            echo '<input type="hidden" name="cf-turnstile-response" value="" />';
+                            echo '</div>';
                             echo $turnstile->get_turnstile_js();
                         }
                     }
@@ -548,11 +551,17 @@ function yprint_login_form_shortcode() {
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('🔍 LOGIN DEBUG: DOMContentLoaded fired');
+        
         var usernameField = document.getElementById('user_login');
         var passwordField = document.getElementById('user_pass');
         var emailHint = document.getElementById('email-hint');
         var eyeToggle = document.getElementById('eye-toggle');
         var loginForm = document.getElementById('yprint-loginform');
+        
+        console.log('🔍 LOGIN DEBUG: Form found:', !!loginForm);
+        console.log('🔍 LOGIN DEBUG: Turnstile containers:', document.querySelectorAll('.cf-turnstile').length);
+        console.log('🔍 LOGIN DEBUG: Hidden token fields:', document.querySelectorAll('input[name="cf-turnstile-response"]').length);
         
         // Username Email-Hinweis
         if (usernameField && emailHint) {
@@ -586,30 +595,46 @@ function yprint_login_form_shortcode() {
 
         // Form-Submit abfangen für Turnstile-Prüfung
         if (loginForm) {
+            console.log('🔍 LOGIN DEBUG: Registriere Form-Submit Event-Listener');
+            
             loginForm.addEventListener('submit', function(e) {
+                console.log('🔍 LOGIN DEBUG: Form-Submit Event gefeuert!');
+                
                 var turnstileToken = document.querySelector('input[name="cf-turnstile-response"]');
+                var turnstileContainers = document.querySelectorAll('.cf-turnstile');
+                
+                console.log('Form Submit - Turnstile Container gefunden:', turnstileContainers.length);
                 console.log('Form Submit - Turnstile Token Feld gefunden:', !!turnstileToken);
+                
                 if (turnstileToken) {
                     console.log('Form Submit - Turnstile Token Wert:', turnstileToken.value);
                     console.log('Form Submit - Token Länge:', turnstileToken.value.length);
                 }
+                
                 // Prüfe ob Turnstile aktiv ist und Token fehlt
-                var turnstileContainer = document.querySelector('.cf-turnstile');
-                if (turnstileContainer && turnstileToken && (!turnstileToken.value || turnstileToken.value.length < 10)) {
+                if (turnstileContainers.length > 0 && turnstileToken && (!turnstileToken.value || turnstileToken.value.length < 10)) {
                     e.preventDefault();
                     console.error('Form Submit blockiert - Turnstile Token fehlt oder ungültig');
+                    
                     // Zeige Benutzer-Feedback
                     var errorDiv = document.querySelector('.turnstile-error') || document.createElement('div');
                     errorDiv.className = 'turnstile-error';
                     errorDiv.style.cssText = 'color: #dc3232; margin: 10px 0; font-size: 14px; text-align: center;';
                     errorDiv.textContent = 'Bitte warte einen Moment, bis die Bot-Verifikation abgeschlossen ist.';
+                    
                     if (!document.querySelector('.turnstile-error')) {
-                        turnstileContainer.parentNode.insertBefore(errorDiv, turnstileContainer.nextSibling);
+                        turnstileContainers[0].parentNode.insertBefore(errorDiv, turnstileContainers[0].nextSibling);
                     }
+                    
                     return false;
                 }
-                console.log('Form Submit - alle Prüfungen bestanden, sende Formular');
+                
+                console.log('🔍 LOGIN DEBUG: Form Submit - alle Prüfungen bestanden, sende Formular');
             });
+            
+            console.log('🔍 LOGIN DEBUG: Event-Listener erfolgreich registriert');
+        } else {
+            console.error('🔍 LOGIN DEBUG: FEHLER - Login-Formular nicht gefunden!');
         }
     });
     </script>
