@@ -736,6 +736,8 @@ function yprint_process_custom_login() {
         }
     }
     echo '<script>console.log("🔍 SERVER DEBUG: Turnstile erfolgreich, fahre mit User-Authentifizierung fort");</script>';
+    echo '<script>console.log("🔍 SERVER DEBUG: DUMMY TEST - PHP lebt noch!");</script>';
+    return;
     echo '<script>console.log("🔍 SERVER DEBUG: Vor Username-Zuweisung");</script>';
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
     echo '<script>console.log("🔍 SERVER DEBUG: Nach Username-Zuweisung, Username: ' . $username . '");</script>';
