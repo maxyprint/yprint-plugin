@@ -726,7 +726,8 @@ function yprint_process_custom_login() {
                 exit;
             }
             $verification = $turnstile->verify_token($token);
-            echo '<script>console.log("🔍 SERVER DEBUG: Verifikation Ergebnis:", ' . ($verification['success'] ? 'true' : 'false') . ');</script>';
+            echo '<script>console.log("🔍 SERVER DEBUG: Nach verify_token, Verification-Array: ' . json_encode($verification) . '");</script>';
+            echo '<script>console.log("🔍 SERVER DEBUG: Vor User-Authentifizierung");</script>';
             if (!$verification['success']) {
                 echo '<script>console.log("🔍 SERVER DEBUG: Verifikation fehlgeschlagen! Redirect.");</script>';
                 wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
