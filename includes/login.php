@@ -10,6 +10,16 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// TEMPORÄRES DEBUGGING
+add_action('init', function() {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['yprint_login'])) {
+        error_log('=== YPRINT LOGIN DEBUG ===');
+        error_log('POST data: ' . print_r($_POST, true));
+        error_log('REQUEST_URI: ' . $_SERVER['REQUEST_URI']);
+        error_log('Current page: ' . (function_exists('is_page') && is_page('login') ? 'LOGIN PAGE' : 'OTHER PAGE'));
+    }
+});
+
 /**
  * Customized login form shortcode
  */
@@ -33,6 +43,14 @@ function yprint_login_form_shortcode() {
     
     ob_start();
     
+    // TEMPORÄRES DEBUGGING: POST-Daten als console.log im Browser ausgeben
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['yprint_login'])) {
+        echo '<script>console.log("=== YPRINT LOGIN DEBUG ===");';
+        echo 'console.log("POST data:", ' . json_encode($_POST) . ');';
+        echo 'console.log("REQUEST_URI:", ' . json_encode($_SERVER['REQUEST_URI']) . ');';
+        echo 'console.log("Current page:", ' . (function_exists('is_page') && is_page('login') ? '\'LOGIN PAGE\'' : '\'OTHER PAGE\'') . ');';
+        echo '</script>';
+    }
     // Feedback-System automatisch einbinden
     echo yprint_login_feedback_shortcode();
     ?>
