@@ -592,6 +592,17 @@ function yprint_login_form_shortcode() {
             });
         });
         
+        // TOKEN-FELDER-URSPRUNG ANALYSE
+        var tokenFields = document.querySelectorAll('input[name="cf-turnstile-response"]');
+        tokenFields.forEach(function(field, index) {
+            console.log('🔍 LOGIN DEBUG: Token Field', index + 1 + ':', {
+                'value': field.value,
+                'parent': field.parentElement ? field.parentElement.className : 'no parent',
+                'closest form': field.closest('form') ? field.closest('form').id : 'no form',
+                'outerHTML': field.outerHTML
+            });
+        });
+        
         // Username Email-Hinweis
         if (usernameField && emailHint) {
             usernameField.addEventListener('input', function() {
