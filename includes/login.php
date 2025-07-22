@@ -524,7 +524,7 @@ function yprint_login_form_shortcode() {
             </div>
             
             <div class="yprint-login-form">
-                <form name="yprint-loginform" id="yprint-loginform" action="<?php echo esc_url(home_url('/login/')); ?>" method="post" onsubmit="return false;">
+                <form name="yprint-loginform" id="yprint-loginform" action="<?php echo esc_url(home_url('/login/')); ?>" method="post">
                     <div class="yprint-input-group">
                         <input type="text" name="log" id="user_login" placeholder="Benutzername" value="" size="20" autocapitalize="off" required />
                         <div id="email-hint">Bitte beachte: Hier wird dein Benutzername benötigt, nicht deine E-Mail-Adresse.</div>
@@ -679,30 +679,7 @@ function yprint_login_form_shortcode() {
         }
 
         // TEST-LOGIC: Login-Button überschreibt Submit und loggt alle Felder
-        if (loginForm) {
-            var submitBtn = document.getElementById('wp-submit');
-            if (submitBtn) {
-                submitBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    var username = document.getElementById('user_login')?.value;
-                    var password = document.getElementById('user_pass')?.value;
-                    var tokenField = document.querySelector('input[name="cf-turnstile-response"]');
-                    var token = tokenField ? tokenField.value : null;
-                    var tokenLength = token ? token.length : 0;
-                    var allFields = Array.from(loginForm.elements).map(f => ({name: f.name, value: f.value, type: f.type}));
-                    console.log('🔎 TEST-LOGIN: Benutzername:', username);
-                    console.log('🔎 TEST-LOGIN: Passwort:', password);
-                    console.log('🔎 TEST-LOGIN: Token:', token);
-                    console.log('🔎 TEST-LOGIN: Token Länge:', tokenLength);
-                    console.log('🔎 TEST-LOGIN: Alle Form-Felder:', allFields);
-                    if (!token || tokenLength < 10) {
-                        console.warn('🔎 TEST-LOGIN: Kein oder zu kurzes Token!');
-                    } else {
-                        console.log('🔎 TEST-LOGIN: Token sieht gültig aus!');
-                    }
-                });
-            }
-        }
+        // (diesen Block entfernen, damit der Login wieder funktioniert)
     });
     </script>
     <?php
