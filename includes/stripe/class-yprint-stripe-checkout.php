@@ -94,8 +94,17 @@ class YPrint_Stripe_Checkout {
         add_action('wp_ajax_nopriv_yprint_refresh_checkout_context', array($instance, 'ajax_refresh_checkout_context'));
 
         // Add handler for pending order data
-        add_action('wp_ajax_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
-        add_action('wp_ajax_nopriv_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
+add_action('wp_ajax_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
+add_action('wp_ajax_nopriv_yprint_get_pending_order', array($instance, 'ajax_get_pending_order'));
+
+// Add payment success handler for cart management - Higher priority to run after other processing
+add_action('woocommerce_payment_complete', array($instance, 'handle_payment_success_cart_clearing'), 20, 1);
+add_action('woocommerce_order_status_processing', array($instance, 'handle_payment_success_cart_clearing'), 20, 1);
+add_action('woocommerce_order_status_completed', array($instance, 'handle_payment_success_cart_clearing'), 20, 1);
+
+// Add payment failure handler for cart restoration
+add_action('woocommerce_order_status_failed', array($instance, 'handle_payment_failure_cart_restoration'), 10, 1);
+add_action('woocommerce_order_status_cancelled', array($instance, 'handle_payment_failure_cart_restoration'), 10, 1);
 
         // Express Checkout Design Transfer Hook
         add_action('yprint_express_order_created', array($instance, 'express_checkout_design_transfer_hook'), 10, 1);
@@ -157,7 +166,9 @@ public function ajax_refresh_checkout_context() {
      * Constructor
      */
     private function __construct() {
-        // Private constructor to prevent direct instantiation
+
+        // Constructor bleibt leer - Hooks werden in init() registriert
+
     }
 
 /**
@@ -2313,18 +2324,23 @@ public function ajax_process_payment_method() {
         error_log('Design transfers completed - Success: ' . $design_transfers_success . ', Failed: ' . $design_transfers_failed);
         
         // Store design transfer stats
-        $order->update_meta_data('_express_design_transfers_success', $design_transfers_success);
-        $order->update_meta_data('_express_design_transfers_failed', $design_transfers_failed);
-        $order->update_meta_data('_express_design_transfer_timestamp', current_time('mysql'));
+$order->update_meta_data('_express_design_transfers_success', $design_transfers_success);
+$order->update_meta_data('_express_design_transfers_failed', $design_transfers_failed);
+$order->update_meta_data('_express_design_transfer_timestamp', current_time('mysql'));
+
+// Mark as YPrint order for cart management tracking
+$order->update_meta_data('_yprint_order_source', 'yprint_checkout');
+$order->update_meta_data('_yprint_cart_management_enabled', true);
         
-        // Empty cart after transfer
-        WC()->cart->empty_cart();
-        error_log('Cart emptied after design transfer');
-        
-        // Calculate totals and save
-        $order->calculate_totals();
-        $order->save();
-        error_log('Order saved with ID: ' . $order_id);
+        // Don't empty cart yet - wait for payment confirmation
+// Store cart contents in session as backup
+WC()->session->set('yprint_cart_backup_for_order_' . $order_id, WC()->cart->get_cart());
+error_log('🛡️ YPRINT: Cart backup stored for Order #' . $order_id . ' - Cart will be cleared after successful payment');
+
+// Calculate totals and save
+$order->calculate_totals();
+$order->save();
+error_log('Order saved with ID: ' . $order_id);
         
     } catch (Exception $e) {
         error_log('Order creation failed: ' . $e->getMessage());
@@ -2529,6 +2545,152 @@ public function ajax_process_payment_method() {
 }
 
 /**
+ * Cleanup old cart backups from session
+ */
+public function cleanup_old_cart_backups() {
+    if (!WC()->session) {
+        return;
+    }
+    
+    $session_data = WC()->session->get_session_data();
+    $cleanup_count = 0;
+    
+    foreach ($session_data as $key => $value) {
+        if (strpos($key, 'yprint_cart_backup_for_order_') === 0) {
+            // Extract order ID
+            $order_id = str_replace('yprint_cart_backup_for_order_', '', $key);
+            $order = wc_get_order($order_id);
+            
+            // If order doesn't exist or is older than 24 hours, remove backup
+            if (!$order || (time() - strtotime($order->get_date_created()) > 86400)) {
+                WC()->session->__unset($key);
+                $cleanup_count++;
+                error_log('🧹 YPRINT: Cleaned up expired cart backup for Order #' . $order_id);
+            }
+        }
+    }
+    
+    if ($cleanup_count > 0) {
+        error_log('🧹 YPRINT: Cart backup cleanup completed - ' . $cleanup_count . ' backups removed');
+    }
+}
+
+/**
+ * Auto cleanup expired cart backups
+ */
+public function auto_cleanup_expired_cart_backups() {
+    // Run cleanup with 10% probability to avoid performance impact
+    if (mt_rand(1, 10) === 1) {
+        $this->cleanup_old_cart_backups();
+    }
+}
+
+/**
+ * Handle cart clearing after successful payment
+ * 
+ * @param int $order_id
+ */
+public function handle_payment_success_cart_clearing($order_id) {
+    if (!$order_id) {
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        return;
+    }
+    
+    // Check if this is a YPrint order
+    if (!$order->get_meta('_yprint_order_source')) {
+        return;
+    }
+    
+    error_log('🎉 YPRINT: Payment successful for Order #' . $order_id . ' - Processing cart clearing');
+    
+    // Get cart backup from session
+    $cart_backup_key = 'yprint_cart_backup_for_order_' . $order_id;
+    $cart_backup = WC()->session->get($cart_backup_key);
+    
+    if ($cart_backup) {
+        error_log('🧹 YPRINT: Found cart backup for Order #' . $order_id . ' - Clearing cart now');
+        
+        // Clear the actual cart
+        WC()->cart->empty_cart();
+        
+        // Remove backup from session
+        WC()->session->__unset($cart_backup_key);
+        
+        // Add order note
+        $order->add_order_note(
+            sprintf('✅ Cart successfully cleared after payment confirmation. Order processed via YPrint Checkout.'),
+            false,
+            true
+        );
+        
+        error_log('✅ YPRINT: Cart cleared and backup removed for Order #' . $order_id);
+    } else {
+        error_log('⚠️ YPRINT: No cart backup found for Order #' . $order_id . ' - Cart may have been cleared already');
+    }
+}
+
+/**
+ * Handle cart restoration after payment failure
+ * 
+ * @param int $order_id
+ */
+public function handle_payment_failure_cart_restoration($order_id) {
+    if (!$order_id) {
+        return;
+    }
+    
+    $order = wc_get_order($order_id);
+    if (!$order) {
+        return;
+    }
+    
+    // Check if this is a YPrint order
+    if (!$order->get_meta('_yprint_order_source')) {
+        return;
+    }
+    
+    error_log('❌ YPRINT: Payment failed for Order #' . $order_id . ' - Processing cart restoration');
+    
+    // Get cart backup from session
+    $cart_backup_key = 'yprint_cart_backup_for_order_' . $order_id;
+    $cart_backup = WC()->session->get($cart_backup_key);
+    
+    if ($cart_backup && is_array($cart_backup)) {
+        error_log('🔄 YPRINT: Restoring cart from backup for failed Order #' . $order_id);
+        
+        // Restore cart contents from backup
+        foreach ($cart_backup as $cart_item_key => $cart_item) {
+            $product_id = $cart_item['product_id'];
+            $quantity = $cart_item['quantity'];
+            $variation_id = isset($cart_item['variation_id']) ? $cart_item['variation_id'] : 0;
+            $variation = isset($cart_item['variation']) ? $cart_item['variation'] : array();
+            $cart_item_data = isset($cart_item['cart_item_data']) ? $cart_item['cart_item_data'] : array();
+            
+            // Add the item back to cart
+            WC()->cart->add_to_cart($product_id, $quantity, $variation_id, $variation, $cart_item_data);
+        }
+        
+        // Remove backup from session
+        WC()->session->__unset($cart_backup_key);
+        
+        // Add order note
+        $order->add_order_note(
+            sprintf('🔄 Cart restored after payment failure. Customer can retry checkout.'),
+            false,
+            true
+        );
+        
+        error_log('✅ YPRINT: Cart restored from backup for failed Order #' . $order_id);
+    } else {
+        error_log('⚠️ YPRINT: No cart backup found for failed Order #' . $order_id . ' - Unable to restore cart');
+    }
+}
+
+/**
  * Erstellt eine Test-Bestellung für E-Mail-Debugging
  *
  * @param array $order_data Die Bestelldaten
@@ -2651,3 +2813,4 @@ $order->set_payment_method_title($title);
         return false;
     }
 }}
+
