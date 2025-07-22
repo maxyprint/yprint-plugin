@@ -647,30 +647,15 @@ $cart.on('click', '.yprint-mini-cart-item-remove', function() {
             console.log('Antwort vom Server:', response);
             
             if (response.success) {
-                // Artikel visuell entfernen
-                $item.fadeOut(300, function() {
-                    $(this).remove();
-
-                    // Warenkorb-Anzahl im Header aktualisieren
-                    $cart.find('.yprint-mini-cart-count').text(response.data.cart_count);
-                    
-                    // Zwischensumme aktualisieren
-                    $cart.find('.yprint-mini-cart-subtotal .cart-subtotal-value').html(response.data.cart_subtotal);
-
-                    // Leeren Warenkorb zeigen, wenn keine Artikel mehr
-                    if (response.data.cart_count === 0) {
-                        $cart.find('.yprint-mini-cart-items').html('<div class="yprint-mini-cart-empty">Dein Warenkorb ist leer.</div>');
-                    }
-
-                    // Trigger custom event after item is removed
-                    $(document.body).trigger('yprint_mini_cart_item_removed', [cartItemKey]);
-                });
+                // Statt nur das Item zu entfernen, lade die gesamte Cart-HTML neu
+                refreshCartContent();
+                // Trigger custom event after item is removed
+                $(document.body).trigger('yprint_mini_cart_item_removed', [cartItemKey]);
             } else {
                 console.error('Fehler beim Entfernen:', response.data);
                 alert('Der Artikel konnte nicht entfernt werden.');
+                toggleLoading(false);
             }
-            
-            toggleLoading(false);
         },
         error: function(xhr, status, error) {
             console.error('AJAX-Fehler beim Entfernen:', status, error);
