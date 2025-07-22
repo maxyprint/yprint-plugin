@@ -581,6 +581,17 @@ function yprint_login_form_shortcode() {
         console.log('🔍 LOGIN DEBUG: Turnstile containers:', document.querySelectorAll('.cf-turnstile').length);
         console.log('🔍 LOGIN DEBUG: Hidden token fields:', document.querySelectorAll('input[name="cf-turnstile-response"]').length);
         
+        // WIDGET-URSPRUNG ANALYSE
+        var containers = document.querySelectorAll('.cf-turnstile');
+        containers.forEach(function(container, index) {
+            console.log('🔍 LOGIN DEBUG: Widget', index + 1 + ':', {
+                'parent': container.parentElement ? container.parentElement.className : 'no parent',
+                'closest form': container.closest('form') ? container.closest('form').id : 'no form',
+                'innerHTML': container.innerHTML.substring(0, 50),
+                'data-attributes': Array.from(container.attributes).map(attr => attr.name + '=' + attr.value)
+            });
+        });
+        
         // Username Email-Hinweis
         if (usernameField && emailHint) {
             usernameField.addEventListener('input', function() {
