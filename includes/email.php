@@ -17,9 +17,10 @@ if (!defined('ABSPATH')) {
  * @param string $title Die Überschrift der E-Mail
  * @param string $username Der Benutzername des Empfängers
  * @param string $content Der Nachrichteninhalt
+ * @param bool $show_greeting Optional: Zeigt die Begrüßung an (Standard: true)
  * @return string Die formatierte E-Mail-Nachricht
  */
-function yprint_get_email_template($title, $username, $content) {
+function yprint_get_email_template($title, $username, $content, $show_greeting = true) {
     // Vollständig integrierte Vorlage ohne externe Abhängigkeiten
     ob_start();
     ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -44,15 +45,16 @@ function yprint_get_email_template($title, $username, $content) {
                     </tr>
                     
                     <!-- Begrüßung -->
+                    <?php if ($show_greeting): ?>
                     <tr>
                         <td style="padding: 0 30px;">
-                            <h1 style="margin: 0 0 10px 0; color: #1d1d1f; font-size: 24px; font-weight: 600;"><?php echo esc_html($title); ?></h1>
                             <p style="margin: 0 0 20px 0; color: #6e6e73; font-size: 16px;">
                                 Hallo <?php echo esc_html($username); ?>,<br>
                                 danke für deine Bestellung!
                             </p>
                         </td>
                     </tr>
+                    <?php endif; ?>
                     
                     <!-- Hauptinhalt -->
                     <tr>
