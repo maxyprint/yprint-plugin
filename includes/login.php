@@ -665,45 +665,89 @@ add_shortcode('yprint_login_form', 'yprint_login_form_shortcode');
  * Login-Verarbeitung auf Login-Seite
  */
 function yprint_process_custom_login() {
-    // Debug: Alle POST-Daten loggen
-    error_log('YPrint Custom Login: POST data: ' . print_r($_POST, true));
+    // Console-Debugging für Server-seitige Verarbeitung
+    add_action('wp_footer', function() {
+        echo '<script>';
+        echo 'console.log("🔍 SERVER DEBUG: yprint_process_custom_login() aufgerufen");';
+        echo 'console.log("🔍 SERVER DEBUG: is_page login:", ' . (is_page('login') ? 'true' : 'false') . ');';
+        echo 'console.log("🔍 SERVER DEBUG: REQUEST_URI contains /login:", ' . (strpos($_SERVER['REQUEST_URI'], '/login') !== false ? 'true' : 'false') . ');';
+        echo '</script>';
+    });
     // Nur auf Login-Seite ausführen
     if (!is_page('login') && strpos($_SERVER['REQUEST_URI'], '/login') === false) {
+        add_action('wp_footer', function() {
+            echo '<script>console.log("🔍 SERVER DEBUG: Nicht auf Login-Seite - Funktion beendet");</script>';
+        });
         return;
     }
-    
     // Nur bei POST-Requests
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        add_action('wp_footer', function() {
+            echo '<script>console.log("🔍 SERVER DEBUG: Kein POST-Request - Funktion beendet");</script>';
+        });
         return;
     }
-    
     // Nur bei unserem Login-Formular
     if (!isset($_POST['yprint_login']) || $_POST['yprint_login'] !== '1') {
+        add_action('wp_footer', function() {
+            echo '<script>console.log("🔍 SERVER DEBUG: Kein yprint_login POST - Funktion beendet");</script>';
+        });
         return;
     }
-    
-    // Debug-Log
-    error_log('YPrint Custom Login: Processing login attempt');
-    
+    add_action('wp_footer', function() {
+        echo '<script>console.log("🔍 SERVER DEBUG: Processing login attempt");</script>';
+    });
     // Turnstile-Verifikation wenn aktiviert
     if (class_exists('YPrint_Turnstile')) {
+        add_action('wp_footer', function() {
+            echo '<script>console.log("🔍 SERVER DEBUG: YPrint_Turnstile Klasse gefunden");</script>';
+        });
         $turnstile = YPrint_Turnstile::get_instance();
         if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
+            add_action('wp_footer', function() use ($turnstile) {
+                echo '<script>console.log("🔍 SERVER DEBUG: Turnstile ist aktiviert und Login ist geschützt");</script>';
+            });
             $token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
-            error_log('YPrint Custom Login: Turnstile token received: ' . (!empty($token) ? 'YES (length: ' . strlen($token) . ')' : 'NO'));
+            add_action('wp_footer', function() use ($token) {
+                echo '<script>';
+                echo 'console.log("🔍 SERVER DEBUG: Token empfangen:", ' . (!empty($token) ? 'true' : 'false') . ');';
+                if (!empty($token)) {
+                    echo 'console.log("🔍 SERVER DEBUG: Token Länge:", ' . strlen($token) . ');';
+                }
+                echo '</script>';
+            });
             if (empty($token)) {
-                error_log('YPrint Custom Login: Turnstile token missing - available POST keys: ' . implode(', ', array_keys($_POST)));
+                add_action('wp_footer', function() {
+                    echo '<script>console.log("🔍 SERVER DEBUG: TOKEN FEHLT - Redirect zu turnstile_missing");</script>';
+                });
                 wp_redirect(home_url('/login/?login=turnstile_missing&timestamp=' . time()));
                 exit;
             }
-            
             $verification = $turnstile->verify_token($token);
+            add_action('wp_footer', function() use ($verification) {
+                echo '<script>';
+                echo 'console.log("🔍 SERVER DEBUG: Turnstile Verifikation:", ' . ($verification['success'] ? 'true' : 'false') . ');';
+                if (!$verification['success']) {
+                    echo 'console.log("🔍 SERVER DEBUG: Verifikation Fehler:", ' . json_encode($verification) . ');';
+                }
+                echo '</script>';
+            });
             if (!$verification['success']) {
-                error_log('YPrint Custom Login: Turnstile verification failed');
                 wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
                 exit;
             }
+        } else {
+            add_action('wp_footer', function() use ($turnstile) {
+                echo '<script>';
+                echo 'console.log("🔍 SERVER DEBUG: Turnstile enabled:", ' . ($turnstile->is_enabled() ? 'true' : 'false') . ');';
+                echo 'console.log("🔍 SERVER DEBUG: Login protected:", ' . (in_array('login', $turnstile->get_protected_pages()) ? 'true' : 'false') . ');';
+                echo '</script>';
+            });
         }
+    } else {
+        add_action('wp_footer', function() {
+            echo '<script>console.log("🔍 SERVER DEBUG: YPrint_Turnstile Klasse NICHT gefunden");</script>';
+        });
     }
     
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
