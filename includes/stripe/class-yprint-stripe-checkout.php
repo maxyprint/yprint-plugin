@@ -1416,8 +1416,10 @@ private function prepare_cart_data_for_templates() {
                 throw new Exception($order_id->get_error_message());
             }
 
-            // Clear cart
-            WC()->cart->empty_cart();
+            // Don't empty cart yet - wait for payment confirmation
+            // Store cart contents in session as backup
+            WC()->session->set('yprint_cart_backup_for_order_' . $order_id, WC()->cart->get_cart());
+            error_log('🛡️ YPRINT: Cart backup stored for Order #' . $order_id . ' (ajax_process_checkout)');
 
             $response['success'] = true;
             $response['message'] = __('Bestellung erfolgreich erstellt.', 'yprint-plugin');
@@ -1494,8 +1496,10 @@ private function prepare_cart_data_for_templates() {
                 $order->add_order_note(__('Zahlung ausstehend.', 'yprint-plugin'));
             }
 
-            // Clear cart
-            WC()->cart->empty_cart();
+            // Don't empty cart yet - wait for payment confirmation
+            // Store cart contents in session as backup  
+            WC()->session->set('yprint_cart_backup_for_order_' . $order_id, WC()->cart->get_cart());
+            error_log('🛡️ YPRINT: Cart backup stored for Order #' . $order_id . ' (ajax_process_final_checkout)');
 
             $response['success'] = true;
             $response['message'] = __('Bestellung erfolgreich abgeschlossen.', 'yprint-plugin');
