@@ -630,7 +630,8 @@ function yprint_login_form_shortcode() {
                 console.log('🔍 LOGIN DEBUG: Form-Submit Event gefeuert!');
                 
                 var turnstileToken = document.querySelector('input[name="cf-turnstile-response"]');
-                var turnstileContainers = document.querySelectorAll('.cf-turnstile');
+                // FIXED: Suche nach beiden Klassen - original und gerendert
+                var turnstileContainers = document.querySelectorAll('.cf-turnstile, .cf-turnstile-rendered');
                 
                 console.log('Form Submit - Turnstile Container gefunden:', turnstileContainers.length);
                 console.log('Form Submit - Turnstile Token Feld gefunden:', !!turnstileToken);
