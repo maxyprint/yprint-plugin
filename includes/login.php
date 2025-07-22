@@ -552,6 +552,7 @@ function yprint_login_form_shortcode() {
         var passwordField = document.getElementById('user_pass');
         var emailHint = document.getElementById('email-hint');
         var eyeToggle = document.getElementById('eye-toggle');
+        var loginForm = document.getElementById('yprint-loginform');
         
         // Username Email-Hinweis
         if (usernameField && emailHint) {
@@ -582,6 +583,34 @@ function yprint_login_form_shortcode() {
             eyeToggle.addEventListener('click', togglePassword);
             eyeToggle.addEventListener('touchstart', togglePassword);
         }
+
+        // Form-Submit abfangen für Turnstile-Prüfung
+        if (loginForm) {
+            loginForm.addEventListener('submit', function(e) {
+                var turnstileToken = document.querySelector('input[name="cf-turnstile-response"]');
+                console.log('Form Submit - Turnstile Token Feld gefunden:', !!turnstileToken);
+                if (turnstileToken) {
+                    console.log('Form Submit - Turnstile Token Wert:', turnstileToken.value);
+                    console.log('Form Submit - Token Länge:', turnstileToken.value.length);
+                }
+                // Prüfe ob Turnstile aktiv ist und Token fehlt
+                var turnstileContainer = document.querySelector('.cf-turnstile');
+                if (turnstileContainer && turnstileToken && (!turnstileToken.value || turnstileToken.value.length < 10)) {
+                    e.preventDefault();
+                    console.error('Form Submit blockiert - Turnstile Token fehlt oder ungültig');
+                    // Zeige Benutzer-Feedback
+                    var errorDiv = document.querySelector('.turnstile-error') || document.createElement('div');
+                    errorDiv.className = 'turnstile-error';
+                    errorDiv.style.cssText = 'color: #dc3232; margin: 10px 0; font-size: 14px; text-align: center;';
+                    errorDiv.textContent = 'Bitte warte einen Moment, bis die Bot-Verifikation abgeschlossen ist.';
+                    if (!document.querySelector('.turnstile-error')) {
+                        turnstileContainer.parentNode.insertBefore(errorDiv, turnstileContainer.nextSibling);
+                    }
+                    return false;
+                }
+                console.log('Form Submit - alle Prüfungen bestanden, sende Formular');
+            });
+        }
     });
     </script>
     <?php
@@ -593,6 +622,8 @@ add_shortcode('yprint_login_form', 'yprint_login_form_shortcode');
  * Login-Verarbeitung auf Login-Seite
  */
 function yprint_process_custom_login() {
+    // Debug: Alle POST-Daten loggen
+    error_log('YPrint Custom Login: POST data: ' . print_r($_POST, true));
     // Nur auf Login-Seite ausführen
     if (!is_page('login') && strpos($_SERVER['REQUEST_URI'], '/login') === false) {
         return;
@@ -616,8 +647,9 @@ function yprint_process_custom_login() {
         $turnstile = YPrint_Turnstile::get_instance();
         if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
             $token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
+            error_log('YPrint Custom Login: Turnstile token received: ' . (!empty($token) ? 'YES (length: ' . strlen($token) . ')' : 'NO'));
             if (empty($token)) {
-                error_log('YPrint Custom Login: Turnstile token missing');
+                error_log('YPrint Custom Login: Turnstile token missing - available POST keys: ' . implode(', ', array_keys($_POST)));
                 wp_redirect(home_url('/login/?login=turnstile_missing&timestamp=' . time()));
                 exit;
             }

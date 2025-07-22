@@ -303,12 +303,21 @@ class YPrint_Turnstile {
         console.log('[Turnstile] Initialisierung: Turnstile wird gestartet...');
         window.onTurnstileSuccess = onTurnstileSuccess = function(token) {
             console.log('[Turnstile] Erfolg: Token empfangen:', token);
-            const hiddenField = document.querySelector('input[name=\"cf-turnstile-response\"]');
-            if (hiddenField) {
-                hiddenField.value = token;
-                console.log('[Turnstile] Formular bereit für Login: Token gesetzt.');
-            } else {
-                console.warn('[Turnstile] Warnung: Hidden Field für Token nicht gefunden!');
+            console.log('[Turnstile] Token-Länge:', token.length);
+            // Alle Hidden Fields für Token finden (falls mehrere existieren)
+            const hiddenFields = document.querySelectorAll('input[name=\"cf-turnstile-response\"]');
+            console.log('[Turnstile] Gefundene Hidden Fields:', hiddenFields.length);
+            hiddenFields.forEach(function(field, index) {
+                field.value = token;
+                console.log('[Turnstile] Token gesetzt in Field', index + 1, ':', field.value.substring(0, 20) + '...');
+            });
+            if (hiddenFields.length === 0) {
+                console.error('[Turnstile] FEHLER: Kein Hidden Field für Token gefunden!');
+            }
+            // Entferne eventuelle Error-Nachrichten
+            const errorDiv = document.querySelector('.turnstile-error');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
             }
             document.dispatchEvent(new CustomEvent('turnstileSuccess', { detail: { token: token } }));
         };
