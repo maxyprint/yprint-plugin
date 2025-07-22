@@ -300,17 +300,21 @@ class YPrint_Turnstile {
         
         return "
         <script>
+        console.log('[Turnstile] Initialisierung: Turnstile wird gestartet...');
         window.onTurnstileSuccess = function(token) {
-            console.log('Turnstile Success:', token);
+            console.log('[Turnstile] Erfolg: Token empfangen:', token);
             const hiddenField = document.querySelector('input[name=\"cf-turnstile-response\"]');
             if (hiddenField) {
                 hiddenField.value = token;
+                console.log('[Turnstile] Formular bereit für Login: Token gesetzt.');
+            } else {
+                console.warn('[Turnstile] Warnung: Hidden Field für Token nicht gefunden!');
             }
             document.dispatchEvent(new CustomEvent('turnstileSuccess', { detail: { token: token } }));
         };
         
         window.onTurnstileError = function(error) {
-            console.error('Turnstile Error:', error);
+            console.error('[Turnstile] Fehler:', error);
             const errorDiv = document.querySelector('.turnstile-error');
             if (errorDiv) {
                 errorDiv.textContent = 'Bot-Verifikung fehlgeschlagen. Bitte versuchen Sie es erneut.';
