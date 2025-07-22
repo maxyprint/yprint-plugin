@@ -709,7 +709,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 <div class="mt-3 text-center text-sm text-green-700 bg-green-100 p-3 rounded border border-green-200">
                     <i class="fas fa-shield-alt mr-1"></i> 
-                    <?php esc_html_e( 'Danke für deine Bestellung! Wir machen uns gleich an den Druck.', 'yprint-checkout' ); ?>
+                    <?php esc_html_e( 'Danke für deine Bestellung! Alle Details kriegst du per E-Mail.', 'yprint-checkout' ); ?>
                 </div>
             </div>
         </div>
