@@ -544,7 +544,7 @@ function yprint_login_form_shortcode() {
                         if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
                             echo '<div class="yprint-input-group turnstile-widget-container" style="text-align: center !important; margin: 20px 0 !important;">';
                             echo '<div class="cf-turnstile" data-sitekey="' . esc_attr($turnstile->get_site_key()) . '" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>';
-                            echo '<input type="hidden" name="cf-turnstile-response" value="" />';
+                            // KEIN manuelles Hidden Field mehr!
                             echo '</div>';
                             echo $turnstile->get_turnstile_js();
                         }
