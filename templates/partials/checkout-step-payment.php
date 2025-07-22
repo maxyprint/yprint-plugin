@@ -946,7 +946,7 @@ jQuery(document).ready(function($) {
         
         init() {
             this.createPanel();
-            this.createToggle();
+            // this.createToggle(); // Entfernt: Debug-Button wird nicht mehr erzeugt
             this.log('🚀 Debug-System initialisiert', 'success');
         },
         
@@ -965,16 +965,7 @@ jQuery(document).ready(function($) {
             this.panel = $('#billing-debug-panel');
         },
         
-        createToggle() {
-            const toggle = `<button id="toggle-billing-debug" style="position:fixed; bottom:0; left:0; z-index:9999;">${this.enabled ? '❌ Hide Debug' : '🐞 Show Debug'}</button>`;
-            $('body').append(toggle);
-            $('#toggle-billing-debug').on('click', () => {
-                this.enabled = !this.enabled;
-                localStorage.setItem('yprint_billing_debug', this.enabled);
-                this.panel.toggle(this.enabled);
-                $('#toggle-billing-debug').text(this.enabled ? '❌ Hide Debug' : '🐞 Show Debug');
-            });
-        },
+        // createToggle() entfernt
         
         log(msg, type = 'info') {
             const ts = new Date().toLocaleTimeString();
