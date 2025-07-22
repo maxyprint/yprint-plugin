@@ -736,10 +736,15 @@ function yprint_process_custom_login() {
         }
     }
     echo '<script>console.log("🔍 SERVER DEBUG: Turnstile erfolgreich, fahre mit User-Authentifizierung fort");</script>';
+    echo '<script>console.log("🔍 SERVER DEBUG: Vor Username-Zuweisung");</script>';
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
+    echo '<script>console.log("🔍 SERVER DEBUG: Nach Username-Zuweisung, Username: ' . $username . '");</script>';
+    echo '<script>console.log("🔍 SERVER DEBUG: Vor Password-Zuweisung");</script>';
     $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
+    echo '<script>console.log("🔍 SERVER DEBUG: Nach Password-Zuweisung, Password: ' . (empty($password) ? 'leer' : 'gesetzt') . '");</script>';
+    echo '<script>console.log("🔍 SERVER DEBUG: Vor Redirect_to-Zuweisung");</script>';
     $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
-    echo '<script>console.log("🔍 SERVER DEBUG: Username: ' . $username . ', Password: ' . (empty($password) ? 'leer' : 'gesetzt') . '");</script>';
+    echo '<script>console.log("🔍 SERVER DEBUG: Nach Redirect_to-Zuweisung, Redirect_to: ' . $redirect_to . '");</script>';
     // Leere Felder prüfen
     if (empty($username) || empty($password)) {
         echo '<script>console.log("🔍 SERVER DEBUG: Leere Felder erkannt, Redirect.");</script>';
