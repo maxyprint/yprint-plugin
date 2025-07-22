@@ -301,7 +301,7 @@ class YPrint_Turnstile {
         return "
         <script>
         console.log('[Turnstile] Initialisierung: Turnstile wird gestartet...');
-        window.onTurnstileSuccess = function(token) {
+        window.onTurnstileSuccess = onTurnstileSuccess = function(token) {
             console.log('[Turnstile] Erfolg: Token empfangen:', token);
             const hiddenField = document.querySelector('input[name=\"cf-turnstile-response\"]');
             if (hiddenField) {
@@ -313,7 +313,7 @@ class YPrint_Turnstile {
             document.dispatchEvent(new CustomEvent('turnstileSuccess', { detail: { token: token } }));
         };
         
-        window.onTurnstileError = function(error) {
+        window.onTurnstileError = onTurnstileError = function(error) {
             console.error('[Turnstile] Fehler:', error);
             const errorDiv = document.querySelector('.turnstile-error');
             if (errorDiv) {
@@ -361,7 +361,10 @@ class YPrint_Turnstile {
         if (!$this->should_load_turnstile()) {
             return;
         }
-        
+        // Skip Auto-Injection auf Login-Seite da bereits manuell eingefügt
+        if (is_page('login')) {
+            return;
+        }
         $protected_pages = $this->get_protected_pages();
         $site_key = $this->get_site_key();
         
