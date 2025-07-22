@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
  * @param bool $show_greeting Optional: Zeigt die Begrüßung an (Standard: true)
  * @return string Die formatierte E-Mail-Nachricht
  */
-function yprint_get_email_template($title, $username, $content, $show_greeting = true) {
+function yprint_get_email_template($title, $username, $content) {
     // Vollständig integrierte Vorlage ohne externe Abhängigkeiten
     ob_start();
     ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -43,18 +43,6 @@ function yprint_get_email_template($title, $username, $content, $show_greeting =
                             <img src="https://yprint.de/wp-content/uploads/2025/02/120225-logo.svg" alt="YPrint Logo" style="height: 40px; width: auto;" />
                         </td>
                     </tr>
-                    
-                    <!-- Begrüßung -->
-                    <?php if ($show_greeting): ?>
-                    <tr>
-                        <td style="padding: 0 30px;">
-                            <p style="margin: 0 0 20px 0; color: #6e6e73; font-size: 16px;">
-                                Hallo <?php echo esc_html($username); ?>,<br>
-                                danke für deine Bestellung!
-                            </p>
-                        </td>
-                    </tr>
-                    <?php endif; ?>
                     
                     <!-- Hauptinhalt -->
                     <tr>
@@ -132,6 +120,9 @@ function yprint_send_order_confirmation_email($order) {
     // E-Mail-Inhalt erstellen
     $email_content = yprint_build_order_confirmation_content($order);
     error_log('YPrint EMAIL DEBUG: E-Mail-Inhalt erstellt, Länge: ' . strlen($email_content) . ' Zeichen');
+    // Begrüßung explizit voranstellen
+    $greeting = '<p style="margin: 0 0 20px 0; color: #6e6e73; font-size: 16px;">Hallo ' . esc_html($customer_name ?: 'Kunde') . ',<br>danke für deine Bestellung!</p>';
+    $email_content = $greeting . $email_content;
     
     // E-Mail-Template verwenden
     $email_html = yprint_get_email_template(
