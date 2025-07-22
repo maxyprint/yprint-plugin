@@ -380,40 +380,6 @@ class YPrint_Turnstile {
     document.body.setAttribute('data-turnstile-injection-done', 'true');
     console.log('🛡️ Auto-Injection: Markierung gesetzt, führe Injection aus');
             
-            <?php if (in_array('login', $protected_pages)): ?>
-            // Login-Formular Turnstile einfügen
-const loginForm = document.getElementById('yprint-loginform');
-const existingWidgets = loginForm?.querySelectorAll('.cf-turnstile, .cf-turnstile-rendered') || [];
-console.log('🛡️ Auto-Injection Login Check:', {
-    'loginForm exists': !!loginForm,
-    'existing widgets count': existingWidgets.length,
-    'existing widgets details': Array.from(existingWidgets).map(w => ({
-        'has data-callback': w.hasAttribute('data-callback'),
-        'has data-sitekey': w.hasAttribute('data-sitekey'),
-        'has iframe': !!w.querySelector('iframe'),
-        'innerHTML': w.innerHTML.substring(0, 100)
-    })),
-    'has data-turnstile-injected': !!loginForm?.hasAttribute('data-turnstile-injected')
-});
-
-if (loginForm && existingWidgets.length === 0 && !loginForm.hasAttribute('data-turnstile-injected')) {
-    loginForm.setAttribute('data-turnstile-injected', 'true');
-    console.log('🛡️ Auto-Injection: Injiziere Widget in Login-Form');
-                const submitGroup = loginForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
-                if (submitGroup) {
-                    const turnstileContainer = document.createElement('div');
-                    turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
-                    turnstileContainer.style.cssText = 'text-align: center; margin: 20px 0;';
-                    turnstileContainer.innerHTML = `
-                        <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($site_key); ?>" data-theme="light"></div>
-                        <input type="hidden" name="cf-turnstile-response" value="" />
-                    `;
-                    submitGroup.parentNode.insertBefore(turnstileContainer, submitGroup);
-                    console.log('🛡️ Turnstile: Widget automatisch in Login-Formular eingefügt');
-                }
-            }
-            <?php endif; ?>
-            
             <?php if (in_array('registration', $protected_pages)): ?>
             // Registration-Formular Turnstile einfügen
 const regForm = document.getElementById('register-form');
