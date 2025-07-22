@@ -728,54 +728,52 @@ function yprint_process_custom_login() {
             $verification = $turnstile->verify_token($token);
             echo '<script>console.log("🔍 SERVER DEBUG: Verifikation Ergebnis:", ' . ($verification['success'] ? 'true' : 'false') . ');</script>';
             if (!$verification['success']) {
-                echo '<script>console.log("🔍 SERVER DEBUG: Verifikation fehlgeschlagen!");</script>';
+                echo '<script>console.log("🔍 SERVER DEBUG: Verifikation fehlgeschlagen! Redirect.");</script>';
                 wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
                 exit;
             }
         }
     }
-    
+    echo '<script>console.log("🔍 SERVER DEBUG: Turnstile erfolgreich, fahre mit User-Authentifizierung fort");</script>';
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
     $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
     $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
-    
     // Leere Felder prüfen
     if (empty($username) || empty($password)) {
+        echo '<script>console.log("🔍 SERVER DEBUG: Leere Felder erkannt, Redirect.");</script>';
         error_log('YPrint Custom Login: Empty fields detected');
         wp_redirect(home_url('/login/?login=empty&timestamp=' . time()));
         exit;
     }
-    
-    // Benutzer authentifizieren
+    echo '<script>console.log("🔍 SERVER DEBUG: Authentifiziere User: ' . $username . '");</script>';
     $user = wp_authenticate($username, $password);
-    
     if (is_wp_error($user)) {
+        echo '<script>console.log("🔍 SERVER DEBUG: Authentifizierung fehlgeschlagen, Redirect.");</script>';
         error_log('YPrint Custom Login: Authentication failed for user: ' . $username);
         wp_redirect(home_url('/login/?login=failed&timestamp=' . time()));
         exit;
     }
-    
+    echo '<script>console.log("🔍 SERVER DEBUG: User-Objekt erhalten, ID: ' . ($user ? $user->ID : 'NULL') . '");</script>';
     // E-Mail-Verifikation prüfen
     global $wpdb;
     $table_name = 'wp_email_verifications';
     $user_id = $user->ID;
-    
     $email_verified = $wpdb->get_var(
         $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
     );
-    
+    echo '<script>console.log("🔍 SERVER DEBUG: E-Mail-Verifikation Status: ' . ($email_verified === null ? 'kein Eintrag' : $email_verified) . '");</script>';
     if ($email_verified !== null && $email_verified != 1) {
+        echo '<script>console.log("🔍 SERVER DEBUG: E-Mail nicht verifiziert, Redirect.");</script>';
         error_log('YPrint Custom Login: Email not verified for user: ' . $username);
         wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id . '&timestamp=' . time()));
         exit;
     }
-    
-    // Login erfolgreich - einloggen und weiterleiten
+    echo '<script>console.log("🔍 SERVER DEBUG: Login erfolgreich, setze Auth-Cookie und leite weiter");</script>';
     error_log('YPrint Custom Login: Login successful for user: ' . $username);
     wp_set_current_user($user_id, $username);
     wp_set_auth_cookie($user_id);
     do_action('wp_login', $username, $user);
-    
+    echo '<script>console.log("🔍 SERVER DEBUG: Redirect zu: ' . $redirect_to . '");</script>';
     wp_redirect($redirect_to);
     exit;
 }
