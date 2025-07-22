@@ -519,8 +519,16 @@ function yprint_login_form_shortcode() {
                         </button>
                     </div>
                     
-                    
-                    
+                    <?php
+                    // Turnstile Widget direkt einbinden
+                    if (class_exists('YPrint_Turnstile')) {
+                        $turnstile = YPrint_Turnstile::get_instance();
+                        if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
+                            echo $turnstile->render_widget('login');
+                            echo $turnstile->get_turnstile_js();
+                        }
+                    }
+                    ?>
                     <div class="yprint-input-group">
                         <input type="submit" name="wp-submit" id="wp-submit" value="Anmelden" />
                         <input type="hidden" name="redirect_to" value="<?php echo esc_attr(home_url('/dashboard/')); ?>" />
