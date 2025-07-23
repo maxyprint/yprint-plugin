@@ -304,15 +304,32 @@ class YPrint_Turnstile {
         window.onTurnstileSuccess = onTurnstileSuccess = function(token) {
             console.log('[Turnstile] Erfolg: Token empfangen:', token);
             console.log('[Turnstile] Token-Länge:', token.length);
-            // Alle Hidden Fields für Token finden (falls mehrere existieren)
-            const hiddenFields = document.querySelectorAll('input[name=\"cf-turnstile-response\"]');
-            console.log('[Turnstile] Gefundene Hidden Fields:', hiddenFields.length);
-            hiddenFields.forEach(function(field, index) {
-                field.value = token;
-                console.log('[Turnstile] Token gesetzt in Field', index + 1, ':', field.value.substring(0, 20) + '...');
-            });
-            if (hiddenFields.length === 0) {
-                console.error('[Turnstile] FEHLER: Kein Hidden Field für Token gefunden!');
+            // Suche sowohl im Form als auch global
+            const loginForm = document.getElementById('yprint-loginform');
+            let hiddenField = null;
+            if (loginForm) {
+                hiddenField = loginForm.querySelector('input[name=\"cf-turnstile-response\"]');
+                console.log('[Turnstile] Hidden Field im Form gefunden:', !!hiddenField);
+            }
+            if (!hiddenField) {
+                hiddenField = document.querySelector('input[name=\"cf-turnstile-response\"]');
+                console.log('[Turnstile] Hidden Field global gefunden:', !!hiddenField);
+            }
+            if (!hiddenField) {
+                // Erstelle Hidden Field falls nicht vorhanden
+                hiddenField = document.createElement('input');
+                hiddenField.type = 'hidden';
+                hiddenField.name = 'cf-turnstile-response';
+                if (loginForm) {
+                    loginForm.appendChild(hiddenField);
+                    console.log('[Turnstile] Hidden Field automatisch erstellt');
+                }
+            }
+            if (hiddenField) {
+                hiddenField.value = token;
+                console.log('[Turnstile] Token gesetzt:', hiddenField.value.substring(0, 20) + '...');
+            } else {
+                console.error('[Turnstile] KRITISCH: Konnte kein Hidden Field erstellen!');
             }
             // Entferne eventuelle Error-Nachrichten
             const errorDiv = document.querySelector('.turnstile-error');
@@ -321,7 +338,6 @@ class YPrint_Turnstile {
             }
             document.dispatchEvent(new CustomEvent('turnstileSuccess', { detail: { token: token } }));
         };
-        
         window.onTurnstileError = onTurnstileError = function(error) {
             console.error('[Turnstile] Fehler:', error);
             const errorDiv = document.querySelector('.turnstile-error');
