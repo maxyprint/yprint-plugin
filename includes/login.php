@@ -718,85 +718,56 @@ add_action('template_redirect', 'yprint_debug_template_redirect', 0);
  * Login-Verarbeitung auf Login-Seite
  */
 function yprint_process_custom_login() {
-    echo '<script>console.log("🔍 PROCESS LOGIN: Funktion wurde aufgerufen");</script>';
-    echo '<script>console.log("🔍 PROCESS LOGIN: REQUEST_METHOD:", "' . $_SERVER['REQUEST_METHOD'] . '");</script>';
-    echo '<script>console.log("🔍 PROCESS LOGIN: REQUEST_URI:", "' . $_SERVER['REQUEST_URI'] . '");</script>';
     // Nur auf Login-Seite ausführen
     if (!is_page('login') && strpos($_SERVER['REQUEST_URI'], '/login') === false) {
-        echo '<script>console.log("🔍 PROCESS LOGIN: Nicht auf Login-Seite - beende");</script>';
         return;
     }
     // Nur bei POST-Requests
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        echo '<script>console.log("🔍 PROCESS LOGIN: Nicht POST - beende");</script>';
         return;
     }
     // Nur bei unserem Login-Formular
     if (!isset($_POST['yprint_login']) || $_POST['yprint_login'] !== '1') {
-        echo '<script>console.log("🔍 PROCESS LOGIN: Kein yprint_login - beende");</script>';
         return;
     }
-    echo '<script>console.log("🔍 PROCESS LOGIN: Alle Bedingungen erfüllt - starte Login-Prozess");</script>';
-    // CONSOLE-DEBUGGING für tatsächlichen POST-Request
-    ?>
-    <script>
-    console.log('🔍 SERVER DEBUG: POST-Request verarbeitet!');
-    console.log('🔍 SERVER DEBUG: POST Keys:', <?php echo json_encode(array_keys($_POST)); ?>);
-    console.log('🔍 SERVER DEBUG: Token present:', <?php echo (isset($_POST['cf-turnstile-response']) ? 'true' : 'false'); ?>);
-    <?php if (isset($_POST['cf-turnstile-response'])): ?>
-    console.log('🔍 SERVER DEBUG: Token length:', <?php echo strlen($_POST['cf-turnstile-response']); ?>);
-    <?php endif; ?>
-    </script>
-    <?php
+    // Optional: Debugging ins Error-Log
+    error_log('YPrint Custom Login: POST-Request verarbeitet');
+    error_log('YPrint Custom Login: POST Keys: ' . json_encode(array_keys($_POST)));
+    error_log('YPrint Custom Login: Token present: ' . (isset($_POST['cf-turnstile-response']) ? 'true' : 'false'));
+    if (isset($_POST['cf-turnstile-response'])) {
+        error_log('YPrint Custom Login: Token length: ' . strlen($_POST['cf-turnstile-response']));
+    }
     // Turnstile-Verifikation wenn aktiviert
     if (class_exists('YPrint_Turnstile')) {
         $turnstile = YPrint_Turnstile::get_instance();
         if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
             $token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
-            echo '<script>console.log("🔍 SERVER DEBUG: Turnstile Verifikation startet");</script>';
             if (empty($token)) {
-                echo '<script>console.log("🔍 SERVER DEBUG: TOKEN FEHLT - Redirect!");</script>';
                 wp_redirect(home_url('/login/?login=turnstile_missing&timestamp=' . time()));
                 exit;
             }
             $verification = $turnstile->verify_token($token);
-            echo '<script>console.log("🔍 SERVER DEBUG: Nach verify_token, Verification-Array: ' . json_encode($verification) . '");</script>';
-            echo '<script>console.log("🔍 SERVER DEBUG: Vor User-Authentifizierung");</script>';
             if (!$verification['success']) {
-                echo '<script>console.log("🔍 SERVER DEBUG: Verifikation fehlgeschlagen! Redirect.");</script>';
                 wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
                 exit;
             }
         }
     }
-    echo '<script>console.log("🔍 SERVER DEBUG: Turnstile erfolgreich, fahre mit User-Authentifizierung fort");</script>';
-    echo '<script>console.log("🔍 SERVER DEBUG: Starte Login-Prozess");</script>';
-    echo '<script>console.log("🔍 SERVER DEBUG: Vor Username-Zuweisung");</script>';
     $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
-    echo '<script>console.log("🔍 SERVER DEBUG: Nach Username-Zuweisung, Username: ' . $username . '");</script>';
-    echo '<script>console.log("🔍 SERVER DEBUG: Vor Password-Zuweisung");</script>';
     $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
-    echo '<script>console.log("🔍 SERVER DEBUG: Nach Password-Zuweisung, Password: ' . (empty($password) ? 'leer' : 'gesetzt') . '");</script>';
-    echo '<script>console.log("🔍 SERVER DEBUG: Vor Redirect_to-Zuweisung");</script>';
     $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
-    echo '<script>console.log("🔍 SERVER DEBUG: Nach Redirect_to-Zuweisung, Redirect_to: ' . $redirect_to . '");</script>';
     // Leere Felder prüfen
     if (empty($username) || empty($password)) {
-        echo '<script>console.log("🔍 SERVER DEBUG: Leere Felder erkannt, Redirect.");</script>';
         error_log('YPrint Custom Login: Empty fields detected');
         wp_redirect(home_url('/login/?login=empty&timestamp=' . time()));
         exit;
     }
-    echo '<script>console.log("🔍 SERVER DEBUG: Authentifiziere User: ' . $username . '");</script>';
     $user = wp_authenticate($username, $password);
-    echo '<script>console.log("🔍 SERVER DEBUG: Nach wp_authenticate, User-Objekt: ' . (is_wp_error($user) ? 'WP_Error' : (is_object($user) ? 'User-ID: ' . $user->ID : 'NULL')) . '");</script>';
     if (is_wp_error($user)) {
-        echo '<script>console.log("🔍 SERVER DEBUG: Authentifizierung fehlgeschlagen, Redirect.");</script>';
         error_log('YPrint Custom Login: Authentication failed for user: ' . $username);
         wp_redirect(home_url('/login/?login=failed&timestamp=' . time()));
         exit;
     }
-    echo '<script>console.log("🔍 SERVER DEBUG: User-Objekt erhalten, ID: ' . ($user ? $user->ID : 'NULL') . '");</script>';
     // E-Mail-Verifikation prüfen
     global $wpdb;
     $table_name = 'wp_email_verifications';
@@ -804,19 +775,15 @@ function yprint_process_custom_login() {
     $email_verified = $wpdb->get_var(
         $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
     );
-    echo '<script>console.log("🔍 SERVER DEBUG: E-Mail-Verifikation Status: ' . ($email_verified === null ? 'kein Eintrag' : $email_verified) . '");</script>';
     if ($email_verified !== null && $email_verified != 1) {
-        echo '<script>console.log("🔍 SERVER DEBUG: E-Mail nicht verifiziert, Redirect.");</script>';
         error_log('YPrint Custom Login: Email not verified for user: ' . $username);
         wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id . '&timestamp=' . time()));
         exit;
     }
-    echo '<script>console.log("🔍 SERVER DEBUG: Login erfolgreich, setze Auth-Cookie und leite weiter");</script>';
     error_log('YPrint Custom Login: Login successful for user: ' . $username);
     wp_set_current_user($user_id, $username);
     wp_set_auth_cookie($user_id);
     do_action('wp_login', $username, $user);
-    echo '<script>console.log("🔍 SERVER DEBUG: Redirect zu: ' . $redirect_to . '");</script>';
     wp_redirect($redirect_to);
     exit;
 }
