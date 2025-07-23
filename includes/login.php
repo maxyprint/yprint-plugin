@@ -671,6 +671,34 @@ function yprint_login_form_shortcode() {
                 }
                 
                 console.log('🔍 LOGIN DEBUG: Form Submit - alle Prüfungen bestanden, sende Formular');
+                // DETAILLIERTE FORM-DATA DEBUG
+                const formData = new FormData(loginForm);
+                console.log('🔍 FORM DATA CHECK: Alle Form-Felder beim Submit:');
+                for (let [key, value] of formData.entries()) {
+                    if (key === 'cf-turnstile-response') {
+                        console.log(`🔍 FORM DATA: ${key} = "${value.substring(0, 50)}..." (Length: ${value.length})`);
+                    } else {
+                        console.log(`🔍 FORM DATA: ${key} = "${value}"`);
+                    }
+                }
+                // HIDDEN FIELD FINAL CHECK
+                const finalTokenField = loginForm.querySelector('input[name="cf-turnstile-response"]');
+                if (finalTokenField) {
+                    console.log('🔍 FINAL TOKEN CHECK: Hidden field value before submit:', finalTokenField.value.substring(0, 50) + '...');
+                    console.log('🔍 FINAL TOKEN CHECK: Hidden field in DOM?', finalTokenField.parentNode ? 'YES' : 'NO');
+                } else {
+                    console.error('🔍 CRITICAL: No token field found during submit!');
+                }
+                // Quick Fix Test: Alle Inputs im Formular vor Submit
+                console.log('🔍 LAST CHANCE CHECK: Form innerHTML before submit:');
+                console.log(loginForm.innerHTML.substring(0, 500));
+                const allInputs = loginForm.querySelectorAll('input');
+                console.log('🔍 ALL INPUTS IN FORM:', allInputs.length);
+                allInputs.forEach((input, i) => {
+                    if (input.name === 'cf-turnstile-response') {
+                        console.log(`🔍 TOKEN INPUT ${i}: value="${input.value.substring(0, 20)}..." length=${input.value.length}`);
+                    }
+                });
             });
             
             console.log('🔍 LOGIN DEBUG: Event-Listener erfolgreich registriert');
@@ -734,6 +762,7 @@ function yprint_process_custom_login() {
         $debug_logs[] = '=== YPRINT LOGIN HANDLER STARTED ===';
         $debug_logs[] = 'Hook: template_redirect executed';
         $debug_logs[] = 'POST keys: ' . json_encode(array_keys($_POST));
+        $debug_logs[] = 'COMPLETE POST DATA: ' . json_encode($_POST);
         $debug_logs[] = 'REQUEST_URI: ' . $_SERVER['REQUEST_URI'];
         $debug_logs[] = 'Session available: ' . (WC()->session ? 'yes' : 'no');
         $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
