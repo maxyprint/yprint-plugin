@@ -31,6 +31,9 @@ require_once YPRINT_PLUGIN_DIR . 'includes/woocommerce.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/legal-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/product-fields.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-consent-manager.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-legal-text-manager.php';
+require_once YPRINT_PLUGIN_DIR . 'includes/admin/class-yprint-consent-admin.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/help-shortcode.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/mobile-product-shortcode.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/checkout-header.php';
@@ -187,6 +190,35 @@ add_action('plugins_loaded', function() {
 // Initialize Address Handler (zentrale AJAX-Verwaltung)
 add_action('plugins_loaded', function() {
     YPrint_Address_Handler::get_instance();
+});
+
+// Initialize Consent System
+add_action('plugins_loaded', function() {
+    // Consent Manager
+    if (class_exists('YPrint_Consent_Manager')) {
+        YPrint_Consent_Manager::get_instance();
+        error_log('✅ YPrint Consent System: Manager initialized');
+    }
+    
+    // Legal Text Manager
+    if (class_exists('YPrint_Legal_Text_Manager')) {
+        YPrint_Legal_Text_Manager::get_instance();
+        error_log('✅ YPrint Consent System: Legal Text Manager initialized');
+    }
+    
+    // Admin nur im Backend laden
+    if (is_admin() && class_exists('YPrint_Consent_Admin')) {
+        YPrint_Consent_Admin::get_instance();
+        error_log('✅ YPrint Consent System: Admin panel initialized');
+    }
+});
+
+// Hook für Consent-System nach DB-Setup
+add_action('after_setup_theme', function() {
+    // Stelle sicher, dass Consent-Tabellen existieren
+    if (function_exists('yprint_create_settings_tables')) {
+        yprint_create_settings_tables();
+    }
 });
 
  

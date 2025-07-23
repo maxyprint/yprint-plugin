@@ -79,6 +79,56 @@ function wc_rest_user_endpoint_handler($request) {
         return $user_id;
     }
 
+    // NEUE FUNKTION: Pflicht-Consent für Datenschutzerklärung prüfen
+    $privacy_consent = isset($_POST['privacy_consent']) ? (bool) $_POST['privacy_consent'] : false;
+
+    if (!$privacy_consent) {
+        // Benutzer wieder löschen, da Consent fehlt
+        wp_delete_user($user_id);
+        $error = new WP_Error();
+        $error->add(400, __("Du musst der Datenschutzerklärung zustimmen.", 'wp-rest-user'), array('status' => 400));
+        return $error;
+    }
+
+    // Datenschutz-Consent in DB speichern
+    $wpdb->insert(
+        $wpdb->prefix . 'yprint_consents',
+        array(
+            'user_id' => $user_id,
+            'consent_type' => 'PRIVACY_POLICY',
+            'granted' => 1,
+            'version' => '1.0',
+            'ip_address' => $this->get_client_ip(),
+            'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+            'created_at' => current_time('mysql'),
+            'updated_at' => current_time('mysql')
+        )
+    );
+
+    // Eventuelle Cookie-Consents von Gast zu User übertragen
+    if (isset($_COOKIE['yprint_consent_preferences'])) {
+        $guest_consents = json_decode($_COOKIE['yprint_consent_preferences'], true);
+        if ($guest_consents && isset($guest_consents['consents'])) {
+            foreach ($guest_consents['consents'] as $consent_type => $granted) {
+                $wpdb->insert(
+                    $wpdb->prefix . 'yprint_consents',
+                    array(
+                        'user_id' => $user_id,
+                        'consent_type' => strtoupper($consent_type),
+                        'granted' => (bool) $granted ? 1 : 0,
+                        'version' => isset($guest_consents['version']) ? $guest_consents['version'] : '1.0',
+                        'ip_address' => $this->get_client_ip(),
+                        'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    )
+                );
+            }
+            // Gast-Cookie löschen
+            setcookie('yprint_consent_preferences', '', time() - 3600, '/');
+        }
+    }
+
     // Benutzerrolle setzen
     $user = get_user_by('id', $user_id);
     $user->set_role('subscriber');

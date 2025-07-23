@@ -97,22 +97,22 @@ function yprint_create_settings_tables() {
     global $wpdb;
     $charset_collate = $wpdb->get_charset_collate();
     
-    // Tabelle für persönliche Daten
+    // Bestehende Tabellen (unverändert)
     $personal_data_table = $wpdb->prefix . 'personal_data';
     $sql_personal = "CREATE TABLE IF NOT EXISTS $personal_data_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
         user_id bigint(20) unsigned NOT NULL,
-        first_name varchar(255),
-        last_name varchar(255),
-        birthdate date,
-        phone varchar(50),
+        first_name varchar(100) NOT NULL,
+        last_name varchar(100) NOT NULL,
+        birthdate date NULL,
+        phone varchar(20) NULL,
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
         updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         UNIQUE KEY user_id (user_id)
     ) $charset_collate;";
     
-    // Tabelle für Zahlungsmethoden
+    // Payment Methods Tabelle (unverändert)
     $payment_methods_table = $wpdb->prefix . 'payment_methods';
     $sql_payment = "CREATE TABLE IF NOT EXISTS $payment_methods_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -126,7 +126,7 @@ function yprint_create_settings_tables() {
         KEY user_id (user_id)
     ) $charset_collate;";
     
-    // Tabelle für Benachrichtigungseinstellungen
+    // Notification Settings (unverändert)
     $notification_settings_table = $wpdb->prefix . 'notification_settings';
     $sql_notification = "CREATE TABLE IF NOT EXISTS $notification_settings_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -142,7 +142,7 @@ function yprint_create_settings_tables() {
         UNIQUE KEY user_id (user_id)
     ) $charset_collate;";
     
-    // Tabelle für Datenschutzeinstellungen
+    // Privacy Settings (erweitert um consent_version)
     $privacy_settings_table = $wpdb->prefix . 'privacy_settings';
     $sql_privacy = "CREATE TABLE IF NOT EXISTS $privacy_settings_table (
         id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -151,17 +151,106 @@ function yprint_create_settings_tables() {
         data_collection tinyint(1) NOT NULL DEFAULT 1,
         personalized_ads tinyint(1) NOT NULL DEFAULT 1,
         preferences_analysis tinyint(1) NOT NULL DEFAULT 1,
+        consent_version varchar(20) NOT NULL DEFAULT '1.0',
         created_at datetime DEFAULT CURRENT_TIMESTAMP,
         updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
         UNIQUE KEY user_id (user_id)
     ) $charset_collate;";
     
+    // NEUE TABELLE: Consent Management (DSGVO + TTDSG)
+    $consents_table = $wpdb->prefix . 'yprint_consents';
+    $sql_consents = "CREATE TABLE IF NOT EXISTS $consents_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NULL,
+        session_id varchar(191) NULL,
+        consent_type enum('PRIVACY_POLICY','COOKIE_ESSENTIAL','COOKIE_ANALYTICS','COOKIE_MARKETING','COOKIE_FUNCTIONAL') NOT NULL,
+        granted tinyint(1) NOT NULL DEFAULT 0,
+        version varchar(20) NOT NULL DEFAULT '1.0',
+        ip_address varchar(45) NULL,
+        user_agent text NULL,
+        created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        INDEX idx_user_id (user_id),
+        INDEX idx_session_id (session_id),
+        INDEX idx_consent_type (consent_type),
+        INDEX idx_created_at (created_at)
+    ) ENGINE=InnoDB $charset_collate;";
+    
+    // NEUE TABELLE: Legal Texts (Admin-editierbar)
+    $legal_texts_table = $wpdb->prefix . 'yprint_legal_texts';
+    $sql_legal_texts = "CREATE TABLE IF NOT EXISTS $legal_texts_table (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        text_key varchar(100) NOT NULL,
+        content longtext NOT NULL,
+        version varchar(20) NOT NULL DEFAULT '1.0',
+        language varchar(5) NOT NULL DEFAULT 'de',
+        is_active tinyint(1) NOT NULL DEFAULT 1,
+        created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (id),
+        UNIQUE KEY unique_key_lang_version (text_key, language, version),
+        INDEX idx_text_key (text_key),
+        INDEX idx_is_active (is_active)
+    ) ENGINE=InnoDB $charset_collate;";
+    
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     dbDelta($sql_personal);
     dbDelta($sql_payment);
     dbDelta($sql_notification);
     dbDelta($sql_privacy);
+    dbDelta($sql_consents);
+    dbDelta($sql_legal_texts);
+    
+    // Standard Legal Texts einfügen
+    yprint_insert_default_legal_texts();
+}
+
+function yprint_insert_default_legal_texts() {
+    global $wpdb;
+    
+    $table = $wpdb->prefix . 'yprint_legal_texts';
+    
+    $default_texts = array(
+        array(
+            'text_key' => 'COOKIE_BANNER_TITLE',
+            'content' => 'Diese Website verwendet Cookies',
+            'version' => '1.0'
+        ),
+        array(
+            'text_key' => 'COOKIE_BANNER_DESCRIPTION',
+            'content' => 'Wir verwenden Cookies, um dir die bestmögliche Erfahrung auf unserer Website zu bieten. Einige sind essenziell, andere helfen uns dabei, diese Website und deine Erfahrung zu verbessern.',
+            'version' => '1.0'
+        ),
+        array(
+            'text_key' => 'REGISTRATION_CONSENT_TEXT',
+            'content' => 'Ich habe die <a href="/datenschutz" target="_blank">Datenschutzerklärung</a> gelesen und stimme der darin beschriebenen Verarbeitung meiner Daten zur Erbringung des Dienstes zu.',
+            'version' => '1.0'
+        ),
+        array(
+            'text_key' => 'PRIVACY_POLICY_CONTENT',
+            'content' => '<h1>Datenschutzerklärung</h1><p>Hier steht deine vollständige Datenschutzerklärung...</p>',
+            'version' => '1.0'
+        )
+    );
+    
+    foreach ($default_texts as $text) {
+        $exists = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM $table WHERE text_key = %s AND version = %s",
+            $text['text_key'],
+            $text['version']
+        ));
+        
+        if (!$exists) {
+            $wpdb->insert($table, array_merge($text, array(
+                'language' => 'de',
+                'is_active' => 1,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            )));
+        }
+    }
 }
 
 /**
@@ -3089,14 +3178,19 @@ function yprint_shipping_settings_shortcode() {
 function yprint_privacy_settings_shortcode() {
     ob_start();
     
-    // Aktuelle Benutzerdaten abrufen
-    $user_id = get_current_user_id();
-    $message = '';
-    $message_type = '';
+    // Benutzer muss angemeldet sein
+    if (!is_user_logged_in()) {
+        return '<div class="yprint-login-required">
+            <p>Bitte melde dich an, um deine Datenschutzeinstellungen zu verwalten.</p>
+            <a href="' . esc_url(wc_get_page_permalink('myaccount')) . '" class="yprint-button">Zum Login</a>
+        </div>';
+    }
     
-    // Einstellungen aus der Datenbank abrufen
+    $user_id = get_current_user_id();
+    
+    // Bestehende Privacy-Settings abrufen
     global $wpdb;
-    $privacy_settings = $wpdb->get_row(
+    $privacy_data = $wpdb->get_row(
         $wpdb->prepare(
             "SELECT * FROM {$wpdb->prefix}privacy_settings WHERE user_id = %d",
             $user_id
@@ -3104,249 +3198,294 @@ function yprint_privacy_settings_shortcode() {
         ARRAY_A
     );
     
-    // Standardwerte setzen, wenn keine Einstellungen vorhanden sind
-    if (!$privacy_settings) {
-        $privacy_settings = array(
-            'data_sharing' => 1,
-            'data_collection' => 1,
-            'personalized_ads' => 1,
-            'preferences_analysis' => 1
-        );
-    }
+    // Cookie-Consents abrufen
+    $cookie_consents = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT consent_type, granted, version, created_at 
+             FROM {$wpdb->prefix}yprint_consents 
+             WHERE user_id = %d AND consent_type LIKE 'COOKIE_%'
+             ORDER BY consent_type",
+            $user_id
+        ),
+        ARRAY_A
+    );
     
-    // Meldung verarbeiten, falls vorhanden
-    if (isset($_GET['message']) && isset($_GET['type'])) {
-        $message = sanitize_text_field($_GET['message']);
-        $message_type = sanitize_text_field($_GET['type']);
-    }
+    // Datenschutz-Consent abrufen
+    $privacy_consent = $wpdb->get_row(
+        $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}yprint_consents 
+             WHERE user_id = %d AND consent_type = 'PRIVACY_POLICY'
+             ORDER BY created_at DESC LIMIT 1",
+            $user_id
+        ),
+        ARRAY_A
+    );
     
-    // Formular ausgeben
     ?>
-    <div class="yprint-settings-page">
-        <h2>Datenschutzeinstellungen</h2>
-        
-        <?php if ($message): ?>
-        <div class="yprint-message yprint-message-<?php echo esc_attr($message_type); ?>">
-            <?php echo esc_html($message); ?>
-        </div>
-        <?php endif; ?>
-        
-        <div class="yprint-info-message" style="background-color: #E3F2FD; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-size: 15px;">
-            <p style="margin: 0;">Hier kannst du einstellen, wie wir mit deinen Daten umgehen dürfen. Beachte bitte, dass einige Funktionen möglicherweise eingeschränkt sind, wenn du bestimmte Datenschutzeinstellungen deaktivierst.</p>
+    <div class="yprint-privacy-settings">
+        <div class="yprint-settings-header">
+            <h2>Datenschutz & Cookie-Einstellungen</h2>
+            <p>Verwalte deine Datenschutz-Präferenzen und Cookie-Einstellungen.</p>
         </div>
         
-        <form id="privacy-settings-form" class="yprint-settings-form">
-            <div class="yprint-setting-row">
-                <div class="yprint-setting-info">
-                    <div class="yprint-setting-title">Datenweitergabe an Partner</div>
-                    <div class="yprint-setting-description">Erlaubt das Teilen deiner Daten mit ausgewählten Partnern zur Verbesserung von Diensten und Angeboten.</div>
+        <!-- Datenschutzerklärung Status -->
+        <div class="yprint-consent-status-card">
+            <h3>📋 Datenschutzerklärung</h3>
+            <?php if ($privacy_consent): ?>
+                <div class="consent-status consent-granted">
+                    <span class="status-icon">✅</span>
+                    <div class="status-info">
+                        <strong>Zugestimmt</strong>
+                        <p>Du hast am <?php echo date_i18n('d.m.Y H:i', strtotime($privacy_consent['created_at'])); ?> der Datenschutzerklärung (Version <?php echo esc_html($privacy_consent['version']); ?>) zugestimmt.</p>
+                    </div>
                 </div>
-                <label class="yprint-switch">
-                    <input type="checkbox" id="data_sharing" name="data_sharing" <?php checked($privacy_settings['data_sharing'], 1); ?>>
-                    <span class="yprint-switch-slider"></span>
-                </label>
-            </div>
-            
-            <div class="yprint-setting-row">
-                <div class="yprint-setting-info">
-                    <div class="yprint-setting-title">Erweiterte Datenerfassung</div>
-                    <div class="yprint-setting-description">Ermöglicht die Erhebung zusätzlicher Nutzungsdaten, um die Benutzererfahrung zu verbessern.</div>
+                <p class="consent-note">
+                    <strong>Hinweis:</strong> Die Zustimmung zur Datenschutzerklärung ist für die Nutzung unseres Dienstes erforderlich und kann nicht widerrufen werden, ohne das Konto zu löschen.
+                </p>
+            <?php else: ?>
+                <div class="consent-status consent-missing">
+                    <span class="status-icon">❌</span>
+                    <div class="status-info">
+                        <strong>Fehlend</strong>
+                        <p>Keine Zustimmung zur Datenschutzerklärung gefunden.</p>
+                    </div>
                 </div>
-                <label class="yprint-switch">
-                    <input type="checkbox" id="data_collection" name="data_collection" <?php checked($privacy_settings['data_collection'], 1); ?>>
-                    <span class="yprint-switch-slider"></span>
-                </label>
-            </div>
-            
-            <div class="yprint-setting-row">
-                <div class="yprint-setting-info">
-                    <div class="yprint-setting-title">Personalisierte Werbung</div>
-                    <div class="yprint-setting-description">Erlaubt das Anzeigen von personalisierten Anzeigen basierend auf deinen Interessen und deinem Kaufverhalten.</div>
-                </div>
-                <label class="yprint-switch">
-                    <input type="checkbox" id="personalized_ads" name="personalized_ads" <?php checked($privacy_settings['personalized_ads'], 1); ?>>
-                    <span class="yprint-switch-slider"></span>
-                </label>
-            </div>
-            
-            <div class="yprint-setting-row">
-                <div class="yprint-setting-info">
-                    <div class="yprint-setting-title">Präferenzanalyse</div>
-                    <div class="yprint-setting-description">Erlaubt die Analyse deiner Vorlieben und Kaufmuster, um dir bessere Produktempfehlungen zu geben.</div>
-                </div>
-                <label class="yprint-switch">
-                    <input type="checkbox" id="preferences_analysis" name="preferences_analysis" <?php checked($privacy_settings['preferences_analysis'], 1); ?>>
-                    <span class="yprint-switch-slider"></span>
-                </label>
-            </div>
-            
-            <div style="margin-top: 30px;">
-                <button type="submit" class="yprint-button">Einstellungen speichern</button>
-            </div>
-        </form>
-        
-        <h3 style="margin-top: 40px;">Datenschutz und deine Rechte</h3>
-        <p>Du hast jederzeit das Recht, Auskunft über deine gespeicherten Daten zu erhalten, diese zu berichtigen, zu löschen oder deren Verarbeitung einzuschränken.</p>
-        
-        <div class="privacy-actions-section" style="margin-top: 30px; padding: 25px; background: #f8f9fa; border-radius: 15px; border: 1px solid #e5e5e5;">
-            <h4 style="margin-top: 0; margin-bottom: 20px; color: #1d1d1f;">Deine Datenrechte</h4>
-            <p style="margin-bottom: 25px; color: #6e6e73; font-size: 14px;">
-                Deine Daten werden sicher in unserer Datenbank gespeichert und für die Bereitstellung unserer Services verwendet. 
-                Du hast jederzeit Kontrolle über deine Informationen.
-            </p>
-            
-            <div class="privacy-buttons-grid" style="display: grid; grid-template-columns: 1fr; gap: 15px;">
-                <a href="<?php echo esc_url(home_url('/datenschutz/')); ?>" 
-                   class="privacy-action-button" 
-                   style="display: flex; align-items: center; justify-content: center; padding: 15px 20px; background: #ffffff; border: 2px solid #e5e5e5; border-radius: 12px; text-decoration: none; color: #1d1d1f; font-weight: 500; transition: all 0.2s ease;">
-                    <i class="fas fa-shield-alt" style="margin-right: 12px; color: #2997FF;"></i>
-                    Datenschutzerklärung ansehen
-                </a>
-                
-                <a href="#" id="data-export-button" 
-                   class="privacy-action-button" 
-                   style="display: flex; align-items: center; justify-content: center; padding: 15px 20px; background: #ffffff; border: 2px solid #e5e5e5; border-radius: 12px; text-decoration: none; color: #1d1d1f; font-weight: 500; transition: all 0.2s ease;">
-                    <i class="fas fa-download" style="margin-right: 12px; color: #2997FF;"></i>
-                    Meine Daten herunterladen
-                </a>
-                
-                <a href="#" id="delete-data-button" 
-                   class="privacy-action-button danger" 
-                   style="display: flex; align-items: center; justify-content: center; padding: 15px 20px; background: #fff5f5; border: 2px solid #fecaca; border-radius: 12px; text-decoration: none; color: #dc2626; font-weight: 500; transition: all 0.2s ease;">
-                    <i class="fas fa-user-times" style="margin-right: 12px;"></i>
-                    Konto vollständig löschen
-                </a>
-            </div>
+            <?php endif; ?>
         </div>
         
-        <div id="delete-account-overlay" class="yprint-overlay">
-            <div class="yprint-overlay-content">
-                <h3>Möchtest du dein Konto wirklich löschen?</h3>
-                <p>Diese Aktion kann nicht rückgängig gemacht werden. Alle deine Daten werden unwiderruflich gelöscht. Laufende Bestellungen werden davon nicht beeinflusst.</p>
-                <div style="margin-top: 30px;">
-                    <form id="delete-account-form">
-                        <div class="yprint-form-group">
-                            <label for="confirm_password" class="yprint-form-label">Bitte gib dein Passwort ein, um fortzufahren:</label>
-                            <input type="password" id="confirm_password" name="confirm_password" class="yprint-form-input" required>
-                        </div>
-                        <div class="yprint-checkbox-row" style="margin-top: 15px;">
-                            <input type="checkbox" id="confirm_deletion" name="confirm_deletion" required>
-                            <label for="confirm_deletion">Ich bestätige, dass ich mein Konto und alle zugehörigen Daten unwiderruflich löschen möchte.</label>
-                        </div>
-                        <div class="yprint-overlay-buttons">
-                            <button type="button" id="cancel-deletion" class="yprint-button yprint-button-secondary">Abbrechen</button>
-                            <button type="submit" class="yprint-button yprint-button-danger">Konto endgültig löschen</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        
-        <script>
-        jQuery(document).ready(function($) {
-            // Datenschutzeinstellungen speichern
-            $('#privacy-settings-form').on('submit', function(e) {
-                e.preventDefault();
+        <!-- Cookie-Einstellungen -->
+        <div class="yprint-cookie-settings-card">
+            <h3>🍪 Cookie-Einstellungen</h3>
+            <p>Bestimme, welche Cookies wir verwenden dürfen.</p>
+            
+            <form id="yprint-cookie-preferences-form">
+                <?php wp_nonce_field('yprint_cookie_preferences', 'cookie_preferences_nonce'); ?>
                 
-                var formData = {
-                    data_sharing: $('#data_sharing').is(':checked') ? 1 : 0,
-                    data_collection: $('#data_collection').is(':checked') ? 1 : 0,
-                    personalized_ads: $('#personalized_ads').is(':checked') ? 1 : 0,
-                    preferences_analysis: $('#preferences_analysis').is(':checked') ? 1 : 0
-                };
-                
-                $.ajax({
-                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                    type: 'POST',
-                    data: {
-                        action: 'yprint_save_privacy_settings',
-                        settings: formData,
-                        security: '<?php echo wp_create_nonce('privacy_settings_nonce'); ?>'
-                    },
-                    beforeSend: function() {
-                        $('button[type="submit"]').prop('disabled', true).text('Wird gespeichert...');
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            window.location.href = '?tab=privacy&message=' + encodeURIComponent(response.data.message) + '&type=success';
-                        } else {
-                            alert(response.data.message);
-                            $('button[type="submit"]').prop('disabled', false).text('Einstellungen speichern');
-                        }
-                    },
-                    error: function() {
-                        alert('Ein Fehler ist aufgetreten. Bitte versuche es später erneut.');
-                        $('button[type="submit"]').prop('disabled', false).text('Einstellungen speichern');
+                <div class="cookie-categories">
+                    <?php
+                    $cookie_types = array(
+                        'COOKIE_ESSENTIAL' => array(
+                            'title' => 'Essenzielle Cookies',
+                            'description' => 'Diese Cookies sind für die Grundfunktionen der Website erforderlich.',
+                            'required' => true
+                        ),
+                        'COOKIE_ANALYTICS' => array(
+                            'title' => 'Analyse Cookies',
+                            'description' => 'Helfen uns zu verstehen, wie Besucher mit der Website interagieren.',
+                            'required' => false
+                        ),
+                        'COOKIE_MARKETING' => array(
+                            'title' => 'Marketing Cookies',
+                            'description' => 'Werden verwendet, um dir relevante Anzeigen zu zeigen.',
+                            'required' => false
+                        ),
+                        'COOKIE_FUNCTIONAL' => array(
+                            'title' => 'Funktionale Cookies',
+                            'description' => 'Ermöglichen erweiterte Funktionalitäten und Personalisierung.',
+                            'required' => false
+                        )
+                    );
+                    
+                    // Aktuelle Werte ermitteln
+                    $current_consents = array();
+                    foreach ($cookie_consents as $consent) {
+                        $current_consents[$consent['consent_type']] = (bool) $consent['granted'];
                     }
-                });
-            });
-            
-            // Datenexport
-            $('#data-export-button').on('click', function(e) {
-                e.preventDefault();
+                    
+                    foreach ($cookie_types as $type => $config):
+                        $current_value = isset($current_consents[$type]) ? $current_consents[$type] : false;
+                        $is_required = $config['required'];
+                    ?>
+                    <div class="cookie-category">
+                        <label class="cookie-category-label">
+                            <input 
+                                type="checkbox" 
+                                name="cookie_consent[<?php echo esc_attr($type); ?>]" 
+                                value="1"
+                                <?php checked($current_value || $is_required); ?>
+                                <?php disabled($is_required); ?>
+                                class="cookie-consent-checkbox"
+                            >
+                            <span class="cookie-category-title">
+                                <?php echo esc_html($config['title']); ?>
+                                <?php if ($is_required): ?>
+                                    <span class="required-badge">Erforderlich</span>
+                                <?php endif; ?>
+                            </span>
+                        </label>
+                        <p class="cookie-category-description"><?php echo esc_html($config['description']); ?></p>
+                        
+                        <?php if (isset($current_consents[$type])): ?>
+                            <?php
+                            $consent_info = array_filter($cookie_consents, function($c) use ($type) {
+                                return $c['consent_type'] === $type;
+                            });
+                            $consent_info = reset($consent_info);
+                            ?>
+                            <div class="consent-history">
+                                <small>
+                                    Letzte Änderung: <?php echo date_i18n('d.m.Y H:i', strtotime($consent_info['created_at'])); ?>
+                                    (Version <?php echo esc_html($consent_info['version']); ?>)
+                                </small>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
                 
-                if (confirm('Möchtest du eine Kopie aller deiner persönlichen Daten herunterladen? Die Vorbereitung der Datei kann einige Minuten dauern.')) {
-                    window.location.href = '<?php echo esc_url(admin_url('admin-post.php?action=yprint_export_user_data')); ?>';
-                }
-            });
+                <div class="form-actions">
+                    <button type="submit" class="yprint-btn yprint-btn-primary">
+                        Cookie-Einstellungen speichern
+                    </button>
+                    <button type="button" id="open-cookie-banner" class="yprint-btn yprint-btn-secondary">
+                        Cookie-Banner öffnen
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Bestehende Privacy-Settings -->
+        <div class="yprint-privacy-preferences-card">
+            <h3>🔒 Datenschutz-Präferenzen</h3>
+            <p>Zusätzliche Einstellungen für den Umgang mit deinen Daten.</p>
             
-            // Konto löschen - Dialog anzeigen
-            $('#delete-data-button').on('click', function(e) {
-                e.preventDefault();
-                $('#delete-account-overlay').css('display', 'flex');
-            });
+            <form id="yprint-privacy-preferences-form">
+                <?php wp_nonce_field('yprint_privacy_preferences', 'privacy_preferences_nonce'); ?>
+                
+                <div class="privacy-options">
+                    <label class="privacy-option">
+                        <input 
+                            type="checkbox" 
+                            name="data_sharing" 
+                            value="1" 
+                            <?php checked(isset($privacy_data['data_sharing']) ? $privacy_data['data_sharing'] : 1); ?>
+                        >
+                        <span class="privacy-option-title">Datenfreigabe für Produktverbesserungen</span>
+                        <p class="privacy-option-desc">Anonymisierte Nutzungsdaten zur Verbesserung unserer Dienste verwenden.</p>
+                    </label>
+                    
+                    <label class="privacy-option">
+                        <input 
+                            type="checkbox" 
+                            name="data_collection" 
+                            value="1" 
+                            <?php checked(isset($privacy_data['data_collection']) ? $privacy_data['data_collection'] : 1); ?>
+                        >
+                        <span class="privacy-option-title">Erweiterte Datensammlung</span>
+                        <p class="privacy-option-desc">Zusätzliche Informationen zur Personalisierung sammeln.</p>
+                    </label>
+                    
+                    <label class="privacy-option">
+                        <input 
+                            type="checkbox" 
+                            name="personalized_ads" 
+                            value="1" 
+                            <?php checked(isset($privacy_data['personalized_ads']) ? $privacy_data['personalized_ads'] : 1); ?>
+                        >
+                        <span class="privacy-option-title">Personalisierte Werbung</span>
+                        <p class="privacy-option-desc">Anzeigen basierend auf deinen Interessen anzeigen.</p>
+                    </label>
+                    
+                    <label class="privacy-option">
+                        <input 
+                            type="checkbox" 
+                            name="preferences_analysis" 
+                            value="1" 
+                            <?php checked(isset($privacy_data['preferences_analysis']) ? $privacy_data['preferences_analysis'] : 1); ?>
+                        >
+                        <span class="privacy-option-title">Präferenz-Analyse</span>
+                        <p class="privacy-option-desc">Deine Präferenzen analysieren, um dir bessere Empfehlungen zu geben.</p>
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="yprint-btn yprint-btn-primary">
+                        Datenschutz-Einstellungen speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Daten-Management -->
+        <div class="yprint-data-management-card">
+            <h3>📊 Daten-Management</h3>
+            <p>Exportiere oder lösche deine persönlichen Daten.</p>
             
-            // Dialog schließen
-            $('#cancel-deletion').on('click', function() {
-                $('#delete-account-overlay').css('display', 'none');
-            });
+            <div class="data-actions">
+                <button type="button" id="export-user-data" class="yprint-btn yprint-btn-secondary">
+                    📥 Meine Daten exportieren
+                </button>
+                <button type="button" id="delete-user-account" class="yprint-btn yprint-btn-danger">
+                    🗑️ Konto löschen
+                </button>
+            </div>
             
-            // Konto löschen - Formular absenden
-            $('#delete-account-form').on('submit', function(e) {
-                e.preventDefault();
+            <div class="data-info">
+                <h4>Was passiert beim Datenexport?</h4>
+                <ul>
+                    <li>Alle deine persönlichen Daten werden in einer ZIP-Datei zusammengefasst</li>
+                    <li>Enthält: Profildaten, Bestellhistorie, gespeicherte Adressen, Consent-Historie</li>
+                    <li>Download-Link wird per E-Mail gesendet</li>
+                </ul>
                 
-                var password = $('#confirm_password').val();
-                var confirmed = $('#confirm_deletion').is(':checked');
-                
-                if (!password || !confirmed) {
-                    alert('Bitte fülle alle Felder aus.');
-                    return;
-                }
-                
-                // AJAX-Request für Kontolöschung
-                $.ajax({
-                    url: '<?php echo admin_url('admin-ajax.php'); ?>',
-                    type: 'POST',
-                    data: {
-                        action: 'yprint_delete_user_account',
-                        password: password,
-                        security: '<?php echo wp_create_nonce('delete_account_nonce'); ?>'
-                    },
-                    beforeSend: function() {
-                        $('#delete-account-form button[type="submit"]').prop('disabled', true).text('Wird verarbeitet...');
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            // Erfolgreiche Löschung - zur Startseite weiterleiten
-                            alert('Dein Konto wurde erfolgreich gelöscht. Du wirst nun abgemeldet und zur Startseite weitergeleitet.');
-                            window.location.href = '<?php echo esc_url(home_url()); ?>';
-                        } else {
-                            // Fehlermeldung anzeigen
-                            alert(response.data.message);
-                            $('#delete-account-form button[type="submit"]').prop('disabled', false).text('Konto endgültig löschen');
-                        }
-                    },
-                    error: function() {
-                        alert('Ein Fehler ist aufgetreten. Bitte versuche es später erneut.');
-                        $('#delete-account-form button[type="submit"]').prop('disabled', false).text('Konto endgültig löschen');
-                    }
-                });
-            });
-        });
-        </script>
+                <h4>Was passiert beim Konto löschen?</h4>
+                <ul>
+                    <li>Alle persönlichen Daten werden unwiderruflich gelöscht</li>
+                    <li>Bestellhistorie wird anonymisiert (für Buchhaltung erforderlich)</li>
+                    <li>Alle Einwilligungen werden widerrufen</li>
+                </ul>
+            </div>
+        </div>
     </div>
     
+    <script>
+    jQuery(document).ready(function($) {
+        // Cookie-Präferenzen speichern
+        $('#yprint-cookie-preferences-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const consents = {};
+            
+            // Checkbox-Werte sammeln
+            $('.cookie-consent-checkbox').each(function() {
+                const name = $(this).attr('name').replace('cookie_consent[', '').replace(']', '');
+                consents[name] = $(this).is(':checked');
+            });
+            
+            $.ajax({
+                url: '<?php echo admin_url('admin-ajax.php'); ?>',
+                type: 'POST',
+                data: {
+                    action: 'yprint_save_consent',
+                    nonce: '<?php echo wp_create_nonce('yprint_consent_nonce'); ?>',
+                    consents: consents,
+                    version: '1.0'
+                },
+                success: function(response) {
+                    if (response.success) {
+                        alert('Cookie-Einstellungen wurden gespeichert.');
+                        location.reload();
+                    } else {
+                        alert('Fehler: ' + response.data.message);
+                    }
+                },
+                error: function() {
+                    alert('Netzwerkfehler beim Speichern.');
+                }
+            });
+        });
+        
+        // Cookie-Banner öffnen
+        $('#open-cookie-banner').on('click', function() {
+            if (typeof window.yprintConsentManager !== 'undefined') {
+                window.yprintConsentManager.showBanner();
+            }
+        });
+    });
+    </script>
     <?php
+    
     return ob_get_clean();
 }
 

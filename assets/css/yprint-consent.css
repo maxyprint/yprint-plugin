@@ -1,0 +1,245 @@
+/* YPrint Consent Styles */
+.yprint-cookie-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 999999;
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+.yprint-cookie-banner-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+}
+
+.yprint-cookie-banner-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    width: 90%;
+}
+
+.yprint-cookie-banner-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 24px 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 20px;
+}
+
+.yprint-cookie-banner-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.yprint-cookie-banner-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #6b7280;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.yprint-cookie-banner-close:hover {
+    background-color: #f3f4f6;
+}
+
+.yprint-cookie-banner-body {
+    padding: 0 24px;
+}
+
+.yprint-cookie-banner-body p {
+    color: #6b7280;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.yprint-cookie-categories {
+    margin-bottom: 24px;
+}
+
+.yprint-cookie-category {
+    margin-bottom: 16px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+}
+
+.yprint-cookie-category:hover {
+    border-color: #2997FF;
+}
+
+.yprint-cookie-category-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+
+.yprint-cookie-category-label input[type="checkbox"] {
+    margin-right: 12px;
+    transform: scale(1.2);
+}
+
+.yprint-cookie-category-title {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 16px;
+}
+
+.yprint-cookie-category-desc {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0;
+    margin-left: 32px;
+}
+
+.yprint-cookie-banner-footer {
+    padding: 24px;
+    border-top: 1px solid #e5e7eb;
+    background: #f9fafb;
+    border-radius: 0 0 12px 12px;
+}
+
+.yprint-cookie-banner-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.yprint-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+}
+
+.yprint-btn-primary {
+    background: #2997FF;
+    color: white;
+}
+
+.yprint-btn-primary:hover {
+    background: #1e7fff;
+    transform: translateY(-1px);
+}
+
+.yprint-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.yprint-btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+.yprint-cookie-banner-links {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.yprint-cookie-banner-links a {
+    color: #6b7280;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.yprint-cookie-banner-links a:hover {
+    color: #2997FF;
+}
+
+/* Consent Icon */
+.yprint-consent-icon {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 999;
+}
+
+.yprint-consent-icon-btn {
+    background: #2997FF;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(41, 151, 255, 0.3);
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.yprint-consent-icon-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(41, 151, 255, 0.4);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .yprint-cookie-banner-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+    
+    .yprint-cookie-banner-header,
+    .yprint-cookie-banner-body,
+    .yprint-cookie-banner-footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+    
+    .yprint-cookie-banner-actions {
+        flex-direction: column;
+    }
+    
+    .yprint-btn {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .yprint-consent-icon {
+        bottom: 15px;
+        left: 15px;
+    }
+    
+    .yprint-consent-icon-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+}
