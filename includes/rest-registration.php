@@ -973,6 +973,10 @@ function yprint_registration_form_mobile() {
                         <button onclick="openCookieSettings()" style="margin: 5px;">Test 2: Cookie öffnen</button>
                         <button onclick="updateCookieStatus()" style="margin: 5px;">Test 3: Status laden</button>
                         <button onclick="debugCookieElements()" style="margin: 5px;">Test 4: Debug Info</button>
+                        <button onclick="findBanner()" style="margin: 5px;">Test 5: Banner finden</button>
+                        <button onclick="analyzeConsentManager()" style="margin: 5px;">Test 6: Consent Manager</button>
+                        <button onclick="createTestBanner()" style="margin: 5px;">Test 7: Test-Banner erstellen</button>
+                        <button onclick="checkCSSConflicts()" style="margin: 5px;">Test 8: CSS-Konflikte</button>
                     </div>
                 </div>
 
@@ -1138,6 +1142,195 @@ function yprint_registration_form_mobile() {
             console.log('Status:', document.getElementById('cookie-status-display') ? 'GEFUNDEN' : 'FEHLT');
             console.log('Form:', document.getElementById('register-form-mobile') ? 'GEFUNDEN' : 'FEHLT');
             console.log('Cookies:', document.cookie.split(';').filter(c => c.includes('yprint')));
+            console.log('========================');
+        }
+
+        // Umfassende Banner-Analyse
+        function findBanner() {
+            console.log('=== BANNER DETEKTIV ===');
+            
+            // Alle möglichen Banner-Selektoren prüfen
+            const selectors = [
+                '#yprint-cookie-banner',
+                '.yprint-cookie-banner',
+                '[id*="cookie"]',
+                '[class*="cookie"]',
+                '[id*="consent"]',
+                '[class*="consent"]'
+            ];
+            
+            selectors.forEach(selector => {
+                const elements = document.querySelectorAll(selector);
+                console.log(`${selector}: ${elements.length} gefunden`);
+                
+                elements.forEach((el, index) => {
+                    const style = window.getComputedStyle(el);
+                    console.log(`  - Element ${index}:`, {
+                        id: el.id,
+                        className: el.className,
+                        display: style.display,
+                        visibility: style.visibility,
+                        opacity: style.opacity,
+                        position: style.position,
+                        zIndex: style.zIndex,
+                        top: style.top,
+                        left: style.left
+                    });
+                });
+            });
+            
+            console.log('==================');
+        }
+
+        // Consent Manager analysieren
+        function analyzeConsentManager() {
+            console.log('=== CONSENT MANAGER ANALYSE ===');
+            console.log('yprintConsent (config):', typeof yprintConsent, yprintConsent);
+            console.log('window.yprintConsentManager:', typeof window.yprintConsentManager);
+            
+            if (window.yprintConsentManager) {
+                console.log('Manager Methoden:', Object.getOwnPropertyNames(window.yprintConsentManager));
+                console.log('Banner Element (internal):', window.yprintConsentManager.banner);
+                console.log('Config:', window.yprintConsentManager.config);
+            }
+            
+            // Suche nach jQuery YPrint Objects
+            if (typeof $ !== 'undefined') {
+                console.log('jQuery Cookie Banner:', $('#yprint-cookie-banner').length);
+                console.log('jQuery Cookie Icon:', $('#yprint-consent-icon').length);
+            }
+            
+            console.log('========================');
+        }
+
+        // Banner manuell erstellen zum Test
+        function createTestBanner() {
+            console.log('🧪 Erstelle Test-Banner...');
+            
+            // Entferne eventuell vorhandenen Banner
+            const existing = document.getElementById('yprint-cookie-banner');
+            if (existing) {
+                existing.remove();
+            }
+            
+            // Erstelle neuen Banner
+            const banner = document.createElement('div');
+            banner.id = 'yprint-cookie-banner';
+            banner.className = 'yprint-cookie-banner';
+            banner.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: block;
+                z-index: 999999;
+                font-family: Arial, sans-serif;
+            `;
+            
+            banner.innerHTML = `
+                <div style="
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    max-width: 500px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                ">
+                    <h3 style="margin: 0 0 15px 0; color: #333;">🍪 Test Cookie-Banner</h3>
+                    <p style="margin: 0 0 20px 0; color: #666;">
+                        Dies ist ein Test-Banner. Wenn Sie diesen sehen, funktioniert die Banner-Anzeige grundsätzlich.
+                    </p>
+                    
+                    <div style="margin: 20px 0;">
+                        <label style="display: block; margin: 10px 0;">
+                            <input type="checkbox" id="test-analytics" style="margin-right: 10px;">
+                            Analyse Cookies
+                        </label>
+                        <label style="display: block; margin: 10px 0;">
+                            <input type="checkbox" id="test-marketing" style="margin-right: 10px;">
+                            Marketing Cookies
+                        </label>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="acceptTestCookies()" style="
+                            background: #2997FF;
+                            color: white;
+                            border: none;
+                            padding: 12px 20px;
+                            border-radius: 5px;
+                            margin: 0 5px;
+                            cursor: pointer;
+                        ">Alle akzeptieren</button>
+                        
+                        <button onclick="closeTestBanner()" style="
+                            background: #f0f0f0;
+                            color: #333;
+                            border: 1px solid #ddd;
+                            padding: 12px 20px;
+                            border-radius: 5px;
+                            margin: 0 5px;
+                            cursor: pointer;
+                        ">Schließen</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(banner);
+            console.log('✅ Test-Banner erstellt und angezeigt');
+        }
+
+        function acceptTestCookies() {
+            const analytics = document.getElementById('test-analytics').checked;
+            const marketing = document.getElementById('test-marketing').checked;
+            
+            console.log('🍪 Test-Cookies akzeptiert:', { analytics, marketing });
+            alert(`Test-Cookies gesetzt: Analytics=${analytics}, Marketing=${marketing}`);
+            
+            closeTestBanner();
+        }
+
+        function closeTestBanner() {
+            const banner = document.getElementById('yprint-cookie-banner');
+            if (banner) {
+                banner.remove();
+                console.log('🍪 Test-Banner geschlossen');
+            }
+        }
+
+        // CSS-Konflikte prüfen
+        function checkCSSConflicts() {
+            console.log('=== CSS KONFLIKT ANALYSE ===');
+            
+            // Prüfe alle Stylesheets
+            const stylesheets = Array.from(document.styleSheets);
+            console.log('Geladene Stylesheets:', stylesheets.length);
+            
+            stylesheets.forEach((sheet, index) => {
+                try {
+                    console.log(`Stylesheet ${index}:`, sheet.href || 'inline');
+                } catch (e) {
+                    console.log(`Stylesheet ${index}: Zugriff verweigert`);
+                }
+            });
+            
+            // Prüfe Body-Klassen
+            console.log('Body-Klassen:', document.body.className);
+            console.log('Body-Style:', document.body.style.cssText);
+            
+            // Suche nach versteckten Cookie-Elementen
+            const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]');
+            const cookieHidden = Array.from(hiddenElements).filter(el => 
+                el.id.includes('cookie') || el.className.includes('cookie') ||
+                el.id.includes('consent') || el.className.includes('consent')
+            );
+            
+            console.log('Versteckte Cookie-Elemente:', cookieHidden.length, cookieHidden);
             console.log('========================');
         }
 
