@@ -688,6 +688,33 @@ function yprint_login_form_shortcode() {
 add_shortcode('yprint_login_form', 'yprint_login_form_shortcode');
 
 /**
+ * Debug-Hook um WordPress-Hooks zu testen
+ */
+function yprint_debug_all_hooks() {
+    echo '<script>console.log("🔍 INIT HOOK: init Hook wurde ausgeführt");</script>';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        echo '<script>console.log("🔍 INIT HOOK: POST-Request erkannt");</script>';
+        if (isset($_POST['yprint_login'])) {
+            echo '<script>console.log("🔍 INIT HOOK: yprint_login gefunden");</script>';
+        }
+    }
+}
+add_action('init', 'yprint_debug_all_hooks');
+
+/**
+ * Debug-Hook um zu prüfen ob template_redirect funktioniert
+ */
+function yprint_debug_template_redirect() {
+    echo '<script>console.log("🔍 TEMPLATE REDIRECT: Hook wurde ausgeführt");</script>';
+    echo '<script>console.log("🔍 TEMPLATE REDIRECT: REQUEST_METHOD:", "' . $_SERVER['REQUEST_METHOD'] . '");</script>';
+    echo '<script>console.log("🔍 TEMPLATE REDIRECT: REQUEST_URI:", "' . $_SERVER['REQUEST_URI'] . '");</script>';
+    if (isset($_POST['yprint_login'])) {
+        echo '<script>console.log("🔍 TEMPLATE REDIRECT: yprint_login gefunden:", "' . $_POST['yprint_login'] . '");</script>';
+    }
+}
+add_action('template_redirect', 'yprint_debug_template_redirect', 0);
+
+/**
  * Login-Verarbeitung auf Login-Seite
  */
 function yprint_process_custom_login() {
