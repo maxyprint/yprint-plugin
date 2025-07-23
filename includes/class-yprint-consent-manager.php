@@ -75,7 +75,9 @@ class YPrint_Consent_Manager {
      * Consent-Icon rendern (permanent)
      */
     public function render_consent_icon() {
-        include YPRINT_PLUGIN_DIR . 'templates/consent/consent-icon.php';
+        if ($this->should_show_icon()) {
+            include YPRINT_PLUGIN_DIR . 'templates/consent/consent-icon.php';
+        }
     }
     
     /**
@@ -88,6 +90,20 @@ class YPrint_Consent_Manager {
         } else {
             return !$this->has_guest_given_consent();
         }
+    }
+    
+    /**
+     * Prüfen ob Icon angezeigt werden soll
+     */
+    private function should_show_icon() {
+        // Icon IMMER für nicht-eingeloggte Nutzer anzeigen
+        if (!is_user_logged_in()) {
+            return true;
+        }
+        
+        // Für eingeloggte Nutzer nur anzeigen, wenn sie schon Consents haben
+        $user_id = get_current_user_id();
+        return $this->has_user_given_consent($user_id, 'COOKIE_ESSENTIAL');
     }
     
     /**
