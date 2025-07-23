@@ -248,3 +248,61 @@
     align-items: center;
   }
   
+/* Turnstile Widget Mobile Fix */
+@media screen and (max-width: 500px) {
+    .turnstile-widget-container {
+        margin: 16px 0 !important;
+        padding: 0 10px !important;
+        display: flex !important;
+        justify-content: center !important;
+        width: 100% !important;
+    }
+    
+    .cf-turnstile,
+    .cf-turnstile-rendered {
+        transform: scale(0.85) !important;
+        transform-origin: center center !important;
+        max-width: none !important;
+        width: 300px !important; /* Feste Breite vor Skalierung */
+        margin: 0 !important;
+    }
+    
+    #yprint-loginform .cf-turnstile,
+    #yprint-loginform .cf-turnstile-rendered {
+        transform: scale(0.8) !important;
+        width: 300px !important;
+    }
+}
+
+@media screen and (max-width: 400px) {
+    .cf-turnstile,
+    .cf-turnstile-rendered {
+        transform: scale(0.75) !important;
+        width: 300px !important;
+    }
+    
+    #yprint-loginform .cf-turnstile,
+    #yprint-loginform .cf-turnstile-rendered {
+        transform: scale(0.7) !important;
+        width: 300px !important;
+    }
+    
+    .turnstile-widget-container {
+        padding: 0 5px !important;
+    }
+}
+
+@media screen and (max-width: 320px) {
+    .cf-turnstile,
+    .cf-turnstile-rendered {
+        transform: scale(0.65) !important;
+        width: 300px !important;
+    }
+    
+    #yprint-loginform .cf-turnstile,
+    #yprint-loginform .cf-turnstile-rendered {
+        transform: scale(0.6) !important;
+        width: 300px !important;
+    }
+}
+  
