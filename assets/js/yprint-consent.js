@@ -189,13 +189,16 @@
             this.saveConsents(consents);
         }
         
-        // Neue Methode: Banner für Registrierung öffnen
+        // Banner für Registrierung öffnen (verwendet bestehende showBanner Methode)
         showBannerForRegistration() {
+            console.log('🍪 Öffne Cookie-Einstellungen für Registrierung');
             this.showBanner();
             
             // Event für Registrierungs-Callback
             this.registrationCallback = true;
         }
+        
+
         
         saveConsents(consents) {
             const self = this;
@@ -316,7 +319,42 @@
     }
     
     // Initialisierung
-    window.yprintConsentManager = new YPrintConsentManager();
+    $(document).ready(() => {
+        window.yprintConsentManager = new YPrintConsentManager();
+        
+        // Teste Cookie-Manager beim Laden
+        setTimeout(() => {
+            console.log('🧪 Testing Cookie Manager...');
+            if (window.yprintConsentManager) {
+                window.yprintConsentManager.debugCookieManager();
+            }
+            
+            // Test Button (temporär für Debugging)
+            const testButton = document.createElement('button');
+            testButton.textContent = 'Test Cookie Manager';
+            testButton.style.position = 'fixed';
+            testButton.style.top = '10px';
+            testButton.style.right = '10px';
+            testButton.style.zIndex = '9999';
+            testButton.style.background = '#007cba';
+            testButton.style.color = 'white';
+            testButton.style.border = 'none';
+            testButton.style.padding = '8px 12px';
+            testButton.style.borderRadius = '4px';
+            testButton.style.cursor = 'pointer';
+            testButton.onclick = () => {
+                if (window.yprintConsentManager) {
+                    window.yprintConsentManager.debugCookieManager();
+                    window.yprintConsentManager.showBannerForRegistration();
+                }
+            };
+            
+            // Nur in Development/Test hinzufügen
+            if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev')) {
+                document.body.appendChild(testButton);
+            }
+        }, 2000);
+    });
     
     // Event-Listener für Cookie-Updates aus Registrierung
     document.addEventListener('yprintCookieUpdated', function(e) {
@@ -327,6 +365,16 @@
             setTimeout(() => {
                 loadCurrentCookieSettings();
             }, 100);
+        }
+    });
+    
+    // Event-Listener für geladene Cookie-Einstellungen
+    document.addEventListener('yprintCookieSettingsLoaded', function(e) {
+        console.log('🍪 Cookie-Einstellungen geladen:', e.detail.cookiePrefs);
+        
+        // Registrierungsformular aktualisieren falls vorhanden
+        if (typeof updateCookieStatusText === 'function') {
+            updateCookieStatusText(e.detail.cookiePrefs);
         }
     });
     
