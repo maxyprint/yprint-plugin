@@ -715,9 +715,35 @@ function yprint_debug_template_redirect() {
 add_action('template_redirect', 'yprint_debug_template_redirect', 0);
 
 /**
- * YPrint Custom Login Handler - Mit Session-basiertem Console Debugging
+ * Stelle sicher dass WooCommerce Session früh verfügbar ist
+ */
+function yprint_ensure_wc_session() {
+    if (is_page('login') && function_exists('WC') && WC()->session && !WC()->session->get_session_cookie()) {
+        WC()->session->set_customer_session_cookie(true);
+    }
+}
+add_action('wp', 'yprint_ensure_wc_session', 1);
+
+/**
+ * TEMPORÄRER TEST: Prüft ob der Hook funktioniert
+ */
+function yprint_test_hook_registration() {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['yprint_login'])) {
+        if (function_exists('WC') && WC()->session) {
+            WC()->session->set('yprint_login_debug', array('TEST: Hook registration works!'));
+        }
+    }
+}
+add_action('template_redirect', 'yprint_test_hook_registration', 1);
+
+/**
+ * YPrint Custom Login Handler - Mit direktem Console Debugging
  */
 function yprint_process_custom_login() {
+    // Früh prüfen ob WooCommerce Session verfügbar ist
+    if (!function_exists('WC') || !WC()->session) {
+        return; // Session nicht verfügbar, abbrechen
+    }
     // Nur bei POST-Requests ausführen
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         return;
@@ -732,15 +758,19 @@ function yprint_process_custom_login() {
     }
     $debug_logs = array();
     try {
-        $debug_logs[] = '=== YPRINT LOGIN START ===';
-        $debug_logs[] = 'YPrint Login: Processing POST request';
-        $debug_logs[] = 'YPrint Login: POST keys: ' . json_encode(array_keys($_POST));
+        $debug_logs[] = '=== YPRINT LOGIN HANDLER STARTED ===';
+        $debug_logs[] = 'Hook: template_redirect executed';
+        $debug_logs[] = 'POST keys: ' . json_encode(array_keys($_POST));
+        $debug_logs[] = 'REQUEST_URI: ' . $_SERVER['REQUEST_URI'];
+        $debug_logs[] = 'Session available: ' . (WC()->session ? 'yes' : 'no');
         $username = isset($_POST['log']) ? sanitize_text_field($_POST['log']) : '';
         $password = isset($_POST['pwd']) ? $_POST['pwd'] : '';
         $redirect_to = isset($_POST['redirect_to']) ? $_POST['redirect_to'] : home_url('/dashboard/');
+        $debug_logs[] = 'Username: ' . $username;
+        $debug_logs[] = 'Redirect target: ' . $redirect_to;
         if (empty($username) || empty($password)) {
-            $debug_logs[] = 'YPrint Login: Empty credentials';
-            if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+            $debug_logs[] = 'ERROR: Empty credentials';
+            WC()->session->set('yprint_login_debug', $debug_logs);
             wp_redirect(home_url('/login/?login=empty&timestamp=' . time()));
             exit;
         }
@@ -749,36 +779,41 @@ function yprint_process_custom_login() {
                 $turnstile = YPrint_Turnstile::get_instance();
                 if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
                     $token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
-                    $debug_logs[] = 'YPrint Login: Turnstile token present: ' . (!empty($token) ? 'yes' : 'no');
+                    $debug_logs[] = 'Turnstile enabled: yes, token present: ' . (!empty($token) ? 'yes' : 'no');
                     if (empty($token)) {
-                        $debug_logs[] = 'YPrint Login: Turnstile token missing';
-                        if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+                        $debug_logs[] = 'ERROR: Turnstile token missing';
+                        WC()->session->set('yprint_login_debug', $debug_logs);
                         wp_redirect(home_url('/login/?login=turnstile_missing&timestamp=' . time()));
                         exit;
                     }
                     $verification = $turnstile->verify_token($token);
                     if (!$verification['success']) {
-                        $debug_logs[] = 'YPrint Login: Turnstile verification failed: ' . ($verification['error'] ?? 'Unknown error');
-                        if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+                        $debug_logs[] = 'ERROR: Turnstile verification failed: ' . ($verification['error'] ?? 'Unknown error');
+                        WC()->session->set('yprint_login_debug', $debug_logs);
                         wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
                         exit;
                     }
-                    $debug_logs[] = 'YPrint Login: Turnstile verification successful';
+                    $debug_logs[] = 'SUCCESS: Turnstile verification passed';
+                } else {
+                    $debug_logs[] = 'Turnstile disabled or not for login page';
                 }
             } catch (Exception $e) {
-                $debug_logs[] = 'YPrint Login: Turnstile error: ' . $e->getMessage();
+                $debug_logs[] = 'WARNING: Turnstile error: ' . $e->getMessage();
             }
+        } else {
+            $debug_logs[] = 'Turnstile class not available';
         }
+        $debug_logs[] = 'Starting WordPress authentication...';
         $user = wp_authenticate($username, $password);
         if (is_wp_error($user)) {
-            $debug_logs[] = 'YPrint Login: Authentication failed for user: ' . $username;
-            $debug_logs[] = 'YPrint Login: WP Error: ' . $user->get_error_message();
-            if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+            $debug_logs[] = 'ERROR: WordPress authentication failed';
+            $debug_logs[] = 'WP Error: ' . $user->get_error_message();
+            WC()->session->set('yprint_login_debug', $debug_logs);
             wp_redirect(home_url('/login/?login=failed&timestamp=' . time()));
             exit;
         }
         $user_id = $user->ID;
-        $debug_logs[] = 'YPrint Login: Authentication successful for user: ' . $username . ' (ID: ' . $user_id . ')';
+        $debug_logs[] = 'SUCCESS: WordPress authentication passed for user ID: ' . $user_id;
         try {
             global $wpdb;
             $table_name = 'wp_email_verifications';
@@ -786,34 +821,39 @@ function yprint_process_custom_login() {
                 $wpdb->prepare("SELECT email_verified FROM $table_name WHERE user_id = %d", $user_id)
             );
             if ($wpdb->last_error) {
-                $debug_logs[] = 'YPrint Login: Database error: ' . $wpdb->last_error;
+                $debug_logs[] = 'WARNING: Database error: ' . $wpdb->last_error;
             } elseif ($email_verified !== null && $email_verified != 1) {
-                $debug_logs[] = 'YPrint Login: Email not verified for user: ' . $username;
-                if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+                $debug_logs[] = 'ERROR: Email not verified for user';
+                WC()->session->set('yprint_login_debug', $debug_logs);
                 wp_redirect(home_url('/login/?login=email_not_verified&user_id=' . $user_id . '&timestamp=' . time()));
                 exit;
+            } else {
+                $debug_logs[] = 'SUCCESS: Email verification passed (or not required)';
             }
         } catch (Exception $e) {
-            $debug_logs[] = 'YPrint Login: Email verification check failed: ' . $e->getMessage();
+            $debug_logs[] = 'WARNING: Email verification check failed: ' . $e->getMessage();
         }
-        $debug_logs[] = 'YPrint Login: Setting user session';
+        $debug_logs[] = 'Setting WordPress user session...';
         wp_set_current_user($user_id, $username);
         wp_set_auth_cookie($user_id);
         do_action('wp_login', $username, $user);
-        $debug_logs[] = 'YPrint Login: Redirecting to: ' . $redirect_to;
+        $debug_logs[] = 'SUCCESS: User session established';
+        $debug_logs[] = 'Redirecting to: ' . $redirect_to;
         $debug_logs[] = '=== YPRINT LOGIN SUCCESS ===';
-        if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+        WC()->session->set('yprint_login_debug', $debug_logs);
         wp_redirect($redirect_to);
         exit;
     } catch (Exception $e) {
-        $debug_logs[] = 'YPrint Login: FATAL ERROR: ' . $e->getMessage();
-        $debug_logs[] = 'YPrint Login: Stack trace: ' . $e->getTraceAsString();
-        if (function_exists('WC') && WC()->session) { WC()->session->set('yprint_login_debug', $debug_logs); }
+        $debug_logs[] = 'FATAL ERROR: ' . $e->getMessage();
+        $debug_logs[] = 'Stack trace: ' . $e->getTraceAsString();
+        if (WC()->session) {
+            WC()->session->set('yprint_login_debug', $debug_logs);
+        }
         wp_redirect(home_url('/login/?login=error&timestamp=' . time()));
         exit;
     }
 }
-add_action('template_redirect', 'yprint_process_custom_login', 1);
+add_action('template_redirect', 'yprint_process_custom_login', 5);
 
 /**
  * Debug-Console-Output für Login-Logs
