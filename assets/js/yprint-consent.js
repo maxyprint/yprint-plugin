@@ -48,9 +48,19 @@
                 this.acceptAll();
             });
             
-            // Nur essenzielle
-            $(document).on('click', '#yprint-accept-essential', () => {
-                this.acceptEssential();
+            // Alle ablehnen
+            $(document).on('click', '#yprint-reject-all', () => {
+                this.rejectAll();
+            });
+            
+            // Einstellungen anzeigen
+            $(document).on('click', '#yprint-show-settings', () => {
+                this.showDetailedSettings();
+            });
+            
+            // Zurück zu einfacher Ansicht
+            $(document).on('click', '#yprint-back-to-simple', () => {
+                this.hideDetailedSettings();
             });
             
             // Auswahl speichern
@@ -143,17 +153,27 @@
             this.saveConsents(consents);
         }
         
-        acceptEssential() {
-            console.log('🍪 Nur essenzielle Cookies akzeptiert');
+        rejectAll() {
+            console.log('🍪 Alle nicht-notwendigen Cookies abgelehnt');
             
             const consents = {
-                'cookie_essential': true,
+                'cookie_essential': true,    // Technisch notwendig, immer true
                 'cookie_analytics': false,
                 'cookie_marketing': false,
                 'cookie_functional': false
             };
             
             this.saveConsents(consents);
+        }
+        
+        showDetailedSettings() {
+            $('#yprint-detailed-settings').slideDown(300);
+            $('.yprint-cookie-banner-actions').hide();
+        }
+        
+        hideDetailedSettings() {
+            $('#yprint-detailed-settings').slideUp(300);
+            $('.yprint-cookie-banner-actions').show();
         }
         
         savePreferences() {

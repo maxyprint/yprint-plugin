@@ -347,4 +347,67 @@
     margin-right: auto !important;
     display: block !important;
 }
+
+/* Gleichwertige Button-Styles */
+.yprint-btn-equal {
+    padding: 12px 20px;
+    border: 2px solid #2997FF;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    background: white;
+    color: #2997FF;
+    flex: 1;
+    margin: 0 5px;
+}
+
+.yprint-btn-equal:hover {
+    background: #2997FF;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.yprint-detailed-settings {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 20px;
+    margin-top: 20px;
+}
+
+.cookie-details {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #666;
+}
+
+.cookie-details summary {
+    cursor: pointer;
+    color: #2997FF;
+    font-weight: 500;
+}
+
+.yprint-legal-notice {
+    margin-top: 15px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+}
+
+.yprint-mobile-optional-consents {
+    margin: 20px 0;
+    padding: 15px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.yprint-mobile-optional-consents h4 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 14px;
+}
   

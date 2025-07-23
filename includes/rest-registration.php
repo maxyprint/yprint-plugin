@@ -79,19 +79,11 @@ function wc_rest_user_endpoint_handler($request) {
         return $user_id;
     }
 
-    // NEUE FUNKTION: Pflicht-Consent für Datenschutzerklärung prüfen
-    $privacy_consent = isset($_POST['privacy_consent']) ? (bool) $_POST['privacy_consent'] : false;
+    // Freiwillige Einwilligungen verarbeiten (keine Pflicht-Prüfung mehr)
+    $optional_consents = isset($_POST['optional_consents']) ? $_POST['optional_consents'] : array();
     $cookie_consents = isset($_POST['cookie_consents']) ? $_POST['cookie_consents'] : array();
 
-    if (!$privacy_consent) {
-        // Benutzer wieder löschen, da Consent fehlt
-        wp_delete_user($user_id);
-        $error = new WP_Error();
-        $error->add(400, __("Du musst der Datenschutzerklärung zustimmen.", 'wp-rest-user'), array('status' => 400));
-        return $error;
-    }
-
-    // Datenschutz-Consent in DB speichern
+    // Basis-Datenschutz-Consent automatisch (durch Nutzung impliziert)
     $wpdb->insert(
         $wpdb->prefix . 'yprint_consents',
         array(
@@ -106,33 +98,28 @@ function wc_rest_user_endpoint_handler($request) {
         )
     );
 
-    // Essenzielle Cookies sind Pflicht (implizit immer true)
-    $cookie_consents['essential'] = true;
-
-    // Cookie-Consents in DB speichern
-    $cookie_mapping = array(
-        'essential' => 'COOKIE_ESSENTIAL',
-        'analytics' => 'COOKIE_ANALYTICS', 
-        'marketing' => 'COOKIE_MARKETING',
-        'functional' => 'COOKIE_FUNCTIONAL'
+    // Freiwillige Einwilligungen speichern
+    $optional_mapping = array(
+        'email_marketing' => 'EMAIL_MARKETING',
+        'personalized_content' => 'PERSONALIZED_CONTENT'
     );
 
-    foreach ($cookie_mapping as $form_key => $db_key) {
-        $granted = isset($cookie_consents[$form_key]) ? (bool) $cookie_consents[$form_key] : false;
-        
-        $wpdb->insert(
-            $wpdb->prefix . 'yprint_consents',
-            array(
-                'user_id' => $user_id,
-                'consent_type' => $db_key,
-                'granted' => $granted ? 1 : 0,
-                'version' => '1.0',
-                'ip_address' => $this->get_client_ip(),
-                'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-                'created_at' => current_time('mysql'),
-                'updated_at' => current_time('mysql')
-            )
-        );
+    foreach ($optional_mapping as $form_key => $db_key) {
+        if (isset($optional_consents[$form_key]) && $optional_consents[$form_key]) {
+            $wpdb->insert(
+                $wpdb->prefix . 'yprint_consents',
+                array(
+                    'user_id' => $user_id,
+                    'consent_type' => $db_key,
+                    'granted' => 1,
+                    'version' => '1.0',
+                    'ip_address' => $this->get_client_ip(),
+                    'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+                    'created_at' => current_time('mysql'),
+                    'updated_at' => current_time('mysql')
+                )
+            );
+        }
     }
 
     // Eventuelle Cookie-Consents von Gast zu User übertragen
@@ -749,6 +736,27 @@ function yprint_registration_form_mobile() {
             text-decoration: underline;
         }
 
+        /* Freiwillige Einwilligungen */
+        .yprint-mobile-optional-consents {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .yprint-mobile-optional-consents h4 {
+            margin: 0 0 10px 0;
+            color: #2997FF;
+            font-size: 16px;
+        }
+
+        .yprint-mobile-optional-consents p {
+            margin: 0 0 15px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
         /* Cookie-Consent-Sektion in Registrierung */
         .yprint-mobile-cookie-consent-section {
             margin: 20px 0;
@@ -770,15 +778,30 @@ function yprint_registration_form_mobile() {
             font-size: 14px;
         }
 
-        .yprint-mobile-checkbox-group small {
-            display: block;
-            color: #888;
-            font-size: 12px;
-            margin-top: 2px;
+        /* Rechtlicher Hinweis */
+        .yprint-legal-notice {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #2997FF;
         }
 
-        .yprint-mobile-checkbox-group input:disabled + label {
-            opacity: 0.7;
+        .yprint-legal-notice p {
+            margin: 0;
+            font-size: 12px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .yprint-legal-notice a {
+            color: #2997FF;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .yprint-legal-notice a:hover {
+            text-decoration: underline;
         }
 
         /* Error Messages */
@@ -940,12 +963,23 @@ function yprint_registration_form_mobile() {
                     </span>
                 </div>
 
-                <!-- Datenschutz-Checkbox -->
-                <div class="yprint-mobile-checkbox-group">
-                    <input type="checkbox" id="datenschutz_akzeptiert" name="datenschutz_akzeptiert" required>
-                    <label for="datenschutz_akzeptiert">
-                        Ich habe die <a href="https://yprint.de/datenschutz/" target="_blank">Datenschutzerklärung</a> gelesen und akzeptiere diese.
-                    </label>
+                <!-- Freiwillige Marketing-Einwilligungen -->
+                <div class="yprint-mobile-optional-consents">
+                    <h4>Weitere Einwilligungen (freiwillig)</h4>
+                    
+                    <div class="yprint-mobile-checkbox-group">
+                        <input type="checkbox" id="email_marketing" name="optional_consents[email_marketing]" value="1">
+                        <label for="email_marketing">
+                            Ich möchte Produktinformationen und Angebote per E-Mail erhalten
+                        </label>
+                    </div>
+                    
+                    <div class="yprint-mobile-checkbox-group">
+                        <input type="checkbox" id="personalized_content" name="optional_consents[personalized_content]" value="1">
+                        <label for="personalized_content">
+                            Ich willige ein, dass mein Nutzerverhalten analysiert wird, um mir personalisierte Inhalte anzuzeigen
+                        </label>
+                    </div>
                 </div>
 
                 <!-- Cookie-Consent-Sektion -->
@@ -990,13 +1024,17 @@ function yprint_registration_form_mobile() {
                     </div>
                 </div>
 
-                <!-- Fehlermeldung für Datenschutz -->
-                <div id="datenschutz-error" class="yprint-mobile-error">
-                    Bitte akzeptiere die Datenschutzerklärung, um fortzufahren.
-                </div>
-
                 <div class="yprint-mobile-input-group">
                     <button type="submit" id="register-button-mobile">Registrieren</button>
+                </div>
+                
+                <!-- Rechtlicher Hinweis UNTER dem Registrierungsbutton -->
+                <div class="yprint-legal-notice">
+                    <p>Durch Klicken auf 'Registrieren' akzeptieren Sie unsere 
+                    <a href="/nutzungsbedingungen" target="_blank">Nutzungsbedingungen</a> 
+                    und bestätigen, die 
+                    <a href="/datenschutz" target="_blank">Datenschutzerklärung</a> 
+                    gelesen zu haben.</p>
                 </div>
             </form>
 
@@ -1085,18 +1123,10 @@ function yprint_registration_form_mobile() {
                 }
             });
 
-            // Formular-Validierung inklusive Datenschutz-Checkbox
+            // Formular-Validierung (ohne Pflicht-Checkboxen)
             document.getElementById("register-form-mobile").addEventListener("submit", function(event) {
-                var datenschutzCheckbox = document.getElementById("datenschutz_akzeptiert");
-                var datenschutzError = document.getElementById("datenschutz-error");
-                
-                if (!datenschutzCheckbox.checked) {
-                    event.preventDefault();
-                    datenschutzError.style.display = "block";
-                    return false;
-                } else {
-                    datenschutzError.style.display = "none";
-                }
+                // Keine spezielle Validierung mehr nötig, da keine Pflicht-Checkboxen
+                // Der rechtliche Hinweis unter dem Button informiert über die Bedingungen
             });
             
             // Password Toggle Funktionalität
@@ -1171,8 +1201,18 @@ function yprint_enqueue_registration_script() {
                         cookieConsents[key] = input.checked;
                     });
                     
-                    // Cookie-Consents zur Daten hinzufügen
+                    // Optionale Einwilligungen sammeln
+                    const optionalConsents = {};
+                    const optionalInputs = document.querySelectorAll(\'input[name^="optional_consents"]\');
+                    
+                    optionalInputs.forEach(input => {
+                        const key = input.name.match(/\\[([^\\]]+)\\]/)[1];
+                        optionalConsents[key] = input.checked;
+                    });
+                    
+                    // Consents zur Daten hinzufügen
                     data.cookie_consents = cookieConsents;
+                    data.optional_consents = optionalConsents;
 
                     // Turnstile Token hinzufügen falls vorhanden
                     const turnstileResponse = document.querySelector(\'input[name="cf-turnstile-response"]\');

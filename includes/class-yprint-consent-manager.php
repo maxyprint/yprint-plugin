@@ -84,11 +84,13 @@ class YPrint_Consent_Manager {
      * Prüfen ob Banner gezeigt werden soll
      */
     private function should_show_banner() {
+        // Für eingeloggte Nutzer: Nur zeigen wenn noch nie eine Entscheidung getroffen wurde
         if (is_user_logged_in()) {
             $user_id = get_current_user_id();
-            return !$this->has_user_given_consent($user_id, 'COOKIE_ESSENTIAL');
+            return !$this->has_any_consent_decision($user_id);
         } else {
-            return !$this->has_guest_given_consent();
+            // Für Gäste: Nur zeigen wenn kein Cookie mit Entscheidung existiert
+            return !$this->has_guest_consent_decision();
         }
     }
     
@@ -96,14 +98,35 @@ class YPrint_Consent_Manager {
      * Prüfen ob Icon angezeigt werden soll
      */
     private function should_show_icon() {
-        // Icon IMMER für nicht-eingeloggte Nutzer anzeigen
-        if (!is_user_logged_in()) {
-            return true;
+        // Icon IMMER anzeigen für Nutzer mit getroffener Entscheidung
+        if (is_user_logged_in()) {
+            return $this->has_any_consent_decision(get_current_user_id());
+        } else {
+            return $this->has_guest_consent_decision();
         }
+    }
+    
+    /**
+     * Prüfen ob User bereits eine Consent-Entscheidung getroffen hat
+     */
+    private function has_any_consent_decision($user_id) {
+        global $wpdb;
         
-        // Für eingeloggte Nutzer nur anzeigen, wenn sie schon Consents haben
-        $user_id = get_current_user_id();
-        return $this->has_user_given_consent($user_id, 'COOKIE_ESSENTIAL');
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}yprint_consents 
+             WHERE user_id = %d AND consent_type LIKE 'COOKIE_%'",
+            $user_id
+        ));
+        
+        return $count > 0;
+    }
+    
+    /**
+     * Prüfen ob Gast bereits eine Consent-Entscheidung getroffen hat
+     */
+    private function has_guest_consent_decision() {
+        // Prüfung auf spezifisches Cookie das Entscheidung dokumentiert
+        return isset($_COOKIE['yprint_consent_decision']) || isset($_COOKIE['yprint_consent_preferences']);
     }
     
     /**
