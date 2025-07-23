@@ -718,18 +718,25 @@ add_action('template_redirect', 'yprint_debug_template_redirect', 0);
  * Login-Verarbeitung auf Login-Seite
  */
 function yprint_process_custom_login() {
+    echo '<script>console.log("🔍 PROCESS LOGIN: Funktion wurde aufgerufen");</script>';
+    echo '<script>console.log("🔍 PROCESS LOGIN: REQUEST_METHOD:", "' . $_SERVER['REQUEST_METHOD'] . '");</script>';
+    echo '<script>console.log("🔍 PROCESS LOGIN: REQUEST_URI:", "' . $_SERVER['REQUEST_URI'] . '");</script>';
     // Nur auf Login-Seite ausführen
     if (!is_page('login') && strpos($_SERVER['REQUEST_URI'], '/login') === false) {
+        echo '<script>console.log("🔍 PROCESS LOGIN: Nicht auf Login-Seite - beende");</script>';
         return;
     }
     // Nur bei POST-Requests
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        echo '<script>console.log("🔍 PROCESS LOGIN: Nicht POST - beende");</script>';
         return;
     }
     // Nur bei unserem Login-Formular
     if (!isset($_POST['yprint_login']) || $_POST['yprint_login'] !== '1') {
+        echo '<script>console.log("🔍 PROCESS LOGIN: Kein yprint_login - beende");</script>';
         return;
     }
+    echo '<script>console.log("🔍 PROCESS LOGIN: Alle Bedingungen erfüllt - starte Login-Prozess");</script>';
     // CONSOLE-DEBUGGING für tatsächlichen POST-Request
     ?>
     <script>
@@ -813,7 +820,7 @@ function yprint_process_custom_login() {
     wp_redirect($redirect_to);
     exit;
 }
-add_action('template_redirect', 'yprint_process_custom_login', 1);
+add_action('wp', 'yprint_process_custom_login', 1);
 
 /**
  * WordPress Standard-Login abfangen und umleiten
