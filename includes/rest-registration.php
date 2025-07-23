@@ -958,10 +958,22 @@ function yprint_registration_form_mobile() {
                     gelesen zu haben.</p>
                     
                     <p class="cookie-transfer-info">
-                        Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen. 
+                        Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen 
+                        <span id="cookie-status-display">(wird geladen...)</span>. 
                         Sollten Sie Ihre Präferenzen noch ändern wollen, 
-                        <a href="#" id="modify-cookie-settings" class="cookie-modify-link">klicken Sie hier</a>.
+                        <button type="button" id="modify-cookie-settings" class="cookie-modify-link" onclick="openCookieSettings()">
+                            Cookie-Einstellungen ändern
+                        </button>.
                     </p>
+
+                    <!-- TEST-BUTTON (später entfernen) -->
+                    <div style="margin: 20px 0; padding: 10px; background: #f0f0f0; border: 1px solid #ccc;">
+                        <h4>🧪 Cookie-Test-Buttons (nur zum Debuggen)</h4>
+                        <button onclick="console.log('Test 1: Button geklickt')" style="margin: 5px;">Test 1: Console Log</button>
+                        <button onclick="openCookieSettings()" style="margin: 5px;">Test 2: Cookie öffnen</button>
+                        <button onclick="updateCookieStatus()" style="margin: 5px;">Test 3: Status laden</button>
+                        <button onclick="debugCookieElements()" style="margin: 5px;">Test 4: Debug Info</button>
+                    </div>
                 </div>
 
                 <!-- Hidden inputs für Cookie-Preferences (werden via JS gesetzt) -->
@@ -989,48 +1001,163 @@ function yprint_registration_form_mobile() {
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🍪 Registrierungs-Cookie-Integration initialisiert');
+        // Direkte Inline-Funktion (immer verfügbar)
+        function openCookieSettings() {
+            console.log('🍪 === COOKIE-EINSTELLUNGEN ÖFFNEN ===');
             
-            // Initial Cookie-Einstellungen laden
-            setTimeout(() => {
-                loadCurrentCookieSettings();
-            }, 1000);
-            
-            // Event für "hier klicken" Link
-            const modifyLink = document.getElementById('modify-cookie-settings');
-            if (modifyLink) {
-                modifyLink.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    openCookieSettingsForRegistration();
-                });
+            // Methode 1: Cookie-Icon klicken (beste Methode)
+            const cookieIcon = document.getElementById('yprint-open-consent-settings');
+            if (cookieIcon) {
+                console.log('✅ Cookie-Icon gefunden und geklickt');
+                cookieIcon.click();
+                return;
             }
+            
+            // Methode 2: Banner direkt anzeigen
+            const banner = document.getElementById('yprint-cookie-banner');
+            if (banner) {
+                console.log('✅ Banner direkt angezeigt');
+                banner.style.display = 'block';
+                document.body.classList.add('yprint-consent-open');
+                
+                // Event-Listener für Banner-Schließung
+                setupBannerCloseListener();
+                return;
+            }
+            
+            // Methode 3: jQuery Fallback
+            if (typeof $ !== 'undefined') {
+                const $banner = $('#yprint-cookie-banner');
+                if ($banner.length) {
+                    console.log('✅ jQuery Banner angezeigt');
+                    $banner.fadeIn(300);
+                    $('body').addClass('yprint-consent-open');
+                    setupBannerCloseListener();
+                    return;
+                }
+            }
+            
+            // Fallback: Fehlermeldung
+            console.log('❌ Keine Cookie-Banner-Methode funktionierte');
+            alert('Cookie-Einstellungen können derzeit nicht geöffnet werden. Bitte laden Sie die Seite neu und versuchen Sie es erneut.');
+        }
+
+        function setupBannerCloseListener() {
+            console.log('🍪 Setup Banner-Close-Listener');
+            
+            // Nach 2 Sekunden prüfen ob Banner noch da ist
+            setTimeout(() => {
+                const banner = document.getElementById('yprint-cookie-banner');
+                if (banner) {
+                    const checkClosed = setInterval(() => {
+                        const isVisible = banner.style.display !== 'none' && 
+                                        window.getComputedStyle(banner).display !== 'none';
+                        
+                        if (!isVisible) {
+                            console.log('🍪 Banner wurde geschlossen - lade Cookie-Status neu');
+                            clearInterval(checkClosed);
+                            setTimeout(updateCookieStatus, 1000);
+                        }
+                    }, 1000);
+                    
+                    // Stoppe nach 60 Sekunden
+                    setTimeout(() => clearInterval(checkClosed), 60000);
+                }
+            }, 2000);
+        }
+
+        function updateCookieStatus() {
+            console.log('🍪 === UPDATE COOKIE STATUS ===');
+            
+            let cookiePrefs = {
+                essential: true,
+                analytics: false,
+                marketing: false,
+                functional: false
+            };
+            
+            // Cookie-Werte laden
+            try {
+                if (document.cookie.includes('yprint_consent_preferences')) {
+                    const cookieValue = getCookieValue('yprint_consent_preferences');
+                    if (cookieValue) {
+                        const decoded = JSON.parse(decodeURIComponent(cookieValue));
+                        if (decoded && decoded.consents) {
+                            cookiePrefs.essential = decoded.consents.cookie_essential || false;
+                            cookiePrefs.analytics = decoded.consents.cookie_analytics || false;
+                            cookiePrefs.marketing = decoded.consents.cookie_marketing || false;
+                            cookiePrefs.functional = decoded.consents.cookie_functional || false;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('🍪 Cookie-Lesefehler:', e);
+            }
+            
+            // Hidden Fields setzen
+            setHiddenField('final_cookie_essential', cookiePrefs.essential);
+            setHiddenField('final_cookie_analytics', cookiePrefs.analytics);
+            setHiddenField('final_cookie_marketing', cookiePrefs.marketing);
+            setHiddenField('final_cookie_functional', cookiePrefs.functional);
+            
+            // Status-Text aktualisieren
+            const activeCount = Object.values(cookiePrefs).filter(Boolean).length;
+            const statusText = activeCount === 1 ? 'Nur notwendige Cookies' : `${activeCount} Cookie-Kategorien aktiv`;
+            
+            const statusDisplay = document.getElementById('cookie-status-display');
+            if (statusDisplay) {
+                statusDisplay.textContent = `(${statusText})`;
+                statusDisplay.style.fontWeight = 'bold';
+                statusDisplay.style.color = '#2997FF';
+            }
+            
+            console.log('🍪 Cookie-Status aktualisiert:', statusText, cookiePrefs);
+        }
+
+        function getCookieValue(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            return parts.length === 2 ? parts.pop().split(';').shift() : null;
+        }
+
+        function setHiddenField(id, value) {
+            const field = document.getElementById(id);
+            if (field) {
+                field.value = value ? 'true' : 'false';
+                console.log(`🍪 ${id} = ${field.value}`);
+            } else {
+                console.warn(`🍪 Field ${id} nicht gefunden`);
+            }
+        }
+
+        function debugCookieElements() {
+            console.log('=== COOKIE ELEMENT DEBUG ===');
+            console.log('Banner:', document.getElementById('yprint-cookie-banner') ? 'GEFUNDEN' : 'FEHLT');
+            console.log('Icon:', document.getElementById('yprint-open-consent-settings') ? 'GEFUNDEN' : 'FEHLT');
+            console.log('Link:', document.getElementById('modify-cookie-settings') ? 'GEFUNDEN' : 'FEHLT');
+            console.log('Status:', document.getElementById('cookie-status-display') ? 'GEFUNDEN' : 'FEHLT');
+            console.log('Form:', document.getElementById('register-form-mobile') ? 'GEFUNDEN' : 'FEHLT');
+            console.log('Cookies:', document.cookie.split(';').filter(c => c.includes('yprint')));
+            console.log('========================');
+        }
+
+        // Initial beim Laden
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🍪 Registrierungs-Cookie-System initialisiert');
+            
+            // Initial Status laden
+            setTimeout(updateCookieStatus, 1000);
             
             // Form-Submit Event
-            const registerForm = document.getElementById('register-form-mobile');
-            if (registerForm) {
-                registerForm.addEventListener('submit', function(e) {
-                    console.log('🍪 Registrierung wird abgesendet...');
-                    
-                    // Finale Cookie-Einstellungen laden
-                    loadCurrentCookieSettings();
-                    
-                    // Debug-Info ausgeben
-                    debugCookieState();
+            const form = document.getElementById('register-form-mobile');
+            if (form) {
+                form.addEventListener('submit', function() {
+                    console.log('🍪 Finale Cookie-Werte vor Registrierung:');
+                    updateCookieStatus();
                 });
             }
-            
-            // Global verfügbar machen für Debugging
-            window.debugCookieState = debugCookieState;
-            window.loadCurrentCookieSettings = loadCurrentCookieSettings;
-            window.openCookieSettingsForRegistration = openCookieSettingsForRegistration;
-            
-            console.log('🍪 Event-Listener für Registrierung gesetzt');
         });
-            
-
-            
-            function openCookieSettingsForRegistration() {
+    </script>
                 console.log('🍪 === Cookie-Einstellungen für Registrierung öffnen ===');
                 
                 let success = false;
