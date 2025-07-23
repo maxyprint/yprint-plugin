@@ -79,9 +79,16 @@ function wc_rest_user_endpoint_handler($request) {
         return $user_id;
     }
 
-    // Freiwillige Einwilligungen verarbeiten (keine Pflicht-Prüfung mehr)
-    $optional_consents = isset($_POST['optional_consents']) ? $_POST['optional_consents'] : array();
-    $cookie_consents = isset($_POST['cookie_consents']) ? $_POST['cookie_consents'] : array();
+    // Cookie-Preferences aus Hidden Fields verarbeiten
+    $cookie_preferences = isset($parameters['cookie_preferences']) ? $parameters['cookie_preferences'] : array();
+
+    // Standard-Werte falls nicht gesetzt
+    $cookie_preferences = array_merge(array(
+        'essential' => 'true',
+        'analytics' => 'false',
+        'marketing' => 'false',
+        'functional' => 'false'
+    ), $cookie_preferences);
 
     // Basis-Datenschutz-Consent automatisch (durch Nutzung impliziert)
     $wpdb->insert(
@@ -91,59 +98,43 @@ function wc_rest_user_endpoint_handler($request) {
             'consent_type' => 'PRIVACY_POLICY',
             'granted' => 1,
             'version' => '1.0',
-            'ip_address' => $this->get_client_ip(),
+            'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
             'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql')
         )
     );
 
-    // Freiwillige Einwilligungen speichern
-    $optional_mapping = array(
-        'email_marketing' => 'EMAIL_MARKETING',
-        'personalized_content' => 'PERSONALIZED_CONTENT'
+    // Cookie-Consents in DB speichern
+    $cookie_mapping = array(
+        'essential' => 'COOKIE_ESSENTIAL',
+        'analytics' => 'COOKIE_ANALYTICS', 
+        'marketing' => 'COOKIE_MARKETING',
+        'functional' => 'COOKIE_FUNCTIONAL'
     );
 
-    foreach ($optional_mapping as $form_key => $db_key) {
-        if (isset($optional_consents[$form_key]) && $optional_consents[$form_key]) {
-            $wpdb->insert(
-                $wpdb->prefix . 'yprint_consents',
-                array(
-                    'user_id' => $user_id,
-                    'consent_type' => $db_key,
-                    'granted' => 1,
-                    'version' => '1.0',
-                    'ip_address' => $this->get_client_ip(),
-                    'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-                    'created_at' => current_time('mysql'),
-                    'updated_at' => current_time('mysql')
-                )
-            );
-        }
+    foreach ($cookie_mapping as $form_key => $db_key) {
+        $granted = ($cookie_preferences[$form_key] === 'true');
+        
+        $wpdb->insert(
+            $wpdb->prefix . 'yprint_consents',
+            array(
+                'user_id' => $user_id,
+                'consent_type' => $db_key,
+                'granted' => $granted ? 1 : 0,
+                'version' => '1.0',
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? '',
+                'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql')
+            )
+        );
     }
 
-    // Eventuelle Cookie-Consents von Gast zu User übertragen
+    // Guest-Cookie löschen nach Übertragung
     if (isset($_COOKIE['yprint_consent_preferences'])) {
-        $guest_consents = json_decode($_COOKIE['yprint_consent_preferences'], true);
-        if ($guest_consents && isset($guest_consents['consents'])) {
-            foreach ($guest_consents['consents'] as $consent_type => $granted) {
-                $wpdb->insert(
-                    $wpdb->prefix . 'yprint_consents',
-                    array(
-                        'user_id' => $user_id,
-                        'consent_type' => strtoupper($consent_type),
-                        'granted' => (bool) $granted ? 1 : 0,
-                        'version' => isset($guest_consents['version']) ? $guest_consents['version'] : '1.0',
-                        'ip_address' => $this->get_client_ip(),
-                        'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
-                        'created_at' => current_time('mysql'),
-                        'updated_at' => current_time('mysql')
-                    )
-                );
-            }
-            // Gast-Cookie löschen
-            setcookie('yprint_consent_preferences', '', time() - 3600, '/');
-        }
+        setcookie('yprint_consent_preferences', '', time() - 3600, '/');
+        setcookie('yprint_consent_decision', '', time() - 3600, '/');
     }
 
     // Benutzerrolle setzen
@@ -736,46 +727,34 @@ function yprint_registration_form_mobile() {
             text-decoration: underline;
         }
 
-        /* Freiwillige Einwilligungen */
-        .yprint-mobile-optional-consents {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #e1e5e9;
-            border-radius: 8px;
-            background: #f8f9fa;
+        /* Cookie-Transfer-Info Styling */
+        .cookie-transfer-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f4fd;
+            border: 1px solid #2997FF;
+            border-radius: 6px;
+            font-size: 12px;
+            color: #1a365d;
+            line-height: 1.4;
         }
 
-        .yprint-mobile-optional-consents h4 {
-            margin: 0 0 10px 0;
+        .cookie-modify-link {
             color: #2997FF;
-            font-size: 16px;
+            text-decoration: underline;
+            font-weight: 600;
+            cursor: pointer;
+            transition: color 0.2s;
         }
 
-        .yprint-mobile-optional-consents p {
-            margin: 0 0 15px 0;
-            color: #666;
-            font-size: 14px;
+        .cookie-modify-link:hover {
+            color: #1e7fff;
+            text-decoration: none;
         }
 
-        /* Cookie-Consent-Sektion in Registrierung */
-        .yprint-mobile-cookie-consent-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #e1e5e9;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        .yprint-mobile-cookie-consent-section h4 {
-            margin: 0 0 10px 0;
+        .cookie-status {
+            font-weight: 600;
             color: #2997FF;
-            font-size: 16px;
-        }
-
-        .cookie-consent-description {
-            margin: 0 0 15px 0;
-            color: #666;
-            font-size: 14px;
         }
 
         /* Rechtlicher Hinweis */
@@ -788,7 +767,7 @@ function yprint_registration_form_mobile() {
         }
 
         .yprint-legal-notice p {
-            margin: 0;
+            margin: 8px 0;
             font-size: 12px;
             color: #666;
             line-height: 1.4;
@@ -916,7 +895,10 @@ function yprint_registration_form_mobile() {
                 font-size: 14px;
             }
 
-            
+            .cookie-transfer-info {
+                font-size: 11px;
+                padding: 8px;
+            }
         }
     </style>
 
@@ -963,67 +945,6 @@ function yprint_registration_form_mobile() {
                     </span>
                 </div>
 
-                <!-- Freiwillige Marketing-Einwilligungen -->
-                <div class="yprint-mobile-optional-consents">
-                    <h4>Weitere Einwilligungen (freiwillig)</h4>
-                    
-                    <div class="yprint-mobile-checkbox-group">
-                        <input type="checkbox" id="email_marketing" name="optional_consents[email_marketing]" value="1">
-                        <label for="email_marketing">
-                            Ich möchte Produktinformationen und Angebote per E-Mail erhalten
-                        </label>
-                    </div>
-                    
-                    <div class="yprint-mobile-checkbox-group">
-                        <input type="checkbox" id="personalized_content" name="optional_consents[personalized_content]" value="1">
-                        <label for="personalized_content">
-                            Ich willige ein, dass mein Nutzerverhalten analysiert wird, um mir personalisierte Inhalte anzuzeigen
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Cookie-Consent-Sektion -->
-                <div class="yprint-mobile-cookie-consent-section">
-                    <h4>Cookie-Einstellungen</h4>
-                    <p class="cookie-consent-description">Bitte wähle deine Cookie-Präferenzen:</p>
-                    
-                    <!-- Essenzielle Cookies (Pflicht) -->
-                    <div class="yprint-mobile-checkbox-group">
-                        <input type="checkbox" id="cookie_essential" name="cookie_consents[essential]" value="1" checked disabled>
-                        <label for="cookie_essential">
-                            <strong>Essenzielle Cookies</strong> (erforderlich)
-                            <small>Für grundlegende Website-Funktionen benötigt</small>
-                        </label>
-                    </div>
-                    
-                    <!-- Analytics Cookies -->
-                    <div class="yprint-mobile-checkbox-group">
-                        <input type="checkbox" id="cookie_analytics" name="cookie_consents[analytics]" value="1">
-                        <label for="cookie_analytics">
-                            <strong>Analyse Cookies</strong>
-                            <small>Helfen uns, die Website-Nutzung zu verstehen</small>
-                        </label>
-                    </div>
-                    
-                    <!-- Marketing Cookies -->
-                    <div class="yprint-mobile-checkbox-group">
-                        <input type="checkbox" id="cookie_marketing" name="cookie_consents[marketing]" value="1">
-                        <label for="cookie_marketing">
-                            <strong>Marketing Cookies</strong>
-                            <small>Für personalisierte Werbung</small>
-                        </label>
-                    </div>
-                    
-                    <!-- Funktionale Cookies -->
-                    <div class="yprint-mobile-checkbox-group">
-                        <input type="checkbox" id="cookie_functional" name="cookie_consents[functional]" value="1">
-                        <label for="cookie_functional">
-                            <strong>Funktionale Cookies</strong>
-                            <small>Für erweiterte Website-Funktionen</small>
-                        </label>
-                    </div>
-                </div>
-
                 <div class="yprint-mobile-input-group">
                     <button type="submit" id="register-button-mobile">Registrieren</button>
                 </div>
@@ -1035,7 +956,19 @@ function yprint_registration_form_mobile() {
                     und bestätigen, die 
                     <a href="/datenschutz" target="_blank">Datenschutzerklärung</a> 
                     gelesen zu haben.</p>
+                    
+                    <p class="cookie-transfer-info">
+                        Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen. 
+                        Sollten Sie Ihre Präferenzen noch ändern wollen, 
+                        <a href="#" id="modify-cookie-settings" class="cookie-modify-link">klicken Sie hier</a>.
+                    </p>
                 </div>
+
+                <!-- Hidden inputs für Cookie-Preferences (werden via JS gesetzt) -->
+                <input type="hidden" id="final_cookie_essential" name="cookie_preferences[essential]" value="">
+                <input type="hidden" id="final_cookie_analytics" name="cookie_preferences[analytics]" value="">
+                <input type="hidden" id="final_cookie_marketing" name="cookie_preferences[marketing]" value="">
+                <input type="hidden" id="final_cookie_functional" name="cookie_preferences[functional]" value="">
             </form>
 
             <?php
@@ -1056,7 +989,134 @@ function yprint_registration_form_mobile() {
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener('DOMContentLoaded', function() {
+            const modifyCookieLink = document.getElementById('modify-cookie-settings');
+            const registerForm = document.getElementById('register-form-mobile');
+            
+            // Beim Laden: Aktuelle Cookie-Einstellungen in Hidden Fields setzen
+            loadCurrentCookieSettings();
+            
+            // Event für "hier klicken" Link
+            if (modifyCookieLink) {
+                modifyCookieLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    openCookieSettingsForRegistration();
+                });
+            }
+            
+            // Bei Form-Submit: Finale Cookie-Werte validieren
+            if (registerForm) {
+                registerForm.addEventListener('submit', function(e) {
+                    // Aktuelle Cookie-Einstellungen nochmal laden (falls geändert)
+                    loadCurrentCookieSettings();
+                    
+                    console.log('📝 Registrierung mit Cookie-Einstellungen:', {
+                        essential: document.getElementById('final_cookie_essential').value,
+                        analytics: document.getElementById('final_cookie_analytics').value,
+                        marketing: document.getElementById('final_cookie_marketing').value,
+                        functional: document.getElementById('final_cookie_functional').value
+                    });
+                });
+            }
+            
+            function loadCurrentCookieSettings() {
+                // Prüfe Guest-Cookie oder Standard-Werte
+                let cookiePrefs = {
+                    essential: 'true',    // Immer true
+                    analytics: 'false',
+                    marketing: 'false', 
+                    functional: 'false'
+                };
+                
+                // Wenn bereits Cookie-Entscheidung getroffen wurde
+                if (document.cookie.includes('yprint_consent_preferences')) {
+                    try {
+                        const cookieValue = getCookie('yprint_consent_preferences');
+                        if (cookieValue) {
+                            const decoded = JSON.parse(decodeURIComponent(cookieValue));
+                            if (decoded.consents) {
+                                cookiePrefs.essential = decoded.consents.cookie_essential ? 'true' : 'false';
+                                cookiePrefs.analytics = decoded.consents.cookie_analytics ? 'true' : 'false';
+                                cookiePrefs.marketing = decoded.consents.cookie_marketing ? 'true' : 'false';
+                                cookiePrefs.functional = decoded.consents.cookie_functional ? 'true' : 'false';
+                            }
+                        }
+                    } catch (e) {
+                        console.log('🍪 Fehler beim Lesen der Cookie-Einstellungen:', e);
+                    }
+                }
+                
+                // Hidden Fields setzen
+                document.getElementById('final_cookie_essential').value = cookiePrefs.essential;
+                document.getElementById('final_cookie_analytics').value = cookiePrefs.analytics;
+                document.getElementById('final_cookie_marketing').value = cookiePrefs.marketing;
+                document.getElementById('final_cookie_functional').value = cookiePrefs.functional;
+                
+                // Status-Text aktualisieren
+                updateCookieStatusText(cookiePrefs);
+            }
+            
+            function openCookieSettingsForRegistration() {
+                // YPrint Cookie Manager Banner für Registrierung öffnen
+                if (typeof window.yprintConsentManager !== 'undefined') {
+                    window.yprintConsentManager.showBannerForRegistration();
+                } else if (typeof yprintConsent !== 'undefined') {
+                    // Fallback: Banner manuell öffnen
+                    const banner = document.getElementById('yprint-cookie-banner');
+                    if (banner) {
+                        banner.style.display = 'block';
+                        document.body.classList.add('yprint-consent-open');
+                    }
+                }
+                
+                // Event-Listener für Änderungen (Fallback)
+                setTimeout(() => {
+                    const bannerActions = document.querySelectorAll('.yprint-cookie-banner-actions button, #yprint-save-preferences');
+                    bannerActions.forEach(button => {
+                        button.addEventListener('click', function() {
+                            // Nach Cookie-Änderung: Werte neu laden
+                            setTimeout(() => {
+                                loadCurrentCookieSettings();
+                            }, 1000);
+                        });
+                    });
+                }, 100);
+            }
+            
+            function updateCookieStatusText(prefs) {
+                const statusElement = document.querySelector('.cookie-transfer-info');
+                if (statusElement) {
+                    const activeCount = Object.values(prefs).filter(val => val === 'true').length;
+                    const statusText = activeCount === 1 ? 
+                        'Nur notwendige Cookies werden übernommen.' :
+                        `${activeCount} Cookie-Kategorien werden in den Account übernommen.`;
+                    
+                    // Text mit Status ergänzen
+                    statusElement.innerHTML = `
+                        Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen 
+                        <span class="cookie-status">(${statusText})</span>. 
+                        Sollten Sie Ihre Präferenzen noch ändern wollen, 
+                        <a href="#" id="modify-cookie-settings" class="cookie-modify-link">klicken Sie hier</a>.
+                    `;
+                    
+                    // Event neu binden
+                    const newLink = statusElement.querySelector('#modify-cookie-settings');
+                    if (newLink) {
+                        newLink.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            openCookieSettingsForRegistration();
+                        });
+                    }
+                }
+            }
+            
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+                return null;
+            }
+            
             // Passwort-Validierung mit Focus/Blur Events
             var passwordField = document.getElementById("user_password_mobile");
             var requirementsDiv = document.getElementById("password-requirements");
@@ -1122,12 +1182,6 @@ function yprint_registration_form_mobile() {
                     specialEl.classList.remove("valid");
                 }
             });
-
-            // Formular-Validierung (ohne Pflicht-Checkboxen)
-            document.getElementById("register-form-mobile").addEventListener("submit", function(event) {
-                // Keine spezielle Validierung mehr nötig, da keine Pflicht-Checkboxen
-                // Der rechtliche Hinweis unter dem Button informiert über die Bedingungen
-            });
             
             // Password Toggle Funktionalität
             document.getElementById("password-toggle-mobile").onclick = function() {
@@ -1192,27 +1246,16 @@ function yprint_enqueue_registration_script() {
                         password: password
                     };
 
-                    // Cookie-Consent Sammeln
-                    const cookieConsents = {};
-                    const cookieInputs = document.querySelectorAll(\'input[name^="cookie_consents"]\');
+                    // Cookie-Präferenzen aus versteckten Input-Feldern lesen
+                    const cookiePreferences = {
+                        essential: document.getElementById(\'final_cookie_essential\').value === \'true\',
+                        analytics: document.getElementById(\'final_cookie_analytics\').value === \'true\',
+                        marketing: document.getElementById(\'final_cookie_marketing\').value === \'true\',
+                        functional: document.getElementById(\'final_cookie_functional\').value === \'true\'
+                    };
                     
-                    cookieInputs.forEach(input => {
-                        const key = input.name.match(/\\[([^\\]]+)\\]/)[1];
-                        cookieConsents[key] = input.checked;
-                    });
-                    
-                    // Optionale Einwilligungen sammeln
-                    const optionalConsents = {};
-                    const optionalInputs = document.querySelectorAll(\'input[name^="optional_consents"]\');
-                    
-                    optionalInputs.forEach(input => {
-                        const key = input.name.match(/\\[([^\\]]+)\\]/)[1];
-                        optionalConsents[key] = input.checked;
-                    });
-                    
-                    // Consents zur Daten hinzufügen
-                    data.cookie_consents = cookieConsents;
-                    data.optional_consents = optionalConsents;
+                    // Cookie-Präferenzen zur Daten hinzufügen
+                    data.cookie_preferences = cookiePreferences;
 
                     // Turnstile Token hinzufügen falls vorhanden
                     const turnstileResponse = document.querySelector(\'input[name="cf-turnstile-response"]\');

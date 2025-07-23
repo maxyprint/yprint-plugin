@@ -189,8 +189,16 @@
             this.saveConsents(consents);
         }
         
+        // Neue Methode: Banner für Registrierung öffnen
+        showBannerForRegistration() {
+            this.showBanner();
+            
+            // Event für Registrierungs-Callback
+            this.registrationCallback = true;
+        }
+        
         saveConsents(consents) {
-            console.log('🍪 Speichere Consents:', consents);
+            const self = this;
             
             $.ajax({
                 url: this.config.ajaxUrl,
@@ -204,18 +212,35 @@
                 },
                 success: (response) => {
                     if (response.success) {
-                        console.log('🍪 Consents erfolgreich gespeichert');
-                        this.hideBanner();
-                        this.applyCookieSettings(consents);
-                        this.showNotification('Deine Cookie-Einstellungen wurden gespeichert.', 'success');
+                        console.log('🍪 Consent erfolgreich gespeichert');
+                        
+                        // Cookies entsprechend setzen
+                        self.applyCookieSettings(consents);
+                        
+                        // Banner schließen
+                        self.hideBanner();
+                        
+                        // Wenn aus Registrierung aufgerufen: Event triggern
+                        if (self.registrationCallback) {
+                            self.registrationCallback = false;
+                            
+                            // Custom Event für Registrierung
+                            const event = new CustomEvent('yprintCookieUpdated', {
+                                detail: { consents: consents }
+                            });
+                            document.dispatchEvent(event);
+                        } else {
+                            // Normale Notification für nicht-Registrierung
+                            self.showNotification('Deine Cookie-Einstellungen wurden gespeichert.', 'success');
+                        }
                     } else {
-                        console.error('🍪 Fehler beim Speichern:', response.data);
-                        this.showNotification('Fehler beim Speichern der Einstellungen.', 'error');
+                        console.error('🍪 Fehler beim Speichern:', response.data?.message);
+                        self.showNotification('Fehler beim Speichern der Einstellungen.', 'error');
                     }
                 },
                 error: (xhr, status, error) => {
-                    console.error('🍪 AJAX-Fehler:', error);
-                    this.showNotification('Netzwerkfehler beim Speichern.', 'error');
+                    console.error('🍪 Netzwerkfehler beim Speichern:', error);
+                    self.showNotification('Netzwerkfehler beim Speichern.', 'error');
                 }
             });
         }
@@ -292,5 +317,17 @@
     
     // Initialisierung
     window.yprintConsentManager = new YPrintConsentManager();
+    
+    // Event-Listener für Cookie-Updates aus Registrierung
+    document.addEventListener('yprintCookieUpdated', function(e) {
+        console.log('🍪 Cookie-Einstellungen für Registrierung aktualisiert:', e.detail.consents);
+        
+        // Registrierungsformular aktualisieren falls vorhanden
+        if (typeof loadCurrentCookieSettings === 'function') {
+            setTimeout(() => {
+                loadCurrentCookieSettings();
+            }, 100);
+        }
+    });
     
 })(jQuery);
