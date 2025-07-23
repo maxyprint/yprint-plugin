@@ -751,17 +751,28 @@ function yprint_process_custom_login() {
             try {
                 $turnstile = YPrint_Turnstile::get_instance();
                 if ($turnstile->is_enabled() && in_array('login', $turnstile->get_protected_pages())) {
-                    $token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
-                    $debug_logs[] = 'Turnstile enabled: yes, token present: ' . (!empty($token) ? 'yes' : 'no');
+                    // ROHEN Token zuerst prüfen (vor sanitize_text_field)
+                    $raw_token = $_POST['cf-turnstile-response'] ?? '';
+                    $sanitized_token = sanitize_text_field($raw_token);
+                    $debug_logs[] = 'Turnstile enabled: yes';
+                    $debug_logs[] = 'Raw token exists: ' . (isset($_POST['cf-turnstile-response']) ? 'yes' : 'no');
+                    $debug_logs[] = 'Raw token length: ' . strlen($raw_token);
+                    $debug_logs[] = 'Raw token first 50 chars: "' . substr($raw_token, 0, 50) . '"';
+                    $debug_logs[] = 'Sanitized token length: ' . strlen($sanitized_token);
+                    $debug_logs[] = 'Sanitized token first 50 chars: "' . substr($sanitized_token, 0, 50) . '"';
+                    // Verwende RAW token für Turnstile (nicht sanitized)
+                    $token = $raw_token;
                     if (empty($token)) {
-                        $debug_logs[] = 'ERROR: Turnstile token missing';
+                        $debug_logs[] = 'ERROR: Turnstile token missing or empty';
                         WC()->session->set('yprint_login_debug', $debug_logs);
                         wp_redirect(home_url('/login/?login=turnstile_missing&timestamp=' . time()));
                         exit;
                     }
+                    // Turnstile Verifikation mit Raw Token
                     $verification = $turnstile->verify_token($token);
                     if (!$verification['success']) {
                         $debug_logs[] = 'ERROR: Turnstile verification failed: ' . ($verification['error'] ?? 'Unknown error');
+                        $debug_logs[] = 'Failed token length: ' . strlen($token);
                         WC()->session->set('yprint_login_debug', $debug_logs);
                         wp_redirect(home_url('/login/?login=turnstile_failed&timestamp=' . time()));
                         exit;
