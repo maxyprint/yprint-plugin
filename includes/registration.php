@@ -535,6 +535,16 @@ function yprint_custom_registration_form() {
                         </div>
                     </div>
 
+                    <?php
+                    // Turnstile Widget für Standard Registration
+                    $turnstile = YPrint_Turnstile::get_instance();
+                    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+                        echo '<div class="yprint-input-group turnstile-widget-container">';
+                        echo $turnstile->render_widget('register-form', 'light');
+                        echo '</div>';
+                    }
+                    ?>
+
                     <div class="yprint-input-group">
                         <input type="submit" name="wp-submit" value="Registrieren">
                     </div>
@@ -680,32 +690,66 @@ function yprint_custom_registration_form() {
             });
         }
 
-        // AJAX Form Submission (bestehende Funktionalität beibehalten)
+        // Turnstile Callbacks - ERSTE PRIORITÄT
+        window.onTurnstileSuccess = function(token) {
+            console.log('🛡️ Turnstile: Token erhalten für Registration:', token.substring(0, 20) + '...');
+            // Entferne Error-Messages
+            const errorDiv = document.querySelector('.turnstile-error');
+            if (errorDiv) errorDiv.style.display = 'none';
+            // Aktiviere Submit-Button falls deaktiviert
+            const submitButton = document.querySelector('#register-form input[type="submit"]');
+            if (submitButton && submitButton.disabled) {
+                submitButton.disabled = false;
+                submitButton.value = 'Registrieren';
+            }
+        };
+        window.onTurnstileError = function(error) {
+            console.error('🛡️ Turnstile: Fehler bei Registration:', error);
+            const errorDiv = document.querySelector('.turnstile-error');
+            if (errorDiv) {
+                errorDiv.textContent = 'Bot-Verifikation fehlgeschlagen. Bitte versuche es erneut.';
+                errorDiv.style.display = 'block';
+            }
+        };
+
+        // AJAX Form Submission mit Turnstile-Validierung
         const form = document.getElementById('register-form');
         const messageDiv = document.getElementById('registration-message');
 
         if (form) {
             form.addEventListener('submit', function(e) {
                 e.preventDefault();
-
+                // Turnstile-Validierung
+                const turnstileContainer = form.querySelector('.cf-turnstile, .cf-turnstile-rendered');
+                if (turnstileContainer) {
+                    const tokenField = form.querySelector('input[name="cf-turnstile-response"]');
+                    if (!tokenField || !tokenField.value || tokenField.value.length < 10) {
+                        messageDiv.className = 'error';
+                        messageDiv.innerHTML = 'Bitte warte bis die Bot-Verifikation abgeschlossen ist.';
+                        messageDiv.style.display = 'block';
+                        return false;
+                    }
+                }
                 const formData = new FormData();
                 formData.append('action', 'yprint_register_user');
                 formData.append('username', usernameField.value);
                 formData.append('email', emailField.value);
                 formData.append('password', passwordField.value);
                 formData.append('password_confirm', confirmPasswordField.value);
-                
+                // Turnstile Token hinzufügen
+                const tokenField = form.querySelector('input[name="cf-turnstile-response"]');
+                if (tokenField && tokenField.value) {
+                    formData.append('cf-turnstile-response', tokenField.value);
+                }
                 // WordPress nonce für Sicherheit
                 if (typeof ajax_object !== 'undefined') {
                     formData.append('nonce', ajax_object.nonce);
                 }
-
                 // Submit Button deaktivieren
                 const submitButton = form.querySelector('input[type="submit"]');
                 const originalValue = submitButton.value;
                 submitButton.value = 'Registriere...';
                 submitButton.disabled = true;
-
                 fetch(ajax_object.ajax_url || '/wp-admin/admin-ajax.php', {
                     method: 'POST',
                     body: formData
