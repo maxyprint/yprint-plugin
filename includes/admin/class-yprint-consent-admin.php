@@ -511,9 +511,8 @@ class YPrint_Consent_Admin {
     }
 }
 
-// Initialisieren (nur im Admin-Bereich)
+// ❌ DIESE ZEILEN LÖSCHEN:
+// Initialisieren
 add_action('plugins_loaded', function() {
-    if (is_admin()) {
-        YPrint_Consent_Admin::get_instance();
-    }
+    YPrint_Consent_Manager::get_instance();
 });

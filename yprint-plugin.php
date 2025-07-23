@@ -31,9 +31,7 @@ require_once YPRINT_PLUGIN_DIR . 'includes/woocommerce.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/legal-shortcodes.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/product-fields.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/user-settings.php';
-require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-consent-manager.php';
-require_once YPRINT_PLUGIN_DIR . 'includes/class-yprint-legal-text-manager.php';
-require_once YPRINT_PLUGIN_DIR . 'includes/admin/class-yprint-consent-admin.php';
+// Consent System Dateien werden später geladen, wenn sie existieren
 require_once YPRINT_PLUGIN_DIR . 'includes/help-shortcode.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/mobile-product-shortcode.php';
 require_once YPRINT_PLUGIN_DIR . 'includes/checkout-header.php';
@@ -90,31 +88,6 @@ require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-address-orchestr
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-email-address-integration.php';
 require_once plugin_dir_path(__FILE__) . 'includes/stripe/class-yprint-stripe-metadata-integration.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-address-consistency-monitor.php';
-
-// Initialize AddressOrchestrator and Extensions
-add_action('plugins_loaded', function() {
-    if (class_exists('YPrint_Address_Orchestrator')) {
-        YPrint_Address_Orchestrator::get_instance();
-        error_log('✅ YPrint AddressOrchestrator: Core system initialized');
-    }
-    
-    // Initialize Email Integration
-    if (class_exists('YPrint_Email_Address_Integration')) {
-        new YPrint_Email_Address_Integration();
-        error_log('✅ YPrint AddressOrchestrator: Email integration initialized');
-    }
-    
-    // Initialize Stripe Metadata Integration  
-    if (class_exists('YPrint_Stripe_Metadata_Integration')) {
-        new YPrint_Stripe_Metadata_Integration();
-        error_log('✅ YPrint AddressOrchestrator: Stripe metadata integration initialized');
-    }
-    
-    // Admin Monitor - wird später bei Admin Classes initialisiert
-    if (class_exists('YPrint_Address_Consistency_Monitor')) {
-        error_log('✅ YPrint AddressOrchestrator: Admin consistency monitor class loaded');
-    }
-});
 
 // Turnstile Integration laden
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-turnstile.php';
@@ -192,34 +165,40 @@ add_action('plugins_loaded', function() {
     YPrint_Address_Handler::get_instance();
 });
 
-// Initialize Consent System
-add_action('plugins_loaded', function() {
-    // Consent Manager
-    if (class_exists('YPrint_Consent_Manager')) {
-        YPrint_Consent_Manager::get_instance();
-        error_log('✅ YPrint Consent System: Manager initialized');
+// SICHERER CONSENT SYSTEM INIT
+function yprint_init_consent_system() {
+    // Nur laden wenn Dateien existieren
+    $consent_manager_file = YPRINT_PLUGIN_DIR . 'includes/class-yprint-consent-manager.php';
+    if (file_exists($consent_manager_file)) {
+        require_once $consent_manager_file;
+        
+        if (class_exists('YPrint_Consent_Manager')) {
+            YPrint_Consent_Manager::get_instance();
+            error_log('✅ YPrint Consent System: Manager initialized');
+        }
     }
     
-    // Legal Text Manager
-    if (class_exists('YPrint_Legal_Text_Manager')) {
-        YPrint_Legal_Text_Manager::get_instance();
-        error_log('✅ YPrint Consent System: Legal Text Manager initialized');
+    // Admin nur im Backend und wenn Datei existiert
+    if (is_admin()) {
+        $consent_admin_file = YPRINT_PLUGIN_DIR . 'includes/admin/class-yprint-consent-admin.php';
+        if (file_exists($consent_admin_file)) {
+            require_once $consent_admin_file;
+            
+            if (class_exists('YPrint_Consent_Admin')) {
+                YPrint_Consent_Admin::get_instance();
+                error_log('✅ YPrint Consent System: Admin panel initialized');
+            }
+        }
     }
-    
-    // Admin nur im Backend laden
-    if (is_admin() && class_exists('YPrint_Consent_Admin')) {
-        YPrint_Consent_Admin::get_instance();
-        error_log('✅ YPrint Consent System: Admin panel initialized');
-    }
-});
+}
+add_action('plugins_loaded', 'yprint_init_consent_system', 20);
 
-// Hook für Consent-System nach DB-Setup
-add_action('after_setup_theme', function() {
-    // Stelle sicher, dass Consent-Tabellen existieren
+// DB-Setup sicher initialisieren
+function yprint_maybe_setup_consent_tables() {
     if (function_exists('yprint_create_settings_tables')) {
         yprint_create_settings_tables();
     }
-});
+}
 
  
 
