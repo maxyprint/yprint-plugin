@@ -164,7 +164,7 @@ class YPrint_Turnstile {
             esc_attr($this->get_site_key()),
             esc_attr($theme)
         );
-        $html .= '<input type="hidden" name="cf-turnstile-response" value="" />';
+        // KEIN manuelles Hidden Field - Turnstile erstellt es automatisch
         $html .= '<div class="turnstile-error" style="color: #dc3232; margin-top: 10px; display: none;"></div>';
         $html .= '</div>';
         
@@ -311,26 +311,14 @@ class YPrint_Turnstile {
                 console.log('[Turnstile] Hidden Field im Form gefunden:', !!hiddenField);
             }
             if (!hiddenField) {
-                hiddenField = document.querySelector('input[name=\"cf-turnstile-response\"]');
-                console.log('[Turnstile] Hidden Field global gefunden:', !!hiddenField);
-            }
-            if (!hiddenField) {
-                // Warte bis Turnstile das Hidden Field erstellt hat
-                setTimeout(() => {
-                    const autoField = loginForm ? loginForm.querySelector('input[name=\"cf-turnstile-response\"]') : null;
+                // Warte bis Turnstile das Hidden Field automatisch erstellt hat
+                setTimeout(function() {
+                    var autoField = loginForm ? loginForm.querySelector('input[name=\"cf-turnstile-response\"]') : document.querySelector('input[name=\"cf-turnstile-response\"]');
                     if (autoField) {
                         autoField.value = token;
                         console.log('[Turnstile] Token in automatisches Feld gesetzt:', autoField.value.substring(0, 20) + '...');
                     } else {
-                        // Fallback: Erstelle Hidden Field falls nicht vorhanden
-                        hiddenField = document.createElement('input');
-                        hiddenField.type = 'hidden';
-                        hiddenField.name = 'cf-turnstile-response';
-                        hiddenField.value = token;
-                        if (loginForm) {
-                            loginForm.appendChild(hiddenField);
-                            console.log('[Turnstile] Hidden Field automatisch erstellt und befüllt');
-                        }
+                        console.error('[Turnstile] KRITISCH: Kein Hidden Field nach 100ms gefunden!');
                     }
                 }, 100);
                 return;
