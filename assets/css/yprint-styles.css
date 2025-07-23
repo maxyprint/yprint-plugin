@@ -305,4 +305,46 @@
         width: 300px !important;
     }
 }
+
+.turnstile-widget-container {
+    margin-bottom: 24px !important;
+    position: relative !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+.yprint-input-group.turnstile-widget-container {
+    margin-bottom: 24px !important;
+}
+
+.cf-turnstile,
+.cf-turnstile-rendered {
+    display: block !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    transform-origin: center center !important;
+}
+
+#yprint-loginform .turnstile-widget-container {
+    margin-bottom: 24px !important;
+}
+
+#yprint-loginform .cf-turnstile,
+#yprint-loginform .cf-turnstile-rendered {
+    display: block !important;
+    margin: 0 auto !important;
+}
+
+/* Perfekte Alignment-Korrektur - gleiche Behandlung wie Input-Felder */
+.yprint-login-form .turnstile-widget-container {
+    box-sizing: border-box !important;
+    width: 100% !important;
+}
+
+.yprint-login-form .cf-turnstile,
+.yprint-login-form .cf-turnstile-rendered {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    display: block !important;
+}
   
