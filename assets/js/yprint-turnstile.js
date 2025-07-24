@@ -75,40 +75,70 @@ function setupTurnstileIntegration() {
         }
     });
 
-    // SOFORTIGE Formular-basierte Duplikat-Entfernung
+    // VERSCHÄRFTE Formular-basierte Duplikat-Entfernung
     const formGroups = new Map();
+    const globalWidgetRegistry = new Set(); // Globaler Widget-Tracker
+
     document.querySelectorAll('.cf-turnstile').forEach(container => {
         const form = container.closest('form');
         const formId = form?.id || 'no-form';
+        const hasManualAttribute = !!container.closest('[data-manual-turnstile]');
+        const containerPosition = Array.from(document.querySelectorAll('.cf-turnstile')).indexOf(container);
+        
+        console.log(`🛡️ Turnstile DETAILED: Container ${containerPosition}:`, {
+            formId: formId,
+            isManual: hasManualAttribute,
+            hasIframe: !!container.querySelector('iframe'),
+            isRendered: container.hasAttribute('data-rendered'),
+            innerHTML: container.innerHTML.substring(0, 50)
+        });
         
         if (!formGroups.has(formId)) {
             formGroups.set(formId, []);
         }
-        formGroups.get(formId).push(container);
+        formGroups.get(formId).push({
+            container: container,
+            isManual: hasManualAttribute,
+            position: containerPosition
+        });
     });
 
-    // Bei mehr als einem Container pro Form: Behalte nur das manuelle Widget
-    formGroups.forEach((containers, formId) => {
-        if (containers.length > 1) {
-            console.log(`🛡️ Turnstile: CRITICAL - Form ${formId} hat ${containers.length} Container - entferne alle bis auf das manuelle`);
+    // AGGRESSIV: Bei mehr als einem Container pro Form - nur EINEN behalten
+    formGroups.forEach((containerInfos, formId) => {
+        if (containerInfos.length > 1) {
+            console.log(`🛡️ Turnstile: CRITICAL - Form ${formId} hat ${containerInfos.length} Container:`, 
+                containerInfos.map(info => `${info.position}(${info.isManual ? 'manual' : 'auto'})`));
             
-            // Manuelle Widgets (mit data-manual-turnstile) haben Priorität
-            const manualWidget = containers.find(c => c.closest('[data-manual-turnstile]'));
-            const keepWidget = manualWidget || containers[0];
+            // Priorität: Manuell > Erstes gefundenes
+            const sortedContainers = containerInfos.sort((a, b) => {
+                if (a.isManual && !b.isManual) return -1;
+                if (!a.isManual && b.isManual) return 1;
+                return a.position - b.position;
+            });
             
-            containers.forEach((container, index) => {
-                if (container !== keepWidget) {
-                    console.log(`🛡️ Turnstile: Entferne Duplikat-Container ${index + 1} aus Form ${formId}`);
-                    const wrapper = container.closest('.turnstile-widget-container, .yprint-input-group');
-                    if (wrapper) {
-                        wrapper.remove();
-                    } else {
-                        container.remove();
-                    }
+            const keepContainer = sortedContainers[0];
+            console.log(`🛡️ Turnstile: Behalte Container ${keepContainer.position} (${keepContainer.isManual ? 'manual' : 'auto'})`);
+            
+            // Alle anderen entfernen
+            sortedContainers.slice(1).forEach((containerInfo, index) => {
+                console.log(`🛡️ Turnstile: ENTFERNE Duplikat ${containerInfo.position} aus Form ${formId}`);
+                const wrapper = containerInfo.container.closest('.turnstile-widget-container, .yprint-input-group');
+                if (wrapper) {
+                    wrapper.remove();
+                } else {
+                    containerInfo.container.remove();
                 }
             });
+            
+            // Registriere das behaltene Widget global
+            globalWidgetRegistry.add(keepContainer.container);
+        } else {
+            // Einzelne Container auch registrieren
+            globalWidgetRegistry.add(containerInfos[0].container);
         }
     });
+
+    console.log(`🛡️ Turnstile: Finale Anzahl registrierter Widgets: ${globalWidgetRegistry.size}`);
 
     // Widgets rendern - jetzt garantiert nur ein Container pro Form
     document.querySelectorAll('.cf-turnstile').forEach((container, index) => {

@@ -243,9 +243,9 @@ function yprint_custom_registration_form() {
         }
 
         /* Eingabefelder - identisch mit Login */
-        #register-form input[type="text"],
-        #register-form input[type="email"],
-        #register-form input[type="password"] {
+        #register-form-desktop input[type="text"],
+        #register-form-desktop input[type="email"],
+        #register-form-desktop input[type="password"] {
             width: 100% !important;
             height: 52px !important;
             padding: 16px 20px !important;
@@ -264,22 +264,22 @@ function yprint_custom_registration_form() {
             box-sizing: border-box !important;
         }
 
-        #register-form input[type="text"]:focus,
-        #register-form input[type="email"]:focus,
-        #register-form input[type="password"]:focus {
+        #register-form-desktop input[type="text"]:focus,
+        #register-form-desktop input[type="email"]:focus,
+        #register-form-desktop input[type="password"]:focus {
             background-color: #ffffff !important;
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
         }
 
         /* Platzhaltertext */
-        #register-form input::placeholder {
+        #register-form-desktop input::placeholder {
             color: #9ca3af !important;
             font-weight: 400 !important;
         }
 
         /* Submit-Button - identisch mit Login */
-        #register-form input[type="submit"] {
+        #register-form-desktop input[type="submit"] {
             width: 100% !important;
             height: 52px !important;
             padding: 16px 24px !important;
@@ -298,13 +298,13 @@ function yprint_custom_registration_form() {
             line-height: 1.5 !important;
         }
 
-        #register-form input[type="submit"]:hover {
+        #register-form-desktop input[type="submit"]:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
         }
 
-        #register-form input[type="submit"]:active {
+        #register-form-desktop input[type="submit"]:active {
             transform: translateY(0) !important;
         }
 
@@ -452,10 +452,10 @@ function yprint_custom_registration_form() {
                 font-size: 14px;
             }
 
-            #register-form input[type="text"],
-            #register-form input[type="email"],
-            #register-form input[type="password"],
-            #register-form input[type="submit"] {
+            #register-form-desktop input[type="text"],
+            #register-form-desktop input[type="email"],
+            #register-form-desktop input[type="password"],
+            #register-form-desktop input[type="submit"] {
                 height: 48px !important;
                 font-size: 16px !important;
             }
@@ -479,10 +479,10 @@ function yprint_custom_registration_form() {
                 padding: 10px 20px;
             }
 
-            #register-form input[type="text"],
-            #register-form input[type="email"],
-            #register-form input[type="password"],
-            #register-form input[type="submit"] {
+            #register-form-desktop input[type="text"],
+            #register-form-desktop input[type="email"],
+            #register-form-desktop input[type="password"],
+            #register-form-desktop input[type="submit"] {
                 height: 44px !important;
                 padding: 12px 16px !important;
             }
@@ -500,7 +500,7 @@ function yprint_custom_registration_form() {
             </div>
 
             <div class="yprint-register-form">
-                <form method="post" id="register-form">
+                <form id="register-form-desktop" method="post">
                     <div class="yprint-input-group">
                         <input type="text" name="user_login" id="user_login" placeholder="Benutzername" required>
                         <div id="username-hint" class="yprint-input-hint">
@@ -697,7 +697,7 @@ function yprint_custom_registration_form() {
             const errorDiv = document.querySelector('.turnstile-error');
             if (errorDiv) errorDiv.style.display = 'none';
             // Aktiviere Submit-Button falls deaktiviert
-            const submitButton = document.querySelector('#register-form input[type="submit"]');
+            const submitButton = document.querySelector('#register-form-desktop input[type="submit"]');
             if (submitButton && submitButton.disabled) {
                 submitButton.disabled = false;
                 submitButton.value = 'Registrieren';
@@ -713,7 +713,7 @@ function yprint_custom_registration_form() {
         };
 
         // AJAX Form Submission mit Turnstile-Validierung
-        const form = document.getElementById('register-form');
+        const form = document.getElementById('register-form-desktop');
         const messageDiv = document.getElementById('registration-message');
 
         if (form) {
