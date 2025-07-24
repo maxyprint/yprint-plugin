@@ -483,7 +483,7 @@ function yprint_registration_form_mobile() {
             box-sizing: border-box;
         }
 
-        .yprint-mobile-register-card {
+        .yprint-mobile-register-wrapper {
             background: #ffffff;
             border-radius: 20px;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -803,7 +803,7 @@ function yprint_registration_form_mobile() {
                 min-height: auto;
             }
             
-            .yprint-mobile-register-card {
+            .yprint-mobile-register-wrapper {
                 max-width: 420px;
             }
         }
@@ -818,7 +818,7 @@ function yprint_registration_form_mobile() {
                 box-sizing: border-box !important;
             }
 
-            .yprint-mobile-register-card {
+            .yprint-mobile-register-wrapper {
                 padding: 40px 24px !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
@@ -869,7 +869,7 @@ function yprint_registration_form_mobile() {
 
         /* Kleine Mobile Geräte */
         @media screen and (max-width: 480px) {
-            .yprint-mobile-register-card {
+            .yprint-mobile-register-wrapper {
                 padding: 20px !important;
             }
             
@@ -902,8 +902,16 @@ function yprint_registration_form_mobile() {
         }
     </style>
 
+    <?php
+    // Turnstile Widget für Mobile Registration
+    $turnstile = YPrint_Turnstile::get_instance();
+    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+        echo $turnstile->render_widget('register-mobile', 'light');
+    }
+    ?>
+
     <div class="yprint-mobile-register-container">
-        <div class="yprint-mobile-register-card">
+        <div class="yprint-mobile-register-wrapper">
             <div class="yprint-mobile-register-header">
                 <div class="yprint-mobile-logo">
                     <img src="https://yprint.de/wp-content/uploads/2024/10/y-icon.svg" alt="YPrint Logo" />
@@ -945,42 +953,30 @@ function yprint_registration_form_mobile() {
                     </span>
                 </div>
 
-                <div class="yprint-mobile-input-group">
-                    <button type="submit" id="register-button-mobile">Registrieren</button>
+                <!-- Hidden Cookie-Preference Fields -->
+                <input type="hidden" id="final_cookie_essential" name="cookie_preferences[essential]" value="true">
+                <input type="hidden" id="final_cookie_analytics" name="cookie_preferences[analytics]" value="false">
+                <input type="hidden" id="final_cookie_marketing" name="cookie_preferences[marketing]" value="false">
+                <input type="hidden" id="final_cookie_functional" name="cookie_preferences[functional]" value="false">
+
+                <!-- Minimaler Cookie-Button über Registrieren -->
+                <div class="yprint-cookie-section">
+                    <button type="button" id="modify-cookie-settings" class="yprint-cookie-btn">
+                        🍪 Cookies <span id="cookie-status-display">(Nur notwendige)</span>
+                    </button>
                 </div>
-                
-                <!-- Rechtlicher Hinweis UNTER dem Registrierungsbutton -->
+
+                <button type="submit" class="yprint-mobile-register-btn">Registrieren</button>
+
+                <!-- Sauberer rechtlicher Hinweis (nur das Wesentliche) -->
                 <div class="yprint-legal-notice">
                     <p>Durch Klicken auf 'Registrieren' akzeptieren Sie unsere 
                     <a href="/nutzungsbedingungen" target="_blank">Nutzungsbedingungen</a> 
                     und bestätigen, die 
                     <a href="/datenschutz" target="_blank">Datenschutzerklärung</a> 
                     gelesen zu haben.</p>
-                    
-                    <p class="cookie-transfer-info">
-                        Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen 
-                        <span id="cookie-status-display">(Nur notwendige Cookies)</span>. 
-                        Sollten Sie Ihre Präferenzen noch ändern wollen, 
-                        <button type="button" id="modify-cookie-settings" class="cookie-modify-link">
-                            Cookie-Einstellungen ändern
-                        </button>.
-                    </p>
                 </div>
-
-                <!-- Hidden inputs für Cookie-Preferences (werden via JS gesetzt) -->
-                <input type="hidden" id="final_cookie_essential" name="cookie_preferences[essential]" value="true">
-                <input type="hidden" id="final_cookie_analytics" name="cookie_preferences[analytics]" value="false">
-                <input type="hidden" id="final_cookie_marketing" name="cookie_preferences[marketing]" value="false">
-                <input type="hidden" id="final_cookie_functional" name="cookie_preferences[functional]" value="false">
             </form>
-
-            <?php
-                // Turnstile Widget für Mobile Registration
-                $turnstile = YPrint_Turnstile::get_instance();
-                if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-                    echo $turnstile->render_widget('register-mobile', 'light');
-                }
-                ?>
 
             <div class="yprint-mobile-login-section">
                 <p class="yprint-mobile-login-text">Du hast bereits ein Konto?</p>
@@ -992,7 +988,7 @@ function yprint_registration_form_mobile() {
     </div>
 
     <script>
-// === FINALE COOKIE-INTEGRATION (Clean Version) ===
+// === FINALE COOKIE-INTEGRATION (Minimal) ===
 function openCookieSettings() {
     const cookieIcon = document.getElementById('yprint-open-consent-settings');
     if (cookieIcon) {
@@ -1017,7 +1013,6 @@ function setupBannerCloseListener() {
     const checkInterval = setInterval(() => {
         bannerCheckCount++;
         const banner = document.getElementById('yprint-cookie-banner');
-        
         if (banner) {
             const isVisible = banner.style.display !== 'none' && 
                             window.getComputedStyle(banner).display !== 'none';
@@ -1027,7 +1022,6 @@ function setupBannerCloseListener() {
                 return;
             }
         }
-        
         if (bannerCheckCount >= 60) clearInterval(checkInterval);
     }, 1000);
 }
@@ -1039,7 +1033,6 @@ function updateCookieStatus() {
         marketing: false,
         functional: false
     };
-    
     if (document.cookie.includes('yprint_consent_preferences')) {
         try {
             const cookieValue = getCookieValue('yprint_consent_preferences');
@@ -1056,20 +1049,24 @@ function updateCookieStatus() {
             // Fallback auf Standard-Werte
         }
     }
-    
     // Hidden Fields setzen
     document.getElementById('final_cookie_essential').value = cookiePrefs.essential ? 'true' : 'false';
     document.getElementById('final_cookie_analytics').value = cookiePrefs.analytics ? 'true' : 'false';
     document.getElementById('final_cookie_marketing').value = cookiePrefs.marketing ? 'true' : 'false';
     document.getElementById('final_cookie_functional').value = cookiePrefs.functional ? 'true' : 'false';
-    
-    // Status-Text aktualisieren
+    // Status-Text aktualisieren (minimal)
     const activeCount = Object.values(cookiePrefs).filter(val => val === true).length;
-    const statusText = activeCount === 1 ? 'Nur notwendige Cookies' : `${activeCount} Cookie-Kategorien aktiv`;
-    
+    let statusText;
+    if (activeCount === 1) {
+        statusText = '(Nur notwendige)';
+    } else if (activeCount === 4) {
+        statusText = '(Alle aktiv)';
+    } else {
+        statusText = `(${activeCount} aktiv)`;
+    }
     const statusDisplay = document.getElementById('cookie-status-display');
     if (statusDisplay) {
-        statusDisplay.textContent = `(${statusText})`;
+        statusDisplay.textContent = statusText;
     }
 }
 
@@ -1079,13 +1076,11 @@ function getCookieValue(name) {
     return parts.length === 2 ? parts.pop().split(';').shift() : null;
 }
 
-// Event-Listener
 document.addEventListener('DOMContentLoaded', function() {
     // Passwort-Toggle
     document.getElementById("password-toggle-mobile").onclick = function() {
         const field = document.getElementById("user_password_mobile");
         const icon = this.querySelector('i');
-        
         if (field.type === "password") {
             field.type = "text";
             icon.style.color = '#3b82f6';
@@ -1095,11 +1090,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return false;
     };
-    
     document.getElementById("confirm-password-toggle-mobile").onclick = function() {
         const field = document.getElementById("user_password_confirm_mobile");
         const icon = this.querySelector('i');
-        
         if (field.type === "password") {
             field.type = "text";
             icon.style.color = '#3b82f6';
@@ -1109,22 +1102,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         return false;
     };
-    
     // Passwort-Validierung
     document.getElementById("user_password_mobile").addEventListener("input", function() {
         const password = this.value;
         const requirements = document.getElementById("password-requirements");
-        
         if (password.length > 0) {
             requirements.style.display = "block";
-            
             const checks = {
                 length: password.length >= 8,
                 uppercase: /[A-Z]/.test(password),
                 number: /[0-9]/.test(password),
                 special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
             };
-            
             Object.keys(checks).forEach(check => {
                 const element = document.getElementById(check);
                 if (element) {
@@ -1135,22 +1124,19 @@ document.addEventListener('DOMContentLoaded', function() {
             requirements.style.display = "none";
         }
     });
-    
     // Cookie-Settings Button
     document.getElementById('modify-cookie-settings').addEventListener('click', function(e) {
         e.preventDefault();
         openCookieSettings();
     });
-    
     // Form-Submit
     document.getElementById('register-form-mobile').addEventListener('submit', function() {
         updateCookieStatus();
     });
-    
     // Initial Cookie-Status laden
     setTimeout(updateCookieStatus, 1000);
 });
-    </script>
+</script>
     <?php
     return ob_get_clean();
 }
