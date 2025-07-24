@@ -46,9 +46,25 @@ function setupTurnstileIntegration() {
     const widgets = new Map();
     const processedForms = new Set();
 
-    // ERWEITERTE Duplikat-Bereinigung vor Rendering
+    // AGGRESSIVE Duplikat-Bereinigung vor Rendering
     const allContainers = document.querySelectorAll('.cf-turnstile');
-    console.log('🛡️ Turnstile: Gefundene Container vor Bereinigung:', allContainers.length);
+    console.log('🛡️ Frontend JavaScript: Gefundene .cf-turnstile Container:', allContainers.length);
+
+    // Log jedes Containers für Debugging
+    allContainers.forEach((container, index) => {
+        const form = container.closest('form');
+        const formId = form?.id || 'unbekannt';
+        const hasManualAttribute = !!container.closest('[data-manual-turnstile]');
+        console.log(`🛡️ Frontend JavaScript: Container ${index}:`, {
+            'hasAttribute data-rendered': container.hasAttribute('data-rendered'),
+            'has iframe': !!container.querySelector('iframe'), 
+            'has data-callback': !!container.getAttribute('data-callback'),
+            'has data-error-callback': !!container.getAttribute('data-error-callback'),
+            'innerHTML': container.innerHTML,
+            'formId': formId,
+            'isManual': hasManualAttribute
+        });
+    });
 
     // Bereits gerenderte Widgets sofort entfernen (Error 300030 Schutz)
     allContainers.forEach((container, index) => {
@@ -59,37 +75,35 @@ function setupTurnstileIntegration() {
         }
     });
 
-    // Neu scannen nach Bereinigung
-    const cleanContainers = document.querySelectorAll('.cf-turnstile');
-    console.log('🛡️ Turnstile: Container nach Bereinigung:', cleanContainers.length);
-
-    // Gruppiere verbleibende Container nach Formularen  
-    const containersByForm = new Map();
-    cleanContainers.forEach(container => {
+    // SOFORTIGE Formular-basierte Duplikat-Entfernung
+    const formGroups = new Map();
+    document.querySelectorAll('.cf-turnstile').forEach(container => {
         const form = container.closest('form');
         const formId = form?.id || 'no-form';
         
-        if (!containersByForm.has(formId)) {
-            containersByForm.set(formId, []);
+        if (!formGroups.has(formId)) {
+            formGroups.set(formId, []);
         }
-        containersByForm.get(formId).push(container);
+        formGroups.get(formId).push(container);
     });
 
-    // Pro Form maximal einen Container - priorisiere manuelle Widgets
-    containersByForm.forEach((containers, formId) => {
+    // Bei mehr als einem Container pro Form: Behalte nur das manuelle Widget
+    formGroups.forEach((containers, formId) => {
         if (containers.length > 1) {
-            console.log(`🛡️ Turnstile: Form ${formId} hat ${containers.length} Container - bereinige Duplikate`);
+            console.log(`🛡️ Turnstile: CRITICAL - Form ${formId} hat ${containers.length} Container - entferne alle bis auf das manuelle`);
             
-            // Manuelle Widgets (mit data-manual-turnstile) bevorzugen
+            // Manuelle Widgets (mit data-manual-turnstile) haben Priorität
             const manualWidget = containers.find(c => c.closest('[data-manual-turnstile]'));
-            let keepWidget = manualWidget || containers[0];
+            const keepWidget = manualWidget || containers[0];
             
             containers.forEach((container, index) => {
                 if (container !== keepWidget) {
-                    console.log(`🛡️ Turnstile: Entferne Duplikat ${index + 1} aus Form ${formId}`);
-                    const containerWrapper = container.closest('.turnstile-widget-container, .yprint-input-group');
-                    if (containerWrapper) {
-                        containerWrapper.remove();
+                    console.log(`🛡️ Turnstile: Entferne Duplikat-Container ${index + 1} aus Form ${formId}`);
+                    const wrapper = container.closest('.turnstile-widget-container, .yprint-input-group');
+                    if (wrapper) {
+                        wrapper.remove();
+                    } else {
+                        container.remove();
                     }
                 }
             });
