@@ -902,14 +902,6 @@ function yprint_registration_form_mobile() {
         }
     </style>
 
-    <?php
-    // Turnstile Widget für Mobile Registration
-    $turnstile = YPrint_Turnstile::get_instance();
-    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-        echo $turnstile->render_widget('register-mobile', 'light');
-    }
-    ?>
-
     <div class="yprint-mobile-register-container">
         <div class="yprint-mobile-register-wrapper">
             <div class="yprint-mobile-register-header">
