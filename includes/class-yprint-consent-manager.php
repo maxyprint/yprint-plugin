@@ -66,9 +66,8 @@ class YPrint_Consent_Manager {
      * Cookie-Banner rendern
      */
     public function render_cookie_banner() {
-        if ($this->should_show_banner()) {
-            include YPRINT_PLUGIN_DIR . 'templates/consent/cookie-banner.php';
-        }
+        // Banner IMMER rendern, Sichtbarkeit über CSS steuern
+        include YPRINT_PLUGIN_DIR . 'templates/consent/cookie-banner.php';
     }
     
     /**
@@ -77,6 +76,18 @@ class YPrint_Consent_Manager {
     public function render_consent_icon() {
         if ($this->should_show_icon()) {
             include YPRINT_PLUGIN_DIR . 'templates/consent/consent-icon.php';
+        }
+    }
+    
+    /**
+     * Prüfen ob Banner initial angezeigt werden soll
+     */
+    public function should_show_banner_initially() {
+        if (is_user_logged_in()) {
+            $user_id = get_current_user_id();
+            return !$this->has_any_consent_decision($user_id);
+        } else {
+            return !$this->has_guest_consent_decision();
         }
     }
     
