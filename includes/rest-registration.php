@@ -962,7 +962,7 @@ function yprint_registration_form_mobile() {
                 <!-- Minimaler Cookie-Button über Registrieren -->
                 <div class="yprint-cookie-section">
                     <button type="button" id="modify-cookie-settings" class="yprint-cookie-btn">
-                        🍪 Cookies <span id="cookie-status-display">(Nur notwendige)</span>
+                        Cookies
                     </button>
                 </div>
 
@@ -994,6 +994,9 @@ function yprint_registration_form_mobile() {
 }
 
 .yprint-cookie-btn {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    justify-content: center !important;
     background: #ffffff !important;
     border: 1px solid #e1e5e9 !important;
     border-radius: 6px !important;
