@@ -243,3 +243,58 @@
         font-size: 20px;
     }
 }
+
+/* Minimale Cookie-Sektion */
+.yprint-cookie-section {
+    margin: 15px 0 10px 0;
+    text-align: center;
+}
+
+.yprint-cookie-btn {
+    background: #ffffff;
+    border: 1px solid #e1e5e9;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.yprint-cookie-btn:hover {
+    background: #f8f9fa;
+    border-color: #2997FF;
+    color: #2997FF;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(41, 151, 255, 0.15);
+}
+
+.yprint-cookie-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+#cookie-status-display {
+    font-size: 11px;
+    color: #888;
+    font-weight: normal;
+}
+
+.yprint-mobile-register-btn {
+    margin-top: 5px;
+}
+
+@media (max-width: 480px) {
+    .yprint-cookie-btn {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    #cookie-status-display {
+        font-size: 10px;
+    }
+}
