@@ -987,7 +987,58 @@ function yprint_registration_form_mobile() {
         </div>
     </div>
 
-    <script>
+    <style>
+.yprint-cookie-section {
+    margin: 15px 0 10px 0;
+    text-align: center;
+}
+
+.yprint-cookie-btn {
+    background: #ffffff !important;
+    border: 1px solid #e1e5e9 !important;
+    border-radius: 6px !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    color: #666 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.yprint-cookie-btn:hover {
+    background: #f8f9fa !important;
+    border-color: #2997FF !important;
+    color: #2997FF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(41, 151, 255, 0.15) !important;
+}
+
+#cookie-status-display {
+    font-size: 11px !important;
+    color: #888 !important;
+    font-weight: normal !important;
+}
+
+.yprint-mobile-register-btn {
+    margin-top: 5px;
+}
+
+@media (max-width: 480px) {
+    .yprint-cookie-btn {
+        font-size: 12px !important;
+        padding: 6px 12px !important;
+    }
+    #cookie-status-display {
+        font-size: 10px !important;
+    }
+}
+</style>
+
+<script>
 // === FINALE COOKIE-INTEGRATION (Minimal) ===
 function openCookieSettings() {
     const cookieIcon = document.getElementById('yprint-open-consent-settings');
