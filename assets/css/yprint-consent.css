@@ -250,39 +250,43 @@
     text-align: center;
 }
 
-.yprint-cookie-btn {
-    background: #ffffff;
-    border: 1px solid #e1e5e9;
-    border-radius: 6px;
-    padding: 8px 16px;
-    font-size: 13px;
-    color: #666;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+body .yprint-cookie-btn,
+.elementor .yprint-cookie-btn,
+.elementor-widget-container .yprint-cookie-btn,
+.yprint-cookie-section .yprint-cookie-btn,
+button.yprint-cookie-btn {
+    background: #ffffff !important;
+    border: 1px solid #e1e5e9 !important;
+    border-radius: 6px !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    color: #666 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-family: inherit !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
 }
 
-.yprint-cookie-btn:hover {
-    background: #f8f9fa;
-    border-color: #2997FF;
-    color: #2997FF;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(41, 151, 255, 0.15);
+body .yprint-cookie-btn:hover,
+.elementor .yprint-cookie-btn:hover,
+.elementor-widget-container .yprint-cookie-btn:hover,
+.yprint-cookie-section .yprint-cookie-btn:hover,
+button.yprint-cookie-btn:hover {
+    background: #f8f9fa !important;
+    border-color: #2997FF !important;
+    color: #2997FF !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(41, 151, 255, 0.15) !important;
 }
 
-.yprint-cookie-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-
-#cookie-status-display {
-    font-size: 11px;
-    color: #888;
-    font-weight: normal;
+body #cookie-status-display,
+.elementor #cookie-status-display {
+    font-size: 11px !important;
+    color: #888 !important;
+    font-weight: normal !important;
 }
 
 .yprint-mobile-register-btn {
