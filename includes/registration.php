@@ -536,12 +536,14 @@ function yprint_custom_registration_form() {
                     </div>
 
                     <?php
-                    // Turnstile Widget für Standard Registration
-                    $turnstile = YPrint_Turnstile::get_instance();
-                    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-                        echo '<div class="yprint-input-group turnstile-widget-container">';
-                        echo $turnstile->render_widget('register-form', 'light');
-                        echo '</div>';
+                    // Turnstile Widget direkt einbinden - wie beim Login
+                    if (class_exists('YPrint_Turnstile')) {
+                        $turnstile = YPrint_Turnstile::get_instance();
+                        if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+                            echo '<div class="yprint-input-group turnstile-widget-container" style="text-align: center !important; margin: 20px 0 !important;">';
+                            echo '<div class="cf-turnstile" data-sitekey="' . esc_attr($turnstile->get_site_key()) . '" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>';
+                            echo '</div>';
+                        }
                     }
                     ?>
 
