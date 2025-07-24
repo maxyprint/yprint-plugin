@@ -411,7 +411,7 @@ class YPrint_Turnstile {
 
             <?php if (in_array('registration', $protected_pages)): ?>
             // Registration-Formular Turnstile einfügen
-const regForm = document.getElementById('register-form');
+const regForm = document.getElementById('register-form-desktop');
 if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute('data-turnstile-injected')) {
     regForm.setAttribute('data-turnstile-injected', 'true');
                 const submitGroup = regForm.querySelector('input[type="submit"]').closest('.yprint-input-group');

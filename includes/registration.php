@@ -45,7 +45,7 @@ function yprint_custom_registration_form() {
 
 /* Container für Login und Registration Formulare */
 #yprint-loginform .turnstile-widget-container,
-#register-form .turnstile-widget-container,
+#register-form-desktop .turnstile-widget-container,
 #register-form-mobile .turnstile-widget-container {
     max-width: 500px !important;
     margin: 20px auto !important;
@@ -54,8 +54,8 @@ function yprint_custom_registration_form() {
 /* Turnstile Widgets in Login und Registration */
 #yprint-loginform .cf-turnstile,
 #yprint-loginform .cf-turnstile-rendered,
-#register-form .cf-turnstile,
-#register-form .cf-turnstile-rendered,
+#register-form-desktop .cf-turnstile,
+#register-form-desktop .cf-turnstile-rendered,
 #register-form-mobile .cf-turnstile,
 #register-form-mobile .cf-turnstile-rendered {
     transform: scale(1) !important;
@@ -91,8 +91,8 @@ function yprint_custom_registration_form() {
     /* Spezifische Skalierung für alle Formulare */
     #yprint-loginform .cf-turnstile,
     #yprint-loginform .cf-turnstile-rendered,
-    #register-form .cf-turnstile,
-    #register-form .cf-turnstile-rendered,
+    #register-form-desktop .cf-turnstile,
+    #register-form-desktop .cf-turnstile-rendered,
     #register-form-mobile .cf-turnstile,
     #register-form-mobile .cf-turnstile-rendered {
         transform: scale(0.8) !important;
@@ -108,8 +108,8 @@ function yprint_custom_registration_form() {
     /* Kleinere Skalierung für alle Formulare */
     #yprint-loginform .cf-turnstile,
     #yprint-loginform .cf-turnstile-rendered,
-    #register-form .cf-turnstile,
-    #register-form .cf-turnstile-rendered,
+    #register-form-desktop .cf-turnstile,
+    #register-form-desktop .cf-turnstile-rendered,
     #register-form-mobile .cf-turnstile,
     #register-form-mobile .cf-turnstile-rendered {
         transform: scale(0.7) !important;
@@ -129,8 +129,8 @@ function yprint_custom_registration_form() {
     /* Kleinste Skalierung für alle Formulare */
     #yprint-loginform .cf-turnstile,
     #yprint-loginform .cf-turnstile-rendered,
-    #register-form .cf-turnstile,
-    #register-form .cf-turnstile-rendered,
+    #register-form-desktop .cf-turnstile,
+    #register-form-desktop .cf-turnstile-rendered,
     #register-form-mobile .cf-turnstile,
     #register-form-mobile .cf-turnstile-rendered {
         transform: scale(0.6) !important;

@@ -145,63 +145,68 @@ function setupTurnstileIntegration() {
         const form = container.closest('form');
         const formId = form?.id || 'no-form';
         
-        // Bereits verarbeitet?
+        // Überspringe bereits verarbeitete Formulare
         if (processedForms.has(formId)) {
-            console.log(`🛡️ Turnstile: Form ${formId} bereits verarbeitet, überspringe`);
+            console.log(`🛡️ Turnstile: Überspringe bereits verarbeitetes Formular ${formId}`);
             return;
         }
         
-        // Container bereits gerendert?
+        // Überspringe bereits gerenderte Container
         if (container.hasAttribute('data-rendered') || container.querySelector('iframe')) {
-            console.log(`🛡️ Turnstile: Container bereits gerendert, überspringe`);
-            processedForms.add(formId);
+            console.log(`🛡️ Turnstile: Überspringe bereits gerendertes Widget in Form ${formId}`);
             return;
         }
-
-        const siteKey = container.getAttribute('data-sitekey');
-        const theme = container.getAttribute('data-theme') || 'auto';
-
-        if (!siteKey) {
-            console.error(`🛡️ Turnstile: Kein Site Key für Form ${formId}`);
-            return;
-        }
-
+        
+        console.log(`🛡️ Turnstile: Rendere Widget für Form ${formId} (Container ${index})`);
+        
+        // Widget rendern
         try {
-            // Form als verarbeitet markieren BEVOR Rendering
-            processedForms.add(formId);
-            
-            const widgetId = window.turnstile.render(container, {
-                sitekey: siteKey,
-                theme: theme,
-                callback: (token) => {
-                    console.log(`🛡️ Turnstile verified for form: ${formId}`);
-                    widgets.set(formId, { isValid: true, token: token, widgetId: widgetId });
-                    removeErrorMessage(formId);
+            turnstile.render(container, {
+                sitekey: yprintTurnstileConfig.sitekey,
+                callback: function(token) {
+                    console.log(`🛡️ Turnstile: Token erhalten für Form ${formId}`);
+                    if (form) {
+                        const tokenInput = form.querySelector('input[name="cf-turnstile-response"]');
+                        if (tokenInput) {
+                            tokenInput.value = token;
+                        } else {
+                            // Token-Input erstellen falls nicht vorhanden
+                            const newTokenInput = document.createElement('input');
+                            newTokenInput.type = 'hidden';
+                            newTokenInput.name = 'cf-turnstile-response';
+                            newTokenInput.value = token;
+                            form.appendChild(newTokenInput);
+                        }
+                    }
                 },
-                'error-callback': (error) => {
-                    console.error(`🛡️ Turnstile error for form ${formId}:`, error);
-                    widgets.set(formId, { isValid: false, token: null, widgetId: widgetId });
-                    showErrorMessage(formId, 'Bot-Verifikation fehlgeschlagen. Bitte versuche es erneut.');
+                'error-callback': function() {
+                    console.error(`🛡️ Turnstile: Fehler beim Rendern für Form ${formId}`);
                 },
-                'expired-callback': () => {
-                    console.log(`🛡️ Turnstile expired for form: ${formId}`);
-                    widgets.set(formId, { isValid: false, token: null, widgetId: widgetId });
-                    showErrorMessage(formId, 'Verifikation abgelaufen. Bitte bestätige erneut, dass du kein Bot bist.');
+                'expired-callback': function() {
+                    console.log(`🛡️ Turnstile: Token abgelaufen für Form ${formId}`);
+                    if (form) {
+                        const tokenInput = form.querySelector('input[name="cf-turnstile-response"]');
+                        if (tokenInput) {
+                            tokenInput.value = '';
+                        }
+                    }
                 }
             });
-
-            widgets.set(formId, { widgetId: widgetId, isValid: false, token: null });
+            
+            // Container als gerendert markieren
             container.setAttribute('data-rendered', 'true');
+            processedForms.add(formId);
+            widgets.set(formId, container);
+            
             console.log(`🛡️ Turnstile: Widget erfolgreich gerendert für Form ${formId}`);
-
+            
         } catch (error) {
-            console.error(`🛡️ Turnstile render error für Form ${formId}:`, error);
-            processedForms.delete(formId); // Retry erlauben bei Fehler
-            showFallbackMessage(container);
+            console.error(`🛡️ Turnstile: Fehler beim Rendern des Widgets für Form ${formId}:`, error);
         }
     });
-
-    console.log(`🛡️ Turnstile: Initialisierung abgeschlossen. Verarbeitete Forms:`, Array.from(processedForms));
+    
+    console.log(`🛡️ Turnstile: Integration abgeschlossen. Verarbeitete Formulare: ${processedForms.size}`);
+    return widgets;
 }
 
 /**
