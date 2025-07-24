@@ -959,32 +959,19 @@ function yprint_registration_form_mobile() {
                     
                     <p class="cookie-transfer-info">
                         Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen 
-                        <span id="cookie-status-display">(wird geladen...)</span>. 
+                        <span id="cookie-status-display">(Nur notwendige Cookies)</span>. 
                         Sollten Sie Ihre Präferenzen noch ändern wollen, 
-                        <button type="button" id="modify-cookie-settings" class="cookie-modify-link" onclick="openCookieSettings()">
+                        <button type="button" id="modify-cookie-settings" class="cookie-modify-link">
                             Cookie-Einstellungen ändern
                         </button>.
                     </p>
-
-                    <!-- TEST-BUTTON (später entfernen) -->
-                    <div style="margin: 20px 0; padding: 10px; background: #f0f0f0; border: 1px solid #ccc;">
-                        <h4>🧪 Cookie-Test-Buttons (nur zum Debuggen)</h4>
-                        <button onclick="console.log('Test 1: Button geklickt')" style="margin: 5px;">Test 1: Console Log</button>
-                        <button onclick="openCookieSettings()" style="margin: 5px;">Test 2: Cookie öffnen</button>
-                        <button onclick="updateCookieStatus()" style="margin: 5px;">Test 3: Status laden</button>
-                        <button onclick="debugCookieElements()" style="margin: 5px;">Test 4: Debug Info</button>
-                        <button onclick="findBanner()" style="margin: 5px;">Test 5: Banner finden</button>
-                        <button onclick="analyzeConsentManager()" style="margin: 5px;">Test 6: Consent Manager</button>
-                        <button onclick="createTestBanner()" style="margin: 5px;">Test 7: Test-Banner erstellen</button>
-                        <button onclick="checkCSSConflicts()" style="margin: 5px;">Test 8: CSS-Konflikte</button>
-                    </div>
                 </div>
 
                 <!-- Hidden inputs für Cookie-Preferences (werden via JS gesetzt) -->
-                <input type="hidden" id="final_cookie_essential" name="cookie_preferences[essential]" value="">
-                <input type="hidden" id="final_cookie_analytics" name="cookie_preferences[analytics]" value="">
-                <input type="hidden" id="final_cookie_marketing" name="cookie_preferences[marketing]" value="">
-                <input type="hidden" id="final_cookie_functional" name="cookie_preferences[functional]" value="">
+                <input type="hidden" id="final_cookie_essential" name="cookie_preferences[essential]" value="true">
+                <input type="hidden" id="final_cookie_analytics" name="cookie_preferences[analytics]" value="false">
+                <input type="hidden" id="final_cookie_marketing" name="cookie_preferences[marketing]" value="false">
+                <input type="hidden" id="final_cookie_functional" name="cookie_preferences[functional]" value="false">
             </form>
 
             <?php
@@ -1005,646 +992,164 @@ function yprint_registration_form_mobile() {
     </div>
 
     <script>
-        // Direkte Inline-Funktion (immer verfügbar)
-        function openCookieSettings() {
-            console.log('🍪 === COOKIE-EINSTELLUNGEN ÖFFNEN ===');
-            
-            // Methode 1: Cookie-Icon klicken (beste Methode)
-            const cookieIcon = document.getElementById('yprint-open-consent-settings');
-            if (cookieIcon) {
-                console.log('✅ Cookie-Icon gefunden und geklickt');
-                cookieIcon.click();
+// === FINALE COOKIE-INTEGRATION (Clean Version) ===
+function openCookieSettings() {
+    const cookieIcon = document.getElementById('yprint-open-consent-settings');
+    if (cookieIcon) {
+        cookieIcon.click();
+        setupBannerCloseListener();
+    } else {
+        const banner = document.getElementById('yprint-cookie-banner');
+        if (banner) {
+            banner.style.display = 'block';
+            document.body.classList.add('yprint-consent-open');
+            setupBannerCloseListener();
+        } else if (typeof $ !== 'undefined') {
+            $('#yprint-cookie-banner').fadeIn(300);
+            $('body').addClass('yprint-consent-open');
+            setupBannerCloseListener();
+        }
+    }
+}
+
+function setupBannerCloseListener() {
+    let bannerCheckCount = 0;
+    const checkInterval = setInterval(() => {
+        bannerCheckCount++;
+        const banner = document.getElementById('yprint-cookie-banner');
+        
+        if (banner) {
+            const isVisible = banner.style.display !== 'none' && 
+                            window.getComputedStyle(banner).display !== 'none';
+            if (!isVisible) {
+                clearInterval(checkInterval);
+                setTimeout(updateCookieStatus, 1000);
                 return;
             }
-            
-            // Methode 2: Banner direkt anzeigen
-            const banner = document.getElementById('yprint-cookie-banner');
-            if (banner) {
-                console.log('✅ Banner direkt angezeigt');
-                banner.style.display = 'block';
-                document.body.classList.add('yprint-consent-open');
-                
-                // Event-Listener für Banner-Schließung
-                setupBannerCloseListener();
-                return;
-            }
-            
-            // Methode 3: jQuery Fallback
-            if (typeof $ !== 'undefined') {
-                const $banner = $('#yprint-cookie-banner');
-                if ($banner.length) {
-                    console.log('✅ jQuery Banner angezeigt');
-                    $banner.fadeIn(300);
-                    $('body').addClass('yprint-consent-open');
-                    setupBannerCloseListener();
-                    return;
+        }
+        
+        if (bannerCheckCount >= 60) clearInterval(checkInterval);
+    }, 1000);
+}
+
+function updateCookieStatus() {
+    let cookiePrefs = {
+        essential: true,
+        analytics: false,
+        marketing: false,
+        functional: false
+    };
+    
+    if (document.cookie.includes('yprint_consent_preferences')) {
+        try {
+            const cookieValue = getCookieValue('yprint_consent_preferences');
+            if (cookieValue) {
+                const decoded = JSON.parse(decodeURIComponent(cookieValue));
+                if (decoded && decoded.consents) {
+                    cookiePrefs.essential = decoded.consents.cookie_essential !== false;
+                    cookiePrefs.analytics = decoded.consents.cookie_analytics === true;
+                    cookiePrefs.marketing = decoded.consents.cookie_marketing === true;
+                    cookiePrefs.functional = decoded.consents.cookie_functional === true;
                 }
             }
-            
-            // Fallback: Fehlermeldung
-            console.log('❌ Keine Cookie-Banner-Methode funktionierte');
-            alert('Cookie-Einstellungen können derzeit nicht geöffnet werden. Bitte laden Sie die Seite neu und versuchen Sie es erneut.');
+        } catch (e) {
+            // Fallback auf Standard-Werte
         }
+    }
+    
+    // Hidden Fields setzen
+    document.getElementById('final_cookie_essential').value = cookiePrefs.essential ? 'true' : 'false';
+    document.getElementById('final_cookie_analytics').value = cookiePrefs.analytics ? 'true' : 'false';
+    document.getElementById('final_cookie_marketing').value = cookiePrefs.marketing ? 'true' : 'false';
+    document.getElementById('final_cookie_functional').value = cookiePrefs.functional ? 'true' : 'false';
+    
+    // Status-Text aktualisieren
+    const activeCount = Object.values(cookiePrefs).filter(val => val === true).length;
+    const statusText = activeCount === 1 ? 'Nur notwendige Cookies' : `${activeCount} Cookie-Kategorien aktiv`;
+    
+    const statusDisplay = document.getElementById('cookie-status-display');
+    if (statusDisplay) {
+        statusDisplay.textContent = `(${statusText})`;
+    }
+}
 
-        function setupBannerCloseListener() {
-            console.log('🍪 Setup Banner-Close-Listener');
-            
-            // Nach 2 Sekunden prüfen ob Banner noch da ist
-            setTimeout(() => {
-                const banner = document.getElementById('yprint-cookie-banner');
-                if (banner) {
-                    const checkClosed = setInterval(() => {
-                        const isVisible = banner.style.display !== 'none' && 
-                                        window.getComputedStyle(banner).display !== 'none';
-                        
-                        if (!isVisible) {
-                            console.log('🍪 Banner wurde geschlossen - lade Cookie-Status neu');
-                            clearInterval(checkClosed);
-                            setTimeout(updateCookieStatus, 1000);
-                        }
-                    }, 1000);
-                    
-                    // Stoppe nach 60 Sekunden
-                    setTimeout(() => clearInterval(checkClosed), 60000);
-                }
-            }, 2000);
+function getCookieValue(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    return parts.length === 2 ? parts.pop().split(';').shift() : null;
+}
+
+// Event-Listener
+document.addEventListener('DOMContentLoaded', function() {
+    // Passwort-Toggle
+    document.getElementById("password-toggle-mobile").onclick = function() {
+        const field = document.getElementById("user_password_mobile");
+        const icon = this.querySelector('i');
+        
+        if (field.type === "password") {
+            field.type = "text";
+            icon.style.color = '#3b82f6';
+        } else {
+            field.type = "password";
+            icon.style.color = '#6b7280';
         }
-
-        function updateCookieStatus() {
-            console.log('🍪 === UPDATE COOKIE STATUS ===');
+        return false;
+    };
+    
+    document.getElementById("confirm-password-toggle-mobile").onclick = function() {
+        const field = document.getElementById("user_password_confirm_mobile");
+        const icon = this.querySelector('i');
+        
+        if (field.type === "password") {
+            field.type = "text";
+            icon.style.color = '#3b82f6';
+        } else {
+            field.type = "password";
+            icon.style.color = '#6b7280';
+        }
+        return false;
+    };
+    
+    // Passwort-Validierung
+    document.getElementById("user_password_mobile").addEventListener("input", function() {
+        const password = this.value;
+        const requirements = document.getElementById("password-requirements");
+        
+        if (password.length > 0) {
+            requirements.style.display = "block";
             
-            let cookiePrefs = {
-                essential: true,
-                analytics: false,
-                marketing: false,
-                functional: false
+            const checks = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                number: /[0-9]/.test(password),
+                special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
             };
             
-            // Cookie-Werte laden
-            try {
-                if (document.cookie.includes('yprint_consent_preferences')) {
-                    const cookieValue = getCookieValue('yprint_consent_preferences');
-                    if (cookieValue) {
-                        const decoded = JSON.parse(decodeURIComponent(cookieValue));
-                        if (decoded && decoded.consents) {
-                            cookiePrefs.essential = decoded.consents.cookie_essential || false;
-                            cookiePrefs.analytics = decoded.consents.cookie_analytics || false;
-                            cookiePrefs.marketing = decoded.consents.cookie_marketing || false;
-                            cookiePrefs.functional = decoded.consents.cookie_functional || false;
-                        }
-                    }
-                }
-            } catch (e) {
-                console.warn('🍪 Cookie-Lesefehler:', e);
-            }
-            
-            // Hidden Fields setzen
-            setHiddenField('final_cookie_essential', cookiePrefs.essential);
-            setHiddenField('final_cookie_analytics', cookiePrefs.analytics);
-            setHiddenField('final_cookie_marketing', cookiePrefs.marketing);
-            setHiddenField('final_cookie_functional', cookiePrefs.functional);
-            
-            // Status-Text aktualisieren
-            const activeCount = Object.values(cookiePrefs).filter(Boolean).length;
-            const statusText = activeCount === 1 ? 'Nur notwendige Cookies' : `${activeCount} Cookie-Kategorien aktiv`;
-            
-            const statusDisplay = document.getElementById('cookie-status-display');
-            if (statusDisplay) {
-                statusDisplay.textContent = `(${statusText})`;
-                statusDisplay.style.fontWeight = 'bold';
-                statusDisplay.style.color = '#2997FF';
-            }
-            
-            console.log('🍪 Cookie-Status aktualisiert:', statusText, cookiePrefs);
-        }
-
-        function getCookieValue(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            return parts.length === 2 ? parts.pop().split(';').shift() : null;
-        }
-
-        function setHiddenField(id, value) {
-            const field = document.getElementById(id);
-            if (field) {
-                field.value = value ? 'true' : 'false';
-                console.log(`🍪 ${id} = ${field.value}`);
-            } else {
-                console.warn(`🍪 Field ${id} nicht gefunden`);
-            }
-        }
-
-        function debugCookieElements() {
-            console.log('=== COOKIE ELEMENT DEBUG ===');
-            console.log('Banner:', document.getElementById('yprint-cookie-banner') ? 'GEFUNDEN' : 'FEHLT');
-            console.log('Icon:', document.getElementById('yprint-open-consent-settings') ? 'GEFUNDEN' : 'FEHLT');
-            console.log('Link:', document.getElementById('modify-cookie-settings') ? 'GEFUNDEN' : 'FEHLT');
-            console.log('Status:', document.getElementById('cookie-status-display') ? 'GEFUNDEN' : 'FEHLT');
-            console.log('Form:', document.getElementById('register-form-mobile') ? 'GEFUNDEN' : 'FEHLT');
-            console.log('Cookies:', document.cookie.split(';').filter(c => c.includes('yprint')));
-            console.log('========================');
-        }
-
-        // Umfassende Banner-Analyse
-        function findBanner() {
-            console.log('=== BANNER DETEKTIV ===');
-            
-            // Alle möglichen Banner-Selektoren prüfen
-            const selectors = [
-                '#yprint-cookie-banner',
-                '.yprint-cookie-banner',
-                '[id*="cookie"]',
-                '[class*="cookie"]',
-                '[id*="consent"]',
-                '[class*="consent"]'
-            ];
-            
-            selectors.forEach(selector => {
-                const elements = document.querySelectorAll(selector);
-                console.log(`${selector}: ${elements.length} gefunden`);
-                
-                elements.forEach((el, index) => {
-                    const style = window.getComputedStyle(el);
-                    console.log(`  - Element ${index}:`, {
-                        id: el.id,
-                        className: el.className,
-                        display: style.display,
-                        visibility: style.visibility,
-                        opacity: style.opacity,
-                        position: style.position,
-                        zIndex: style.zIndex,
-                        top: style.top,
-                        left: style.left
-                    });
-                });
-            });
-            
-            console.log('==================');
-        }
-
-        // Consent Manager analysieren
-        function analyzeConsentManager() {
-            console.log('=== CONSENT MANAGER ANALYSE ===');
-            console.log('yprintConsent (config):', typeof yprintConsent, yprintConsent);
-            console.log('window.yprintConsentManager:', typeof window.yprintConsentManager);
-            
-            if (window.yprintConsentManager) {
-                console.log('Manager Methoden:', Object.getOwnPropertyNames(window.yprintConsentManager));
-                console.log('Banner Element (internal):', window.yprintConsentManager.banner);
-                console.log('Config:', window.yprintConsentManager.config);
-            }
-            
-            // Suche nach jQuery YPrint Objects
-            if (typeof $ !== 'undefined') {
-                console.log('jQuery Cookie Banner:', $('#yprint-cookie-banner').length);
-                console.log('jQuery Cookie Icon:', $('#yprint-consent-icon').length);
-            }
-            
-            console.log('========================');
-        }
-
-        // Banner manuell erstellen zum Test
-        function createTestBanner() {
-            console.log('🧪 Erstelle Test-Banner...');
-            
-            // Entferne eventuell vorhandenen Banner
-            const existing = document.getElementById('yprint-cookie-banner');
-            if (existing) {
-                existing.remove();
-            }
-            
-            // Erstelle neuen Banner
-            const banner = document.createElement('div');
-            banner.id = 'yprint-cookie-banner';
-            banner.className = 'yprint-cookie-banner';
-            banner.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.5);
-                display: block;
-                z-index: 999999;
-                font-family: Arial, sans-serif;
-            `;
-            
-            banner.innerHTML = `
-                <div style="
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                    max-width: 500px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                ">
-                    <h3 style="margin: 0 0 15px 0; color: #333;">🍪 Test Cookie-Banner</h3>
-                    <p style="margin: 0 0 20px 0; color: #666;">
-                        Dies ist ein Test-Banner. Wenn Sie diesen sehen, funktioniert die Banner-Anzeige grundsätzlich.
-                    </p>
-                    
-                    <div style="margin: 20px 0;">
-                        <label style="display: block; margin: 10px 0;">
-                            <input type="checkbox" id="test-analytics" style="margin-right: 10px;">
-                            Analyse Cookies
-                        </label>
-                        <label style="display: block; margin: 10px 0;">
-                            <input type="checkbox" id="test-marketing" style="margin-right: 10px;">
-                            Marketing Cookies
-                        </label>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 20px;">
-                        <button onclick="acceptTestCookies()" style="
-                            background: #2997FF;
-                            color: white;
-                            border: none;
-                            padding: 12px 20px;
-                            border-radius: 5px;
-                            margin: 0 5px;
-                            cursor: pointer;
-                        ">Alle akzeptieren</button>
-                        
-                        <button onclick="closeTestBanner()" style="
-                            background: #f0f0f0;
-                            color: #333;
-                            border: 1px solid #ddd;
-                            padding: 12px 20px;
-                            border-radius: 5px;
-                            margin: 0 5px;
-                            cursor: pointer;
-                        ">Schließen</button>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(banner);
-            console.log('✅ Test-Banner erstellt und angezeigt');
-        }
-
-        function acceptTestCookies() {
-            const analytics = document.getElementById('test-analytics').checked;
-            const marketing = document.getElementById('test-marketing').checked;
-            
-            console.log('🍪 Test-Cookies akzeptiert:', { analytics, marketing });
-            alert(`Test-Cookies gesetzt: Analytics=${analytics}, Marketing=${marketing}`);
-            
-            closeTestBanner();
-        }
-
-        function closeTestBanner() {
-            const banner = document.getElementById('yprint-cookie-banner');
-            if (banner) {
-                banner.remove();
-                console.log('🍪 Test-Banner geschlossen');
-            }
-        }
-
-        // CSS-Konflikte prüfen
-        function checkCSSConflicts() {
-            console.log('=== CSS KONFLIKT ANALYSE ===');
-            
-            // Prüfe alle Stylesheets
-            const stylesheets = Array.from(document.styleSheets);
-            console.log('Geladene Stylesheets:', stylesheets.length);
-            
-            stylesheets.forEach((sheet, index) => {
-                try {
-                    console.log(`Stylesheet ${index}:`, sheet.href || 'inline');
-                } catch (e) {
-                    console.log(`Stylesheet ${index}: Zugriff verweigert`);
+            Object.keys(checks).forEach(check => {
+                const element = document.getElementById(check);
+                if (element) {
+                    element.classList.toggle("valid", checks[check]);
                 }
             });
-            
-            // Prüfe Body-Klassen
-            console.log('Body-Klassen:', document.body.className);
-            console.log('Body-Style:', document.body.style.cssText);
-            
-            // Suche nach versteckten Cookie-Elementen
-            const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]');
-            const cookieHidden = Array.from(hiddenElements).filter(el => 
-                el.id.includes('cookie') || el.className.includes('cookie') ||
-                el.id.includes('consent') || el.className.includes('consent')
-            );
-            
-            console.log('Versteckte Cookie-Elemente:', cookieHidden.length, cookieHidden);
-            console.log('========================');
+        } else {
+            requirements.style.display = "none";
         }
-
-        // Initial beim Laden
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🍪 Registrierungs-Cookie-System initialisiert');
-            
-            // Initial Status laden
-            setTimeout(updateCookieStatus, 1000);
-            
-            // Form-Submit Event
-            const form = document.getElementById('register-form-mobile');
-            if (form) {
-                form.addEventListener('submit', function() {
-                    console.log('🍪 Finale Cookie-Werte vor Registrierung:');
-                    updateCookieStatus();
-                });
-            }
-        });
-    </script>
-                console.log('🍪 === Cookie-Einstellungen für Registrierung öffnen ===');
-                
-                let success = false;
-                
-                // Versuch 1: Consent Icon klicken (simuliert Benutzer-Aktion)
-                const consentIcon = document.getElementById('yprint-open-consent-settings');
-                if (consentIcon) {
-                    console.log('🍪 ✅ Klicke Consent-Icon');
-                    consentIcon.click();
-                    success = true;
-                }
-                
-                // Versuch 2: YPrint Consent Manager direkter Aufruf
-                else if (typeof window.yprintConsentManager !== 'undefined' && 
-                         typeof window.yprintConsentManager.showBanner === 'function') {
-                    console.log('🍪 ✅ Verwende yprintConsentManager.showBanner()');
-                    window.yprintConsentManager.showBanner();
-                    success = true;
-                }
-                
-                // Versuch 3: jQuery Banner-Anzeige
-                else if (typeof $ !== 'undefined') {
-                    console.log('🍪 ✅ Verwende jQuery Banner-Anzeige');
-                    const banner = $('#yprint-cookie-banner');
-                    if (banner.length > 0) {
-                        banner.fadeIn(300);
-                        $('body').addClass('yprint-consent-open');
-                        success = true;
-                    }
-                }
-                
-                // Versuch 4: Vanilla JavaScript Fallback
-                else {
-                    console.log('🍪 ✅ Verwende Vanilla JS Fallback');
-                    const banner = document.getElementById('yprint-cookie-banner');
-                    if (banner) {
-                        banner.style.display = 'block';
-                        document.body.classList.add('yprint-consent-open');
-                        success = true;
-                    }
-                }
-                
-                if (success) {
-                    // Flag für Registrierung setzen
-                    window.cookieChangeForRegistration = true;
-                    
-                    // Event-Listener für Banner-Aktionen
-                    setupRegistrationCookieListeners();
-                    
-                    console.log('🍪 ✅ Cookie-Banner erfolgreich geöffnet');
-                } else {
-                    console.error('🍪 ❌ Konnte Cookie-Banner nicht öffnen');
-                    
-                    // Fallback: Seite neu laden
-                    if (confirm('Cookie-Einstellungen können nicht geöffnet werden. Seite neu laden?')) {
-                        window.location.reload();
-                    }
-                }
-            }
-            
-            function setupRegistrationCookieListeners() {
-                console.log('🍪 Setup Event-Listener für Registrierung...');
-                
-                // Kurz warten bis Banner vollständig geladen
-                setTimeout(() => {
-                    // Alle Cookie-Banner Buttons finden
-                    const bannerButtons = document.querySelectorAll(`
-                        #yprint-accept-all,
-                        #yprint-reject-all, 
-                        #yprint-save-preferences,
-                        .yprint-cookie-banner-close,
-                        #yprint-accept-essential
-                    `);
-                    
-                    console.log('🍪 Gefundene Banner-Buttons:', bannerButtons.length);
-                    
-                    bannerButtons.forEach((button, index) => {
-                        // Prüfen ob bereits Event-Listener gesetzt
-                        if (!button.hasAttribute('data-registration-listener')) {
-                            button.setAttribute('data-registration-listener', 'true');
-                            
-                            console.log(`🍪 Event-Listener für Button ${index + 1} gesetzt:`, button.id || button.className);
-                            
-                            button.addEventListener('click', function(e) {
-                                console.log('🍪 Banner-Button geklickt:', this.id || this.className);
-                                
-                                if (window.cookieChangeForRegistration) {
-                                    // Warten auf Banner-Schließung und Cookie-Speicherung
-                                    setTimeout(() => {
-                                        console.log('🍪 Lade Cookie-Einstellungen nach Banner-Aktion neu');
-                                        loadCurrentCookieSettings();
-                                        
-                                        // Flag zurücksetzen
-                                        window.cookieChangeForRegistration = false;
-                                    }, 2000); // 2 Sekunden warten für AJAX-Calls
-                                }
-                            });
-                        }
-                    });
-                    
-                    // Zusätzlich: Banner-Schließung überwachen
-                    observeBannerClose();
-                    
-                }, 300);
-            }
-            
-            function observeBannerClose() {
-                const banner = document.getElementById('yprint-cookie-banner');
-                if (!banner || !window.cookieChangeForRegistration) return;
-                
-                console.log('🍪 Überwache Banner-Schließung...');
-                
-                // Intervalbasierte Überwachung (einfacher als MutationObserver)
-                const checkInterval = setInterval(() => {
-                    const isVisible = banner.style.display !== 'none' && 
-                                     window.getComputedStyle(banner).display !== 'none';
-                    
-                    if (!isVisible && window.cookieChangeForRegistration) {
-                        console.log('🍪 Banner wurde geschlossen - lade Cookie-Einstellungen');
-                        
-                        clearInterval(checkInterval);
-                        window.cookieChangeForRegistration = false;
-                        
-                        setTimeout(() => {
-                            loadCurrentCookieSettings();
-                        }, 500);
-                    }
-                }, 500);
-                
-                // Stoppe Überwachung nach 30 Sekunden
-                setTimeout(() => {
-                    clearInterval(checkInterval);
-                    window.cookieChangeForRegistration = false;
-                }, 30000);
-            }
-            
-            // Hilfsfunktionen
-            function getCookie(name) {
-                const value = `; ${document.cookie}`;
-                const parts = value.split(`; ${name}=`);
-                return parts.length === 2 ? parts.pop().split(';').shift() : null;
-            }
-            
-            // Debug-Funktion
-            function debugCookieState() {
-                console.log('🔍 === Cookie Debug Info ===');
-                console.log('- Banner Element:', document.getElementById('yprint-cookie-banner') ? 'gefunden' : 'FEHLT');
-                console.log('- Icon Element:', document.getElementById('yprint-open-consent-settings') ? 'gefunden' : 'FEHLT');
-                console.log('- Consent Manager:', typeof window.yprintConsentManager);
-                console.log('- jQuery:', typeof $ !== 'undefined');
-                console.log('- Registration Flag:', window.cookieChangeForRegistration);
-                console.log('- Cookies:', document.cookie.split(';').filter(c => c.includes('yprint')));
-                
-                // Hidden Fields prüfen
-                ['final_cookie_essential', 'final_cookie_analytics', 'final_cookie_marketing', 'final_cookie_functional'].forEach(id => {
-                    const field = document.getElementById(id);
-                    console.log(`- ${id}:`, field ? field.value : 'FEHLT');
-                });
-                console.log('=========================');
-            }
-            
-            function updateCookieStatusText(prefs) {
-                const statusElement = document.querySelector('.cookie-transfer-info');
-                if (!statusElement) return;
-                
-                const activeCount = Object.values(prefs).filter(val => val === 'true').length;
-                const totalCount = Object.keys(prefs).length;
-                
-                let statusText;
-                if (activeCount === 1) {
-                    statusText = 'Nur notwendige Cookies';
-                } else if (activeCount === totalCount) {
-                    statusText = 'Alle Cookie-Kategorien';
-                } else {
-                    statusText = `${activeCount} von ${totalCount} Cookie-Kategorien`;
-                }
-                
-                // Text mit Status aktualisieren
-                statusElement.innerHTML = `
-                    Die vorher festgelegten Cookie-Einstellungen werden in den Account übernommen 
-                    <span class="cookie-status">(${statusText})</span>. 
-                    Sollten Sie Ihre Präferenzen noch ändern wollen, 
-                    <a href="#" id="modify-cookie-settings" class="cookie-modify-link">klicken Sie hier</a>.
-                `;
-                
-                // Event neu binden
-                const newLink = statusElement.querySelector('#modify-cookie-settings');
-                if (newLink) {
-                    newLink.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        openCookieSettingsForRegistration();
-                    });
-                }
-            }
-            
-
-            
-            // Passwort-Validierung mit Focus/Blur Events
-            var passwordField = document.getElementById("user_password_mobile");
-            var requirementsDiv = document.getElementById("password-requirements");
-            
-            // Zeige Requirements beim Focus an
-            passwordField.addEventListener("focus", function() {
-                if (this.value.length > 0) {
-                    requirementsDiv.style.display = "block";
-                }
-            });
-            
-            // Verstecke Requirements beim Blur (Verlassen des Feldes)
-            passwordField.addEventListener("blur", function() {
-                requirementsDiv.style.display = "none";
-            });
-            
-            // Passwort-Validierung bei Input
-            passwordField.addEventListener("input", function() {
-                var password = this.value;
-                
-                // Zeige Requirements nur an, wenn Passwort eingegeben wird
-                if (password.length > 0) {
-                    requirementsDiv.style.display = "block";
-                } else {
-                    requirementsDiv.style.display = "none";
-                    return;
-                }
-                
-                var requirements = {
-                    length: password.length >= 8,
-                    uppercase: /[A-Z]/.test(password),
-                    number: /\d/.test(password),
-                    special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-                };
-
-                // Überprüfe jede Anforderung
-                var lengthEl = document.getElementById("length");
-                var uppercaseEl = document.getElementById("uppercase");
-                var numberEl = document.getElementById("number");
-                var specialEl = document.getElementById("special");
-
-                if (requirements.length) {
-                    lengthEl.classList.add("valid");
-                } else {
-                    lengthEl.classList.remove("valid");
-                }
-
-                if (requirements.uppercase) {
-                    uppercaseEl.classList.add("valid");
-                } else {
-                    uppercaseEl.classList.remove("valid");
-                }
-
-                if (requirements.number) {
-                    numberEl.classList.add("valid");
-                } else {
-                    numberEl.classList.remove("valid");
-                }
-
-                if (requirements.special) {
-                    specialEl.classList.add("valid");
-                } else {
-                    specialEl.classList.remove("valid");
-                }
-            });
-            
-            // Password Toggle Funktionalität
-            document.getElementById("password-toggle-mobile").onclick = function() {
-                var field = document.getElementById("user_password_mobile");
-                var icon = this.querySelector('i');
-                
-                if (field.type === "password") {
-                    field.type = "text";
-                    icon.style.color = '#3b82f6';
-                } else {
-                    field.type = "password";
-                    icon.style.color = '#6b7280';
-                }
-                
-                return false;
-            };
-            
-            document.getElementById("confirm-password-toggle-mobile").onclick = function() {
-                var field = document.getElementById("user_password_confirm_mobile");
-                var icon = this.querySelector('i');
-                
-                if (field.type === "password") {
-                    field.type = "text";
-                    icon.style.color = '#3b82f6';
-                } else {
-                    field.type = "password";
-                    icon.style.color = '#6b7280';
-                }
-                
-                return false;
-            };
-        });
+    });
+    
+    // Cookie-Settings Button
+    document.getElementById('modify-cookie-settings').addEventListener('click', function(e) {
+        e.preventDefault();
+        openCookieSettings();
+    });
+    
+    // Form-Submit
+    document.getElementById('register-form-mobile').addEventListener('submit', function() {
+        updateCookieStatus();
+    });
+    
+    // Initial Cookie-Status laden
+    setTimeout(updateCookieStatus, 1000);
+});
     </script>
     <?php
     return ob_get_clean();
