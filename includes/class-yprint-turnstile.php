@@ -440,5 +440,5 @@ const regFormMobile = document.getElementById('register-form-mobile');
 // Singleton initialisieren
 $turnstile_instance = YPrint_Turnstile::get_instance();
 
-// Auto-Injection komplett deaktiviert für Debugging
-// add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
+// Auto-Injection aktiviert - steuert über Admin Page Settings
+add_action('wp_loaded', array($turnstile_instance, 'auto_inject_widgets'));
