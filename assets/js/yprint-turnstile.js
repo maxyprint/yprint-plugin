@@ -46,13 +46,26 @@ function setupTurnstileIntegration() {
     const widgets = new Map();
     const processedForms = new Set();
 
-    // Duplikate sofort bereinigen bevor Rendering startet
+    // ERWEITERTE Duplikat-Bereinigung vor Rendering
     const allContainers = document.querySelectorAll('.cf-turnstile');
     console.log('🛡️ Turnstile: Gefundene Container vor Bereinigung:', allContainers.length);
-    
-    // Gruppiere Container nach Formularen
+
+    // Bereits gerenderte Widgets sofort entfernen (Error 300030 Schutz)
+    allContainers.forEach((container, index) => {
+        if (container.hasAttribute('data-rendered') || container.querySelector('iframe')) {
+            console.log(`🛡️ Turnstile: Entferne bereits gerendertes Widget ${index}`);
+            container.closest('.turnstile-widget-container, .yprint-input-group')?.remove();
+            return;
+        }
+    });
+
+    // Neu scannen nach Bereinigung
+    const cleanContainers = document.querySelectorAll('.cf-turnstile');
+    console.log('🛡️ Turnstile: Container nach Bereinigung:', cleanContainers.length);
+
+    // Gruppiere verbleibende Container nach Formularen  
     const containersByForm = new Map();
-    allContainers.forEach(container => {
+    cleanContainers.forEach(container => {
         const form = container.closest('form');
         const formId = form?.id || 'no-form';
         
@@ -62,14 +75,23 @@ function setupTurnstileIntegration() {
         containersByForm.get(formId).push(container);
     });
 
-    // Pro Form nur den ersten Container behalten, Rest entfernen
+    // Pro Form maximal einen Container - priorisiere manuelle Widgets
     containersByForm.forEach((containers, formId) => {
         if (containers.length > 1) {
             console.log(`🛡️ Turnstile: Form ${formId} hat ${containers.length} Container - bereinige Duplikate`);
-            // Ersten Container behalten, Rest entfernen
-            containers.slice(1).forEach((duplicateContainer, index) => {
-                console.log(`🛡️ Turnstile: Entferne Duplikat ${index + 1} aus Form ${formId}`);
-                duplicateContainer.closest('.turnstile-widget-container, .yprint-input-group')?.remove();
+            
+            // Manuelle Widgets (mit data-manual-turnstile) bevorzugen
+            const manualWidget = containers.find(c => c.closest('[data-manual-turnstile]'));
+            let keepWidget = manualWidget || containers[0];
+            
+            containers.forEach((container, index) => {
+                if (container !== keepWidget) {
+                    console.log(`🛡️ Turnstile: Entferne Duplikat ${index + 1} aus Form ${formId}`);
+                    const containerWrapper = container.closest('.turnstile-widget-container, .yprint-input-group');
+                    if (containerWrapper) {
+                        containerWrapper.remove();
+                    }
+                }
             });
         }
     });

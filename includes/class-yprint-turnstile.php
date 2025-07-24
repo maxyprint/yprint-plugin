@@ -402,6 +402,12 @@ class YPrint_Turnstile {
     document.body.setAttribute('data-turnstile-injection-done', 'true');
     console.log('🛡️ Auto-Injection: Markierung gesetzt, führe Injection aus');
             
+            <?php if (false && in_array('registration', $protected_pages)): ?>
+            // Registration Auto-Injection DEAKTIVIERT - Widgets werden manuell eingefügt
+            // Desktop: registration.php, Mobile: rest-registration.php
+            console.log('🛡️ Turnstile: Registration Auto-Injection übersprungen - manuelle Widgets verwendet');
+            <?php endif; ?>
+
             <?php if (in_array('registration', $protected_pages)): ?>
             // Registration-Formular Turnstile einfügen
 const regForm = document.getElementById('register-form');
