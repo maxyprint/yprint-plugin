@@ -959,15 +959,8 @@ function yprint_registration_form_mobile() {
                 </div>
 
                 <?php
-                // Turnstile Widget direkt einbinden - wie beim Login
-                if (class_exists('YPrint_Turnstile')) {
-                    $turnstile = YPrint_Turnstile::get_instance();
-                    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-                        echo '<div class="yprint-input-group turnstile-widget-container" style="text-align: center !important; margin: 20px 0 !important;">';
-                        echo '<div class="cf-turnstile" data-sitekey="' . esc_attr($turnstile->get_site_key()) . '" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>';
-                        echo '</div>';
-                    }
-                }
+                // Turnstile Widget wird automatisch per Auto-Injection eingefügt
+                // Keine manuelle Einbindung mehr nötig
                 ?>
 
                 <button type="submit" class="yprint-mobile-register-btn">Registrieren</button>

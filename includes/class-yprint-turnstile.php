@@ -410,24 +410,27 @@ console.log('🛡️ Turnstile: Registration Auto-Injection vollständig deaktiv
 <?php endif; ?>
 
             <?php if (in_array('registration', $protected_pages)): ?>
-            // Registration-Formular Turnstile einfügen
-const regForm = document.getElementById('register-form-desktop');
-if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute('data-turnstile-injected')) {
-    regForm.setAttribute('data-turnstile-injected', 'true');
-                const submitGroup = regForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
-                if (submitGroup) {
-                    const turnstileContainer = document.createElement('div');
-                    turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
-                    turnstileContainer.style.cssText = 'text-align: center; margin: 20px 0;';
-                    turnstileContainer.innerHTML = `
-                        <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($site_key); ?>" data-theme="light"></div>
-                        <input type="hidden" name="cf-turnstile-response" value="" />
-                    `;
-                    submitGroup.parentNode.insertBefore(turnstileContainer, submitGroup);
-                    console.log('🛡️ Turnstile: Widget automatisch in Registration-Formular eingefügt');
-                }
-            }
-            <?php endif; ?>
+            // Registration-Formular Turnstile einfügen (Auto-Injection)
+const regFormDesktop = document.getElementById('register-form-desktop');
+const regFormMobile = document.getElementById('register-form-mobile');
+
+[regFormDesktop, regFormMobile].forEach(function(regForm) {
+    if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute('data-turnstile-injected')) {
+        regForm.setAttribute('data-turnstile-injected', 'true');
+        const submitGroup = regForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
+        if (submitGroup) {
+            const turnstileContainer = document.createElement('div');
+            turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
+            turnstileContainer.style.cssText = 'text-align: center; margin: 20px 0;';
+            turnstileContainer.innerHTML = `
+                <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($site_key); ?>" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>
+            `;
+            submitGroup.parentNode.insertBefore(turnstileContainer, submitGroup);
+            console.log('🛡️ Turnstile: Widget automatisch eingefügt in', regForm.id);
+        }
+    }
+});
+<?php endif; ?>
         });
         </script>
         <?php
