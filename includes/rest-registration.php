@@ -959,12 +959,33 @@ function yprint_registration_form_mobile() {
                 </div>
 
                 <?php
-                // Turnstile Widget für Mobile Registration
+                // Turnstile Widget für Mobile Registration - mit Duplikatsschutz
                 $turnstile = YPrint_Turnstile::get_instance();
                 if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-                    echo '<div class="yprint-input-group turnstile-widget-container">';
+                    echo '<div class="yprint-input-group turnstile-widget-container" data-manual-turnstile="register-mobile">';
                     echo $turnstile->render_widget('register-mobile', 'light');
                     echo '</div>';
+                    // JavaScript zum Entfernen von Auto-Injection Duplikaten
+                    echo '<script>
+                    document.addEventListener("DOMContentLoaded", function() {
+                        // Duplikate-Check für Mobile Registration
+                        const mobileForm = document.getElementById("register-form-mobile");
+                        if (mobileForm) {
+                            const manualWidget = mobileForm.querySelector("[data-manual-turnstile]");
+                            const autoWidgets = Array.from(mobileForm.querySelectorAll(".cf-turnstile")).filter(function(widget) {
+                                return !widget.closest("[data-manual-turnstile]");
+                            });
+                            // Entferne alle automatisch eingefügten Widgets
+                            autoWidgets.forEach(function(widget) {
+                                if (widget.closest(".turnstile-widget-container, .yprint-input-group")) {
+                                    widget.closest(".turnstile-widget-container, .yprint-input-group").remove();
+                                } else {
+                                    widget.remove();
+                                }
+                            });
+                        }
+                    });
+                    </script>';
                 }
                 ?>
 
