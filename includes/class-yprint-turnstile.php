@@ -430,11 +430,13 @@ console.log('🛡️ Registration: Suche Formulare - Desktop:', regFormDesktop, 
         console.log('🛡️ Registration: Formular qualifiziert für Turnstile-Injection:', regForm.id);
         regForm.setAttribute('data-turnstile-injected', 'true');
         const submitButton = regForm.querySelector('input[type="submit"], button[type="submit"]');
+        console.log('🛡️ Registration: Submit-Button gefunden:', submitButton ? submitButton.type + ' - ' + submitButton.value : 'null');
         if (!submitButton) {
             console.log('🛡️ Turnstile: Kein Submit-Button gefunden in', regForm.id);
             return;
         }
         const submitGroup = submitButton.closest('.yprint-input-group, .yprint-mobile-input-group');
+        console.log('🛡️ Registration: Submit-Group gefunden:', submitGroup ? submitGroup.className : 'null');
         if (submitGroup) {
             const turnstileContainer = document.createElement('div');
             turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
@@ -444,6 +446,17 @@ console.log('🛡️ Registration: Suche Formulare - Desktop:', regFormDesktop, 
             `;
             submitGroup.parentNode.insertBefore(turnstileContainer, submitGroup);
             console.log('🛡️ Turnstile: Widget automatisch eingefügt in', regForm.id);
+            console.log('🛡️ Turnstile: Container HTML:', turnstileContainer.outerHTML);
+        } else {
+            console.log('🛡️ Turnstile: FEHLER - Kein Submit-Group gefunden, versuche direktes Einfügen');
+            const turnstileContainer = document.createElement('div');
+            turnstileContainer.className = 'turnstile-widget-container';
+            turnstileContainer.style.cssText = 'text-align: center; margin: 20px 0;';
+            turnstileContainer.innerHTML = `
+                <div class="cf-turnstile" data-sitekey="<?php echo esc_attr($site_key); ?>" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>
+            `;
+            submitButton.parentNode.insertBefore(turnstileContainer, submitButton);
+            console.log('🛡️ Turnstile: Widget direkt vor Submit-Button eingefügt');
         }
     }
 });
