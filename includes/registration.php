@@ -715,17 +715,54 @@ function yprint_custom_registration_form() {
     ));
     ?>
 
-        console.log('🚀 YPrint Registration Debug gestartet');
+        console.log('🚀 YPrint Registration Debug gestartet - Verbesserte Version');
 
-        // === REGISTRIERUNG DEBUG SETUP ===
-        const form = document.getElementById('register-form-desktop');
-        const messageDiv = document.getElementById('registration-message');
+        // === REGISTRIERUNG DEBUG SETUP - ROBUST ===
+        console.log('🔍 Suche nach allen verfügbaren Formularen...');
 
-        console.log('📋 Initial Form Check:', {
-            form_found: !!form,
-            form_id: form ? form.id : 'N/A',
-            message_div_found: !!messageDiv,
-            current_url: window.location.href
+        // Suche alle möglichen Formular-Varianten
+        const forms = {
+            desktop: document.getElementById('register-form-desktop'),
+            mobile: document.getElementById('register-form-mobile')
+        };
+
+        console.log('📋 Formular-Verfügbarkeit:', {
+            desktop_exists: !!forms.desktop,
+            mobile_exists: !!forms.mobile,
+            total_forms_on_page: document.querySelectorAll('form').length
+        });
+
+        // Wähle das verfügbare Formular
+        const form = forms.desktop || forms.mobile;
+
+        console.log('✅ Gewähltes Formular:', {
+            selected: form ? form.id : 'NONE',
+            has_turnstile: form ? !!form.querySelector('.cf-turnstile, .cf-turnstile-rendered') : false
+        });
+
+        // Zeige alle verfügbaren Formulare als Fallback
+        if (!form) {
+            console.error('❌ KEIN REGISTRIERUNGS-FORMULAR GEFUNDEN!');
+            console.log('🔍 Alle Formulare auf der Seite:');
+            document.querySelectorAll('form').forEach((f, index) => {
+                console.log(`  Form ${index}:`, {
+                    id: f.id || 'NO_ID',
+                    classes: f.className || 'NO_CLASSES',
+                    elements: f.elements.length
+                });
+            });
+        }
+
+        // Suche auch nach Message-Div mit flexibler ID/Klasse
+        const messageDiv = document.getElementById('registration-message') || 
+                           document.querySelector('.registration-message') ||
+                           document.querySelector('[id*="message"]') ||
+                           document.querySelector('[class*="message"]');
+
+        console.log('📧 Message Div Status:', {
+            found: !!messageDiv,
+            id: messageDiv ? messageDiv.id : 'N/A',
+            classes: messageDiv ? messageDiv.className : 'N/A'
         });
 
         if (form) {
