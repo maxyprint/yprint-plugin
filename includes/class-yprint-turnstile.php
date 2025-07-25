@@ -410,7 +410,12 @@ const regFormMobile = document.getElementById('register-form-mobile');
 [regFormDesktop, regFormMobile].forEach(function(regForm) {
     if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute('data-turnstile-injected')) {
         regForm.setAttribute('data-turnstile-injected', 'true');
-        const submitGroup = regForm.querySelector('input[type="submit"]').closest('.yprint-input-group');
+        const submitButton = regForm.querySelector('input[type="submit"], button[type="submit"]');
+        if (!submitButton) {
+            console.log('🛡️ Turnstile: Kein Submit-Button gefunden in', regForm.id);
+            return;
+        }
+        const submitGroup = submitButton.closest('.yprint-input-group, .yprint-mobile-input-group');
         if (submitGroup) {
             const turnstileContainer = document.createElement('div');
             turnstileContainer.className = 'yprint-input-group turnstile-widget-container';
