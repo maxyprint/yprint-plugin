@@ -387,12 +387,26 @@ class YPrint_Turnstile {
         $protected_pages = $this->get_protected_pages();
         $site_key = $this->get_site_key();
         
+        // 🔍 CRITICAL DEBUG: Registration-Block Erkennung
+        $current_post = get_post();
+        $current_slug = $current_post ? $current_post->post_name : 'unknown';
+        error_log('🛡️ TURNSTILE DEBUG START');
+        error_log('- Enabled: ' . ($this->is_enabled() ? 'YES' : 'NO'));
+        error_log('- Protected Pages: ' . print_r($protected_pages, true));
+        error_log('- Current Post Slug: ' . $current_slug);
+        error_log('- is_page("register"): ' . (is_page('register') ? 'YES' : 'NO'));
+        error_log('- Registration in protected: ' . (in_array('registration', $protected_pages) ? 'YES' : 'NO'));
+        error_log('- Should load turnstile: ' . ($this->should_load_turnstile() ? 'YES' : 'NO'));
+        
         ?>
         <script>
         document.addEventListener('DOMContentLoaded', function() {
     console.log('🛡️ Auto-Injection: DOMContentLoaded Event gefeuert');
     console.log('🛡️ Auto-Injection: Body has data-turnstile-injection-done:', document.body.hasAttribute('data-turnstile-injection-done'));
     console.log('🛡️ Auto-Injection: Existing widgets:', document.querySelectorAll('.cf-turnstile, .cf-turnstile-rendered').length);
+    console.log('🛡️ Auto-Injection: Protected Pages:', <?php echo json_encode($protected_pages); ?>);
+    console.log('🛡️ Auto-Injection: Current URL:', window.location.href);
+    console.log('🛡️ Auto-Injection: Registration Check wird ausgeführt:', <?php echo in_array('registration', $protected_pages) ? 'true' : 'false'; ?>);
     
     // Mehrfach-Ausführung verhindern
     if (document.body.hasAttribute('data-turnstile-injection-done')) {
