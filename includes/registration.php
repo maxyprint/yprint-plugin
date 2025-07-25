@@ -685,19 +685,22 @@ function yprint_custom_registration_form() {
             });
         }
 
-            // Turnstile Callbacks - ERSTE PRIORITÄT
+    // Turnstile Callbacks - ERSTE PRIORITÄT
     window.onTurnstileSuccess = function(token) {
         console.log('🛡️ Turnstile: Token erhalten für Registration:', token.substring(0, 20) + '...');
         // Entferne Error-Messages
         const errorDiv = document.querySelector('.turnstile-error');
         if (errorDiv) errorDiv.style.display = 'none';
         // Aktiviere Submit-Button falls deaktiviert
-        const submitButton = document.querySelector('#register-form-desktop input[type="submit"]');
-        if (submitButton && submitButton.disabled) {
-            submitButton.disabled = false;
-            submitButton.value = 'Registrieren';
-        }
+        const submitButtons = document.querySelectorAll('#register-form-desktop input[type="submit"], #register-form-mobile input[type="submit"]');
+        submitButtons.forEach(button => {
+            if (button && button.disabled) {
+                button.disabled = false;
+                button.value = 'Registrieren';
+            }
+        });
     };
+    
     window.onTurnstileError = function(error) {
         console.error('🛡️ Turnstile: Fehler bei Registration:', error);
         const errorDiv = document.querySelector('.turnstile-error');
@@ -707,40 +710,32 @@ function yprint_custom_registration_form() {
         }
     };
 
-    // AJAX Object für Registration lokalisiert
-    <?php
-    wp_localize_script('yprint-scripts', 'ajax_object', array(
-        'ajax_url' => admin_url('admin-ajax.php'),
-        'nonce' => wp_create_nonce('yprint-ajax-nonce')
-    ));
-    ?>
+    // Warte bis DOM geladen ist
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 YPrint Registration Debug gestartet - BEREINIGT');
 
-        console.log('🚀 YPrint Registration Debug gestartet - Verbesserte Version');
+        // === AJAX-OBJEKT SICHERSTELLEN ===
+        <?php
+        wp_localize_script('jquery', 'ajax_object', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('yprint-ajax-nonce')
+        ));
+        ?>
 
-        // === REGISTRIERUNG DEBUG SETUP - ROBUST ===
-        console.log('🔍 Suche nach allen verfügbaren Formularen...');
-
-        // Suche alle möglichen Formular-Varianten
+        // === FORMULAR-ERKENNUNG ===
         const forms = {
             desktop: document.getElementById('register-form-desktop'),
             mobile: document.getElementById('register-form-mobile')
         };
 
-        console.log('📋 Formular-Verfügbarkeit:', {
+        console.log('📋 Verfügbare Formulare:', {
             desktop_exists: !!forms.desktop,
             mobile_exists: !!forms.mobile,
-            total_forms_on_page: document.querySelectorAll('form').length
+            total_forms: document.querySelectorAll('form').length
         });
 
-        // Wähle das verfügbare Formular
         const form = forms.desktop || forms.mobile;
-
-        console.log('✅ Gewähltes Formular:', {
-            selected: form ? form.id : 'NONE',
-            has_turnstile: form ? !!form.querySelector('.cf-turnstile, .cf-turnstile-rendered') : false
-        });
-
-        // Zeige alle verfügbaren Formulare als Fallback
+        
         if (!form) {
             console.error('❌ KEIN REGISTRIERUNGS-FORMULAR GEFUNDEN!');
             console.log('🔍 Alle Formulare auf der Seite:');
@@ -748,237 +743,171 @@ function yprint_custom_registration_form() {
                 console.log(`  Form ${index}:`, {
                     id: f.id || 'NO_ID',
                     classes: f.className || 'NO_CLASSES',
-                    elements: f.elements.length
+                    action: f.action || 'NO_ACTION'
                 });
             });
+            return;
         }
 
-        // Suche auch nach Message-Div mit flexibler ID/Klasse
-        const messageDiv = document.getElementById('registration-message') || 
-                           document.querySelector('.registration-message') ||
-                           document.querySelector('[id*="message"]') ||
-                           document.querySelector('[class*="message"]');
+        console.log('✅ Aktives Formular:', form.id);
 
-        console.log('📧 Message Div Status:', {
-            found: !!messageDiv,
-            id: messageDiv ? messageDiv.id : 'N/A',
-            classes: messageDiv ? messageDiv.className : 'N/A'
+        // === PASSWORD-VALIDIERUNG (falls vorhanden) ===
+        const passwordField = form.querySelector('input[type="password"]:not([id*="confirm"])');
+        const confirmField = form.querySelector('input[type="password"][id*="confirm"]');
+        
+        if (passwordField && confirmField) {
+            console.log('🔒 Password-Validierung aktiviert');
+            
+            function validatePasswords() {
+                const confirmPasswordHint = document.getElementById('confirm-password-hint');
+                if (confirmPasswordHint && confirmField.value) {
+                    if (passwordField.value === confirmField.value) {
+                        confirmPasswordHint.className = 'yprint-input-hint success';
+                        confirmPasswordHint.textContent = '✓ Passwörter stimmen überein';
+                        confirmPasswordHint.style.display = 'block';
+                        setTimeout(() => { confirmPasswordHint.style.display = 'none'; }, 2000);
+                    } else {
+                        confirmPasswordHint.className = 'yprint-input-hint error';
+                        confirmPasswordHint.textContent = '✗ Passwörter stimmen nicht überein';
+                        confirmPasswordHint.style.display = 'block';
+                    }
+                }
+            }
+            
+            confirmField.addEventListener('input', validatePasswords);
+            passwordField.addEventListener('input', validatePasswords);
+        }
+
+        // === FORMULAR-SUBMIT HANDLER ===
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            console.log('📤 Formular-Submit gestartet');
+
+            // Element-Sammlung
+            const elements = {
+                username: form.querySelector('input[name="username"], input[id*="user_login"]'),
+                email: form.querySelector('input[name="email"], input[id*="user_email"]'),
+                password: form.querySelector('input[name="password"], input[id*="user_password"]:not([id*="confirm"])'),
+                confirm: form.querySelector('input[name="password_confirm"], input[id*="confirm"]'),
+                button: form.querySelector('input[type="submit"], button[type="submit"]'),
+                turnstile_token: form.querySelector('input[name="cf-turnstile-response"]'),
+                messageDiv: document.querySelector('.registration-message') || document.querySelector('.message')
+            };
+
+            console.log('🔍 Element-Status:', {
+                username_found: !!elements.username,
+                email_found: !!elements.email,
+                password_found: !!elements.password,
+                confirm_found: !!elements.confirm,
+                button_found: !!elements.button,
+                turnstile_found: !!elements.turnstile_token,
+                message_div_found: !!elements.messageDiv
+            });
+
+            // Validierung
+            const errors = [];
+            
+            if (!elements.username?.value?.trim()) errors.push('Username fehlt');
+            if (!elements.email?.value?.trim()) errors.push('E-Mail fehlt');
+            if (!elements.password?.value) errors.push('Passwort fehlt');
+            if (!elements.confirm?.value) errors.push('Passwort-Bestätigung fehlt');
+            if (elements.password?.value !== elements.confirm?.value) errors.push('Passwörter stimmen nicht überein');
+            
+            // Turnstile-Validierung
+            if (elements.turnstile_token && (!elements.turnstile_token.value || elements.turnstile_token.value.length < 10)) {
+                errors.push('Bot-Verifikation fehlt');
+            }
+
+            console.log('📊 Validierung:', {
+                errors_count: errors.length,
+                errors: errors,
+                is_valid: errors.length === 0
+            });
+
+            if (errors.length > 0) {
+                if (elements.messageDiv) {
+                    elements.messageDiv.className = 'error';
+                    elements.messageDiv.innerHTML = 'Fehler: ' + errors.join(', ');
+                    elements.messageDiv.style.display = 'block';
+                }
+                console.error('❌ Validierung fehlgeschlagen:', errors);
+                return false;
+            }
+
+            // AJAX-Vorbereitung
+            const formData = new FormData();
+            formData.append('action', 'yprint_register_user');
+            formData.append('username', elements.username.value);
+            formData.append('email', elements.email.value);
+            formData.append('password', elements.password.value);
+            formData.append('password_confirm', elements.confirm.value);
+            
+            if (elements.turnstile_token?.value) {
+                formData.append('cf-turnstile-response', elements.turnstile_token.value);
+            }
+
+            // AJAX-URL und Nonce
+            let ajaxUrl = '/wp-admin/admin-ajax.php';
+            if (typeof ajax_object !== 'undefined' && ajax_object.ajax_url) {
+                ajaxUrl = ajax_object.ajax_url;
+                formData.append('nonce', ajax_object.nonce);
+                console.log('✅ Ajax-Object gefunden und verwendet');
+            } else {
+                console.warn('⚠️ Ajax-Object nicht gefunden - verwende Fallback-URL');
+            }
+
+            // Button-Status
+            const originalValue = elements.button.value;
+            elements.button.value = 'Registriere...';
+            elements.button.disabled = true;
+
+            console.log('🌐 Sende AJAX-Request an:', ajaxUrl);
+
+            // AJAX-Request
+            fetch(ajaxUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log('📡 Response erhalten:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('📄 Response-Data:', data);
+                
+                if (elements.messageDiv) {
+                    if (data.success) {
+                        elements.messageDiv.className = 'success';
+                        elements.messageDiv.innerHTML = data.data.message || 'Registrierung erfolgreich!';
+                        elements.messageDiv.style.display = 'block';
+                        form.reset();
+                        console.log('✅ Registrierung erfolgreich');
+                    } else {
+                        elements.messageDiv.className = 'error';
+                        elements.messageDiv.innerHTML = data.data?.message || 'Registrierung fehlgeschlagen';
+                        elements.messageDiv.style.display = 'block';
+                        console.error('❌ Registrierung fehlgeschlagen:', data.data);
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('💥 AJAX-Fehler:', error);
+                if (elements.messageDiv) {
+                    elements.messageDiv.className = 'error';
+                    elements.messageDiv.innerHTML = `Technischer Fehler: ${error.message}`;
+                    elements.messageDiv.style.display = 'block';
+                }
+            })
+            .finally(() => {
+                elements.button.value = originalValue;
+                elements.button.disabled = false;
+                console.log('🔄 Button-Status wiederhergestellt');
+            });
         });
 
-        if (form) {
-            console.log('✅ Form gefunden - Event Listener wird registriert');
-            
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                console.log('🔥 === REGISTRATION FORM SUBMIT GESTARTET ===');
-                console.log('⏰ Timestamp:', new Date().toISOString());
-                
-                // 1. DOM-Elemente sammeln
-                const elements = {
-                    username: form.querySelector('#username'),
-                    email: form.querySelector('#email'),
-                    password: form.querySelector('#password'),
-                    confirm: form.querySelector('#password_confirm'),
-                    button: form.querySelector('input[type="submit"]'),
-                    turnstile_container: form.querySelector('.cf-turnstile, .cf-turnstile-rendered'),
-                    turnstile_token: form.querySelector('input[name="cf-turnstile-response"]')
-                };
-                
-                console.log('🔍 DOM Elements Check:', {
-                    username_found: !!elements.username,
-                    email_found: !!elements.email,
-                    password_found: !!elements.password,
-                    confirm_found: !!elements.confirm,
-                    button_found: !!elements.button,
-                    turnstile_container_found: !!elements.turnstile_container,
-                    turnstile_token_found: !!elements.turnstile_token
-                });
-                
-                // 2. Aktuelle Werte loggen
-                const values = {
-                    username: elements.username ? elements.username.value : 'MISSING',
-                    email: elements.email ? elements.email.value : 'MISSING',
-                    password_length: elements.password ? elements.password.value.length : 0,
-                    confirm_length: elements.confirm ? elements.confirm.value.length : 0,
-                    turnstile_token_length: elements.turnstile_token ? elements.turnstile_token.value.length : 0
-                };
-                
-                console.log('📝 Form Values:', values);
-                
-                // 3. Turnstile spezifisches Debugging
-                if (elements.turnstile_container) {
-                    console.log('🛡️ Turnstile Details:', {
-                        container_classes: elements.turnstile_container.className,
-                        has_iframe: !!elements.turnstile_container.querySelector('iframe'),
-                        token_present: !!elements.turnstile_token,
-                        token_value_preview: elements.turnstile_token ? 
-                            elements.turnstile_token.value.substring(0, 20) + '...' : 'NONE'
-                    });
-                }
-                
-                // 4. Validierung mit Console-Feedback
-                console.log('✔️ Starting Validation...');
-                const errors = [];
-                
-                if (!elements.username || !elements.username.value.trim()) {
-                    errors.push('Username missing');
-                }
-                if (!elements.email || !elements.email.value.trim()) {
-                    errors.push('Email missing');
-                }
-                if (!elements.password || !elements.password.value) {
-                    errors.push('Password missing');
-                }
-                if (!elements.confirm || !elements.confirm.value) {
-                    errors.push('Password confirmation missing');
-                }
-                if (elements.password && elements.confirm && 
-                    elements.password.value !== elements.confirm.value) {
-                    errors.push('Passwords do not match');
-                }
-                
-                // Turnstile Validierung
-                if (elements.turnstile_container && 
-                    (!elements.turnstile_token || !elements.turnstile_token.value || 
-                     elements.turnstile_token.value.length < 10)) {
-                    errors.push('Turnstile token invalid');
-                }
-                
-                console.log('📊 Validation Results:', {
-                    errors_found: errors.length,
-                    errors: errors,
-                    is_valid: errors.length === 0
-                });
-                
-                if (errors.length > 0) {
-                    console.error('❌ Validation Failed - Aborting submission');
-                    messageDiv.className = 'error';
-                    messageDiv.innerHTML = 'Fehler: ' + errors.join(', ');
-                    messageDiv.style.display = 'block';
-                    return false;
-                }
-                
-                // 5. AJAX Setup
-                console.log('🌐 AJAX Setup...');
-                const formData = new FormData();
-                formData.append('action', 'yprint_register_user');
-                formData.append('username', elements.username.value);
-                formData.append('email', elements.email.value);
-                formData.append('password', elements.password.value);
-                formData.append('password_confirm', elements.confirm.value);
-                
-                if (elements.turnstile_token && elements.turnstile_token.value) {
-                    formData.append('cf-turnstile-response', elements.turnstile_token.value);
-                    console.log('🛡️ Turnstile token added to request');
-                }
-                
-                // AJAX Object Check
-                let ajaxUrl = '/wp-admin/admin-ajax.php';
-                let nonce = '';
-                
-                console.log('🔑 AJAX Object Check:', {
-                    ajax_object_exists: typeof ajax_object !== 'undefined',
-                    ajax_object_keys: typeof ajax_object !== 'undefined' ? Object.keys(ajax_object) : []
-                });
-                
-                if (typeof ajax_object !== 'undefined') {
-                    ajaxUrl = ajax_object.ajax_url;
-                    nonce = ajax_object.nonce;
-                    formData.append('nonce', nonce);
-                    console.log('✅ Using ajax_object:', {
-                        url: ajaxUrl,
-                        nonce_length: nonce.length
-                    });
-                } else {
-                    console.warn('⚠️ ajax_object not found - using fallback URL');
-                }
-                
-                // 6. Button State
-                const originalValue = elements.button.value;
-                elements.button.value = 'Registriere...';
-                elements.button.disabled = true;
-                console.log('🔲 Button disabled, starting AJAX request');
-                
-                // 7. AJAX Request mit detailliertem Logging
-                console.log('📡 Sending AJAX Request to:', ajaxUrl);
-                console.log('📦 FormData contents:');
-                for (let [key, value] of formData.entries()) {
-                    if (key === 'password' || key === 'password_confirm') {
-                        console.log(`  ${key}: [${value.length} characters]`);
-                    } else if (key === 'cf-turnstile-response') {
-                        console.log(`  ${key}: ${value.substring(0, 20)}...`);
-                    } else {
-                        console.log(`  ${key}: ${value}`);
-                    }
-                }
-                
-                fetch(ajaxUrl, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    console.log('📨 Response received:', {
-                        status: response.status,
-                        ok: response.ok,
-                        statusText: response.statusText,
-                        headers: {
-                            'content-type': response.headers.get('content-type')
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('📋 JSON Response parsed:', data);
-                    
-                    if (data.success) {
-                        console.log('🎉 Registration SUCCESS!');
-                        messageDiv.className = 'success';
-                        messageDiv.innerHTML = data.data.message;
-                        messageDiv.style.display = 'block';
-                        form.reset();
-                    } else {
-                        console.error('❌ Registration FAILED:', data.data);
-                        messageDiv.className = 'error';
-                        messageDiv.innerHTML = data.data.message || 'Unbekannter Server-Fehler';
-                        messageDiv.style.display = 'block';
-                    }
-                })
-                .catch(error => {
-                    console.error('💥 AJAX Error occurred:', {
-                        name: error.name,
-                        message: error.message,
-                        stack: error.stack
-                    });
-                    messageDiv.className = 'error';
-                    messageDiv.innerHTML = `Technischer Fehler: ${error.message}`;
-                    messageDiv.style.display = 'block';
-                })
-                .finally(() => {
-                    console.log('🔄 Request completed - restoring button state');
-                    elements.button.value = originalValue;
-                    elements.button.disabled = false;
-                });
-            });
-            
-            console.log('✅ Registration form event listener successfully attached');
-        } else {
-            console.error('❌ CRITICAL ERROR: Registration form not found!');
-            console.log('🔍 Available forms on page:');
-            document.querySelectorAll('form').forEach((form, index) => {
-                console.log(`  Form ${index}:`, {
-                    id: form.id || 'NO_ID',
-                    classes: form.className || 'NO_CLASSES',
-                    action: form.action || 'NO_ACTION'
-                });
-            });
-        }
-
-        console.log('🏁 Registration debug setup complete');
+        console.log('✅ Registration-Handler erfolgreich registriert');
+        console.log('🏁 Debug-Setup abgeschlossen');
     });
     </script>
 
