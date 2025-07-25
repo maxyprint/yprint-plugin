@@ -557,134 +557,15 @@ function yprint_custom_registration_form() {
         </div>
     </div>
 
+    <?php
+    // AJAX-Objekt korrekt vor dem JavaScript-Block erstellen
+    wp_localize_script('jquery', 'ajax_object', array(
+        'ajax_url' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('yprint-ajax-nonce')
+    ));
+    ?>
+
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Password Toggle Funktionalität
-        function setupPasswordToggle(toggleId, inputId) {
-            const toggle = document.getElementById(toggleId);
-            const input = document.getElementById(inputId);
-            
-            if (toggle && input) {
-                toggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    if (input.type === 'password') {
-                        input.type = 'text';
-                        toggle.querySelector('i').style.color = '#3b82f6';
-                    } else {
-                        input.type = 'password';
-                        toggle.querySelector('i').style.color = '#6b7280';
-                    }
-                });
-            }
-        }
-
-        // Setup für beide Passwort-Felder
-        setupPasswordToggle('eye-toggle-1', 'user_password');
-        setupPasswordToggle('eye-toggle-2', 'user_password_confirm');
-
-        // Validation Hints
-        const usernameField = document.getElementById('user_login');
-        const emailField = document.getElementById('user_email');
-        const passwordField = document.getElementById('user_password');
-        const confirmPasswordField = document.getElementById('user_password_confirm');
-
-        const usernameHint = document.getElementById('username-hint');
-        const emailHint = document.getElementById('email-hint');
-        const passwordHint = document.getElementById('password-hint');
-        const confirmPasswordHint = document.getElementById('confirm-password-hint');
-
-        // Username Validation
-        if (usernameField && usernameHint) {
-            usernameField.addEventListener('input', function() {
-                if (this.value.length > 0 && this.value.length < 3) {
-                    usernameHint.className = 'yprint-input-hint error';
-                    usernameHint.style.display = 'block';
-                } else if (this.value.length >= 3) {
-                    usernameHint.className = 'yprint-input-hint success';
-                    usernameHint.innerHTML = 'Benutzername ist gültig.';
-                    usernameHint.style.display = 'block';
-                    setTimeout(() => { usernameHint.style.display = 'none'; }, 2000);
-                } else {
-                    usernameHint.style.display = 'none';
-                }
-            });
-        }
-
-        // Email Validation
-        if (emailField && emailHint) {
-            const validProviders = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'gmx.de', 'web.de', 't-online.de'];
-            
-            emailField.addEventListener('input', function() {
-                const email = this.value;
-                if (email.includes('@')) {
-                    const domain = email.split('@')[1];
-                    if (validProviders.includes(domain)) {
-                        emailHint.className = 'yprint-input-hint success';
-                        emailHint.innerHTML = 'E-Mail-Anbieter ist gültig.';
-                        emailHint.style.display = 'block';
-                        setTimeout(() => { emailHint.style.display = 'none'; }, 2000);
-                    } else if (domain) {
-                        emailHint.className = 'yprint-input-hint error';
-                        emailHint.style.display = 'block';
-                    }
-                } else if (email.length > 0) {
-                    emailHint.className = 'yprint-input-hint error';
-                    emailHint.innerHTML = 'Bitte geben Sie eine gültige E-Mail-Adresse ein.';
-                    emailHint.style.display = 'block';
-                } else {
-                    emailHint.style.display = 'none';
-                }
-            });
-        }
-
-        // Password Validation
-        if (passwordField && passwordHint) {
-            passwordField.addEventListener('input', function() {
-                const password = this.value;
-                const hasLength = password.length >= 8;
-                const hasUpper = /[A-Z]/.test(password);
-                const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-                if (password.length > 0) {
-                    if (hasLength && hasUpper && hasSpecial) {
-                        passwordHint.className = 'yprint-input-hint success';
-                        passwordHint.innerHTML = 'Passwort ist sicher.';
-                        passwordHint.style.display = 'block';
-                        setTimeout(() => { passwordHint.style.display = 'none'; }, 2000);
-                    } else {
-                        passwordHint.className = 'yprint-input-hint error';
-                        passwordHint.style.display = 'block';
-                    }
-                } else {
-                    passwordHint.style.display = 'none';
-                }
-            });
-        }
-
-        // Confirm Password Validation
-        if (confirmPasswordField && confirmPasswordHint) {
-            confirmPasswordField.addEventListener('input', function() {
-                const password = passwordField.value;
-                const confirmPassword = this.value;
-
-                if (confirmPassword.length > 0) {
-                    if (password === confirmPassword) {
-                        confirmPasswordHint.className = 'yprint-input-hint success';
-                        confirmPasswordHint.innerHTML = 'Passwörter stimmen überein.';
-                        confirmPasswordHint.style.display = 'block';
-                        setTimeout(() => { confirmPasswordHint.style.display = 'none'; }, 2000);
-                    } else {
-                        confirmPasswordHint.className = 'yprint-input-hint error';
-                        confirmPasswordHint.style.display = 'block';
-                    }
-                } else {
-                    confirmPasswordHint.style.display = 'none';
-                }
-            });
-        }
-
     // Turnstile Callbacks - ERSTE PRIORITÄT
     window.onTurnstileSuccess = function(token) {
         console.log('🛡️ Turnstile: Token erhalten für Registration:', token.substring(0, 20) + '...');
@@ -711,16 +592,10 @@ function yprint_custom_registration_form() {
     };
 
     // Warte bis DOM geladen ist
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 YPrint Registration Debug gestartet - BEREINIGT');
+    // 🚀 Marker für Debug-Start
 
-        // === AJAX-OBJEKT SICHERSTELLEN ===
-        <?php
-        wp_localize_script('jquery', 'ajax_object', array(
-            'ajax_url' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('yprint-ajax-nonce')
-        ));
-        ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 YPrint Registration Debug gestartet - KORREKT GELADEN');
 
         // === FORMULAR-ERKENNUNG ===
         const forms = {
@@ -846,7 +721,7 @@ function yprint_custom_registration_form() {
                 formData.append('cf-turnstile-response', elements.turnstile_token.value);
             }
 
-            // AJAX-URL und Nonce
+            // AJAX-URL und Nonce - KORREKT verwenden
             let ajaxUrl = '/wp-admin/admin-ajax.php';
             if (typeof ajax_object !== 'undefined' && ajax_object.ajax_url) {
                 ajaxUrl = ajax_object.ajax_url;
@@ -907,7 +782,7 @@ function yprint_custom_registration_form() {
         });
 
         console.log('✅ Registration-Handler erfolgreich registriert');
-        console.log('🏁 Debug-Setup abgeschlossen');
+        console.log('🏁 Debug-Setup abgeschlossen - KORREKT');
     });
     </script>
 
