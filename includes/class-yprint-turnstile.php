@@ -415,14 +415,19 @@ class YPrint_Turnstile {
     }
     document.body.setAttribute('data-turnstile-injection-done', 'true');
     console.log('🛡️ Auto-Injection: Markierung gesetzt, führe Injection aus');
+    console.log('🛡️ Auto-Injection: Vor Registration-Block Check');
             
             <?php if (in_array('registration', $protected_pages)): ?>
+console.log('🛡️ Registration-Block: ERREICHT - Suche Formulare');
 // Registration-Formular Turnstile einfügen (Auto-Injection)
 const regFormDesktop = document.getElementById('register-form-desktop');
 const regFormMobile = document.getElementById('register-form-mobile');
 
+console.log('🛡️ Registration: Suche Formulare - Desktop:', regFormDesktop, 'Mobile:', regFormMobile);
 [regFormDesktop, regFormMobile].forEach(function(regForm) {
+    console.log('🛡️ Registration: Prüfe Formular:', regForm ? regForm.id : 'null');
     if (regForm && !regForm.querySelector('.cf-turnstile') && !regForm.hasAttribute('data-turnstile-injected')) {
+        console.log('🛡️ Registration: Formular qualifiziert für Turnstile-Injection:', regForm.id);
         regForm.setAttribute('data-turnstile-injected', 'true');
         const submitButton = regForm.querySelector('input[type="submit"], button[type="submit"]');
         if (!submitButton) {
@@ -442,7 +447,9 @@ const regFormMobile = document.getElementById('register-form-mobile');
         }
     }
 });
+console.log('🛡️ Registration-Block: ENDE erreicht');
 <?php endif; ?>
+console.log('🛡️ Auto-Injection: Nach Registration-Block');
         });
         </script>
         <?php
