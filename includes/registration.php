@@ -1,6 +1,6 @@
 <?php
 /**
- * Registration functions for YPrint
+ * Registration functions for YPrint - Wie vorher mit Turnstile wie im Login
  *
  * @package YPrint
  */
@@ -11,7 +11,7 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Register the custom registration form shortcode
+ * Register the custom registration form shortcode - ORIGINAL FUNKTIONSFÄHIGE VERSION
  */
 function yprint_custom_registration_form() {
     ob_start();
@@ -45,7 +45,7 @@ function yprint_custom_registration_form() {
 
 /* Container für Login und Registration Formulare */
 #yprint-loginform .turnstile-widget-container,
-#register-form-desktop .turnstile-widget-container,
+#register-form .turnstile-widget-container,
 #register-form-mobile .turnstile-widget-container {
     max-width: 500px !important;
     margin: 20px auto !important;
@@ -54,8 +54,8 @@ function yprint_custom_registration_form() {
 /* Turnstile Widgets in Login und Registration */
 #yprint-loginform .cf-turnstile,
 #yprint-loginform .cf-turnstile-rendered,
-#register-form-desktop .cf-turnstile,
-#register-form-desktop .cf-turnstile-rendered,
+#register-form .cf-turnstile,
+#register-form .cf-turnstile-rendered,
 #register-form-mobile .cf-turnstile,
 #register-form-mobile .cf-turnstile-rendered {
     transform: scale(1) !important;
@@ -91,8 +91,8 @@ function yprint_custom_registration_form() {
     /* Spezifische Skalierung für alle Formulare */
     #yprint-loginform .cf-turnstile,
     #yprint-loginform .cf-turnstile-rendered,
-    #register-form-desktop .cf-turnstile,
-    #register-form-desktop .cf-turnstile-rendered,
+    #register-form .cf-turnstile,
+    #register-form .cf-turnstile-rendered,
     #register-form-mobile .cf-turnstile,
     #register-form-mobile .cf-turnstile-rendered {
         transform: scale(0.8) !important;
@@ -108,8 +108,8 @@ function yprint_custom_registration_form() {
     /* Kleinere Skalierung für alle Formulare */
     #yprint-loginform .cf-turnstile,
     #yprint-loginform .cf-turnstile-rendered,
-    #register-form-desktop .cf-turnstile,
-    #register-form-desktop .cf-turnstile-rendered,
+    #register-form .cf-turnstile,
+    #register-form .cf-turnstile-rendered,
     #register-form-mobile .cf-turnstile,
     #register-form-mobile .cf-turnstile-rendered {
         transform: scale(0.7) !important;
@@ -129,8 +129,8 @@ function yprint_custom_registration_form() {
     /* Kleinste Skalierung für alle Formulare */
     #yprint-loginform .cf-turnstile,
     #yprint-loginform .cf-turnstile-rendered,
-    #register-form-desktop .cf-turnstile,
-    #register-form-desktop .cf-turnstile-rendered,
+    #register-form .cf-turnstile,
+    #register-form .cf-turnstile-rendered,
     #register-form-mobile .cf-turnstile,
     #register-form-mobile .cf-turnstile-rendered {
         transform: scale(0.6) !important;
@@ -243,9 +243,9 @@ function yprint_custom_registration_form() {
         }
 
         /* Eingabefelder - identisch mit Login */
-        #register-form-desktop input[type="text"],
-        #register-form-desktop input[type="email"],
-        #register-form-desktop input[type="password"] {
+        #register-form input[type="text"],
+        #register-form input[type="email"],
+        #register-form input[type="password"] {
             width: 100% !important;
             height: 52px !important;
             padding: 16px 20px !important;
@@ -264,22 +264,22 @@ function yprint_custom_registration_form() {
             box-sizing: border-box !important;
         }
 
-        #register-form-desktop input[type="text"]:focus,
-        #register-form-desktop input[type="email"]:focus,
-        #register-form-desktop input[type="password"]:focus {
+        #register-form input[type="text"]:focus,
+        #register-form input[type="email"]:focus,
+        #register-form input[type="password"]:focus {
             background-color: #ffffff !important;
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
         }
 
         /* Platzhaltertext */
-        #register-form-desktop input::placeholder {
+        #register-form input::placeholder {
             color: #9ca3af !important;
             font-weight: 400 !important;
         }
 
         /* Submit-Button - identisch mit Login */
-        #register-form-desktop input[type="submit"] {
+        #register-form input[type="submit"] {
             width: 100% !important;
             height: 52px !important;
             padding: 16px 24px !important;
@@ -298,13 +298,13 @@ function yprint_custom_registration_form() {
             line-height: 1.5 !important;
         }
 
-        #register-form-desktop input[type="submit"]:hover {
+        #register-form input[type="submit"]:hover {
             background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
             transform: translateY(-1px) !important;
             box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4) !important;
         }
 
-        #register-form-desktop input[type="submit"]:active {
+        #register-form input[type="submit"]:active {
             transform: translateY(0) !important;
         }
 
@@ -452,10 +452,10 @@ function yprint_custom_registration_form() {
                 font-size: 14px;
             }
 
-            #register-form-desktop input[type="text"],
-            #register-form-desktop input[type="email"],
-            #register-form-desktop input[type="password"],
-            #register-form-desktop input[type="submit"] {
+            #register-form input[type="text"],
+            #register-form input[type="email"],
+            #register-form input[type="password"],
+            #register-form input[type="submit"] {
                 height: 48px !important;
                 font-size: 16px !important;
             }
@@ -479,10 +479,10 @@ function yprint_custom_registration_form() {
                 padding: 10px 20px;
             }
 
-            #register-form-desktop input[type="text"],
-            #register-form-desktop input[type="email"],
-            #register-form-desktop input[type="password"],
-            #register-form-desktop input[type="submit"] {
+            #register-form input[type="text"],
+            #register-form input[type="email"],
+            #register-form input[type="password"],
+            #register-form input[type="submit"] {
                 height: 44px !important;
                 padding: 12px 16px !important;
             }
@@ -500,7 +500,7 @@ function yprint_custom_registration_form() {
             </div>
 
             <div class="yprint-register-form">
-                <form id="register-form-desktop" method="post">
+                <form method="post" id="register-form">
                     <div class="yprint-input-group">
                         <input type="text" name="user_login" id="user_login" placeholder="Benutzername" required>
                         <div id="username-hint" class="yprint-input-hint">
@@ -536,8 +536,16 @@ function yprint_custom_registration_form() {
                     </div>
 
                     <?php
-                    // Turnstile Widget wird automatisch per Auto-Injection eingefügt
-                    // Keine manuelle Einbindung mehr nötig
+                    // Turnstile Widget DIREKT einbinden - GENAU WIE IM LOGIN
+                    if (class_exists('YPrint_Turnstile')) {
+                        $turnstile = YPrint_Turnstile::get_instance();
+                        if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+                            echo '<div class="yprint-input-group turnstile-widget-container" style="text-align: center !important; margin: 20px 0 !important;">';
+                            echo '<div class="cf-turnstile" data-sitekey="' . esc_attr($turnstile->get_site_key()) . '" data-theme="light" data-callback="onTurnstileSuccess" data-error-callback="onTurnstileError"></div>';
+                            echo '</div>';
+                            echo $turnstile->get_turnstile_js();
+                        }
+                    }
                     ?>
 
                     <div class="yprint-input-group">
@@ -558,7 +566,7 @@ function yprint_custom_registration_form() {
     </div>
 
     <?php
-    // AJAX-Objekt korrekt vor dem JavaScript-Block erstellen
+    // AJAX-Objekt korrekt vor dem JavaScript-Block erstellen - KRITISCH FÜR FUNKTIONALITÄT
     wp_localize_script('jquery', 'ajax_object', array(
         'ajax_url' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('yprint-ajax-nonce')
@@ -566,223 +574,210 @@ function yprint_custom_registration_form() {
     ?>
 
     <script>
-    // Turnstile Callbacks - ERSTE PRIORITÄT
-    window.onTurnstileSuccess = function(token) {
-        console.log('🛡️ Turnstile: Token erhalten für Registration:', token.substring(0, 20) + '...');
-        // Entferne Error-Messages
-        const errorDiv = document.querySelector('.turnstile-error');
-        if (errorDiv) errorDiv.style.display = 'none';
-        // Aktiviere Submit-Button falls deaktiviert
-        const submitButtons = document.querySelectorAll('#register-form-desktop input[type="submit"], #register-form-mobile input[type="submit"]');
-        submitButtons.forEach(button => {
-            if (button && button.disabled) {
-                button.disabled = false;
-                button.value = 'Registrieren';
-            }
-        });
-    };
-    
-    window.onTurnstileError = function(error) {
-        console.error('🛡️ Turnstile: Fehler bei Registration:', error);
-        const errorDiv = document.querySelector('.turnstile-error');
-        if (errorDiv) {
-            errorDiv.textContent = 'Bot-Verifikation fehlgeschlagen. Bitte versuche es erneut.';
-            errorDiv.style.display = 'block';
-        }
-    };
-
-    // Warte bis DOM geladen ist
-    // 🚀 Marker für Debug-Start
-
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 YPrint Registration Debug gestartet - KORREKT GELADEN');
+        console.log('🚀 YPrint Registration - ORIGINAL VERSION mit Turnstile wie im Login');
 
-        // === FORMULAR-ERKENNUNG ===
-        const forms = {
-            desktop: document.getElementById('register-form-desktop'),
-            mobile: document.getElementById('register-form-mobile')
-        };
-
-        console.log('📋 Verfügbare Formulare:', {
-            desktop_exists: !!forms.desktop,
-            mobile_exists: !!forms.mobile,
-            total_forms: document.querySelectorAll('form').length
-        });
-
-        const form = forms.desktop || forms.mobile;
-        
-        if (!form) {
-            console.error('❌ KEIN REGISTRIERUNGS-FORMULAR GEFUNDEN!');
-            console.log('🔍 Alle Formulare auf der Seite:');
-            document.querySelectorAll('form').forEach((f, index) => {
-                console.log(`  Form ${index}:`, {
-                    id: f.id || 'NO_ID',
-                    classes: f.className || 'NO_CLASSES',
-                    action: f.action || 'NO_ACTION'
+        // Password Toggle Funktionalität
+        function setupPasswordToggle(toggleId, inputId) {
+            const toggle = document.getElementById(toggleId);
+            const input = document.getElementById(inputId);
+            
+            if (toggle && input) {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        toggle.querySelector('i').style.color = '#3b82f6';
+                    } else {
+                        input.type = 'password';
+                        toggle.querySelector('i').style.color = '#6b7280';
+                    }
                 });
-            });
-            return;
+            }
         }
 
-        console.log('✅ Aktives Formular:', form.id);
+        // Setup für beide Passwort-Felder
+        setupPasswordToggle('eye-toggle-1', 'user_password');
+        setupPasswordToggle('eye-toggle-2', 'user_password_confirm');
 
-        // === PASSWORD-VALIDIERUNG (falls vorhanden) ===
-        const passwordField = form.querySelector('input[type="password"]:not([id*="confirm"])');
-        const confirmField = form.querySelector('input[type="password"][id*="confirm"]');
-        
-        if (passwordField && confirmField) {
-            console.log('🔒 Password-Validierung aktiviert');
+        // Validation Hints
+        const usernameField = document.getElementById('user_login');
+        const emailField = document.getElementById('user_email');
+        const passwordField = document.getElementById('user_password');
+        const confirmPasswordField = document.getElementById('user_password_confirm');
+
+        const usernameHint = document.getElementById('username-hint');
+        const emailHint = document.getElementById('email-hint');
+        const passwordHint = document.getElementById('password-hint');
+        const confirmPasswordHint = document.getElementById('confirm-password-hint');
+
+        // Username Validation
+        if (usernameField && usernameHint) {
+            usernameField.addEventListener('input', function() {
+                if (this.value.length > 0 && this.value.length < 3) {
+                    usernameHint.className = 'yprint-input-hint error';
+                    usernameHint.style.display = 'block';
+                } else if (this.value.length >= 3) {
+                    usernameHint.className = 'yprint-input-hint success';
+                    usernameHint.innerHTML = 'Benutzername ist gültig.';
+                    usernameHint.style.display = 'block';
+                    setTimeout(() => { usernameHint.style.display = 'none'; }, 2000);
+                } else {
+                    usernameHint.style.display = 'none';
+                }
+            });
+        }
+
+        // Email Validation
+        if (emailField && emailHint) {
+            const validProviders = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'gmx.de', 'web.de', 't-online.de'];
             
-            function validatePasswords() {
-                const confirmPasswordHint = document.getElementById('confirm-password-hint');
-                if (confirmPasswordHint && confirmField.value) {
-                    if (passwordField.value === confirmField.value) {
+            emailField.addEventListener('input', function() {
+                const email = this.value;
+                if (email.includes('@')) {
+                    const domain = email.split('@')[1];
+                    if (validProviders.includes(domain)) {
+                        emailHint.className = 'yprint-input-hint success';
+                        emailHint.innerHTML = 'E-Mail-Anbieter ist gültig.';
+                        emailHint.style.display = 'block';
+                        setTimeout(() => { emailHint.style.display = 'none'; }, 2000);
+                    } else if (domain) {
+                        emailHint.className = 'yprint-input-hint error';
+                        emailHint.style.display = 'block';
+                    }
+                } else if (email.length > 0) {
+                    emailHint.className = 'yprint-input-hint error';
+                    emailHint.innerHTML = 'Bitte geben Sie eine gültige E-Mail-Adresse ein.';
+                    emailHint.style.display = 'block';
+                } else {
+                    emailHint.style.display = 'none';
+                }
+            });
+        }
+
+        // Password Validation
+        if (passwordField && passwordHint) {
+            passwordField.addEventListener('input', function() {
+                const password = this.value;
+                const hasLength = password.length >= 8;
+                const hasUpper = /[A-Z]/.test(password);
+                const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+                if (password.length > 0) {
+                    if (hasLength && hasUpper && hasSpecial) {
+                        passwordHint.className = 'yprint-input-hint success';
+                        passwordHint.innerHTML = 'Passwort ist sicher.';
+                        passwordHint.style.display = 'block';
+                        setTimeout(() => { passwordHint.style.display = 'none'; }, 2000);
+                    } else {
+                        passwordHint.className = 'yprint-input-hint error';
+                        passwordHint.style.display = 'block';
+                    }
+                } else {
+                    passwordHint.style.display = 'none';
+                }
+            });
+        }
+
+        // Confirm Password Validation
+        if (confirmPasswordField && confirmPasswordHint) {
+            confirmPasswordField.addEventListener('input', function() {
+                const password = passwordField.value;
+                const confirmPassword = this.value;
+
+                if (confirmPassword.length > 0) {
+                    if (password === confirmPassword) {
                         confirmPasswordHint.className = 'yprint-input-hint success';
-                        confirmPasswordHint.textContent = '✓ Passwörter stimmen überein';
+                        confirmPasswordHint.innerHTML = 'Passwörter stimmen überein.';
                         confirmPasswordHint.style.display = 'block';
                         setTimeout(() => { confirmPasswordHint.style.display = 'none'; }, 2000);
                     } else {
                         confirmPasswordHint.className = 'yprint-input-hint error';
-                        confirmPasswordHint.textContent = '✗ Passwörter stimmen nicht überein';
                         confirmPasswordHint.style.display = 'block';
                     }
+                } else {
+                    confirmPasswordHint.style.display = 'none';
                 }
-            }
-            
-            confirmField.addEventListener('input', validatePasswords);
-            passwordField.addEventListener('input', validatePasswords);
+            });
         }
 
-        // === FORMULAR-SUBMIT HANDLER ===
-        form.addEventListener('submit', function(event) {
-            event.preventDefault();
-            console.log('📤 Formular-Submit gestartet');
+        // AJAX Form Submission - ORIGINAL FUNKTIONSFÄHIGE VERSION
+        const form = document.getElementById('register-form');
+        const messageDiv = document.getElementById('registration-message');
 
-            // Element-Sammlung
-            const elements = {
-                username: form.querySelector('input[name="username"], input[id*="user_login"]'),
-                email: form.querySelector('input[name="email"], input[id*="user_email"]'),
-                password: form.querySelector('input[name="password"], input[id*="user_password"]:not([id*="confirm"])'),
-                confirm: form.querySelector('input[name="password_confirm"], input[id*="confirm"]'),
-                button: form.querySelector('input[type="submit"], button[type="submit"]'),
-                turnstile_token: form.querySelector('input[name="cf-turnstile-response"]'),
-                messageDiv: document.querySelector('.registration-message') || document.querySelector('.message')
-            };
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('📤 Registration Form Submit - ORIGINAL VERSION');
 
-            console.log('🔍 Element-Status:', {
-                username_found: !!elements.username,
-                email_found: !!elements.email,
-                password_found: !!elements.password,
-                confirm_found: !!elements.confirm,
-                button_found: !!elements.button,
-                turnstile_found: !!elements.turnstile_token,
-                message_div_found: !!elements.messageDiv
-            });
-
-            // Validierung
-            const errors = [];
-            
-            if (!elements.username?.value?.trim()) errors.push('Username fehlt');
-            if (!elements.email?.value?.trim()) errors.push('E-Mail fehlt');
-            if (!elements.password?.value) errors.push('Passwort fehlt');
-            if (!elements.confirm?.value) errors.push('Passwort-Bestätigung fehlt');
-            if (elements.password?.value !== elements.confirm?.value) errors.push('Passwörter stimmen nicht überein');
-            
-            // Turnstile-Validierung
-            if (elements.turnstile_token && (!elements.turnstile_token.value || elements.turnstile_token.value.length < 10)) {
-                errors.push('Bot-Verifikation fehlt');
-            }
-
-            console.log('📊 Validierung:', {
-                errors_count: errors.length,
-                errors: errors,
-                is_valid: errors.length === 0
-            });
-
-            if (errors.length > 0) {
-                if (elements.messageDiv) {
-                    elements.messageDiv.className = 'error';
-                    elements.messageDiv.innerHTML = 'Fehler: ' + errors.join(', ');
-                    elements.messageDiv.style.display = 'block';
-                }
-                console.error('❌ Validierung fehlgeschlagen:', errors);
-                return false;
-            }
-
-            // AJAX-Vorbereitung
-            const formData = new FormData();
-            formData.append('action', 'yprint_register_user');
-            formData.append('username', elements.username.value);
-            formData.append('email', elements.email.value);
-            formData.append('password', elements.password.value);
-            formData.append('password_confirm', elements.confirm.value);
-            
-            if (elements.turnstile_token?.value) {
-                formData.append('cf-turnstile-response', elements.turnstile_token.value);
-            }
-
-            // AJAX-URL und Nonce - KORREKT verwenden
-            let ajaxUrl = '/wp-admin/admin-ajax.php';
-            if (typeof ajax_object !== 'undefined' && ajax_object.ajax_url) {
-                ajaxUrl = ajax_object.ajax_url;
-                formData.append('nonce', ajax_object.nonce);
-                console.log('✅ Ajax-Object gefunden und verwendet');
-            } else {
-                console.warn('⚠️ Ajax-Object nicht gefunden - verwende Fallback-URL');
-            }
-
-            // Button-Status
-            const originalValue = elements.button.value;
-            elements.button.value = 'Registriere...';
-            elements.button.disabled = true;
-
-            console.log('🌐 Sende AJAX-Request an:', ajaxUrl);
-
-            // AJAX-Request
-            fetch(ajaxUrl, {
-                method: 'POST',
-                body: formData,
-                credentials: 'same-origin'
-            })
-            .then(response => {
-                console.log('📡 Response erhalten:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('📄 Response-Data:', data);
+                const formData = new FormData();
+                formData.append('action', 'yprint_register_user');
+                formData.append('username', usernameField.value);
+                formData.append('email', emailField.value);
+                formData.append('password', passwordField.value);
+                formData.append('password_confirm', confirmPasswordField.value);
                 
-                if (elements.messageDiv) {
+                // Turnstile Token hinzufügen falls vorhanden - WIE IM LOGIN
+                const turnstileResponse = document.querySelector('input[name="cf-turnstile-response"]');
+                if (turnstileResponse && turnstileResponse.value) {
+                    formData.append('cf-turnstile-response', turnstileResponse.value);
+                    console.log('🛡️ Turnstile Token gefunden:', turnstileResponse.value.substring(0, 20) + '...');
+                } else {
+                    console.log('⚠️ Kein Turnstile Token gefunden');
+                }
+                
+                // WordPress nonce für Sicherheit
+                if (typeof ajax_object !== 'undefined') {
+                    formData.append('nonce', ajax_object.nonce);
+                }
+
+                // Submit Button deaktivieren
+                const submitButton = form.querySelector('input[type="submit"]');
+                const originalValue = submitButton.value;
+                submitButton.value = 'Registriere...';
+                submitButton.disabled = true;
+
+                console.log('🌐 Sende AJAX zu admin-ajax.php - ORIGINAL VERSION');
+
+                fetch(ajax_object.ajax_url || '/wp-admin/admin-ajax.php', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log('📡 Response Status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📄 Response Data:', data);
+                    
                     if (data.success) {
-                        elements.messageDiv.className = 'success';
-                        elements.messageDiv.innerHTML = data.data.message || 'Registrierung erfolgreich!';
-                        elements.messageDiv.style.display = 'block';
+                        messageDiv.className = 'success';
+                        messageDiv.innerHTML = data.data.message;
+                        messageDiv.style.display = 'block';
                         form.reset();
                         console.log('✅ Registrierung erfolgreich');
                     } else {
-                        elements.messageDiv.className = 'error';
-                        elements.messageDiv.innerHTML = data.data?.message || 'Registrierung fehlgeschlagen';
-                        elements.messageDiv.style.display = 'block';
+                        messageDiv.className = 'error';
+                        messageDiv.innerHTML = data.data.message;
+                        messageDiv.style.display = 'block';
                         console.error('❌ Registrierung fehlgeschlagen:', data.data);
                     }
-                }
-            })
-            .catch(error => {
-                console.error('💥 AJAX-Fehler:', error);
-                if (elements.messageDiv) {
-                    elements.messageDiv.className = 'error';
-                    elements.messageDiv.innerHTML = `Technischer Fehler: ${error.message}`;
-                    elements.messageDiv.style.display = 'block';
-                }
-            })
-            .finally(() => {
-                elements.button.value = originalValue;
-                elements.button.disabled = false;
-                console.log('🔄 Button-Status wiederhergestellt');
+                })
+                .catch(error => {
+                    console.error('💥 AJAX-Fehler:', error);
+                    messageDiv.className = 'error';
+                    messageDiv.innerHTML = 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
+                    messageDiv.style.display = 'block';
+                })
+                .finally(() => {
+                    submitButton.value = originalValue;
+                    submitButton.disabled = false;
+                    console.log('🔄 Button zurückgesetzt');
+                });
             });
-        });
-
-        console.log('✅ Registration-Handler erfolgreich registriert');
-        console.log('🏁 Debug-Setup abgeschlossen - KORREKT');
+        }
     });
     </script>
 
@@ -792,67 +787,59 @@ function yprint_custom_registration_form() {
 add_shortcode('yprint_registration_form', 'yprint_custom_registration_form');
 
 /**
- * Handle AJAX registration
+ * Handle AJAX registration - ORIGINAL VERSION mit Turnstile Integration
  */
 function yprint_register_user_callback() {
-    // Console Log über JavaScript für Backend-Debugging
-    $debug_script = "
-    <script>
-    console.log('🔧 BACKEND: yprint_register_user_callback called');
-    console.log('🔧 POST Data Keys: " . json_encode(array_keys($_POST)) . "');
-    console.log('🔧 Action: " . esc_js($_POST['action'] ?? 'NOT_SET') . "');
-    console.log('🔧 Nonce present: " . (isset($_POST['nonce']) ? 'YES' : 'NO') . "');
-    </script>";
+    console.log('🔧 Backend: yprint_register_user_callback called - ORIGINAL VERSION');
     
     // Check nonce for security
     if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'yprint-ajax-nonce')) {
-        wp_send_json_error(array(
-            'message' => 'Security check failed.',
-            'debug' => 'Nonce validation failed',
-            'debug_script' => $debug_script
-        ));
+        wp_send_json_error(array('message' => 'Security check failed.'));
         return;
     }
 
-    // Turnstile Bot-Schutz Validierung
-    $turnstile = YPrint_Turnstile::get_instance();
-    if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
-        $token = $_POST['cf-turnstile-response'] ?? '';
-        $verification = $turnstile->verify_token($token);
-        if (!$verification['success']) {
-            wp_send_json_error(array('message' => 'Bot-Verifikation fehlgeschlagen. Bitte versuchen Sie es erneut.'));
-            return;
+    // Turnstile Bot-Schutz Validierung - WIE IM LOGIN
+    if (class_exists('YPrint_Turnstile')) {
+        $turnstile = YPrint_Turnstile::get_instance();
+        if ($turnstile->is_enabled() && in_array('registration', $turnstile->get_protected_pages())) {
+            $token = $_POST['cf-turnstile-response'] ?? '';
+            if (empty($token)) {
+                wp_send_json_error(array('message' => 'Bot-Verifikation fehlt. Bitte versuchen Sie es erneut.'));
+                return;
+            }
+            
+            $verification = $turnstile->verify_token($token);
+            if (!$verification['success']) {
+                wp_send_json_error(array('message' => 'Bot-Verifikation fehlgeschlagen. Bitte versuchen Sie es erneut.'));
+                return;
+            }
         }
     }
 
-    // Eingabedaten validieren und sanitisieren
-    $username = sanitize_text_field($_POST['username'] ?? '');
-    $email = sanitize_email($_POST['email'] ?? '');
-    $password = $_POST['password'] ?? '';
-    $password_confirm = $_POST['password_confirm'] ?? '';
+    $username = sanitize_text_field($_POST['username']);
+    $email = sanitize_email($_POST['email']);
+    $password = $_POST['password'];
+    $password_confirm = $_POST['password_confirm'];
 
-    // Validierung der Eingaben
-    if (empty($username)) {
-        wp_send_json_error(array('message' => 'Benutzername ist erforderlich.'));
+    // Basic validation
+    if (empty($username) || empty($email) || empty($password)) {
+        wp_send_json_error(array('message' => 'Alle Felder sind erforderlich.'));
         return;
     }
 
-    if (empty($email) || !is_email($email)) {
-        wp_send_json_error(array('message' => 'Eine gültige E-Mail-Adresse ist erforderlich.'));
+    // Email validation
+    if (!is_email($email)) {
+        wp_send_json_error(array('message' => 'Ungültige E-Mail-Adresse.'));
         return;
     }
 
-    if (empty($password)) {
-        wp_send_json_error(array('message' => 'Passwort ist erforderlich.'));
-        return;
-    }
-
+    // Password confirmation
     if ($password !== $password_confirm) {
         wp_send_json_error(array('message' => 'Die Passwörter stimmen nicht überein.'));
         return;
     }
 
-    // Prüfen, ob Benutzername oder E-Mail bereits existiert
+    // Check if username or email already exists
     if (username_exists($username)) {
         wp_send_json_error(array('message' => 'Dieser Benutzername ist bereits vergeben.'));
         return;
@@ -863,41 +850,55 @@ function yprint_register_user_callback() {
         return;
     }
 
-    // Benutzer erstellen
+    // Create user
     $user_id = wp_create_user($username, $password, $email);
 
+    // Error handling
     if (is_wp_error($user_id)) {
         wp_send_json_error(array('message' => 'Fehler beim Erstellen des Benutzerkontos: ' . $user_id->get_error_message()));
         return;
     }
 
-    // Zusätzliche Benutzer-Meta-Daten setzen
-    update_user_meta($user_id, 'show_admin_bar_front', false);
+    // User created successfully
+    // Generate verification code
+    $verification_code = md5(time() . $email);
     
-    // E-Mail-Verifikation optional hinzufügen
-    $verification_code = wp_generate_password(32, false);
+    // Set user metadata
     update_user_meta($user_id, 'email_verification_code', $verification_code);
-    update_user_meta($user_id, 'email_verified', false);
+    update_user_meta($user_id, 'email_verified', false); // Email not verified by default
 
-    // Cookie-Preferences verarbeiten falls vorhanden
-    if (isset($_POST['cookie_preferences'])) {
-        $cookie_preferences = json_decode(stripslashes($_POST['cookie_preferences']), true);
-        if (is_array($cookie_preferences)) {
-            update_user_meta($user_id, 'yprint_cookie_preferences', $cookie_preferences);
-        }
+    // Verification link
+    $verification_link = site_url("/verify-email?code=$verification_code");
+
+    $subject = 'Bitte verifiziere deine E-Mail-Adresse';
+    
+    // Get email content from email functions
+    $message_content = "Vielen Dank für deine Registrierung bei YPrint. Um deine Registrierung abzuschließen, verifiziere bitte deine E-Mail-Adresse durch Klicken auf den Button unten.<br><br>";
+    $message_content .= "<a href='" . esc_url($verification_link) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>E-Mail verifizieren</a><br><br>";
+    $message_content .= "Falls du dieses Konto nicht erstellt hast, ignoriere diese E-Mail.";
+
+    // Get email template - this function should be in email.php
+    $message = yprint_get_email_template('Bitte verifiziere deine E-Mail-Adresse', esc_html($username), $message_content);
+
+    // Email headers
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: YPrint <no-reply@yprint.de>',
+        'Reply-To: no-reply@yprint.de'
+    );
+
+    // Send email
+    if (wp_mail($email, $subject, $message, $headers)) {
+        wp_send_json_success(array('message' => 'Registrierung erfolgreich! Bitte prüfe deine E-Mails, um dein Konto zu verifizieren.'));
+    } else {
+        wp_send_json_error(array('message' => 'Registrierung erfolgreich, aber die Bestätigungs-E-Mail konnte nicht gesendet werden.'));
     }
-
-    // Erfolgreiche Registrierung
-    wp_send_json_success(array(
-        'message' => 'Registrierung erfolgreich! Sie können sich jetzt einloggen.',
-        'user_id' => $user_id
-    ));
 }
 add_action('wp_ajax_nopriv_yprint_register_user', 'yprint_register_user_callback');
 add_action('wp_ajax_yprint_register_user', 'yprint_register_user_callback');
 
 /**
- * Handle email verification
+ * Handle email verification - ORIGINAL VERSION
  */
 function yprint_verify_email() {
     if (isset($_GET['code'])) {
