@@ -69,7 +69,25 @@
                 console.log('🍪 Schließen-Button geklickt');
                 e.preventDefault();
                 e.stopPropagation();
-                this.hideBanner();
+                
+                // Banner direkt entfernen
+                const bannerElement = document.getElementById('yprint-cookie-banner');
+                if (bannerElement) {
+                    bannerElement.style.setProperty('display', 'none', 'important');
+                    bannerElement.style.setProperty('visibility', 'hidden', 'important');
+                    bannerElement.style.setProperty('opacity', '0', 'important');
+                    bannerElement.style.setProperty('pointer-events', 'none', 'important');
+                    bannerElement.style.setProperty('position', 'absolute', 'important');
+                    bannerElement.style.setProperty('left', '-9999px', 'important');
+                    bannerElement.style.setProperty('top', '-9999px', 'important');
+                    console.log('🍪 Banner über X-Button ausgeblendet');
+                    
+                    // Banner komplett entfernen
+                    bannerElement.remove();
+                    console.log('🍪 Banner über X-Button entfernt');
+                }
+                
+                $('body').removeClass('yprint-consent-open');
             });
             
             // Cookie-Kategorien klickbar machen
@@ -327,8 +345,27 @@
                         // Cookies entsprechend setzen
                         self.applyCookieSettings(consents);
                         
-                        // Banner schließen
-                        self.hideBanner();
+                        // Banner direkt entfernen (Umgehung des hideBanner Problems)
+                        console.log('🍪 Entferne Banner direkt...');
+                        const bannerElement = document.getElementById('yprint-cookie-banner');
+                        if (bannerElement) {
+                            bannerElement.style.setProperty('display', 'none', 'important');
+                            bannerElement.style.setProperty('visibility', 'hidden', 'important');
+                            bannerElement.style.setProperty('opacity', '0', 'important');
+                            bannerElement.style.setProperty('pointer-events', 'none', 'important');
+                            bannerElement.style.setProperty('position', 'absolute', 'important');
+                            bannerElement.style.setProperty('left', '-9999px', 'important');
+                            bannerElement.style.setProperty('top', '-9999px', 'important');
+                            console.log('🍪 Banner direkt ausgeblendet');
+                        }
+                        
+                        // Zusätzlich: Banner komplett entfernen
+                        if (bannerElement) {
+                            bannerElement.remove();
+                            console.log('🍪 Banner komplett entfernt');
+                        }
+                        
+                        $('body').removeClass('yprint-consent-open');
                         
                         // Wenn aus Registrierung aufgerufen: Event triggern
                         if (self.registrationCallback) {
