@@ -47,14 +47,24 @@
     padding: var(--yprint-space-md) !important;
 }
 
-/* Verstecktes Banner - definitiv nicht sichtbar */
+/* Verstecktes Banner - definitiv nicht sichtbar (höhere Spezifität) */
 .yprint-cookie-banner.yprint-hidden,
 .yprint-cookie-banner[style*="display: none"],
-.yprint-cookie-banner[style*="display:none"] {
+.yprint-cookie-banner[style*="display:none"],
+.yprint-cookie-banner[style*="display: none !important"],
+.yprint-cookie-banner[style*="display:none !important"] {
     display: none !important;
     visibility: hidden !important;
     opacity: 0 !important;
     pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+}
+
+/* Zusätzliche Regel für versteckte Banner */
+.yprint-cookie-banner[style*="display: none"] {
+    display: none !important;
 }
 
 .yprint-cookie-banner-overlay {

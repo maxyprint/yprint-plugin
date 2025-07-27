@@ -217,13 +217,23 @@
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
             
-            // Mehrere Methoden zum Ausblenden verwenden
+            // Direkte DOM-Manipulation mit höchster Priorität
+            const bannerElement = document.getElementById('yprint-cookie-banner');
+            if (bannerElement) {
+                bannerElement.style.setProperty('display', 'none', 'important');
+                bannerElement.style.setProperty('visibility', 'hidden', 'important');
+                bannerElement.style.setProperty('opacity', '0', 'important');
+                bannerElement.style.setProperty('pointer-events', 'none', 'important');
+                bannerElement.style.setProperty('position', 'absolute', 'important');
+                bannerElement.style.setProperty('left', '-9999px', 'important');
+                bannerElement.style.setProperty('top', '-9999px', 'important');
+                console.log('🍪 Banner über DOM-API ausgeblendet');
+            }
+            
+            // jQuery als Backup
             this.banner.css('display', 'none');
             this.banner.hide();
             this.banner.addClass('yprint-hidden');
-            
-            // Zusätzlich: Inline-Style mit !important
-            this.banner.attr('style', 'display: none !important;');
             
             $('body').removeClass('yprint-consent-open');
             
@@ -456,9 +466,52 @@
             console.log('- Config geladen:', !!this.config);
             console.log('- AJAX URL:', this.config.ajaxUrl);
             
+            // Direkte Banner-Tests
+            console.log('🧪 Direkte Banner-Tests:');
+            if (this.banner.length > 0) {
+                console.log('- Banner Element:', this.banner[0]);
+                console.log('- Banner computedStyle:', window.getComputedStyle(this.banner[0]).display);
+                console.log('- Banner visibility:', window.getComputedStyle(this.banner[0]).visibility);
+                console.log('- Banner z-index:', window.getComputedStyle(this.banner[0]).zIndex);
+            }
+            
             // Teste Event-Handler
             console.log('🧪 Teste Event-Handler...');
             $('#yprint-accept-all').trigger('click');
+        }
+        
+        // Direkte Test-Funktion für Banner-Ausblendung
+        forceHideBanner() {
+            console.log('🧪 Force Hide Banner Test');
+            
+            // Methode 1: Direkte DOM-Manipulation
+            const bannerElement = document.getElementById('yprint-cookie-banner');
+            if (bannerElement) {
+                bannerElement.style.display = 'none';
+                bannerElement.style.visibility = 'hidden';
+                bannerElement.style.opacity = '0';
+                bannerElement.style.pointerEvents = 'none';
+                console.log('🧪 Banner direkt ausgeblendet');
+            }
+            
+            // Methode 2: jQuery
+            if (this.banner && this.banner.length > 0) {
+                this.banner.css({
+                    'display': 'none !important',
+                    'visibility': 'hidden !important',
+                    'opacity': '0 !important',
+                    'pointer-events': 'none !important'
+                });
+                console.log('🧪 Banner über jQuery ausgeblendet');
+            }
+            
+            // Methode 3: Banner entfernen
+            if (bannerElement) {
+                bannerElement.remove();
+                console.log('🧪 Banner komplett entfernt');
+            }
+            
+            $('body').removeClass('yprint-consent-open');
         }
     }
     
