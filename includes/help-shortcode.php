@@ -13,48 +13,61 @@ function yprint_help_shortcode() {
     
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['yprint_help_contact_nonce'])) {
         if (wp_verify_nonce($_POST['yprint_help_contact_nonce'], 'yprint_help_contact_action')) {
-            $name = sanitize_text_field($_POST['contact_name'] ?? '');
-            $email = sanitize_email($_POST['contact_email'] ?? '');
-            $message = sanitize_textarea_field($_POST['contact_message'] ?? '');
             
-            // Turnstile Bot-Schutz Validierung
-            $turnstile = YPrint_Turnstile::get_instance();
-            if ($turnstile->is_enabled() && in_array('contact_forms', $turnstile->get_protected_pages())) {
-                $turnstile_token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
-                $verification = $turnstile->verify_token($turnstile_token);
-                if (!$verification['success']) {
-                    $form_errors[] = $verification['error'] ?? 'Bot-Verifikation fehlgeschlagen';
-                }
-            }
+            // Prüfe tägliche Nachrichtenanzahl
+            $daily_limit = 3;
+            $current_count = get_daily_contact_messages_count();
             
-            // Validierung
-            if (empty($name)) {
-                $form_errors[] = 'Name ist erforderlich';
-            }
-            if (empty($email) || !is_email($email)) {
-                $form_errors[] = 'Gültige E-Mail-Adresse ist erforderlich';
-            }
-            if (empty($message)) {
-                $form_errors[] = 'Nachricht ist erforderlich';
-            }
-            
-            // E-Mail senden wenn keine Fehler
-            if (empty($form_errors)) {
-                $subject = 'YPrint Hilfe - Kontaktanfrage von ' . $name;
-                $body = "Name: {$name}\n";
-                $body .= "E-Mail: {$email}\n\n";
-                $body .= "Nachricht:\n{$message}\n\n";
+            if ($current_count >= $daily_limit) {
+                $form_errors[] = 'Du hast heute bereits das Maximum von ' . $daily_limit . ' Nachrichten erreicht. Bitte versuche es morgen erneut.';
+            } else {
+                $name = sanitize_text_field($_POST['contact_name'] ?? '');
+                $email = sanitize_email($_POST['contact_email'] ?? '');
+                $message = sanitize_textarea_field($_POST['contact_message'] ?? '');
                 
-                if (is_user_logged_in()) {
-                    $current_user = wp_get_current_user();
-                    $body .= "User ID: {$current_user->ID}\n";
-                    $body .= "Username: {$current_user->user_login}\n";
+                // Turnstile Bot-Schutz Validierung
+                $turnstile = YPrint_Turnstile::get_instance();
+                if ($turnstile->is_enabled() && in_array('contact_forms', $turnstile->get_protected_pages())) {
+                    $turnstile_token = sanitize_text_field($_POST['cf-turnstile-response'] ?? '');
+                    $verification = $turnstile->verify_token($turnstile_token);
+                    if (!$verification['success']) {
+                        $form_errors[] = $verification['error'] ?? 'Bot-Verifikation fehlgeschlagen';
+                    }
                 }
                 
-                $headers = array('Content-Type: text/plain; charset=UTF-8');
+                // Validierung
+                if (empty($name)) {
+                    $form_errors[] = 'Name ist erforderlich';
+                }
+                if (empty($email) || !is_email($email)) {
+                    $form_errors[] = 'Gültige E-Mail-Adresse ist erforderlich';
+                }
+                if (empty($message)) {
+                    $form_errors[] = 'Nachricht ist erforderlich';
+                }
                 
-                if (wp_mail('info@yprint.de', $subject, $body, $headers)) {
-                    $message_sent = true;
+                // E-Mail senden wenn keine Fehler
+                if (empty($form_errors)) {
+                    $subject = 'YPrint Hilfe - Kontaktanfrage von ' . $name;
+                    $body = "Name: {$name}\n";
+                    $body .= "E-Mail: {$email}\n\n";
+                    $body .= "Nachricht:\n{$message}\n\n";
+                    
+                    if (is_user_logged_in()) {
+                        $current_user = wp_get_current_user();
+                        $body .= "User ID: {$current_user->ID}\n";
+                        $body .= "Username: {$current_user->user_login}\n";
+                    }
+                    
+                    $headers = array('Content-Type: text/plain; charset=UTF-8');
+                    
+                    if (wp_mail('info@yprint.de', $subject, $body, $headers)) {
+                        // Nachricht erfolgreich gesendet - Zähler erhöhen
+                        increment_daily_contact_messages_count();
+                        $message_sent = true;
+                    } else {
+                        $form_errors[] = 'Fehler beim Senden der Nachricht. Bitte versuche es später erneut.';
+                    }
                 }
             }
         }
@@ -1039,39 +1052,58 @@ function yprint_help_shortcode() {
                 </button>
             </div>
             
-            <form method="POST" action="">
-                <?php wp_nonce_field('yprint_help_contact_action', 'yprint_help_contact_nonce'); ?>
-                
-                <div class="help-form-group">
-                    <label for="contact_name" class="help-form-label">Name</label>
-                    <input type="text" id="contact_name" name="contact_name" class="help-form-input" placeholder="Dein Name" required value="<?php echo esc_attr($_POST['contact_name'] ?? ''); ?>">
+            <?php
+            // Zeige verbleibende Nachrichten an
+            $daily_limit = 3;
+            $current_count = get_daily_contact_messages_count();
+            $remaining = $daily_limit - $current_count;
+            
+            if ($remaining <= 0): ?>
+                <div class="help-message-limit" style="background-color: #fff5f5; border: 1px solid #dc3545; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 14px; color: #dc3545;">
+                    ❌ Du hast heute bereits das Maximum von <?php echo $daily_limit; ?> Nachrichten erreicht. Bitte versuche es morgen erneut.
                 </div>
-                
-                <div class="help-form-group">
-                    <label for="contact_email" class="help-form-label">E-Mail</label>
-                    <input type="email" id="contact_email" name="contact_email" class="help-form-input" placeholder="deine@email.de" required value="<?php echo esc_attr($_POST['contact_email'] ?? ''); ?>">
-                </div>
-                
-                <div class="help-form-group">
-                    <label for="contact_message" class="help-form-label">Nachricht</label>
-                    <textarea id="contact_message" name="contact_message" class="help-form-textarea" placeholder="Beschreibe dein Problem oder deine Frage..." required><?php echo esc_textarea($_POST['contact_message'] ?? ''); ?></textarea>
-                </div>
-                
-                <?php
-                // Turnstile Widget einbinden wenn aktiviert
-                $turnstile = YPrint_Turnstile::get_instance();
-                if ($turnstile->is_enabled() && in_array('contact_forms', $turnstile->get_protected_pages())) {
-                    echo '<div class="help-form-group">';
-                    echo $turnstile->render_widget('help-contact-form', 'light');
-                    echo '</div>';
-                }
-                ?>
-                
                 <div class="help-form-actions">
-                    <button type="button" class="help-btn help-btn--secondary" onclick="closeContactModal()">Abbrechen</button>
-                    <button type="submit" class="help-btn help-btn--primary">Nachricht senden</button>
+                    <button type="button" class="help-btn help-btn--secondary" onclick="closeContactModal()">Schließen</button>
                 </div>
-            </form>
+            <?php else: ?>
+                <div class="help-message-limit" style="background-color: #f0f9ff; border: 1px solid #0079FF; border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 14px; color: #0079FF;">
+                    📧 Du kannst heute noch <?php echo $remaining; ?> von <?php echo $daily_limit; ?> Nachrichten senden.
+                </div>
+                
+                <form method="POST" action="">
+                    <?php wp_nonce_field('yprint_help_contact_action', 'yprint_help_contact_nonce'); ?>
+                    
+                    <div class="help-form-group">
+                        <label for="contact_name" class="help-form-label">Name</label>
+                        <input type="text" id="contact_name" name="contact_name" class="help-form-input" placeholder="Dein Name" required value="<?php echo esc_attr($_POST['contact_name'] ?? ''); ?>">
+                    </div>
+                    
+                    <div class="help-form-group">
+                        <label for="contact_email" class="help-form-label">E-Mail</label>
+                        <input type="email" id="contact_email" name="contact_email" class="help-form-input" placeholder="deine@email.de" required value="<?php echo esc_attr($_POST['contact_email'] ?? ''); ?>">
+                    </div>
+                    
+                    <div class="help-form-group">
+                        <label for="contact_message" class="help-form-label">Nachricht</label>
+                        <textarea id="contact_message" name="contact_message" class="help-form-textarea" placeholder="Beschreibe dein Problem oder deine Frage..." required><?php echo esc_textarea($_POST['contact_message'] ?? ''); ?></textarea>
+                    </div>
+                    
+                    <?php
+                    // Turnstile Widget einbinden wenn aktiviert
+                    $turnstile = YPrint_Turnstile::get_instance();
+                    if ($turnstile->is_enabled() && in_array('contact_forms', $turnstile->get_protected_pages())) {
+                        echo '<div class="help-form-group">';
+                        echo $turnstile->render_widget('help-contact-form', 'light');
+                        echo '</div>';
+                    }
+                    ?>
+                    
+                    <div class="help-form-actions">
+                        <button type="button" class="help-btn help-btn--secondary" onclick="closeContactModal()">Abbrechen</button>
+                        <button type="submit" class="help-btn help-btn--primary">Nachricht senden</button>
+                    </div>
+                </form>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -1446,4 +1478,89 @@ function yprint_help_enqueue_scripts() {
     }
 }
 add_action('wp_enqueue_scripts', 'yprint_help_enqueue_scripts');
+
+/**
+ * Hilfsfunktionen für tägliche Nachrichtenanzahl
+ */
+
+/**
+ * Ermittelt die Anzahl der heute gesendeten Kontaktnachrichten
+ */
+function get_daily_contact_messages_count() {
+    $today = date('Y-m-d');
+    $cache_key = 'yprint_daily_contact_messages_' . $today;
+    
+    // Versuche aus Cache zu lesen
+    $count = wp_cache_get($cache_key, 'yprint_contact');
+    
+    if ($count === false) {
+        // Cache miss - aus Transients lesen
+        $count = get_transient($cache_key);
+        
+        if ($count === false) {
+            // Keine Daten für heute - setze auf 0
+            $count = 0;
+        }
+        
+        // Cache für 1 Stunde setzen
+        wp_cache_set($cache_key, $count, 'yprint_contact', HOUR_IN_SECONDS);
+    }
+    
+    return (int) $count;
+}
+
+/**
+ * Erhöht den Zähler für heute gesendete Kontaktnachrichten
+ */
+function increment_daily_contact_messages_count() {
+    $today = date('Y-m-d');
+    $cache_key = 'yprint_daily_contact_messages_' . $today;
+    
+    // Aktuelle Anzahl ermitteln
+    $current_count = get_daily_contact_messages_count();
+    $new_count = $current_count + 1;
+    
+    // In Transients speichern (bis Mitternacht)
+    $tomorrow = strtotime('tomorrow');
+    $seconds_until_midnight = $tomorrow - time();
+    
+    set_transient($cache_key, $new_count, $seconds_until_midnight);
+    
+    // Cache aktualisieren
+    wp_cache_set($cache_key, $new_count, 'yprint_contact', HOUR_IN_SECONDS);
+    
+    return $new_count;
+}
+
+/**
+ * Bereinigt alte Transients (wird automatisch von WordPress aufgerufen)
+ */
+function cleanup_old_contact_message_transients() {
+    global $wpdb;
+    
+    // Lösche Transients älter als 2 Tage
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options} 
+             WHERE option_name LIKE %s 
+             AND option_value < %d",
+            '_transient_yprint_daily_contact_messages_%',
+            strtotime('-2 days')
+        )
+    );
+    
+    // Lösche auch die entsprechenden _transient_timeout_ Einträge
+    $wpdb->query(
+        $wpdb->prepare(
+            "DELETE FROM {$wpdb->options} 
+             WHERE option_name LIKE %s 
+             AND option_value < %d",
+            '_transient_timeout_yprint_daily_contact_messages_%',
+            time() - (2 * DAY_IN_SECONDS)
+        )
+    );
+}
+
+// Registriere Cleanup-Hook
+add_action('wp_scheduled_delete', 'cleanup_old_contact_message_transients');
 ?>
