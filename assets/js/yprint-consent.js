@@ -46,6 +46,21 @@
             
             console.log('🍪 Banner gefunden:', this.banner.length > 0);
             console.log('🍪 Icon gefunden:', this.icon.length > 0);
+            
+            // Essenzielle Cookies immer als ausgewählt markieren
+            this.initializeEssentialCookies();
+        }
+        
+        initializeEssentialCookies() {
+            // Essenzielle Cookies immer ausgewählt
+            const essentialCategory = $('.yprint-cookie-category[data-cookie-type="essential"]');
+            const essentialCheckbox = $('#cookie-essential');
+            
+            if (essentialCategory.length && essentialCheckbox.length) {
+                essentialCheckbox.prop('checked', true);
+                essentialCategory.addClass('selected');
+                console.log('🍪 Essenzielle Cookies initialisiert');
+            }
         }
         
         bindEvents() {
