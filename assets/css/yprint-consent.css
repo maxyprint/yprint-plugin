@@ -398,3 +398,17 @@ button.yprint-cookie-btn:hover {
     transform: translateY(-1px) !important;
     box-shadow: 0 4px 12px rgba(0, 121, 255, 0.15) !important;
 }
+
+/* Notfall-Regel - absolute Priorität */
+.yprint-cookie-banner.yprint-hidden,
+.yprint-cookie-banner[hidden],
+.yprint-cookie-banner[aria-hidden="true"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: -9999px !important;
+    z-index: -1 !important;
+}
