@@ -47,6 +47,16 @@
     padding: var(--yprint-space-md) !important;
 }
 
+/* Verstecktes Banner - definitiv nicht sichtbar */
+.yprint-cookie-banner.yprint-hidden,
+.yprint-cookie-banner[style*="display: none"],
+.yprint-cookie-banner[style*="display:none"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
 .yprint-cookie-banner-overlay {
     position: absolute !important;
     top: 0 !important;

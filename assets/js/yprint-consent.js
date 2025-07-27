@@ -216,8 +216,19 @@
         
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
+            
+            // Mehrere Methoden zum Ausblenden verwenden
             this.banner.css('display', 'none');
+            this.banner.hide();
+            this.banner.addClass('yprint-hidden');
+            
+            // Zusätzlich: Inline-Style mit !important
+            this.banner.attr('style', 'display: none !important;');
+            
             $('body').removeClass('yprint-consent-open');
+            
+            console.log('🍪 Banner ausgeblendet - Display:', this.banner.css('display'));
+            console.log('🍪 Banner sichtbar:', this.banner.is(':visible'));
         }
         
         acceptAll() {
@@ -439,6 +450,9 @@
             console.log('- Banner gefunden:', this.banner.length > 0);
             console.log('- Icon gefunden:', this.icon.length > 0);
             console.log('- Banner sichtbar:', this.banner.is(':visible'));
+            console.log('- Banner Display:', this.banner.css('display'));
+            console.log('- Banner Style:', this.banner.attr('style'));
+            console.log('- Banner Classes:', this.banner.attr('class'));
             console.log('- Config geladen:', !!this.config);
             console.log('- AJAX URL:', this.config.ajaxUrl);
             
