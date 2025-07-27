@@ -261,6 +261,7 @@
             };
             
             console.log('🍪 Gesammelte Consent-States:', consents);
+            console.log('🍪 Rufe saveConsents auf...');
             
             // Speichere die Auswahl
             this.saveConsents(consents);
@@ -280,6 +281,10 @@
         saveConsents(consents) {
             const self = this;
             
+            console.log('🍪 saveConsents aufgerufen mit:', consents);
+            console.log('🍪 AJAX URL:', this.config.ajaxUrl);
+            console.log('🍪 Nonce:', this.config.nonce);
+            
             $.ajax({
                 url: this.config.ajaxUrl,
                 type: 'POST',
@@ -290,7 +295,11 @@
                     consents: consents,
                     version: '1.0'
                 },
+                beforeSend: function() {
+                    console.log('🍪 AJAX-Anfrage wird gesendet...');
+                },
                 success: (response) => {
+                    console.log('🍪 AJAX-Response erhalten:', response);
                     if (response.success) {
                         console.log('🍪 Consent erfolgreich gespeichert');
                         
@@ -320,6 +329,8 @@
                 },
                 error: (xhr, status, error) => {
                     console.error('🍪 Netzwerkfehler beim Speichern:', error);
+                    console.error('🍪 Status:', status);
+                    console.error('🍪 XHR:', xhr);
                     self.showNotification('Netzwerkfehler beim Speichern.', 'error');
                 }
             });
