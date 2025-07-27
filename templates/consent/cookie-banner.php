@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
 
 $consent_manager = YPrint_Consent_Manager::get_instance();
 $show_initially = $consent_manager->should_show_banner_initially();
-$display_style = $show_initially ? 'display: block;' : 'display: none;';
+$display_style = $show_initially ? 'display: flex;' : 'display: none;';
 ?>
 <div id="yprint-cookie-banner" class="yprint-cookie-banner" role="dialog" aria-modal="true" aria-labelledby="cookie-banner-title" aria-describedby="cookie-banner-description" style="<?php echo $display_style; ?>">
     <div class="yprint-cookie-banner-overlay"></div>

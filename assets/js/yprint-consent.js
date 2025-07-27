@@ -65,7 +65,10 @@
         
         bindEvents() {
             // Banner schließen
-            $(document).on('click', '.yprint-cookie-banner-close, .yprint-cookie-banner-overlay', () => {
+            $(document).on('click', '.yprint-cookie-banner-close, .yprint-cookie-banner-overlay', (e) => {
+                console.log('🍪 Schließen-Button geklickt');
+                e.preventDefault();
+                e.stopPropagation();
                 this.hideBanner();
             });
             
@@ -75,8 +78,11 @@
                 const checkbox = category.find('input[type="checkbox"]');
                 const cookieType = category.data('cookie-type');
                 
+                console.log('🍪 Cookie-Kategorie geklickt:', cookieType);
+                
                 // Essenzielle Cookies können nicht deaktiviert werden
                 if (cookieType === 'essential') {
+                    console.log('🍪 Essenzielle Cookies können nicht deaktiviert werden');
                     return;
                 }
                 
@@ -86,34 +92,54 @@
                 // Toggle visual state
                 if (checkbox.prop('checked')) {
                     category.addClass('selected');
+                    console.log('🍪 Kategorie ausgewählt:', cookieType);
                 } else {
                     category.removeClass('selected');
+                    console.log('🍪 Kategorie abgewählt:', cookieType);
                 }
             });
             
             // Alle akzeptieren
-            $(document).on('click', '#yprint-accept-all', () => {
+            $(document).on('click', '#yprint-accept-all', (e) => {
+                console.log('🍪 Alle akzeptieren geklickt');
+                e.preventDefault();
                 this.acceptAll();
             });
             
             // Auswahl speichern
-            $(document).on('click', '#yprint-save-preferences', () => {
+            $(document).on('click', '#yprint-save-preferences', (e) => {
+                console.log('🍪 Auswahl speichern geklickt');
+                e.preventDefault();
                 this.savePreferences();
             });
             
             // Einstellungen anzeigen
-            $(document).on('click', '#yprint-show-settings', () => {
+            $(document).on('click', '#yprint-show-settings', (e) => {
+                console.log('🍪 Einstellungen anzeigen geklickt');
+                e.preventDefault();
                 this.showDetailedSettings();
             });
             
             // Zurück zu einfacher Ansicht
-            $(document).on('click', '#yprint-back-to-simple', () => {
+            $(document).on('click', '#yprint-back-to-simple', (e) => {
+                console.log('🍪 Zurück zu einfacher Ansicht geklickt');
+                e.preventDefault();
                 this.hideDetailedSettings();
             });
             
             // Consent Icon
-            $(document).on('click', '#yprint-open-consent-settings', () => {
+            $(document).on('click', '#yprint-open-consent-settings', (e) => {
+                console.log('🍪 Consent Icon geklickt');
+                e.preventDefault();
                 this.showBanner();
+            });
+            
+            // ESC-Taste zum Schließen
+            $(document).on('keydown', (e) => {
+                if (e.key === 'Escape' && this.banner.is(':visible')) {
+                    console.log('🍪 ESC-Taste gedrückt - Banner schließen');
+                    this.hideBanner();
+                }
             });
             
             console.log('🍪 Event-Handler registriert');
@@ -184,13 +210,13 @@
         
         showBanner() {
             console.log('🍪 Banner wird angezeigt');
-            this.banner.fadeIn(300);
+            this.banner.css('display', 'flex');
             $('body').addClass('yprint-consent-open');
         }
         
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
-            this.banner.fadeOut(300);
+            this.banner.css('display', 'none');
             $('body').removeClass('yprint-consent-open');
         }
         
@@ -303,21 +329,21 @@
             console.log('🍪 Wende Cookie-Einstellungen an:', consents);
             
             // Google Analytics
-            if (consents.cookie_analytics && consents.cookie_analytics.granted) {
+            if (consents.cookie_analytics === true) {
                 this.loadGoogleAnalytics();
             } else {
                 this.blockGoogleAnalytics();
             }
             
             // Marketing Cookies
-            if (consents.cookie_marketing && consents.cookie_marketing.granted) {
+            if (consents.cookie_marketing === true) {
                 this.loadMarketingScripts();
             } else {
                 this.blockMarketingScripts();
             }
             
             // Funktionale Cookies
-            if (consents.cookie_functional && consents.cookie_functional.granted) {
+            if (consents.cookie_functional === true) {
                 this.loadFunctionalScripts();
             } else {
                 this.blockFunctionalScripts();
@@ -356,16 +382,33 @@
         showNotification(message, type = 'info') {
             // Einfache Notification (kann später durch dein bestehendes System ersetzt werden)
             const notification = $(`
-                <div class="yprint-notification yprint-notification-${type}">
+                <div class="yprint-notification yprint-notification-${type}" style="
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
+                    color: white;
+                    padding: 15px 20px;
+                    border-radius: 6px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 100000;
+                    font-family: 'Roboto', Arial, sans-serif;
+                    font-size: 14px;
+                    max-width: 300px;
+                    word-wrap: break-word;
+                ">
                     ${message}
                 </div>
             `);
             
             $('body').append(notification);
             
+            // Automatisch ausblenden nach 3 Sekunden
             setTimeout(() => {
                 notification.fadeOut(() => notification.remove());
             }, 3000);
+            
+            console.log(`🍪 Notification angezeigt: ${message} (${type})`);
         }
 
         forceCreateIcon() {
@@ -378,6 +421,19 @@
             `;
             $('body').append(iconHtml);
             console.log('🍪 Cookie Icon manuell hinzugefügt');
+        }
+        
+        debugCookieManager() {
+            console.log('🧪 Cookie Manager Debug:');
+            console.log('- Banner gefunden:', this.banner.length > 0);
+            console.log('- Icon gefunden:', this.icon.length > 0);
+            console.log('- Banner sichtbar:', this.banner.is(':visible'));
+            console.log('- Config geladen:', !!this.config);
+            console.log('- AJAX URL:', this.config.ajaxUrl);
+            
+            // Teste Event-Handler
+            console.log('🧪 Teste Event-Handler...');
+            $('#yprint-accept-all').trigger('click');
         }
     }
     
