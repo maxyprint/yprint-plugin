@@ -1,4 +1,4 @@
-/* YPrint Consent Styles */
+/* YPrint Consent Styles - Corporate Design konform */
 .yprint-cookie-banner {
     position: fixed;
     top: 0;
@@ -6,7 +6,7 @@
     width: 100%;
     height: 100%;
     z-index: 999999;
-    font-family: 'Roboto', Arial, sans-serif;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 .yprint-cookie-banner-overlay {
@@ -15,8 +15,8 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    backdrop-filter: blur(2px);
+    background: rgba(29, 29, 31, 0.6);
+    backdrop-filter: blur(4px);
 }
 
 .yprint-cookie-banner-content {
@@ -24,9 +24,9 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    background: #FFFFFF;
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05), 0 20px 60px rgba(0, 0, 0, 0.15);
     max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
@@ -37,190 +37,224 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 24px 24px 0;
-    border-bottom: 1px solid #e5e7eb;
+    padding: 30px 30px 0;
+    border-bottom: 1px solid #e5e5e5;
     margin-bottom: 20px;
 }
 
 .yprint-cookie-banner-header h3 {
     margin: 0;
-    font-size: 20px;
-    font-weight: 700;
-    color: #1f2937;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1d1d1f;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 .yprint-cookie-banner-close {
-    background: none;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    color: #6b7280;
-    padding: 0;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    transition: background-color 0.2s;
+    background: none !important;
+    border: none !important;
+    font-size: 24px !important;
+    cursor: pointer !important;
+    color: #6e6e73 !important;
+    padding: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    transition: background-color 0.2s ease !important;
 }
 
 .yprint-cookie-banner-close:hover {
-    background-color: #f3f4f6;
+    background-color: #F6F7FA !important;
+    color: #1d1d1f !important;
 }
 
 .yprint-cookie-banner-body {
-    padding: 0 24px;
+    padding: 0 30px;
 }
 
 .yprint-cookie-banner-body p {
-    color: #6b7280;
+    color: #6e6e73;
     line-height: 1.6;
-    margin-bottom: 24px;
+    margin-bottom: 20px;
+    font-size: 16px;
+    font-weight: 400;
 }
 
 .yprint-cookie-categories {
-    margin-bottom: 24px;
+    margin-bottom: 20px;
 }
 
 .yprint-cookie-category {
-    margin-bottom: 16px;
-    padding: 16px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    transition: border-color 0.2s;
+    margin-bottom: 10px;
+    padding: 20px;
+    border: 1px solid #e5e5e5;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    background: #FFFFFF;
 }
 
 .yprint-cookie-category:hover {
-    border-color: #2997FF;
+    border-color: #0079FF;
+    box-shadow: 0 2px 12px rgba(0, 121, 255, 0.08);
 }
 
 .yprint-cookie-category-label {
     display: flex;
     align-items: center;
     cursor: pointer;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .yprint-cookie-category-label input[type="checkbox"] {
     margin-right: 12px;
     transform: scale(1.2);
+    accent-color: #0079FF;
 }
 
 .yprint-cookie-category-title {
     font-weight: 600;
-    color: #1f2937;
+    color: #1d1d1f;
     font-size: 16px;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
 }
 
 .yprint-cookie-category-desc {
-    color: #6b7280;
+    color: #6e6e73;
     font-size: 14px;
     margin: 0;
     margin-left: 32px;
+    line-height: 1.4;
 }
 
 .yprint-cookie-banner-footer {
-    padding: 24px;
-    border-top: 1px solid #e5e7eb;
-    background: #f9fafb;
-    border-radius: 0 0 12px 12px;
+    padding: 30px;
+    border-top: 1px solid #e5e5e5;
+    background: #F6F7FA;
+    border-radius: 0 0 16px 16px;
 }
 
 .yprint-cookie-banner-actions {
     display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 10px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
 }
 
+/* Corporate Design konforme Buttons */
 .yprint-btn {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 14px;
+    padding: 12px 20px !important;
+    border: none !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    font-size: 14px !important;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 44px !important;
+    box-sizing: border-box !important;
 }
 
 .yprint-btn-primary {
-    background: #2997FF;
-    color: white;
+    background: #0079FF !important;
+    color: #FFFFFF !important;
 }
 
 .yprint-btn-primary:hover {
-    background: #1e7fff;
+    background: #0056b3 !important;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
 }
 
-.yprint-btn-secondary {
-    background: #f3f4f6;
-    color: #374151;
-    border: 1px solid #d1d5db;
+.yprint-btn-equal {
+    background: #f5f5f7 !important;
+    color: #1d1d1f !important;
+    border: 1px solid #e5e5e5 !important;
 }
 
-.yprint-btn-secondary:hover {
-    background: #e5e7eb;
+.yprint-btn-equal:hover {
+    background: #e5e5e5 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .yprint-cookie-banner-links {
     display: flex;
     gap: 20px;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .yprint-cookie-banner-links a {
-    color: #6b7280;
+    color: #6e6e73;
     text-decoration: none;
     font-size: 14px;
-    transition: color 0.2s;
+    font-weight: 400;
+    transition: color 0.2s ease;
 }
 
 .yprint-cookie-banner-links a:hover {
-    color: #2997FF;
+    color: #0079FF;
+    text-decoration: underline;
 }
 
-/* Consent Icon */
+/* Consent Icon - Corporate Design */
 .yprint-consent-icon {
     position: fixed;
     bottom: 20px;
     left: 20px;
-    z-index: 999;
+    z-index: 999998;
 }
 
 .yprint-consent-icon-btn {
-    background: #2997FF;
-    border: none;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(41, 151, 255, 0.3);
-    transition: all 0.3s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: #0079FF !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 60px !important;
+    height: 60px !important;
+    font-size: 24px !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3) !important;
+    transition: all 0.3s ease !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .yprint-consent-icon-btn:hover {
+    background: #0056b3 !important;
     transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(41, 151, 255, 0.4);
+    box-shadow: 0 6px 20px rgba(0, 121, 255, 0.4) !important;
 }
 
-/* Mobile Responsive */
+/* Mobile Responsive - Corporate Design konforme Anpassungen */
 @media (max-width: 768px) {
     .yprint-cookie-banner-content {
         width: 95%;
         max-height: 95vh;
+        border-radius: 12px;
     }
     
     .yprint-cookie-banner-header,
     .yprint-cookie-banner-body,
     .yprint-cookie-banner-footer {
-        padding-left: 16px;
-        padding-right: 16px;
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    .yprint-cookie-banner-header {
+        padding-top: 20px;
+    }
+    
+    .yprint-cookie-banner-footer {
+        padding-top: 20px;
+        padding-bottom: 20px;
     }
     
     .yprint-cookie-banner-actions {
@@ -228,8 +262,9 @@
     }
     
     .yprint-btn {
-        width: 100%;
-        text-align: center;
+        width: 100% !important;
+        text-align: center !important;
+        justify-content: center !important;
     }
     
     .yprint-consent-icon {
@@ -238,13 +273,19 @@
     }
     
     .yprint-consent-icon-btn {
-        width: 50px;
-        height: 50px;
-        font-size: 20px;
+        width: 50px !important;
+        height: 50px !important;
+        font-size: 20px !important;
+    }
+    
+    .yprint-cookie-banner-links {
+        flex-direction: column;
+        gap: 10px;
+        text-align: center;
     }
 }
 
-/* Minimale Cookie-Sektion */
+/* Minimale Cookie-Sektion für andere Bereiche */
 .yprint-cookie-section {
     margin: 15px 0 10px 0;
     text-align: center;
@@ -255,19 +296,20 @@ body .yprint-cookie-btn,
 .elementor-widget-container .yprint-cookie-btn,
 .yprint-cookie-section .yprint-cookie-btn,
 button.yprint-cookie-btn {
-    background: #ffffff !important;
-    border: 1px solid #e1e5e9 !important;
-    border-radius: 6px !important;
-    padding: 8px 16px !important;
-    font-size: 13px !important;
-    color: #666 !important;
+    background: #FFFFFF !important;
+    border: 1px solid #e5e5e5 !important;
+    border-radius: 10px !important;
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+    color: #1d1d1f !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
-    font-family: inherit !important;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif !important;
     display: inline-flex !important;
     align-items: center !important;
     gap: 8px !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05) !important;
+    font-weight: 600 !important;
 }
 
 body .yprint-cookie-btn:hover,
@@ -275,35 +317,36 @@ body .yprint-cookie-btn:hover,
 .elementor-widget-container .yprint-cookie-btn:hover,
 .yprint-cookie-section .yprint-cookie-btn:hover,
 button.yprint-cookie-btn:hover {
-    background: #f8f9fa !important;
-    border-color: #2997FF !important;
-    color: #2997FF !important;
+    background: #F6F7FA !important;
+    border-color: #0079FF !important;
+    color: #0079FF !important;
     transform: translateY(-1px) !important;
-    box-shadow: 0 2px 8px rgba(41, 151, 255, 0.15) !important;
+    box-shadow: 0 4px 12px rgba(0, 121, 255, 0.15) !important;
 }
 
 body #cookie-status-display,
 .elementor #cookie-status-display {
-    font-size: 11px !important;
-    color: #888 !important;
-    font-weight: normal !important;
+    font-size: 13px !important;
+    color: #6e6e73 !important;
+    font-weight: 400 !important;
+    margin-top: 5px !important;
 }
 
 .yprint-mobile-register-btn {
-    margin-top: 5px;
+    margin-top: 10px;
 }
 
 @media (max-width: 480px) {
     .yprint-cookie-btn {
-        font-size: 12px;
-        padding: 6px 12px;
+        font-size: 13px !important;
+        padding: 10px 16px !important;
     }
     #cookie-status-display {
-        font-size: 10px;
+        font-size: 12px !important;
     }
 }
 
-/* WordPress Override Protection */
+/* WordPress Theme Override Protection */
 body .yprint-cookie-banner,
 .wp-admin .yprint-cookie-banner,
 #wpadminbar ~ .yprint-cookie-banner {
@@ -313,7 +356,7 @@ body .yprint-cookie-banner,
     width: 100% !important;
     height: 100% !important;
     z-index: 999999 !important;
-    font-family: 'Roboto', Arial, sans-serif !important;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif !important;
 }
 
 body .yprint-consent-icon,
@@ -339,13 +382,31 @@ body .yprint-consent-icon,
     border-radius: 0 !important;
 }
 
-/* Dann die spezifischen Styles wieder anwenden */
+/* Spezifische Button-Styles wieder anwenden */
 .yprint-cookie-banner .yprint-btn {
-    padding: 12px 24px !important;
+    padding: 12px 20px !important;
     border: none !important;
-    border-radius: 6px !important;
+    border-radius: 10px !important;
     font-weight: 600 !important;
     cursor: pointer !important;
-    transition: all 0.2s !important;
+    transition: all 0.2s ease !important;
     font-size: 14px !important;
+    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif !important;
+}
+
+/* Accessibility Verbesserungen */
+.yprint-cookie-banner:focus-within {
+    outline: 2px solid #0079FF;
+    outline-offset: 4px;
+}
+
+.yprint-btn:focus {
+    outline: 2px solid #0079FF;
+    outline-offset: 2px;
+}
+
+.yprint-cookie-category-label:focus-within {
+    outline: 2px solid #0079FF;
+    outline-offset: 2px;
+    border-radius: 4px;
 }
