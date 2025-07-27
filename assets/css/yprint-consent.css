@@ -33,7 +33,7 @@
 
 /* 2. Base Banner Layout
 -------------------------------------------------- */
-.yprint-cookie-banner:not(.yprint-hidden) {
+.yprint-cookie-banner {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -47,22 +47,7 @@
     padding: var(--yprint-space-md) !important;
 }
 
-/* Verstecktes Banner - definitiv nicht sichtbar (höhere Spezifität) */
-.yprint-cookie-banner.yprint-hidden,
-.yprint-cookie-banner[style*="display: none"],
-.yprint-cookie-banner[style*="display:none"],
-.yprint-cookie-banner[style*="display: none !important"],
-.yprint-cookie-banner[style*="display:none !important"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
-}
-
-/* Zusätzliche Regel für maximale Priorität */
+/* Verstecktes Banner */
 .yprint-cookie-banner.yprint-hidden {
     display: none !important;
 }
@@ -397,18 +382,4 @@ button.yprint-cookie-btn:hover {
     color: #0079FF !important;
     transform: translateY(-1px) !important;
     box-shadow: 0 4px 12px rgba(0, 121, 255, 0.15) !important;
-}
-
-/* Notfall-Regel - absolute Priorität */
-.yprint-cookie-banner.yprint-hidden,
-.yprint-cookie-banner[hidden],
-.yprint-cookie-banner[aria-hidden="true"] {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: -9999px !important;
-    z-index: -1 !important;
 }

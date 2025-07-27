@@ -217,30 +217,13 @@
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
             
-            // Sofortiges und aggressives Verstecken
+            // Einfache Lösung: Klasse hinzufügen
             this.banner.addClass('yprint-hidden');
-            this.banner.css({
-                'display': 'none !important',
-                'visibility': 'hidden !important',
-                'opacity': '0 !important',
-                'pointer-events': 'none !important',
-                'position': 'absolute !important',
-                'left': '-9999px !important',
-                'top': '-9999px !important'
-            });
-            
-            // Als Backup: Element auch per setAttribute verstecken
-            if (this.banner[0]) {
-                this.banner[0].style.setProperty('display', 'none', 'important');
-                this.banner[0].setAttribute('hidden', 'true');
-                this.banner[0].setAttribute('aria-hidden', 'true');
-            }
             
             $('body').removeClass('yprint-consent-open');
             
             console.log('🍪 Banner ausgeblendet - Display:', this.banner.css('display'));
             console.log('🍪 Banner sichtbar:', this.banner.is(':visible'));
-            console.log('🍪 Banner Klassen:', this.banner.attr('class'));
         }
         
         acceptAll() {
