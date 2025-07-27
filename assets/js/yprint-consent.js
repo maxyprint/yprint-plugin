@@ -96,9 +96,9 @@
                 this.acceptAll();
             });
             
-            // Alle ablehnen
-            $(document).on('click', '#yprint-reject-all', () => {
-                this.rejectAll();
+            // Auswahl speichern
+            $(document).on('click', '#yprint-save-preferences', () => {
+                this.savePreferences();
             });
             
             // Einstellungen anzeigen
@@ -109,11 +109,6 @@
             // Zurück zu einfacher Ansicht
             $(document).on('click', '#yprint-back-to-simple', () => {
                 this.hideDetailedSettings();
-            });
-            
-            // Auswahl speichern
-            $(document).on('click', '#yprint-save-preferences', () => {
-                this.savePreferences();
             });
             
             // Consent Icon
@@ -169,14 +164,16 @@
                 const checkbox = $(`#cookie-${type.toLowerCase().replace('cookie_', '')}`);
                 const category = checkbox.closest('.yprint-cookie-category');
                 
-                if (checkbox.length) {
+                if (checkbox.length && category.length) {
                     checkbox.prop('checked', consents[type].granted);
                     
                     // Visuellen State setzen
                     if (consents[type].granted) {
                         category.addClass('selected');
+                        console.log(`🍪 ${type} als ausgewählt markiert`);
                     } else {
                         category.removeClass('selected');
+                        console.log(`🍪 ${type} als nicht ausgewählt markiert`);
                     }
                 }
             });
@@ -207,30 +204,11 @@
                 'cookie_functional': true
             };
             
-            // Visuelle States setzen
+            // Visuelle States setzen - alle Kategorien als ausgewählt markieren
             $('.yprint-cookie-category').addClass('selected');
             $('.yprint-cookie-category input[type="checkbox"]').prop('checked', true);
             
-            this.saveConsents(consents);
-        }
-        
-        rejectAll() {
-            console.log('🍪 Alle nicht-notwendigen Cookies abgelehnt');
-            
-            const consents = {
-                'cookie_essential': true,    // Technisch notwendig, immer true
-                'cookie_analytics': false,
-                'cookie_marketing': false,
-                'cookie_functional': false
-            };
-            
-            // Visuelle States setzen
-            $('.yprint-cookie-category').removeClass('selected');
-            $('.yprint-cookie-category input[type="checkbox"]').prop('checked', false);
-            
-            // Essenzielle Cookies immer ausgewählt
-            $('#cookie-essential').prop('checked', true);
-            $('.yprint-cookie-category[data-cookie-type="essential"]').addClass('selected');
+            console.log('🍪 Alle Cookie-Kategorien als ausgewählt markiert');
             
             this.saveConsents(consents);
         }
@@ -248,6 +226,7 @@
         savePreferences() {
             console.log('🍪 Benutzerdefinierte Auswahl wird gespeichert');
             
+            // Sammle alle aktuellen Checkbox-States
             const consents = {
                 'cookie_essential': true, // Immer true
                 'cookie_analytics': $('#cookie-analytics').is(':checked'),
@@ -255,6 +234,9 @@
                 'cookie_functional': $('#cookie-functional').is(':checked')
             };
             
+            console.log('🍪 Gesammelte Consent-States:', consents);
+            
+            // Speichere die Auswahl
             this.saveConsents(consents);
         }
         

@@ -79,9 +79,6 @@ $display_style = $show_initially ? 'display: block;' : 'display: none;';
                 <button type="button" id="yprint-save-preferences" class="yprint-btn yprint-btn-primary">
                     Auswahl speichern
                 </button>
-                <button type="button" id="yprint-reject-all" class="yprint-btn yprint-btn-secondary">
-                    Nur essenzielle Cookies
-                </button>
             </div>
             
             <div class="yprint-cookie-banner-links">
