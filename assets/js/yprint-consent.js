@@ -26,6 +26,17 @@
                 this.bindEvents();
                 this.loadTexts();
                 this.checkConsentStatus();
+                
+                // Debug: Forciere Icon-Anzeige für Tests
+                setTimeout(() => {
+                    if ($('#yprint-consent-icon').length === 0) {
+                        console.log('🚨 Cookie Icon nicht gefunden - füge es hinzu');
+                        this.forceCreateIcon();
+                    } else {
+                        console.log('✅ Cookie Icon gefunden');
+                        $('#yprint-consent-icon').show();
+                    }
+                }, 1000);
             });
         }
         
@@ -315,6 +326,18 @@
             setTimeout(() => {
                 notification.fadeOut(() => notification.remove());
             }, 3000);
+        }
+
+        forceCreateIcon() {
+            const iconHtml = `
+                <div id="yprint-consent-icon" class="yprint-consent-icon">
+                    <button type="button" id="yprint-open-consent-settings" class="yprint-consent-icon-btn" title="Cookie-Einstellungen">
+                        🍪
+                    </button>
+                </div>
+            `;
+            $('body').append(iconHtml);
+            console.log('🍪 Cookie Icon manuell hinzugefügt');
         }
     }
     

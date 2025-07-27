@@ -54,6 +54,57 @@ class YPrint_Consent_Manager {
         wp_enqueue_style('yprint-consent', YPRINT_PLUGIN_URL . 'assets/css/yprint-consent.css', array(), YPRINT_PLUGIN_VERSION);
         wp_enqueue_script('yprint-consent', YPRINT_PLUGIN_URL . 'assets/js/yprint-consent.js', array('jquery'), YPRINT_PLUGIN_VERSION, true);
         
+        // Inline CSS für höhere Priorität hinzufügen
+        wp_add_inline_style('yprint-consent', '
+            /* Forciere YPrint Consent Styles */
+            .yprint-cookie-banner-close {
+                background: none !important;
+                border: none !important;
+                font-size: 24px !important;
+                cursor: pointer !important;
+                color: #6b7280 !important;
+                padding: 0 !important;
+                width: 32px !important;
+                height: 32px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                border-radius: 50% !important;
+                transition: background-color 0.2s !important;
+            }
+            
+            .yprint-consent-icon-btn {
+                background: #2997FF !important;
+                border: none !important;
+                border-radius: 50% !important;
+                width: 60px !important;
+                height: 60px !important;
+                font-size: 24px !important;
+                cursor: pointer !important;
+                box-shadow: 0 4px 12px rgba(41, 151, 255, 0.3) !important;
+                transition: all 0.3s !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            
+            .yprint-btn {
+                padding: 12px 24px !important;
+                border: none !important;
+                border-radius: 6px !important;
+                font-weight: 600 !important;
+                cursor: pointer !important;
+                transition: all 0.2s !important;
+                font-size: 14px !important;
+                font-family: "Roboto", Arial, sans-serif !important;
+            }
+            
+            .yprint-btn-primary {
+                background: #2997FF !important;
+                color: white !important;
+            }
+        ');
+        
         wp_localize_script('yprint-consent', 'yprintConsent', array(
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('yprint_consent_nonce'),
@@ -74,9 +125,8 @@ class YPrint_Consent_Manager {
      * Consent-Icon rendern (permanent)
      */
     public function render_consent_icon() {
-        if ($this->should_show_icon()) {
-            include YPRINT_PLUGIN_DIR . 'templates/consent/consent-icon.php';
-        }
+        // Icon IMMER rendern für einfache Zugänglichkeit
+        include YPRINT_PLUGIN_DIR . 'templates/consent/consent-icon.php';
     }
     
     /**
@@ -109,12 +159,19 @@ class YPrint_Consent_Manager {
      * Prüfen ob Icon angezeigt werden soll
      */
     private function should_show_icon() {
-        // Icon IMMER anzeigen für Nutzer mit getroffener Entscheidung
+        // Icon IMMER anzeigen (nach einer initialen Entscheidung)
         if (is_user_logged_in()) {
             return $this->has_any_consent_decision(get_current_user_id());
         } else {
             return $this->has_guest_consent_decision();
         }
+    }
+
+    /**
+     * Icon für erste Besucher auch anzeigen (temporär)
+     */
+    public function should_show_icon_always() {
+        return true; // Icon immer anzeigen
     }
     
     /**

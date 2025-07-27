@@ -302,3 +302,50 @@ body #cookie-status-display,
         font-size: 10px;
     }
 }
+
+/* WordPress Override Protection */
+body .yprint-cookie-banner,
+.wp-admin .yprint-cookie-banner,
+#wpadminbar ~ .yprint-cookie-banner {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 999999 !important;
+    font-family: 'Roboto', Arial, sans-serif !important;
+}
+
+body .yprint-consent-icon,
+.wp-admin .yprint-consent-icon {
+    position: fixed !important;
+    bottom: 20px !important;
+    left: 20px !important;
+    z-index: 999998 !important;
+}
+
+/* Button Reset für WordPress Themes */
+.yprint-cookie-banner button,
+.yprint-consent-icon button {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font: inherit !important;
+    cursor: pointer !important;
+    outline: inherit !important;
+    text-decoration: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
+/* Dann die spezifischen Styles wieder anwenden */
+.yprint-cookie-banner .yprint-btn {
+    padding: 12px 24px !important;
+    border: none !important;
+    border-radius: 6px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    font-size: 14px !important;
+}
