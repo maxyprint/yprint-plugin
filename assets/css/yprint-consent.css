@@ -33,7 +33,7 @@
 
 /* 2. Base Banner Layout
 -------------------------------------------------- */
-.yprint-cookie-banner {
+.yprint-cookie-banner:not(.yprint-hidden) {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -62,8 +62,8 @@
     top: -9999px !important;
 }
 
-/* Zusätzliche Regel für versteckte Banner */
-.yprint-cookie-banner[style*="display: none"] {
+/* Zusätzliche Regel für maximale Priorität */
+.yprint-cookie-banner.yprint-hidden {
     display: none !important;
 }
 

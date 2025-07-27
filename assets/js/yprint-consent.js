@@ -69,25 +69,7 @@
                 console.log('🍪 Schließen-Button geklickt');
                 e.preventDefault();
                 e.stopPropagation();
-                
-                // Banner direkt entfernen
-                const bannerElement = document.getElementById('yprint-cookie-banner');
-                if (bannerElement) {
-                    bannerElement.style.setProperty('display', 'none', 'important');
-                    bannerElement.style.setProperty('visibility', 'hidden', 'important');
-                    bannerElement.style.setProperty('opacity', '0', 'important');
-                    bannerElement.style.setProperty('pointer-events', 'none', 'important');
-                    bannerElement.style.setProperty('position', 'absolute', 'important');
-                    bannerElement.style.setProperty('left', '-9999px', 'important');
-                    bannerElement.style.setProperty('top', '-9999px', 'important');
-                    console.log('🍪 Banner über X-Button ausgeblendet');
-                    
-                    // Banner komplett entfernen
-                    bannerElement.remove();
-                    console.log('🍪 Banner über X-Button entfernt');
-                }
-                
-                $('body').removeClass('yprint-consent-open');
+                this.hideBanner();
             });
             
             // Cookie-Kategorien klickbar machen
@@ -235,23 +217,11 @@
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
             
-            // Direkte DOM-Manipulation mit höchster Priorität
-            const bannerElement = document.getElementById('yprint-cookie-banner');
-            if (bannerElement) {
-                bannerElement.style.setProperty('display', 'none', 'important');
-                bannerElement.style.setProperty('visibility', 'hidden', 'important');
-                bannerElement.style.setProperty('opacity', '0', 'important');
-                bannerElement.style.setProperty('pointer-events', 'none', 'important');
-                bannerElement.style.setProperty('position', 'absolute', 'important');
-                bannerElement.style.setProperty('left', '-9999px', 'important');
-                bannerElement.style.setProperty('top', '-9999px', 'important');
-                console.log('🍪 Banner über DOM-API ausgeblendet');
-            }
-            
-            // jQuery als Backup
-            this.banner.css('display', 'none');
-            this.banner.hide();
+            // Einfache Lösung: Klasse hinzufügen (CSS macht den Rest)
             this.banner.addClass('yprint-hidden');
+            
+            // Zusätzlich: Inline-Style für maximale Sicherheit
+            this.banner.css('display', 'none');
             
             $('body').removeClass('yprint-consent-open');
             
@@ -345,27 +315,8 @@
                         // Cookies entsprechend setzen
                         self.applyCookieSettings(consents);
                         
-                        // Banner direkt entfernen (Umgehung des hideBanner Problems)
-                        console.log('🍪 Entferne Banner direkt...');
-                        const bannerElement = document.getElementById('yprint-cookie-banner');
-                        if (bannerElement) {
-                            bannerElement.style.setProperty('display', 'none', 'important');
-                            bannerElement.style.setProperty('visibility', 'hidden', 'important');
-                            bannerElement.style.setProperty('opacity', '0', 'important');
-                            bannerElement.style.setProperty('pointer-events', 'none', 'important');
-                            bannerElement.style.setProperty('position', 'absolute', 'important');
-                            bannerElement.style.setProperty('left', '-9999px', 'important');
-                            bannerElement.style.setProperty('top', '-9999px', 'important');
-                            console.log('🍪 Banner direkt ausgeblendet');
-                        }
-                        
-                        // Zusätzlich: Banner komplett entfernen
-                        if (bannerElement) {
-                            bannerElement.remove();
-                            console.log('🍪 Banner komplett entfernt');
-                        }
-                        
-                        $('body').removeClass('yprint-consent-open');
+                        // Banner schließen
+                        self.hideBanner();
                         
                         // Wenn aus Registrierung aufgerufen: Event triggern
                         if (self.registrationCallback) {
