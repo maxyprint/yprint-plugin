@@ -46,6 +46,12 @@ function yprint_help_shortcode() {
                     $form_errors[] = 'Nachricht ist erforderlich';
                 }
                 
+                // Hack-Schutz: Code-Injection und böswillige Inhalte blockieren
+                $security_errors = validate_contact_form_security($name, $email, $message);
+                if (!empty($security_errors)) {
+                    $form_errors = array_merge($form_errors, $security_errors);
+                }
+                
                 // E-Mail senden wenn keine Fehler
                 if (empty($form_errors)) {
                     $subject = 'YPrint Hilfe - Kontaktanfrage von ' . $name;
@@ -64,6 +70,13 @@ function yprint_help_shortcode() {
                     if (wp_mail('info@yprint.de', $subject, $body, $headers)) {
                         // Nachricht erfolgreich gesendet - Zähler erhöhen
                         increment_daily_contact_messages_count();
+                        
+                        // IP-Rate-Limiting erhöhen
+                        $ip_address = get_client_ip_address();
+                        $ip_key = 'yprint_contact_ip_' . md5($ip_address);
+                        $ip_count = get_transient($ip_key) ?: 0;
+                        set_transient($ip_key, $ip_count + 1, HOUR_IN_SECONDS);
+                        
                         $message_sent = true;
                     } else {
                         $form_errors[] = 'Fehler beim Senden der Nachricht. Bitte versuche es später erneut.';
@@ -1478,6 +1491,246 @@ function yprint_help_enqueue_scripts() {
     }
 }
 add_action('wp_enqueue_scripts', 'yprint_help_enqueue_scripts');
+
+/**
+ * Umfassende Sicherheitsvalidierung für Kontaktformular
+ */
+function validate_contact_form_security($name, $email, $message) {
+    $errors = array();
+    
+    // 1. SQL-Injection Schutz
+    $sql_patterns = array(
+        '/\b(union|select|insert|update|delete|drop|create|alter|exec|execute|script)\b/i',
+        '/[\'";]/',
+        '/--/',
+        '/\/\*.*\*\//',
+        '/xp_cmdshell/i',
+        '/sp_/i'
+    );
+    
+    foreach ($sql_patterns as $pattern) {
+        if (preg_match($pattern, $name) || preg_match($pattern, $email) || preg_match($pattern, $message)) {
+            $errors[] = 'Ungültige Zeichen in der Eingabe erkannt';
+            break;
+        }
+    }
+    
+    // 2. XSS-Schutz (Cross-Site Scripting)
+    $xss_patterns = array(
+        '/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i',
+        '/javascript:/i',
+        '/vbscript:/i',
+        '/onload\s*=/i',
+        '/onerror\s*=/i',
+        '/onclick\s*=/i',
+        '/onmouseover\s*=/i',
+        '/<iframe/i',
+        '/<object/i',
+        '/<embed/i',
+        '/<applet/i',
+        '/<meta/i',
+        '/<link/i',
+        '/<style/i',
+        '/<form/i',
+        '/<input/i',
+        '/<textarea/i',
+        '/<select/i',
+        '/<button/i',
+        '/<img\s+[^>]*on\w+\s*=/i',
+        '/<a\s+[^>]*on\w+\s*=/i'
+    );
+    
+    foreach ($xss_patterns as $pattern) {
+        if (preg_match($pattern, $name) || preg_match($pattern, $email) || preg_match($pattern, $message)) {
+            $errors[] = 'HTML-Code ist nicht erlaubt';
+            break;
+        }
+    }
+    
+    // 3. PHP-Code-Injection
+    $php_patterns = array(
+        '/<\?php/i',
+        '/<\?=/i',
+        '/<\?/i',
+        '/\?>$/i',
+        '/\$_/',
+        '/\$[a-zA-Z_][a-zA-Z0-9_]*/',
+        '/function\s*\(/i',
+        '/class\s+\w+/i',
+        '/namespace\s+\w+/i',
+        '/use\s+\w+/i',
+        '/include\s*\(/i',
+        '/require\s*\(/i',
+        '/eval\s*\(/i',
+        '/system\s*\(/i',
+        '/exec\s*\(/i',
+        '/shell_exec\s*\(/i',
+        '/passthru\s*\(/i'
+    );
+    
+    foreach ($php_patterns as $pattern) {
+        if (preg_match($pattern, $name) || preg_match($pattern, $email) || preg_match($pattern, $message)) {
+            $errors[] = 'Programmcode ist nicht erlaubt';
+            break;
+        }
+    }
+    
+    // 4. Shell-Command-Injection
+    $shell_patterns = array(
+        '/\||&|;|`|\$\(/',
+        '/\b(cat|ls|pwd|whoami|id|uname|ps|top|kill|rm|cp|mv|chmod|chown)\b/i',
+        '/\b(wget|curl|nc|netcat|telnet|ssh|scp|rsync)\b/i',
+        '/\b(echo|printf|grep|sed|awk|cut|sort|uniq|head|tail)\b/i',
+        '/\b(if|then|else|fi|for|while|do|done|case|esac)\b/i',
+        '/\b(export|set|unset|env|source|\.)\b/i'
+    );
+    
+    foreach ($shell_patterns as $pattern) {
+        if (preg_match($pattern, $name) || preg_match($pattern, $email) || preg_match($pattern, $message)) {
+            $errors[] = 'Shell-Befehle sind nicht erlaubt';
+            break;
+        }
+    }
+    
+    // 5. Länge und Format-Validierung
+    if (strlen($name) > 100) {
+        $errors[] = 'Name ist zu lang (max. 100 Zeichen)';
+    }
+    
+    if (strlen($email) > 254) {
+        $errors[] = 'E-Mail-Adresse ist zu lang';
+    }
+    
+    if (strlen($message) > 2000) {
+        $errors[] = 'Nachricht ist zu lang (max. 2000 Zeichen)';
+    }
+    
+    if (strlen($message) < 10) {
+        $errors[] = 'Nachricht ist zu kurz (min. 10 Zeichen)';
+    }
+    
+    // 6. Verdächtige Zeichenketten
+    $suspicious_patterns = array(
+        '/\b(admin|root|test|guest|anonymous)\b/i',
+        '/\b(password|passwd|pwd|secret|key|token)\b/i',
+        '/\b(login|signin|auth|authentication)\b/i',
+        '/\b(sql|mysql|postgres|oracle|database)\b/i',
+        '/\b(server|host|localhost|127\.0\.0\.1)\b/i',
+        '/\b(ftp|http|https|ssh|telnet)\b/i',
+        '/\b(exploit|hack|crack|bypass|inject)\b/i',
+        '/\b(union|select|insert|update|delete)\b/i',
+        '/\b(alert|confirm|prompt)\b/i',
+        '/\b(document|window|location|history)\b/i',
+        '/\b(cookie|localStorage|sessionStorage)\b/i',
+        '/\b(xmlhttprequest|fetch|ajax)\b/i'
+    );
+    
+    foreach ($suspicious_patterns as $pattern) {
+        if (preg_match($pattern, $name) || preg_match($pattern, $email) || preg_match($pattern, $message)) {
+            $errors[] = 'Verdächtige Inhalte erkannt';
+            break;
+        }
+    }
+    
+    // 7. URL-Injection
+    if (preg_match('/https?:\/\/[^\s]+/', $name) || preg_match('/https?:\/\/[^\s]+/', $email) || preg_match('/https?:\/\/[^\s]+/', $message)) {
+        $errors[] = 'URLs sind nicht erlaubt';
+    }
+    
+    // 8. E-Mail-Injection
+    if (preg_match('/\bcc\s*:/i', $message) || preg_match('/\bbcc\s*:/i', $message) || preg_match('/\bto\s*:/i', $message)) {
+        $errors[] = 'E-Mail-Header-Injection erkannt';
+    }
+    
+    // 9. Unicode/Normalization-Angriffe
+    $normalized_name = normalizer_normalize($name, Normalizer::FORM_C);
+    $normalized_email = normalizer_normalize($email, Normalizer::FORM_C);
+    $normalized_message = normalizer_normalize($message, Normalizer::FORM_C);
+    
+    if ($normalized_name !== $name || $normalized_email !== $email || $normalized_message !== $message) {
+        $errors[] = 'Ungültige Zeichenkodierung erkannt';
+    }
+    
+    // 10. Rate-Limiting pro IP (zusätzlich zum täglichen Limit)
+    $ip_address = get_client_ip_address();
+    $ip_key = 'yprint_contact_ip_' . md5($ip_address);
+    $ip_count = get_transient($ip_key) ?: 0;
+    
+    if ($ip_count >= 5) { // Max 5 Versuche pro Stunde pro IP
+        $errors[] = 'Zu viele Versuche von dieser IP-Adresse. Bitte warten Sie eine Stunde.';
+    }
+    
+    // 11. Logging für Sicherheitsvorfälle
+    if (!empty($errors)) {
+        log_security_incident($ip_address, $name, $email, $message, $errors);
+    }
+    
+    return $errors;
+}
+
+/**
+ * Client IP-Adresse ermitteln
+ */
+function get_client_ip_address() {
+    $ip_keys = array('HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'REMOTE_ADDR');
+    
+    foreach ($ip_keys as $key) {
+        if (array_key_exists($key, $_SERVER) === true) {
+            foreach (array_map('trim', explode(',', $_SERVER[$key])) as $ip) {
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) {
+                    return $ip;
+                }
+            }
+        }
+    }
+    
+    return isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '0.0.0.0';
+}
+
+/**
+ * Sicherheitsvorfälle loggen
+ */
+function log_security_incident($ip, $name, $email, $message, $errors) {
+    $log_entry = array(
+        'timestamp' => current_time('mysql'),
+        'ip_address' => $ip,
+        'user_agent' => isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '',
+        'name' => substr($name, 0, 50), // Nur erste 50 Zeichen loggen
+        'email' => substr($email, 0, 50),
+        'message_preview' => substr($message, 0, 100), // Nur erste 100 Zeichen loggen
+        'errors' => $errors,
+        'url' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+        'referer' => isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : ''
+    );
+    
+    // In WordPress Error Log schreiben
+    error_log('YPRINT SECURITY: ' . json_encode($log_entry));
+    
+    // Optional: In Datenbank speichern (falls Tabelle existiert)
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'yprint_security_log';
+    
+    // Prüfe ob Tabelle existiert
+    $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name;
+    
+    if ($table_exists) {
+        $wpdb->insert(
+            $table_name,
+            array(
+                'timestamp' => $log_entry['timestamp'],
+                'ip_address' => $log_entry['ip_address'],
+                'user_agent' => $log_entry['user_agent'],
+                'name' => $log_entry['name'],
+                'email' => $log_entry['email'],
+                'message_preview' => $log_entry['message_preview'],
+                'errors' => json_encode($log_entry['errors']),
+                'url' => $log_entry['url'],
+                'referer' => $log_entry['referer']
+            ),
+            array('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')
+        );
+    }
+}
 
 /**
  * Hilfsfunktionen für tägliche Nachrichtenanzahl
