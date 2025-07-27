@@ -54,6 +54,28 @@
                 this.hideBanner();
             });
             
+            // Cookie-Kategorien klickbar machen
+            $(document).on('click', '.yprint-cookie-category', (e) => {
+                const category = $(e.currentTarget);
+                const checkbox = category.find('input[type="checkbox"]');
+                const cookieType = category.data('cookie-type');
+                
+                // Essenzielle Cookies können nicht deaktiviert werden
+                if (cookieType === 'essential') {
+                    return;
+                }
+                
+                // Toggle checkbox state
+                checkbox.prop('checked', !checkbox.prop('checked'));
+                
+                // Toggle visual state
+                if (checkbox.prop('checked')) {
+                    category.addClass('selected');
+                } else {
+                    category.removeClass('selected');
+                }
+            });
+            
             // Alle akzeptieren
             $(document).on('click', '#yprint-accept-all', () => {
                 this.acceptAll();
@@ -127,11 +149,20 @@
                 return;
             }
             
-            // Checkboxen mit aktuellen Werten setzen
+            // Checkboxen mit aktuellen Werten setzen und visuelle States aktualisieren
             Object.keys(consents).forEach(type => {
                 const checkbox = $(`#cookie-${type.toLowerCase().replace('cookie_', '')}`);
+                const category = checkbox.closest('.yprint-cookie-category');
+                
                 if (checkbox.length) {
                     checkbox.prop('checked', consents[type].granted);
+                    
+                    // Visuellen State setzen
+                    if (consents[type].granted) {
+                        category.addClass('selected');
+                    } else {
+                        category.removeClass('selected');
+                    }
                 }
             });
             
@@ -161,6 +192,10 @@
                 'cookie_functional': true
             };
             
+            // Visuelle States setzen
+            $('.yprint-cookie-category').addClass('selected');
+            $('.yprint-cookie-category input[type="checkbox"]').prop('checked', true);
+            
             this.saveConsents(consents);
         }
         
@@ -173,6 +208,14 @@
                 'cookie_marketing': false,
                 'cookie_functional': false
             };
+            
+            // Visuelle States setzen
+            $('.yprint-cookie-category').removeClass('selected');
+            $('.yprint-cookie-category input[type="checkbox"]').prop('checked', false);
+            
+            // Essenzielle Cookies immer ausgewählt
+            $('#cookie-essential').prop('checked', true);
+            $('.yprint-cookie-category[data-cookie-type="essential"]').addClass('selected');
             
             this.saveConsents(consents);
         }

@@ -29,56 +29,44 @@ $display_style = $show_initially ? 'display: block;' : 'display: none;';
             </p>
             
             <div class="yprint-cookie-categories">
-                <div class="yprint-cookie-category">
+                <div class="yprint-cookie-category" data-cookie-type="essential">
                     <div class="yprint-cookie-category-info">
                         <div class="yprint-cookie-category-label">
                             <span class="yprint-cookie-category-title">Essenzielle Cookies</span>
                         </div>
                         <p class="yprint-cookie-category-desc">Diese Cookies sind für die Grundfunktionen der Website erforderlich.</p>
                     </div>
-                    <label class="yprint-toggle-switch">
-                        <input type="checkbox" id="cookie-essential" checked disabled>
-                        <span class="yprint-slider"></span>
-                    </label>
+                    <input type="checkbox" id="cookie-essential" checked disabled style="display: none;">
                 </div>
                 
-                <div class="yprint-cookie-category">
+                <div class="yprint-cookie-category" data-cookie-type="analytics">
                     <div class="yprint-cookie-category-info">
                         <div class="yprint-cookie-category-label">
                             <span class="yprint-cookie-category-title">Analyse Cookies</span>
                         </div>
                         <p class="yprint-cookie-category-desc">Helfen uns zu verstehen, wie Besucher mit der Website interagieren.</p>
                     </div>
-                    <label class="yprint-toggle-switch">
-                        <input type="checkbox" id="cookie-analytics">
-                        <span class="yprint-slider"></span>
-                    </label>
+                    <input type="checkbox" id="cookie-analytics" style="display: none;">
                 </div>
                 
-                <div class="yprint-cookie-category">
+                <div class="yprint-cookie-category" data-cookie-type="marketing">
                     <div class="yprint-cookie-category-info">
                         <div class="yprint-cookie-category-label">
                             <span class="yprint-cookie-category-title">Marketing Cookies</span>
                         </div>
                         <p class="yprint-cookie-category-desc">Werden verwendet, um dir relevante Anzeigen zu zeigen.</p>
                     </div>
-                    <label class="yprint-toggle-switch">
-                        <input type="checkbox" id="cookie-marketing">
-                        <span class="yprint-slider"></span>
-                    </label>
+                    <input type="checkbox" id="cookie-marketing" style="display: none;">
                 </div>
                 
-                <div class="yprint-cookie-category">
+                <div class="yprint-cookie-category" data-cookie-type="functional">
                     <div class="yprint-cookie-category-info">
                         <div class="yprint-cookie-category-label">
                             <span class="yprint-cookie-category-title">Funktionale Cookies</span>
                         </div>
                         <p class="yprint-cookie-category-desc">Ermöglichen erweiterte Funktionalitäten und Personalisierung.</p>
                     </div>
-                    <label class="yprint-toggle-switch">
-                        <input type="checkbox" id="cookie-functional">
-                        <span class="yprint-slider"></span>
-                    </label>
+                    <input type="checkbox" id="cookie-functional" style="display: none;">
                 </div>
             </div>
         </div>
