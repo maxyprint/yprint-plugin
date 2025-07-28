@@ -233,7 +233,6 @@ function yprint_get_legal_platform_styles() {
             padding: 20px;
             min-height: 100vh;
             font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            line-height: 1.6;
         }
 
         /* Sidebar Navigation - Feste Breite, Sticky */
@@ -245,11 +244,9 @@ function yprint_get_legal_platform_styles() {
             gap: 8px;
             padding: 30px;
             border-radius: 16px;
-            background: linear-gradient(145deg, #ffffff 0%, #f8f9fa 100%);
+            background: #ffffff;
             border: 1px solid #e1e8ed;
-            box-shadow: 
-                0 10px 25px rgba(0, 0, 0, 0.08),
-                0 4px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
             height: fit-content;
             position: sticky;
             top: 20px;
@@ -260,19 +257,14 @@ function yprint_get_legal_platform_styles() {
         .yprint-legal-content-area {
             flex: 1;
             min-width: 0;
-            display: flex;
-            flex-direction: column;
         }
 
         .yprint-legal-content-wrapper {
             background: #ffffff;
             border-radius: 16px;
-            padding: 0;
-            box-shadow: 
-                0 10px 25px rgba(0, 0, 0, 0.08),
-                0 4px 10px rgba(0, 0, 0, 0.05);
+            padding: 50px;
             border: 1px solid #e1e8ed;
-            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
             min-height: 600px;
         }
 
@@ -293,38 +285,19 @@ function yprint_get_legal_platform_styles() {
             padding: 16px 18px;
             text-decoration: none;
             color: #4a5568;
-            background: linear-gradient(145deg, #ffffff 0%, #f7fafc 100%);
+            background: #ffffff;
             border-radius: 12px;
             font-size: 15px;
             font-weight: 500;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.2s ease;
             border: 1px solid #e2e8f0;
-            position: relative;
-            overflow: hidden;
             margin-bottom: 4px;
         }
 
-        .yprint-legal-button::before {
-            content: "";
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 121, 255, 0.1), transparent);
-            transition: left 0.5s;
-        }
-
-        .yprint-legal-button:hover::before {
-            left: 100%;
-        }
-
         .yprint-legal-button:hover {
-            background: linear-gradient(145deg, #f7fafc 0%, #edf2f7 100%);
+            background: #f7fafc;
             border-color: #0079FF;
             color: #0079FF;
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(0, 121, 255, 0.15);
         }
 
         .yprint-legal-button i {
@@ -333,28 +306,20 @@ function yprint_get_legal_platform_styles() {
             font-size: 16px;
             width: 20px;
             text-align: center;
-            transition: transform 0.3s ease;
-        }
-
-        .yprint-legal-button:hover i {
-            transform: scale(1.1);
         }
 
         /* Zurück-Button */
         .yprint-back-button {
-            background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
+            background: #0079FF;
             color: white;
             border: none;
             font-weight: 600;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0, 121, 255, 0.3);
         }
 
         .yprint-back-button:hover {
-            background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
+            background: #0056b3;
             color: white;
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 8px 25px rgba(0, 121, 255, 0.4);
         }
 
         .yprint-back-button i {
@@ -363,12 +328,10 @@ function yprint_get_legal_platform_styles() {
 
         /* Aktuelle Seite */
         .yprint-current-legal-page {
-            background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
+            background: #0079FF;
             border-color: #0079FF;
             color: white;
             font-weight: 600;
-            box-shadow: 0 8px 20px rgba(0, 121, 255, 0.3);
-            transform: translateY(-1px);
         }
 
         .yprint-current-legal-page i {
@@ -376,9 +339,8 @@ function yprint_get_legal_platform_styles() {
         }
 
         .yprint-current-legal-page:hover {
-            background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
+            background: #0079FF;
             color: white;
-            transform: translateY(-1px) scale(1.02);
         }
 
         /* Footer */
@@ -396,11 +358,6 @@ function yprint_get_legal_platform_styles() {
             width: 45px;
             height: 45px;
             opacity: 0.8;
-            transition: opacity 0.3s ease;
-        }
-
-        .yprint-footer-logo:hover {
-            opacity: 1;
         }
 
         .yprint-footer-text {
@@ -411,13 +368,12 @@ function yprint_get_legal_platform_styles() {
             letter-spacing: 1px;
         }
 
-        /* Content Styling */
+        /* Content Styling - Minimal */
         .yprint-legal-content-wrapper {
-            position: relative;
-        }
-
-        .yprint-legal-content-wrapper > * {
-            padding: 50px;
+            font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            color: #2d3748;
         }
 
         /* Placeholder */
@@ -449,166 +405,6 @@ function yprint_get_legal_platform_styles() {
             font-size: 1.1rem;
             max-width: 400px;
             margin: 0 auto;
-        }
-
-        /* ===== RECHTSTEXT CONTENT STYLING ===== */
-        
-        /* Allgemeine Content-Formatierung */
-        .yprint-legal-content-wrapper {
-            font-size: 16px;
-            line-height: 1.7;
-            color: #2d3748;
-        }
-
-        /* Haupttitel - erster <strong> in einem <span> */
-        .yprint-legal-content-wrapper span:first-child strong:first-child,
-        .yprint-legal-content-wrapper .Haendlerbund_Rechtstext_Titel {
-            display: block;
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #0079FF;
-            margin: 0 0 40px 0;
-            padding: 0 0 20px 0;
-            border-bottom: 3px solid #0079FF;
-            text-align: left;
-        }
-
-        /* Abschnittsüberschriften - <strong> Elemente */
-        .yprint-legal-content-wrapper strong,
-        .yprint-legal-content-wrapper .Haendlerbund_Rechtstext_Paragraph {
-            display: block;
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #1a202c;
-            margin: 35px 0 20px 0;
-            line-height: 1.4;
-        }
-
-        /* Normale Textabsätze - <span> Elemente und Paragraphen */
-        .yprint-legal-content-wrapper span,
-        .yprint-legal-content-wrapper .Haendlerbund_Rechtstext_Absatz,
-        .yprint-legal-content-wrapper p {
-            display: block;
-            margin-bottom: 18px;
-            line-height: 1.7;
-            color: #4a5568;
-            text-align: justify;
-        }
-
-        /* Spezifische Korrektur für verschachtelte Strong-Elemente */
-        .yprint-legal-content-wrapper span strong {
-            display: inline;
-            font-size: inherit;
-            color: #1a202c;
-            margin: 0;
-            font-weight: 600;
-        }
-
-        /* Korrektur für Strong-Elemente die keine Überschriften sind */
-        .yprint-legal-content-wrapper span strong:not(:only-child),
-        .yprint-legal-content-wrapper p strong {
-            display: inline;
-            font-size: inherit;
-            margin: 0;
-            color: #1a202c;
-        }
-
-        /* Links in Rechtstexten */
-        .yprint-legal-content-wrapper a {
-            color: #0079FF;
-            text-decoration: none;
-            border-bottom: 1px solid transparent;
-            transition: all 0.2s ease;
-            padding: 1px 2px;
-        }
-
-        .yprint-legal-content-wrapper a:hover {
-            border-bottom-color: #0079FF;
-            background: rgba(0, 121, 255, 0.08);
-            border-radius: 3px;
-        }
-
-        /* Listen */
-        .yprint-legal-content-wrapper ul,
-        .yprint-legal-content-wrapper ol {
-            margin: 20px 0;
-            padding-left: 35px;
-        }
-
-        .yprint-legal-content-wrapper li {
-            margin-bottom: 10px;
-            line-height: 1.6;
-            color: #4a5568;
-        }
-
-        /* Verschachtelte Listen */
-        .yprint-legal-content-wrapper li ul,
-        .yprint-legal-content-wrapper li ol {
-            margin: 10px 0;
-            padding-left: 25px;
-        }
-
-        /* HR/Trennlinien Styling */
-        .yprint-legal-content-wrapper hr {
-            border: none;
-            height: 2px;
-            background: linear-gradient(90deg, #0079FF 0%, #cbd5e0 100%);
-            margin: 50px 0;
-            border-radius: 1px;
-        }
-
-        /* Tabellen */
-        .yprint-legal-content-wrapper table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 30px 0;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        }
-
-        .yprint-legal-content-wrapper th,
-        .yprint-legal-content-wrapper td {
-            padding: 15px 18px;
-            text-align: left;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .yprint-legal-content-wrapper th {
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            font-weight: 600;
-            color: #2d3748;
-            font-size: 15px;
-        }
-
-        .yprint-legal-content-wrapper td {
-            color: #4a5568;
-        }
-
-        .yprint-legal-content-wrapper tr:hover {
-            background-color: rgba(0, 121, 255, 0.03);
-        }
-
-        /* Blockquotes und besondere Hervorhebungen */
-        .yprint-legal-content-wrapper blockquote {
-            margin: 25px 0;
-            padding: 20px 25px;
-            border-left: 4px solid #0079FF;
-            background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
-            border-radius: 0 8px 8px 0;
-            font-style: italic;
-            color: #4a5568;
-        }
-
-        /* Spezielle Formatierung für E-Mail Adressen und Kontaktdaten */
-        .yprint-legal-content-wrapper span {
-            font-family: inherit;
-        }
-
-        /* Impressum und Kontaktdaten speziell formatieren */
-        .yprint-legal-content-wrapper span strong {
-            font-weight: 600;
-            color: #1a202c;
         }
 
         /* ===== RESPONSIVE DESIGN ===== */
@@ -662,7 +458,7 @@ function yprint_get_legal_platform_styles() {
                 order: 2;
             }
 
-            .yprint-legal-content-wrapper > * {
+            .yprint-legal-content-wrapper {
                 padding: 30px;
             }
         }
@@ -686,18 +482,8 @@ function yprint_get_legal_platform_styles() {
                 font-size: 18px;
             }
 
-            .yprint-legal-content-wrapper > * {
+            .yprint-legal-content-wrapper {
                 padding: 25px;
-            }
-
-            .yprint-legal-content-wrapper span:first-child strong:first-child,
-            .yprint-legal-content-wrapper .Haendlerbund_Rechtstext_Titel {
-                font-size: 1.75rem;
-            }
-
-            .yprint-legal-content-wrapper strong,
-            .yprint-legal-content-wrapper .Haendlerbund_Rechtstext_Paragraph {
-                font-size: 1.2rem;
             }
         }
 
@@ -710,13 +496,8 @@ function yprint_get_legal_platform_styles() {
                 padding: 15px;
             }
 
-            .yprint-legal-content-wrapper > * {
+            .yprint-legal-content-wrapper {
                 padding: 20px;
-            }
-
-            .yprint-legal-content-wrapper .Haendlerbund_Rechtstext_Titel,
-            .yprint-legal-content-wrapper > span:first-child > strong:first-child {
-                font-size: 1.75rem;
             }
 
             .yprint-legal-placeholder {
