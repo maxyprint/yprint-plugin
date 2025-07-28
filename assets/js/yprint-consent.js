@@ -210,8 +210,12 @@
         
         showBanner() {
             console.log('🍪 Banner wird angezeigt');
-            this.banner.css('display', 'flex');
+            console.log('🍪 Banner vor Show - Hidden-Klasse:', this.banner.hasClass('yprint-hidden'));
+            
+            this.banner.removeClass('yprint-hidden').css('display', 'flex');
             $('body').addClass('yprint-consent-open');
+            
+            console.log('🍪 Banner nach Show - sichtbar:', this.banner.is(':visible'));
         }
         
         hideBanner() {
