@@ -435,25 +435,56 @@ function yprint_create_legal_pages() {
                 // Setze die Seite als rechtliche Seite
                 update_post_meta($page_id, '_yprint_legal_page', 'true');
                 update_post_meta($page_id, '_yprint_legal_slug', $slug);
+                
+                // Debug-Ausgabe
+                error_log('YPrint: Rechtstext-Seite erstellt: ' . $slug . ' (ID: ' . $page_id . ')');
+            } else {
+                error_log('YPrint: Fehler beim Erstellen der Seite: ' . $slug);
             }
+        } else {
+            // Debug-Ausgabe für existierende Seiten
+            error_log('YPrint: Rechtstext-Seite existiert bereits: ' . $slug . ' (ID: ' . $existing_page->ID . ')');
         }
     }
 }
 
 /**
  * Hook für die automatische Erstellung der Rechtstext-Seiten
- * Wird nur einmal beim Plugin-Aktivierung ausgeführt
+ * Wird bei jedem Seitenaufruf ausgeführt, falls Seiten fehlen
  */
 function yprint_activate_legal_pages() {
-    // Prüfe, ob die Seiten bereits erstellt wurden
-    $legal_pages_created = get_option('yprint_legal_pages_created', false);
-    
-    if (!$legal_pages_created) {
+    // Erstelle die Seiten immer, falls sie nicht existieren
+    yprint_create_legal_pages();
+}
+add_action('init', 'yprint_activate_legal_pages', 5);
+
+/**
+ * Manuelle Test-Funktion für die Rechtstext-Erstellung
+ * Aufruf: /?yprint_test_legal_pages=1
+ */
+function yprint_test_legal_pages() {
+    if (isset($_GET['yprint_test_legal_pages']) && current_user_can('manage_options')) {
+        echo '<h2>YPrint Rechtstext-Test</h2>';
+        
+        $legal_texts = yprint_load_legal_texts();
+        echo '<h3>Gefundene Rechtstexte:</h3>';
+        echo '<ul>';
+        foreach ($legal_texts as $slug => $text_info) {
+            echo '<li>' . $text_info['title'] . ' (Slug: ' . $slug . ')</li>';
+        }
+        echo '</ul>';
+        
+        echo '<h3>Erstelle Seiten...</h3>';
         yprint_create_legal_pages();
-        update_option('yprint_legal_pages_created', true);
+        
+        echo '<h3>Test abgeschlossen!</h3>';
+        echo '<p><a href="/datenschutz/">Teste Datenschutz-Seite</a></p>';
+        echo '<p><a href="/agb/">Teste AGB-Seite</a></p>';
+        
+        exit;
     }
 }
-add_action('init', 'yprint_activate_legal_pages');
+add_action('init', 'yprint_test_legal_pages');
 
 /**
  * Diese Funktion ermöglicht die Speicherung der zurückliegenden URL
