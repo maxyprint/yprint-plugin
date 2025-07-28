@@ -111,6 +111,13 @@ function yprint_render_legal_text($slug) {
  * @return string HTML für die Navigation
  */
 function legal_navigation_shortcode($atts = array()) {
+    // Verhindere doppelte Ausgabe
+    static $legal_platform_rendered = false;
+    if ($legal_platform_rendered) {
+        return '';
+    }
+    $legal_platform_rendered = true;
+    
     // Session starten für die Zurück-Funktion
     if (!session_id()) {
         session_start();
@@ -374,6 +381,21 @@ function yprint_get_legal_platform_styles() {
             font-size: 16px;
             line-height: 1.6;
             color: #2d3748;
+        }
+
+        /* Überschriften auf Rechtstext-Seiten ausblenden */
+        .yprint-legal-content-wrapper h1,
+        .yprint-legal-content-wrapper h2,
+        .yprint-legal-content-wrapper h3,
+        .yprint-legal-content-wrapper h4,
+        .yprint-legal-content-wrapper h5,
+        .yprint-legal-content-wrapper h6 {
+            display: none !important;
+        }
+
+        /* Doppelte Einbindung verhindern */
+        .yprint-legal-platform + .yprint-legal-platform {
+            display: none !important;
         }
 
         /* Placeholder */
