@@ -111,12 +111,12 @@ function yprint_render_legal_text($slug) {
  * @return string HTML für die Navigation
  */
 function legal_navigation_shortcode($atts = array()) {
-    // Verhindere doppelte Ausgabe
-    static $legal_platform_rendered = false;
-    if ($legal_platform_rendered) {
+    // Verhindere doppelte Ausgabe mit globaler Variable
+    global $yprint_legal_platform_rendered;
+    if (isset($yprint_legal_platform_rendered) && $yprint_legal_platform_rendered) {
         return '';
     }
-    $legal_platform_rendered = true;
+    $yprint_legal_platform_rendered = true;
     
     // Session starten für die Zurück-Funktion
     if (!session_id()) {
@@ -612,6 +612,41 @@ function yprint_activate_legal_pages() {
     yprint_create_legal_pages();
 }
 add_action('init', 'yprint_activate_legal_pages', 5);
+
+/**
+ * Verhindert doppelte Ausgabe von legal_navigation Shortcodes
+ */
+function yprint_prevent_duplicate_legal_content($content) {
+    // Nur auf Rechtstext-Seiten anwenden
+    $legal_texts = yprint_load_legal_texts();
+    $legal_slugs = array_keys($legal_texts);
+    $current_page_slug = get_post_field('post_name', get_queried_object_id());
+    
+    if (in_array($current_page_slug, $legal_slugs)) {
+        // Zähle die Anzahl der legal_navigation Shortcodes
+        $shortcode_count = substr_count($content, '[legal_navigation');
+        
+        if ($shortcode_count > 1) {
+            // Entferne alle außer dem ersten
+            $first_pos = strpos($content, '[legal_navigation');
+            $remaining_content = substr($content, $first_pos);
+            
+            // Finde das Ende des ersten Shortcodes
+            $shortcode_end = strpos($remaining_content, ']', strpos($remaining_content, 'slug="'));
+            if ($shortcode_end !== false) {
+                $shortcode_end = strpos($remaining_content, ']', $shortcode_end + 1);
+            }
+            
+            if ($shortcode_end !== false) {
+                $first_shortcode = substr($remaining_content, 0, $shortcode_end + 1);
+                $content = substr($content, 0, $first_pos) . $first_shortcode;
+            }
+        }
+    }
+    
+    return $content;
+}
+add_filter('the_content', 'yprint_prevent_duplicate_legal_content', 1);
 
 /**
  * Manuelle Test-Funktion für die Rechtstext-Erstellung
