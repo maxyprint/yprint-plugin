@@ -401,6 +401,27 @@ function yprint_get_legal_platform_styles() {
             display: none !important;
         }
 
+        /* WordPress-Seitenüberschriften auf Rechtstext-Seiten entfernen */
+        .page .entry-title,
+        .page h1.entry-title,
+        .page h1,
+        .page h2,
+        .page h3,
+        .page h4,
+        .page h5,
+        .page h6 {
+            display: none !important;
+        }
+
+        /* Spezifisch für Rechtstext-Seiten */
+        .page-datenschutz .entry-title,
+        .page-agb .entry-title,
+        .page-impressum .entry-title,
+        .page-versandbedingungen .entry-title,
+        .page-widerrufsrecht .entry-title {
+            display: none !important;
+        }
+
         /* Placeholder */
         .yprint-legal-placeholder {
             display: flex;
