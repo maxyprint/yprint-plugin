@@ -25,7 +25,9 @@
                 this.setupElements();
                 this.bindEvents();
                 this.loadTexts();
-                this.checkConsentStatus();
+                
+                // Nur bestehende Einstellungen laden wenn Banner nicht initial gezeigt wird
+                this.initializeConsentStatus();
                 
                 // Debug: Forciere Icon-Anzeige für Tests
                 setTimeout(() => {
@@ -60,6 +62,26 @@
                 essentialCheckbox.prop('checked', true);
                 essentialCategory.addClass('selected');
                 console.log('🍪 Essenzielle Cookies initialisiert');
+            }
+        }
+        
+        initializeConsentStatus() {
+            // Prüfen ob Banner initial angezeigt wird (noch keine Entscheidung getroffen)
+            const bannerVisible = this.banner.is(':visible');
+            const bannerDisplayFlex = this.banner.css('display') === 'flex';
+            
+            console.log('🍪 Banner sichtbar:', bannerVisible, 'Display:', this.banner.css('display'));
+            
+            if (bannerVisible || bannerDisplayFlex) {
+                // Banner wird initial angezeigt - keine bestehenden Einstellungen laden
+                console.log('🍪 Initial-Banner erkannt - keine Vorauswahl der Cookie-Kategorien');
+                
+                // Nur essenzielle Cookies vorausgewählt lassen (bereits in setupElements gemacht)
+                return;
+            } else {
+                // Banner ist ausgeblendet - bestehende Einstellungen für Icon-Funktionalität laden
+                console.log('🍪 Banner ausgeblendet - lade bestehende Einstellungen für Icon');
+                this.checkConsentStatus();
             }
         }
         
@@ -129,9 +151,9 @@
             
             // Consent Icon
             $(document).on('click', '#yprint-open-consent-settings', (e) => {
-                console.log('🍪 Consent Icon geklickt');
+                console.log('🍪 Consent Icon geklickt - zeige Settings');
                 e.preventDefault();
-                this.showBanner();
+                this.showBannerForSettings();
             });
             
             // ESC-Taste zum Schließen
@@ -185,6 +207,38 @@
                 return;
             }
             
+            // Cookies entsprechend setzen/blockieren (für Icon-Funktionalität)
+            this.applyCookieSettings(consents);
+            
+            // Checkboxen NUR bei expliziter Settings-Anzeige setzen
+            console.log('🍪 Consent-Status geladen, aber Checkboxen nicht automatisch gesetzt');
+        }
+        
+        loadConsentForSettings() {
+            console.log('🍪 Lade Einstellungen für Settings-Banner');
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'yprint_get_consent_status',
+                    nonce: this.config.nonce
+                },
+                success: (response) => {
+                    if (response.success) {
+                        this.applyConsentToForm(response.data);
+                    }
+                },
+                error: () => {
+                    console.log('🍪 Fehler beim Laden der Settings');
+                }
+            });
+        }
+
+        applyConsentToForm(consents) {
+            console.log('🍪 Wende Consent auf Formular an:', consents);
+            
             // Checkboxen mit aktuellen Werten setzen und visuelle States aktualisieren
             Object.keys(consents).forEach(type => {
                 const checkbox = $(`#cookie-${type.toLowerCase().replace('cookie_', '')}`);
@@ -196,16 +250,13 @@
                     // Visuellen State setzen
                     if (consents[type].granted) {
                         category.addClass('selected');
-                        console.log(`🍪 ${type} als ausgewählt markiert`);
+                        console.log(`🍪 ${type} als ausgewählt markiert (Settings-Modus)`);
                     } else {
                         category.removeClass('selected');
-                        console.log(`🍪 ${type} als nicht ausgewählt markiert`);
+                        console.log(`🍪 ${type} als nicht ausgewählt markiert (Settings-Modus)`);
                     }
                 }
             });
-            
-            // Cookies entsprechend setzen/blockieren
-            this.applyCookieSettings(consents);
         }
         
         showBanner() {
@@ -286,6 +337,17 @@
             this.registrationCallback = true;
         }
         
+        showBannerForSettings() {
+            console.log('🍪 Banner für Settings wird angezeigt');
+            
+            // Banner anzeigen
+            this.banner.css('display', 'flex');
+            this.banner.removeClass('yprint-hidden');
+            $('body').addClass('yprint-consent-open');
+            
+            // Bestehende Einstellungen laden
+            this.loadConsentForSettings();
+        }
 
         
         saveConsents(consents) {
