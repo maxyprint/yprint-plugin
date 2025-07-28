@@ -106,51 +106,28 @@ function yprint_render_legal_text($slug) {
 }
 
 /**
- * Shortcode für die Navigation der rechtlichen Seiten
- *
- * Usage: [legal_navigation]
- *
- * @return string The formatted HTML output
+ * Shortcode für die Rechtstext-Navigation
+ * 
+ * @return string HTML für die Navigation
  */
 function legal_navigation_shortcode() {
-    // Lade die Rechtstexte dynamisch
-    $legal_texts = yprint_load_legal_texts();
-    
-    // Bestimme die aktuelle Seite
-    $current_page_id = get_the_ID();
-    $current_page_slug = get_post_field('post_name', get_post());
-
-    // Speichere die vorherige URL in einer Session, falls sie nicht aus einer rechtlichen Seite kommt
-    if (!isset($_SESSION)) {
+    // Session starten für die Zurück-Funktion
+    if (!session_id()) {
         session_start();
     }
-
-    // Erweitere das Regex um alle Rechtstext-Slugs
-    $referer = wp_get_referer();
-    $legal_slugs = array_keys($legal_texts);
-    $legal_slugs[] = 'cookies'; // Cookies-Seite hinzufügen
-    $legal_slugs[] = 'rechtlicher-hinweis';
-    $legal_slugs[] = 'gesetz-ueber-digitale-dienste';
-    $legal_slugs[] = 'produktsicherheitsverordnung';
     
-    $legal_pattern = implode('|', $legal_slugs);
-    if ($referer && !preg_match('/(' . $legal_pattern . ')/i', $referer)) {
-        $_SESSION['previous_page'] = $referer;
-    }
-
-    // Wenn keine vorherige Seite in der Session gespeichert ist, setze Startseite als Standard
-    if (!isset($_SESSION['previous_page'])) {
-        $_SESSION['previous_page'] = home_url();
-    }
-
-    // Beginne mit dem Output-Buffering
+    // Aktuelle Seite speichern für Zurück-Button
+    $_SESSION['previous_page'] = $_SERVER['HTTP_REFERER'] ?? home_url();
+    
+    // Aktuelle Seite ermitteln
+    $current_page_id = get_queried_object_id();
+    $current_page_slug = get_post_field('post_name', $current_page_id);
+    
+    // Rechtstexte laden
+    $legal_texts = yprint_load_legal_texts();
+    
     ob_start();
     ?>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <div class="yprint-legal-container">
         <div class="yprint-legal-sidebar">
             <a href="<?php echo $_SESSION['previous_page']; ?>" class="yprint-legal-button yprint-back-button">
@@ -214,172 +191,187 @@ function legal_navigation_shortcode() {
             </div>
         </div>
 
-        <style>
-            /* Container für das gesamte Layout */
+        <div class="yprint-legal-main-content">
+            <!-- Hier wird der Inhalt über den legal_text shortcode eingefügt -->
+        </div>
+    </div>
+
+    <style>
+        /* Hauptcontainer - Flexbox Layout */
+        .yprint-legal-container {
+            display: flex;
+            gap: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        /* Sidebar Navigation - Feste Breite, Sticky */
+        .yprint-legal-sidebar {
+            width: 300px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 25px;
+            border-radius: 12px;
+            background-color: #FFFFFF;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+            align-self: flex-start;
+        }
+
+        /* Hauptinhalt - Nimmt restlichen Platz ein */
+        .yprint-legal-main-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .yprint-legal-nav-title {
+            font-weight: 600;
+            font-size: 18px;
+            color: #1a1a1a;
+            margin: 20px 0 15px 0;
+            padding-left: 12px;
+            border-left: 4px solid #0079FF;
+        }
+
+        .yprint-legal-button {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            text-decoration: none;
+            color: #4a5568;
+            background-color: #fff;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: 1px solid #e2e8f0;
+            position: relative;
+        }
+
+        .yprint-legal-button:hover {
+            background-color: #f7fafc;
+            border-color: #0079FF;
+            color: #0079FF;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.15);
+        }
+
+        .yprint-legal-button i {
+            margin-right: 12px;
+            color: #0079FF;
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        /* Zurück-Button spezielles Styling */
+        .yprint-back-button {
+            background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .yprint-back-button:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
+        }
+
+        .yprint-back-button i {
+            color: white;
+        }
+
+        /* Hervorhebung der aktuellen Seite */
+        .yprint-current-legal-page {
+            background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
+            border-color: #0079FF;
+            color: white;
+            font-weight: 600;
+            padding: 16px;
+            box-shadow: 0 4px 12px rgba(0, 121, 255, 0.25);
+        }
+
+        .yprint-current-legal-page i {
+            color: white;
+        }
+
+        /* Footer der Sidebar */
+        .yprint-legal-footer {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .yprint-footer-logo {
+            width: 40px;
+            height: 40px;
+            opacity: 0.7;
+        }
+
+        /* Responsive Anpassungen */
+        @media (max-width: 1024px) {
             .yprint-legal-container {
-                font-family: 'Roboto', sans-serif;
-                max-width: 1400px;
-                margin: 0 auto;
-                padding: 20px;
-                display: flex;
-                gap: 40px;
-                min-height: 100vh;
-                background-color: #f8f9fa;
-            }
-
-            /* Sidebar Navigation */
-            .yprint-legal-sidebar {
-                width: 300px;
-                flex-shrink: 0;
-                display: flex;
                 flex-direction: column;
-                gap: 12px;
-                padding: 25px;
-                border-radius: 12px;
-                background-color: #FFFFFF;
-                border: 1px solid #e9ecef;
-                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-                height: fit-content;
-                position: sticky;
-                top: 20px;
+                gap: 20px;
+                padding: 15px;
             }
 
-            .yprint-legal-nav-title {
-                font-weight: 600;
-                font-size: 18px;
-                color: #1a1a1a;
-                margin: 20px 0 15px 0;
-                padding-left: 12px;
-                border-left: 4px solid #0079FF;
+            .yprint-legal-sidebar {
+                width: 100%;
+                position: static;
+                order: 1;
+            }
+
+            .yprint-legal-main-content {
+                order: 2;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .yprint-legal-container {
+                padding: 10px;
+            }
+
+            .yprint-legal-sidebar {
+                padding: 20px;
             }
 
             .yprint-legal-button {
-                display: flex;
-                align-items: center;
-                padding: 14px 16px;
-                text-decoration: none;
-                color: #4a5568;
-                background-color: #fff;
-                border-radius: 8px;
-                font-size: 15px;
-                font-weight: 500;
-                transition: all 0.2s ease;
-                border: 1px solid #e2e8f0;
-                position: relative;
+                padding: 12px 14px;
+                font-size: 14px;
             }
 
-            .yprint-legal-button:hover {
-                background-color: #f7fafc;
-                border-color: #0079FF;
-                color: #0079FF;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(0, 121, 255, 0.15);
-            }
-
-            .yprint-legal-button i {
-                margin-right: 12px;
-                color: #0079FF;
+            .yprint-legal-nav-title {
                 font-size: 16px;
-                width: 20px;
-                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .yprint-legal-container {
+                padding: 5px;
             }
 
-            /* Zurück-Button spezielles Styling */
-            .yprint-back-button {
-                background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
-                color: white;
-                border: none;
-                font-weight: 600;
-                margin-bottom: 10px;
+            .yprint-legal-sidebar {
+                padding: 15px;
             }
-
-            .yprint-back-button:hover {
-                background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
-                color: white;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(0, 121, 255, 0.3);
-            }
-
-            .yprint-back-button i {
-                color: white;
-            }
-
-            /* Hervorhebung der aktuellen Seite */
-            .yprint-current-legal-page {
-                background: linear-gradient(135deg, #0079FF 0%, #0056b3 100%);
-                border-color: #0079FF;
-                color: white;
-                font-weight: 600;
-                padding: 16px;
-                box-shadow: 0 4px 12px rgba(0, 121, 255, 0.25);
-            }
-
-            .yprint-current-legal-page i {
-                color: white;
-            }
-
-            /* Footer der Sidebar */
-            .yprint-legal-footer {
-                margin-top: 25px;
-                padding-top: 20px;
-                border-top: 1px solid #e2e8f0;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .yprint-footer-logo {
-                width: 40px;
-                height: 40px;
-                opacity: 0.7;
-            }
-
-            /* Responsive Anpassungen */
-            @media (max-width: 1024px) {
-                .yprint-legal-container {
-                    flex-direction: column;
-                    gap: 20px;
-                    padding: 15px;
-                }
-
-                .yprint-legal-sidebar {
-                    width: 100%;
-                    position: static;
-                }
-            }
-
-            @media (max-width: 768px) {
-                .yprint-legal-container {
-                    padding: 10px;
-                }
-
-                .yprint-legal-sidebar {
-                    padding: 20px;
-                }
-
-                .yprint-legal-button {
-                    padding: 12px 14px;
-                    font-size: 14px;
-                }
-
-                .yprint-legal-nav-title {
-                    font-size: 16px;
-                }
-            }
-
-            @media (max-width: 480px) {
-                .yprint-legal-container {
-                    padding: 5px;
-                }
-
-                .yprint-legal-sidebar {
-                    padding: 15px;
-                }
-            }
-        </style>
-    </div>
+        }
+    </style>
     <?php
-    // Gib den gepufferten Inhalt zurück
     return ob_get_clean();
 }
 add_shortcode('legal_navigation', 'legal_navigation_shortcode');
@@ -405,19 +397,12 @@ function legal_text_shortcode($atts) {
     
     ob_start();
     ?>
-    <div class="yprint-legal-content">
-        <div class="yprint-legal-content-inner">
-            <?php echo $content; ?>
-        </div>
+    <div class="yprint-legal-content-inner">
+        <?php echo $content; ?>
     </div>
     
     <style>
         /* Container für den Rechtstext-Inhalt */
-        .yprint-legal-content {
-            flex: 1;
-            min-width: 0;
-        }
-
         .yprint-legal-content-inner {
             background: #FFFFFF;
             border-radius: 12px;
@@ -427,6 +412,8 @@ function legal_text_shortcode($atts) {
             line-height: 1.7;
             color: #2d3748;
             font-size: 16px;
+            width: 100%;
+            max-width: none;
         }
 
         /* Typography für Rechtstexte */
