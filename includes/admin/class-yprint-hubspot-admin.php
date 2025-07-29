@@ -320,6 +320,3 @@ class YPrint_HubSpot_Admin {
         }
     }
 }
-
-// Initialisiere HubSpot Admin
-YPrint_HubSpot_Admin::get_instance();
