@@ -28,17 +28,6 @@
                 
                 // Nur bestehende Einstellungen laden wenn Banner nicht initial gezeigt wird
                 this.initializeConsentStatus();
-                
-                // Debug: Forciere Icon-Anzeige für Tests
-                setTimeout(() => {
-                    if ($('#yprint-consent-icon').length === 0) {
-                        console.log('🚨 Cookie Icon nicht gefunden - füge es hinzu');
-                        this.forceCreateIcon();
-                    } else {
-                        console.log('✅ Cookie Icon gefunden');
-                        $('#yprint-consent-icon').show();
-                    }
-                }, 1000);
             });
         }
         
@@ -557,18 +546,6 @@
             
             console.log(`🍪 Notification angezeigt: ${message} (${type})`);
         }
-
-        forceCreateIcon() {
-            const iconHtml = `
-                <div id="yprint-consent-icon" class="yprint-consent-icon">
-                    <button type="button" id="yprint-open-consent-settings" class="yprint-consent-icon-btn" title="Cookie-Einstellungen">
-                        🍪
-                    </button>
-                </div>
-            `;
-            $('body').append(iconHtml);
-            console.log('🍪 Cookie Icon manuell hinzugefügt');
-        }
         
         debugCookieManager() {
             console.log('🧪 Cookie Manager Debug:');
@@ -592,40 +569,6 @@
             
             // KEIN automatisches Click-Triggering mehr!
             console.log('🧪 Debug abgeschlossen - KEIN automatisches Klicken');
-        }
-        
-        // Direkte Test-Funktion für Banner-Ausblendung
-        forceHideBanner() {
-            console.log('🧪 Force Hide Banner Test');
-            
-            // Methode 1: Direkte DOM-Manipulation
-            const bannerElement = document.getElementById('yprint-cookie-banner');
-            if (bannerElement) {
-                bannerElement.style.display = 'none';
-                bannerElement.style.visibility = 'hidden';
-                bannerElement.style.opacity = '0';
-                bannerElement.style.pointerEvents = 'none';
-                console.log('🧪 Banner direkt ausgeblendet');
-            }
-            
-            // Methode 2: jQuery
-            if (this.banner && this.banner.length > 0) {
-                this.banner.css({
-                    'display': 'none !important',
-                    'visibility': 'hidden !important',
-                    'opacity': '0 !important',
-                    'pointer-events': 'none !important'
-                });
-                console.log('🧪 Banner über jQuery ausgeblendet');
-            }
-            
-            // Methode 3: Banner entfernen
-            if (bannerElement) {
-                bannerElement.remove();
-                console.log('🧪 Banner komplett entfernt');
-            }
-            
-            $('body').removeClass('yprint-consent-open');
         }
     }
     
