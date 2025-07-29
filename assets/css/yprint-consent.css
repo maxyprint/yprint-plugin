@@ -291,28 +291,106 @@
 /* 6. Responsive Adjustments
 -------------------------------------------------- */
 @media (max-width: 768px) {
+    /* Mobile Fullscreen Banner */
+    .yprint-cookie-banner {
+        padding: 0 !important;
+        border-radius: 0 !important;
+    }
+    
     .yprint-cookie-banner-content {
         padding: var(--yprint-space-md) !important;
         gap: var(--yprint-space-md) !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
     }
     
+    /* Body-Scroll verhindern wenn Banner offen */
+    body.yprint-consent-open {
+        overflow: hidden !important;
+        position: fixed !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+    
+    /* Overlay für Mobile */
+    .yprint-cookie-banner-overlay {
+        background-color: rgba(0, 0, 0, 0.6) !important;
+        backdrop-filter: blur(8px) !important;
+    }
+    
+    /* Header für Mobile */
+    .yprint-cookie-banner-header {
+        padding: var(--yprint-space-md) 0 !important;
+        border-bottom: 1px solid var(--yprint-color-border) !important;
+        margin-bottom: var(--yprint-space-md) !important;
+    }
+    
+    /* Body für Mobile */
+    .yprint-cookie-banner-body {
+        flex: 1 !important;
+        overflow-y: auto !important;
+        padding: 0 !important;
+    }
+    
+    /* Footer für Mobile */
+    .yprint-cookie-banner-footer {
+        padding: var(--yprint-space-md) 0 !important;
+        border-top: 1px solid var(--yprint-color-border) !important;
+        margin-top: var(--yprint-space-md) !important;
+        background: var(--yprint-color-background-white) !important;
+    }
+    
+    /* Actions für Mobile */
     .yprint-cookie-banner-actions {
         flex-direction: column !important;
+        gap: var(--yprint-space-sm) !important;
+    }
+    
+    /* Buttons für Mobile */
+    .yprint-btn {
+        width: 100% !important;
+        min-height: 48px !important;
+        font-size: 16px !important;
     }
 
+    /* Typography für Mobile */
     .yprint-cookie-banner-header h3,
     #cookie-banner-title {
-        font-size: 16px !important;
+        font-size: 18px !important;
+        font-weight: 600 !important;
     }
 
     .yprint-cookie-banner-body p,
     #cookie-banner-description,
     .yprint-cookie-category-title {
-        font-size: 14px !important;
+        font-size: 15px !important;
+        line-height: 1.5 !important;
     }
 
     .yprint-cookie-category-desc {
-        font-size: 12px !important;
+        font-size: 13px !important;
+        line-height: 1.4 !important;
+    }
+    
+    /* Cookie Categories für Mobile */
+    .yprint-cookie-category {
+        padding: var(--yprint-space-md) !important;
+        margin-bottom: var(--yprint-space-sm) !important;
+        border-radius: var(--yprint-border-radius-md) !important;
+    }
+    
+    /* Links für Mobile */
+    .yprint-cookie-banner-links {
+        flex-direction: column !important;
+        gap: var(--yprint-space-sm) !important;
+        text-align: center !important;
     }
 }
 

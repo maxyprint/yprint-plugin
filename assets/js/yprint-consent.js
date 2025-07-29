@@ -198,7 +198,37 @@
                 }
             });
             
+            // Resize-Event für Mobile-Fullscreen
+            $(window).on('resize', () => {
+                if (this.banner.is(':visible')) {
+                    this.handleMobileResize();
+                }
+            });
+            
             console.log('🍪 Event-Handler registriert');
+        }
+        
+        handleMobileResize() {
+            const isMobile = window.innerWidth <= 768;
+            const isBannerOpen = this.banner.is(':visible');
+            
+            if (isMobile && isBannerOpen) {
+                // Mobile: Body-Scroll verhindern
+                $('body').css({
+                    'overflow': 'hidden',
+                    'position': 'fixed',
+                    'width': '100%',
+                    'height': '100%'
+                });
+            } else if (!isMobile && isBannerOpen) {
+                // Desktop: Body-Scroll wiederherstellen
+                $('body').css({
+                    'overflow': '',
+                    'position': '',
+                    'width': '',
+                    'height': ''
+                });
+            }
         }
         
         loadTexts() {
@@ -318,6 +348,16 @@
             this.banner.removeClass('yprint-hidden').css('display', 'flex');
             $('body').addClass('yprint-consent-open');
             
+            // Mobile: Body-Scroll verhindern
+            if (window.innerWidth <= 768) {
+                $('body').css({
+                    'overflow': 'hidden',
+                    'position': 'fixed',
+                    'width': '100%',
+                    'height': '100%'
+                });
+            }
+            
             console.log('🍪 Banner nach Show - sichtbar:', this.banner.is(':visible'));
         }
         
@@ -328,6 +368,16 @@
             this.banner.addClass('yprint-hidden');
             
             $('body').removeClass('yprint-consent-open');
+            
+            // Mobile: Body-Scroll wiederherstellen
+            if (window.innerWidth <= 768) {
+                $('body').css({
+                    'overflow': '',
+                    'position': '',
+                    'width': '',
+                    'height': ''
+                });
+            }
             
             console.log('🍪 Banner ausgeblendet - Display:', this.banner.css('display'));
             console.log('🍪 Banner sichtbar:', this.banner.is(':visible'));
@@ -567,8 +617,7 @@
                 console.log('- Banner z-index:', window.getComputedStyle(this.banner[0]).zIndex);
             }
             
-            // KEIN automatisches Click-Triggering mehr!
-            console.log('🧪 Debug abgeschlossen - KEIN automatisches Klicken');
+            console.log('🧪 Debug-Informationen angezeigt - KEINE automatischen Aktionen');
         }
     }
     
@@ -585,7 +634,7 @@
         console.log('🍪 Consent Manager bereit - Debug-Funktionen verfügbar über window.yprintConsentManager.debugCookieManager()');
     });
     
-    // Debug: Alle Cookies löschen
+    // Debug: Alle Cookies löschen (nur manuell aufrufbar)
     function clearAllCookies() {
         document.cookie.split(";").forEach(function(c) { 
             document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
