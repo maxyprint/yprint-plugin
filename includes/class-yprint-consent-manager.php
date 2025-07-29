@@ -230,15 +230,29 @@ class YPrint_Consent_Manager {
         $has_decision_cookie = isset($_COOKIE['yprint_consent_decision']);
         $has_preferences_cookie = isset($_COOKIE['yprint_consent_preferences']);
         
-        // Zusätzliche Validierung: Prüfe ob Timestamp nicht zu alt ist
-        $has_valid_timestamp = false;
+        // Mindestens eines der beiden Haupt-Cookies muss vorhanden sein
+        $has_basic_decision = $has_decision_cookie || $has_preferences_cookie;
+        
+        if (!$has_basic_decision) {
+            error_log('🍪 PHP: Guest consent decision check - keine Cookies vorhanden, Banner wird angezeigt');
+            return false;
+        }
+        
+        // Zusätzliche Validierung: Prüfe ob Timestamp nicht zu alt ist (nur wenn vorhanden)
+        $has_valid_timestamp = true; // Standard: gültig
         if (isset($_COOKIE['yprint_consent_timestamp'])) {
             $timestamp = intval($_COOKIE['yprint_consent_timestamp']);
             $one_year_ago = time() - (365 * 24 * 60 * 60);
             $has_valid_timestamp = $timestamp >= $one_year_ago;
+            
+            if (!$has_valid_timestamp) {
+                error_log('🍪 PHP: Guest consent decision check - Timestamp zu alt (' . $timestamp . ' vs ' . $one_year_ago . ')');
+            }
+        } else {
+            error_log('🍪 PHP: Guest consent decision check - kein Timestamp vorhanden, aber andere Cookies da');
         }
         
-        $has_decision = $has_decision_cookie && $has_preferences_cookie && $has_valid_timestamp;
+        $has_decision = $has_basic_decision && $has_valid_timestamp;
         
         error_log('🍪 PHP: Guest consent decision check - has_decision_cookie: ' . ($has_decision_cookie ? 'true' : 'false') . 
                  ', has_preferences_cookie: ' . ($has_preferences_cookie ? 'true' : 'false') . 
@@ -265,10 +279,108 @@ class YPrint_Consent_Manager {
     }
     
     /**
+     * Prüfen ob eingeloggter User gültige Consent-Einstellungen hat
+     */
+    private function has_valid_user_consent($user_id) {
+        global $wpdb;
+        
+        // Prüfe ob User aktuelle Consent-Einstellungen hat (nicht älter als 1 Jahr)
+        $one_year_ago = date('Y-m-d H:i:s', strtotime('-1 year'));
+        
+        $current_consents = $wpdb->get_results($wpdb->prepare(
+            "SELECT consent_type, granted, created_at 
+             FROM {$wpdb->prefix}yprint_consents 
+             WHERE user_id = %d 
+             AND consent_type LIKE 'COOKIE_%'
+             AND created_at >= %s
+             AND is_current = 1",
+            $user_id,
+            $one_year_ago
+        ));
+        
+        // Mindestens eine Cookie-Consent-Entscheidung muss vorhanden sein
+        if (empty($current_consents)) {
+            error_log('🍪 PHP: User ' . $user_id . ' hat keine aktuellen Consent-Einstellungen');
+            return false;
+        }
+        
+        // Prüfe ob alle wichtigen Cookie-Typen abgedeckt sind
+        $required_types = array('COOKIE_ESSENTIAL');
+        $found_types = array();
+        
+        foreach ($current_consents as $consent) {
+            $found_types[] = $consent->consent_type;
+        }
+        
+        // Mindestens essenzielle Cookies müssen vorhanden sein
+        $has_essential = in_array('COOKIE_ESSENTIAL', $found_types);
+        
+        if (!$has_essential) {
+            error_log('🍪 PHP: User ' . $user_id . ' hat keine essenziellen Cookie-Einstellungen');
+            return false;
+        }
+        
+        error_log('🍪 PHP: User ' . $user_id . ' hat gültige Consent-Einstellungen (' . count($current_consents) . ' Einträge)');
+        return true;
+    }
+    
+    /**
      * Prüfen ob Gast Consent gegeben hat
      */
     private function has_guest_given_consent() {
         return isset($_COOKIE['yprint_consent_preferences']);
+    }
+    
+    /**
+     * Prüfen ob Gast gültige Consent-Einstellungen hat
+     */
+    private function has_valid_guest_consent() {
+        // Prüfe ob gültige Cookie-Präferenzen vorhanden sind
+        if (!isset($_COOKIE['yprint_consent_preferences'])) {
+            error_log('🍪 PHP: Gast hat keine Cookie-Präferenzen');
+            return false;
+        }
+        
+        $preferences_data = json_decode(stripslashes($_COOKIE['yprint_consent_preferences']), true);
+        
+        // Prüfe ob die Daten gültig sind
+        if (!$preferences_data || !isset($preferences_data['consents'])) {
+            error_log('🍪 PHP: Gast-Cookie-Daten sind ungültig');
+            return false;
+        }
+        
+        $preferences = $preferences_data['consents'];
+        
+        // Mindestens essenzielle Cookies müssen akzeptiert sein
+        if (!isset($preferences['cookie_essential']) || !$preferences['cookie_essential']) {
+            error_log('🍪 PHP: Gast hat keine essenziellen Cookie-Einstellungen');
+            return false;
+        }
+        
+        // Prüfe Cookie-Alter (maximal 1 Jahr) - nur wenn Timestamp vorhanden
+        if (isset($_COOKIE['yprint_consent_timestamp'])) {
+            $timestamp = intval($_COOKIE['yprint_consent_timestamp']);
+            $one_year_ago = time() - (365 * 24 * 60 * 60);
+            
+            if ($timestamp < $one_year_ago) {
+                error_log('🍪 PHP: Gast-Cookie ist zu alt (älter als 1 Jahr)');
+                return false;
+            }
+        } else {
+            // Kein Timestamp vorhanden - prüfe ob in den Cookie-Daten
+            if (isset($preferences_data['timestamp'])) {
+                $timestamp = intval($preferences_data['timestamp']);
+                $one_year_ago = time() - (365 * 24 * 60 * 60);
+                
+                if ($timestamp < $one_year_ago) {
+                    error_log('🍪 PHP: Gast-Cookie ist zu alt (älter als 1 Jahr) - aus Cookie-Daten');
+                    return false;
+                }
+            }
+        }
+        
+        error_log('🍪 PHP: Gast hat gültige Consent-Einstellungen');
+        return true;
     }
     
     /**
