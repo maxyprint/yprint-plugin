@@ -45,6 +45,11 @@
         initializeConsentStatus() {
             // Kleine Verzögerung für bessere DOM-Erkennung
             setTimeout(() => {
+                console.log('🍪 === CONSENT STATUS INITIALISIERUNG START ===');
+                
+                // ✅ NEU: Vollständige Cookie-Detection mit Debug
+                this.debugCookieDetection();
+                
                 // Prüfe PHP-Attribut für korrekte Initial-Erkennung
                 const bannerElement = document.getElementById('yprint-cookie-banner');
                 const phpStyle = bannerElement ? bannerElement.getAttribute('style') : '';
@@ -59,6 +64,13 @@
                 console.log('🍪 Hat hidden class:', hasHiddenClass);
                 console.log('🍪 Initial Banner erkannt:', isInitialBanner);
                 
+                // ✅ NEU: Direkte Cookie-Prüfung für bessere Entscheidung
+                const hasYPrintCookies = this.hasExistingYPrintCookies();
+                const cookieDecision = this.evaluateCookieDecision();
+                
+                console.log('🍪 Hat YPrint Cookies:', hasYPrintCookies);
+                console.log('🍪 Cookie-Entscheidung:', cookieDecision);
+                
                 // Debug: Alle Cookie-Kategorien-Status prüfen
                 $('.yprint-cookie-category').each(function() {
                     const cookieType = $(this).data('cookie-type');
@@ -68,19 +80,178 @@
                     console.log(`🍪 Cookie ${cookieType}: selected=${isSelected}, checked=${isChecked}`);
                 });
                 
-                if (isInitialBanner) {
+                // ✅ NEU: Vereinfachte Entscheidungslogik
+                if (!hasYPrintCookies || cookieDecision.showBanner) {
                     // Banner wird initial angezeigt - KEINE Einstellungen laden
-                    console.log('🍪 Initial-Banner - keine Vorauswahl außer Essentiell');
+                    console.log('🍪 ENTSCHEIDUNG: Banner anzeigen - Grund:', cookieDecision.reason);
                     
                     // Stelle sicher, dass nur essenzielle Cookies vorausgewählt sind
                     this.resetToEssentialOnly();
-                    return;
+                    this.showBanner();
                 } else {
                     // Banner ist ausgeblendet - lade Einstellungen für Icon
-                    console.log('🍪 Banner ausgeblendet - lade bestehende Einstellungen');
+                    console.log('🍪 ENTSCHEIDUNG: Banner ausblenden - Grund:', cookieDecision.reason);
+                    this.hideBanner();
                     this.checkConsentStatus();
                 }
+                
+                console.log('🍪 === CONSENT STATUS INITIALISIERUNG ENDE ===');
             }, 250); // 250ms Verzögerung
+        }
+        
+        // ✅ NEU: Detaillierte Cookie-Detection mit Debug-Logs
+        debugCookieDetection() {
+            console.log('🍪 === COOKIE DETECTION DEBUG START ===');
+            
+            // Alle Cookies anzeigen
+            console.log('🍪 Alle Browser-Cookies:', document.cookie);
+            
+            // YPrint-spezifische Cookies extrahieren
+            const allCookies = document.cookie.split(';');
+            const yprintCookies = {};
+            
+            allCookies.forEach(cookie => {
+                const [name, value] = cookie.trim().split('=');
+                if (name && name.includes('yprint_consent')) {
+                    yprintCookies[name] = value ? decodeURIComponent(value) : '';
+                }
+            });
+            
+            console.log('🍪 YPrint-Cookies gefunden:', Object.keys(yprintCookies));
+            console.log('🍪 YPrint-Cookie-Details:', yprintCookies);
+            
+            // Spezifische Cookie-Prüfungen
+            const hasDecisionCookie = 'yprint_consent_decision' in yprintCookies;
+            const hasPreferencesCookie = 'yprint_consent_preferences' in yprintCookies;
+            const hasTimestampCookie = 'yprint_consent_timestamp' in yprintCookies;
+            
+            console.log('🍪 Cookie-Prüfungen:');
+            console.log('- Decision Cookie:', hasDecisionCookie);
+            console.log('- Preferences Cookie:', hasPreferencesCookie);
+            console.log('- Timestamp Cookie:', hasTimestampCookie);
+            
+            // Preferences-Cookie Details
+            if (hasPreferencesCookie) {
+                try {
+                    const preferencesData = JSON.parse(yprintCookies['yprint_consent_preferences']);
+                    console.log('🍪 Preferences-Daten:', preferencesData);
+                    
+                    if (preferencesData.timestamp) {
+                        const timestamp = preferencesData.timestamp;
+                        const now = Math.floor(Date.now() / 1000);
+                        const oneYearAgo = now - (365 * 24 * 60 * 60);
+                        const isValid = timestamp >= oneYearAgo;
+                        
+                        console.log('🍪 Timestamp-Validierung:');
+                        console.log('- Timestamp:', timestamp, '(' + new Date(timestamp * 1000).toLocaleString() + ')');
+                        console.log('- Jetzt:', now, '(' + new Date(now * 1000).toLocaleString() + ')');
+                        console.log('- Ein Jahr her:', oneYearAgo, '(' + new Date(oneYearAgo * 1000).toLocaleString() + ')');
+                        console.log('- Gültig:', isValid);
+                    }
+                } catch (e) {
+                    console.error('🍪 FEHLER beim Parsen der Preferences:', e);
+                }
+            }
+            
+            // Timestamp-Cookie Details
+            if (hasTimestampCookie) {
+                const timestamp = parseInt(yprintCookies['yprint_consent_timestamp']);
+                const now = Math.floor(Date.now() / 1000);
+                const oneYearAgo = now - (365 * 24 * 60 * 60);
+                const isValid = timestamp >= oneYearAgo;
+                
+                console.log('🍪 Separates Timestamp-Cookie:');
+                console.log('- Timestamp:', timestamp, '(' + new Date(timestamp * 1000).toLocaleString() + ')');
+                console.log('- Gültig:', isValid);
+            }
+            
+            console.log('🍪 === COOKIE DETECTION DEBUG ENDE ===');
+        }
+        
+        // ✅ NEU: Prüft ob YPrint-Cookies existieren
+        hasExistingYPrintCookies() {
+            const cookies = document.cookie.split(';');
+            const yprintCookiesFound = cookies.some(cookie => {
+                const name = cookie.trim().split('=')[0];
+                return name && name.includes('yprint_consent');
+            });
+            
+            console.log('🍪 hasExistingYPrintCookies:', yprintCookiesFound);
+            return yprintCookiesFound;
+        }
+        
+        // ✅ NEU: Evaluiert Cookie-Entscheidung mit Grund
+        evaluateCookieDecision() {
+            const decision = {
+                showBanner: true,
+                reason: 'keine_cookies'
+            };
+            
+            const cookies = document.cookie.split(';');
+            const yprintCookies = {};
+            
+            cookies.forEach(cookie => {
+                const [name, value] = cookie.trim().split('=');
+                if (name && name.includes('yprint_consent')) {
+                    yprintCookies[name] = value ? decodeURIComponent(value) : '';
+                }
+            });
+            
+            if (Object.keys(yprintCookies).length === 0) {
+                decision.reason = 'keine_yprint_cookies_gefunden';
+                return decision;
+            }
+            
+            // Prüfe Decision-Cookie
+            if ('yprint_consent_decision' in yprintCookies) {
+                decision.showBanner = false;
+                decision.reason = 'decision_cookie_vorhanden';
+                
+                // Zusätzlich Timestamp prüfen wenn vorhanden
+                if ('yprint_consent_timestamp' in yprintCookies) {
+                    const timestamp = parseInt(yprintCookies['yprint_consent_timestamp']);
+                    const now = Math.floor(Date.now() / 1000);
+                    const oneYearAgo = now - (365 * 24 * 60 * 60);
+                    
+                    if (timestamp < oneYearAgo) {
+                        decision.showBanner = true;
+                        decision.reason = 'timestamp_zu_alt';
+                    } else {
+                        decision.reason = 'decision_cookie_und_timestamp_gueltig';
+                    }
+                }
+            }
+            
+            // Prüfe Preferences-Cookie als Fallback
+            if ('yprint_consent_preferences' in yprintCookies && decision.showBanner) {
+                try {
+                    const preferencesData = JSON.parse(yprintCookies['yprint_consent_preferences']);
+                    if (preferencesData && preferencesData.consents) {
+                        decision.showBanner = false;
+                        decision.reason = 'preferences_cookie_vorhanden';
+                        
+                        // Timestamp in Preferences prüfen
+                        if (preferencesData.timestamp) {
+                            const timestamp = preferencesData.timestamp;
+                            const now = Math.floor(Date.now() / 1000);
+                            const oneYearAgo = now - (365 * 24 * 60 * 60);
+                            
+                            if (timestamp < oneYearAgo) {
+                                decision.showBanner = true;
+                                decision.reason = 'preferences_timestamp_zu_alt';
+                            } else {
+                                decision.reason = 'preferences_cookie_und_timestamp_gueltig';
+                            }
+                        }
+                    }
+                } catch (e) {
+                    decision.showBanner = true;
+                    decision.reason = 'preferences_cookie_invalid_json';
+                }
+            }
+            
+            console.log('🍪 Cookie-Entscheidung evaluiert:', decision);
+            return decision;
         }
         
         resetToEssentialOnly() {
