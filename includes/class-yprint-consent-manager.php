@@ -702,22 +702,34 @@ class YPrint_Consent_Manager {
     public function get_consent_status() {
         check_ajax_referer('yprint_consent_nonce', 'nonce');
         
+        error_log('🍪 PHP: === AJAX get_consent_status START ===');
+        error_log('🍪 PHP: User logged in: ' . (is_user_logged_in() ? 'true' : 'false'));
+        error_log('🍪 PHP: $_COOKIE Keys: ' . implode(', ', array_keys($_COOKIE)));
+        
         try {
             if (is_user_logged_in()) {
-                $consents = $this->get_user_consents(get_current_user_id());
+                $user_id = get_current_user_id();
+                error_log('🍪 PHP: Lade User-Consents für User ID: ' . $user_id);
+                $consents = $this->get_user_consents($user_id);
             } else {
+                error_log('🍪 PHP: Lade Guest-Consents');
                 $consents = $this->get_guest_consents();
             }
             
             // Sicherstellen, dass $consents ein Array ist
             if (!is_array($consents)) {
+                error_log('🍪 PHP: Consents ist kein Array, konvertiere: ' . gettype($consents));
                 $consents = array();
             }
             
-            error_log('🍪 PHP: Consent-Status abgerufen: ' . json_encode($consents));
+            error_log('🍪 PHP: Finale Consent-Daten: ' . json_encode($consents));
+            error_log('🍪 PHP: Anzahl Consents: ' . count($consents));
+            error_log('🍪 PHP: === AJAX get_consent_status ENDE ===');
+            
             wp_send_json_success($consents);
         } catch (Exception $e) {
-            error_log('🍪 PHP ERROR: ' . $e->getMessage());
+            error_log('🍪 PHP EXCEPTION: ' . $e->getMessage());
+            error_log('🍪 PHP EXCEPTION Stack: ' . $e->getTraceAsString());
             wp_send_json_success(array()); // Leeres Array als Fallback
         }
     }
@@ -751,23 +763,80 @@ class YPrint_Consent_Manager {
      * Gast-Consents aus Cookie abrufen
      */
     private function get_guest_consents() {
+        error_log('🍪 PHP: get_guest_consents() aufgerufen');
+        error_log('🍪 PHP: Verfügbare $_COOKIE Keys: ' . implode(', ', array_keys($_COOKIE)));
+        
         if (isset($_COOKIE['yprint_consent_preferences'])) {
-            $decoded = json_decode($_COOKIE['yprint_consent_preferences'], true);
+            $cookie_value = $_COOKIE['yprint_consent_preferences'];
+            error_log('🍪 PHP: yprint_consent_preferences Cookie gefunden: ' . substr($cookie_value, 0, 100) . '...');
+            
+            // Dekodiere Cookie-Wert (könnte URL-encoded sein)
+            $decoded_value = urldecode($cookie_value);
+            error_log('🍪 PHP: Nach urldecode: ' . substr($decoded_value, 0, 100) . '...');
+            
+            $decoded = json_decode($decoded_value, true);
             
             // JSON-Decode-Fehler abfangen
             if (json_last_error() !== JSON_ERROR_NONE) {
                 error_log('🍪 PHP: Cookie JSON decode error: ' . json_last_error_msg());
-                return array();
+                error_log('🍪 PHP: Original Cookie-Wert: ' . $cookie_value);
+                
+                // Fallback: Versuche ohne Dekodierung
+                $decoded = json_decode($cookie_value, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    error_log('🍪 PHP: Auch ohne Dekodierung JSON-Fehler: ' . json_last_error_msg());
+                    return array();
+                }
             }
+            
+            error_log('🍪 PHP: JSON erfolgreich dekodiert: ' . json_encode($decoded));
             
             // Nur die consents zurückgeben, falls verschachtelt
             if (isset($decoded['consents'])) {
+                error_log('🍪 PHP: Consents gefunden: ' . json_encode($decoded['consents']));
                 return $decoded['consents'];
             }
             
+            error_log('🍪 PHP: Keine verschachtelten Consents, gebe decoded zurück: ' . json_encode($decoded));
             return is_array($decoded) ? $decoded : array();
         }
         
+        // Fallback: Prüfe andere Cookie-Varianten
+        $fallback_cookies = array(
+            'yprint_consent_decision',
+            'yprint_consent_timestamp'
+        );
+        
+        foreach ($fallback_cookies as $cookie_name) {
+            if (isset($_COOKIE[$cookie_name])) {
+                error_log('🍪 PHP: Fallback Cookie gefunden: ' . $cookie_name . ' = ' . $_COOKIE[$cookie_name]);
+                
+                // Erstelle minimale Consent-Daten basierend auf vorhandenen Cookies
+                $fallback_consents = array(
+                    'cookie_essential' => array(
+                        'granted' => true,
+                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
+                    ),
+                    'cookie_analytics' => array(
+                        'granted' => false,
+                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
+                    ),
+                    'cookie_marketing' => array(
+                        'granted' => false,
+                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
+                    ),
+                    'cookie_functional' => array(
+                        'granted' => false,
+                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
+                    )
+                );
+                
+                error_log('🍪 PHP: Fallback Consents erstellt: ' . json_encode($fallback_consents));
+                return $fallback_consents;
+            }
+        }
+        
+        error_log('🍪 PHP: Keine YPrint-Cookies gefunden, gebe leeres Array zurück');
         return array();
     }
 
