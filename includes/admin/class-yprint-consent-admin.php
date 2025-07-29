@@ -30,6 +30,8 @@ class YPrint_Consent_Admin {
         // AJAX-Handler für Admin
         add_action('wp_ajax_yprint_save_legal_text', array($this, 'save_legal_text'));
         add_action('wp_ajax_yprint_export_consents', array($this, 'export_consents'));
+        add_action('wp_ajax_yprint_fix_essential_cookies', array($this, 'fix_essential_cookies'));
+        add_action('wp_ajax_yprint_export_legal_texts', array($this, 'export_legal_texts'));
     }
     
     /**
@@ -240,6 +242,35 @@ class YPrint_Consent_Admin {
             ARRAY_A
         );
         
+        // ✅ NEU: Kritische Probleme identifizieren
+        $critical_issues = $wpdb->get_results(
+            "SELECT 
+                user_id,
+                consent_type,
+                granted,
+                created_at,
+                ip_address
+             FROM {$wpdb->prefix}yprint_consents 
+             WHERE consent_type = 'COOKIE_ESSENTIAL' AND granted = 0
+             ORDER BY created_at DESC",
+            ARRAY_A
+        );
+        
+        // ✅ NEU: Verdächtige automatische Klicks
+        $suspicious_clicks = $wpdb->get_results(
+            "SELECT 
+                user_id,
+                COUNT(*) as consent_count,
+                MIN(created_at) as first_consent,
+                MAX(created_at) as last_consent,
+                GROUP_CONCAT(consent_type) as consent_types
+             FROM {$wpdb->prefix}yprint_consents 
+             GROUP BY user_id
+             HAVING COUNT(*) > 1 AND MIN(created_at) = MAX(created_at)
+             ORDER BY consent_count DESC",
+            ARRAY_A
+        );
+        
         // Letzte 30 Tage
         $recent_consents = $wpdb->get_results(
             "SELECT 
@@ -254,6 +285,69 @@ class YPrint_Consent_Admin {
         ?>
         <div class="yprint-consent-statistics">
             <h2>Consent-Statistiken</h2>
+            
+            <!-- ✅ NEU: Kritische Probleme -->
+            <?php if (!empty($critical_issues)): ?>
+            <div class="yprint-critical-issues">
+                <h3 style="color: #dc3545;">🚨 KRITISCHE PROBLEME GEFUNDEN!</h3>
+                <div class="notice notice-error">
+                    <p><strong>Essenzielle Cookies wurden abgelehnt!</strong> Diese müssen sofort korrigiert werden.</p>
+                    <button type="button" class="button button-primary" id="fix-essential-cookies">
+                        🔧 Essenzielle Cookies korrigieren
+                    </button>
+                </div>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Consent Type</th>
+                            <th>Status</th>
+                            <th>Datum</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($critical_issues as $issue): ?>
+                        <tr>
+                            <td><?php echo esc_html($issue['user_id']); ?></td>
+                            <td><?php echo esc_html($issue['consent_type']); ?></td>
+                            <td style="color: #dc3545;">❌ ABGELEHNT</td>
+                            <td><?php echo esc_html($issue['created_at']); ?></td>
+                            <td><?php echo esc_html($issue['ip_address']); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
+            
+            <!-- ✅ NEU: Verdächtige Aktivitäten -->
+            <?php if (!empty($suspicious_clicks)): ?>
+            <div class="yprint-suspicious-activity">
+                <h3 style="color: #ffc107;">⚠️ VERDÄCHTIGE AKTIVITÄTEN</h3>
+                <p>Mögliche automatische Klicks erkannt (identische Zeitstempel):</p>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Anzahl Consents</th>
+                            <th>Zeitstempel</th>
+                            <th>Consent-Typen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($suspicious_clicks as $click): ?>
+                        <tr>
+                            <td><?php echo esc_html($click['user_id']); ?></td>
+                            <td><?php echo esc_html($click['consent_count']); ?></td>
+                            <td><?php echo esc_html($click['first_consent']); ?></td>
+                            <td><?php echo esc_html($click['consent_types']); ?></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+            <?php endif; ?>
             
             <div class="yprint-stats-cards">
                 <?php foreach ($stats as $stat): ?>
@@ -476,6 +570,162 @@ class YPrint_Consent_Admin {
         } else {
             wp_send_json_error(array('message' => 'Fehler beim Speichern'));
         }
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Essenzielle Cookies korrigieren
+     */
+    public function fix_essential_cookies() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        global $wpdb;
+        
+        // Alle abgelehnten essenziellen Cookies korrigieren
+        $result = $wpdb->update(
+            $wpdb->prefix . 'yprint_consents',
+            array(
+                'granted' => 1,
+                'updated_at' => current_time('mysql')
+            ),
+            array(
+                'consent_type' => 'COOKIE_ESSENTIAL',
+                'granted' => 0
+            )
+        );
+        
+        $affected_rows = $wpdb->rows_affected;
+        
+        if ($result !== false) {
+            error_log('🍪 ADMIN: ' . $affected_rows . ' abgelehnte essenzielle Cookies korrigiert');
+            wp_send_json_success(array(
+                'message' => $affected_rows . ' abgelehnte essenzielle Cookies wurden korrigiert',
+                'fixed_count' => $affected_rows
+            ));
+        } else {
+            wp_send_json_error(array('message' => 'Fehler beim Korrigieren der essenziellen Cookies'));
+        }
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Consent-Daten exportieren
+     */
+    public function export_consents() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        $export_type = isset($_POST['export_type']) ? sanitize_text_field($_POST['export_type']) : 'full';
+        $date_from = isset($_POST['date_from']) ? sanitize_text_field($_POST['date_from']) : '';
+        $date_to = isset($_POST['date_to']) ? sanitize_text_field($_POST['date_to']) : '';
+        $consent_types = isset($_POST['consent_types']) ? (array) $_POST['consent_types'] : array();
+        
+        global $wpdb;
+        
+        // SQL-Query aufbauen
+        $where_conditions = array();
+        $where_values = array();
+        
+        if ($date_from) {
+            $where_conditions[] = 'created_at >= %s';
+            $where_values[] = $date_from . ' 00:00:00';
+        }
+        
+        if ($date_to) {
+            $where_conditions[] = 'created_at <= %s';
+            $where_values[] = $date_to . ' 23:59:59';
+        }
+        
+        if (!empty($consent_types)) {
+            $placeholders = array_fill(0, count($consent_types), '%s');
+            $where_conditions[] = 'consent_type IN (' . implode(',', $placeholders) . ')';
+            $where_values = array_merge($where_values, $consent_types);
+        }
+        
+        $where_clause = '';
+        if (!empty($where_conditions)) {
+            $where_clause = 'WHERE ' . implode(' AND ', $where_conditions);
+        }
+        
+        $query = "SELECT * FROM {$wpdb->prefix}yprint_consents " . $where_clause . " ORDER BY created_at DESC";
+        
+        if (!empty($where_values)) {
+            $query = $wpdb->prepare($query, $where_values);
+        }
+        
+        $results = $wpdb->get_results($query, ARRAY_A);
+        
+        // CSV-Header
+        $filename = 'yprint-consents-' . date('Y-m-d-H-i-s') . '.csv';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        $output = fopen('php://output', 'w');
+        
+        // BOM für UTF-8
+        fprintf($output, chr(0xEF).chr(0xBB).chr(0xBF));
+        
+        // CSV-Header
+        fputcsv($output, array(
+            'User ID',
+            'Consent Type',
+            'Granted',
+            'Version',
+            'IP Address',
+            'User Agent',
+            'Created At',
+            'Updated At'
+        ));
+        
+        // Daten
+        foreach ($results as $row) {
+            fputcsv($output, array(
+                $row['user_id'],
+                $row['consent_type'],
+                $row['granted'] ? 'Ja' : 'Nein',
+                $row['version'],
+                $row['ip_address'],
+                $row['user_agent'],
+                $row['created_at'],
+                $row['updated_at']
+            ));
+        }
+        
+        fclose($output);
+        exit;
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Rechtstexte exportieren
+     */
+    public function export_legal_texts() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        global $wpdb;
+        
+        $texts = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}yprint_legal_texts 
+             WHERE is_active = 1 
+             ORDER BY text_key, version",
+            ARRAY_A
+        );
+        
+        // JSON-Export
+        $filename = 'yprint-legal-texts-' . date('Y-m-d-H-i-s') . '.json';
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        
+        echo json_encode($texts, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        exit;
     }
     
     /**

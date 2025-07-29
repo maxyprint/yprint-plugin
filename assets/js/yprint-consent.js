@@ -136,9 +136,10 @@
                 
                 console.log('🍪 Cookie-Kategorie geklickt:', cookieType);
                 
-                // Essenzielle Cookies können nicht deaktiviert werden
+                // ✅ SICHERHEIT: Essenzielle Cookies können nicht deaktiviert werden
                 if (cookieType === 'essential') {
-                    console.log('🍪 Essenzielle Cookies können nicht deaktiviert werden');
+                    console.log('🍪 SICHERHEIT: Essenzielle Cookies können nicht deaktiviert werden');
+                    this.showNotification('Essenzielle Cookies sind für die Grundfunktionalität der Website erforderlich und können nicht deaktiviert werden.', 'info');
                     return;
                 }
                 
@@ -152,6 +153,29 @@
                 } else {
                     category.removeClass('selected');
                     console.log('🍪 Kategorie abgewählt:', cookieType);
+                }
+            });
+            
+            // ✅ NEU: Direkte Checkbox-Klicks abfangen
+            $(document).on('change', '.yprint-cookie-category input[type="checkbox"]', (e) => {
+                const checkbox = $(e.currentTarget);
+                const category = checkbox.closest('.yprint-cookie-category');
+                const cookieType = category.data('cookie-type');
+                
+                // ✅ SICHERHEIT: Essenzielle Cookies können nicht deaktiviert werden
+                if (cookieType === 'essential' && !checkbox.prop('checked')) {
+                    console.log('🍪 SICHERHEIT: Versuch essenzielle Cookies zu deaktivieren - wird verhindert');
+                    checkbox.prop('checked', true);
+                    category.addClass('selected');
+                    this.showNotification('Essenzielle Cookies können nicht deaktiviert werden.', 'warning');
+                    return;
+                }
+                
+                // Visuellen State entsprechend setzen
+                if (checkbox.prop('checked')) {
+                    category.addClass('selected');
+                } else {
+                    category.removeClass('selected');
                 }
             });
             
@@ -417,17 +441,48 @@
             
             // Sammle alle aktuellen Checkbox-States
             const consents = {
-                'cookie_essential': true, // Immer true
+                'cookie_essential': true, // ✅ IMMER true - niemals änderbar
                 'cookie_analytics': $('#cookie-analytics').is(':checked'),
                 'cookie_marketing': $('#cookie-marketing').is(':checked'),
                 'cookie_functional': $('#cookie-functional').is(':checked')
             };
+            
+            // ✅ Sicherheitscheck: Essenzielle Cookies können nicht abgelehnt werden
+            if (!consents.cookie_essential) {
+                console.log('🍪 SICHERHEIT: Essenzielle Cookies zwangsweise aktiviert');
+                consents.cookie_essential = true;
+            }
+            
+            // ✅ VALIDIERUNG: Prüfe auf verdächtige automatische Klicks
+            this.validateConsentData(consents);
             
             console.log('🍪 Gesammelte Consent-States:', consents);
             console.log('🍪 Rufe saveConsents auf...');
             
             // Speichere die Auswahl
             this.saveConsents(consents);
+        }
+        
+        // ✅ NEU: Validierung der Consent-Daten
+        validateConsentData(consents) {
+            // Prüfe auf "Alle akzeptieren" Pattern
+            const nonEssentialCookies = ['cookie_analytics', 'cookie_marketing', 'cookie_functional'];
+            const allAccepted = nonEssentialCookies.every(type => consents[type] === true);
+            const allDenied = nonEssentialCookies.every(type => consents[type] === false);
+            
+            if (allAccepted) {
+                console.log('🍪 WARNUNG: Möglicher automatischer "Alle akzeptieren" Klick erkannt');
+            }
+            
+            if (allDenied) {
+                console.log('🍪 WARNUNG: Möglicher automatischer "Alle ablehnen" Klick erkannt');
+            }
+            
+            // Prüfe logische Konsistenz
+            if (consents.cookie_essential !== true) {
+                console.error('🍪 KRITISCHER FEHLER: Essenzielle Cookies sind nicht aktiviert!');
+                consents.cookie_essential = true; // Erzwingen
+            }
         }
         
         // Banner für Registrierung öffnen (verwendet bestehende showBanner Methode)

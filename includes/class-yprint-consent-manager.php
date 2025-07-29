@@ -283,8 +283,20 @@ class YPrint_Consent_Manager {
         $ip_address = $this->get_client_ip();
         $user_agent = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
         
+        // ✅ VALIDIERUNG: Prüfe auf verdächtige automatische Klicks
+        $this->detect_automated_clicks($consent_data, $user_id);
+        
         foreach ($consent_data as $consent_type => $granted) {
             $granted = (bool) $granted;
+            
+            // ✅ KRITISCH: Essenzielle Cookies IMMER auf true setzen
+            if (strtoupper($consent_type) === 'COOKIE_ESSENTIAL') {
+                $granted = true;
+                error_log('🍪 FORCE: Essenzielle Cookies immer akzeptiert für User ' . $user_id);
+            }
+            
+            // ✅ VALIDIERUNG: Logische Konsistenz prüfen
+            $this->validate_consent_logic($consent_data, $consent_type, $granted, $user_id);
             
             // Bestehenden Consent prüfen
             $existing = $wpdb->get_var($wpdb->prepare(
@@ -330,6 +342,12 @@ class YPrint_Consent_Manager {
      * Gast-Consent in Cookie speichern
      */
     private function save_guest_consent($consent_data) {
+        // ✅ VALIDIERUNG: Essenzielle Cookies auch für Gäste erzwingen
+        if (isset($consent_data['cookie_essential'])) {
+            $consent_data['cookie_essential'] = true;
+            error_log('🍪 FORCE: Essenzielle Cookies für Gast immer akzeptiert');
+        }
+        
         $cookie_data = array(
             'consents' => $consent_data,
             'timestamp' => time(),
@@ -347,6 +365,46 @@ class YPrint_Consent_Manager {
         );
         
         return true;
+    }
+    
+    /**
+     * ✅ NEU: Automatisierte Klicks erkennen
+     */
+    private function detect_automated_clicks($consent_data, $user_id) {
+        // Prüfe auf "Alle akzeptieren" Pattern (alle Cookies auf true)
+        $all_accepted = true;
+        $all_denied = true;
+        
+        foreach ($consent_data as $type => $granted) {
+            if ($type !== 'cookie_essential') { // Essenzielle ausnehmen
+                if (!$granted) $all_accepted = false;
+                if ($granted) $all_denied = false;
+            }
+        }
+        
+        if ($all_accepted) {
+            error_log('🍪 WARNUNG: Möglicher automatischer "Alle akzeptieren" Klick für User ' . $user_id);
+        }
+        
+        if ($all_denied) {
+            error_log('🍪 WARNUNG: Möglicher automatischer "Alle ablehnen" Klick für User ' . $user_id);
+        }
+    }
+    
+    /**
+     * ✅ NEU: Logische Konsistenz validieren
+     */
+    private function validate_consent_logic($consent_data, $consent_type, $granted, $user_id) {
+        // Prüfe Inkonsistenz: Privacy Policy akzeptiert aber alle Cookies abgelehnt
+        if (isset($consent_data['privacy_policy']) && $consent_data['privacy_policy'] && 
+            strpos($consent_type, 'cookie_') === 0 && !$granted) {
+            error_log('🍪 WARNUNG: Inkonsistenz - Privacy Policy akzeptiert aber Cookie abgelehnt: ' . $consent_type . ' für User ' . $user_id);
+        }
+        
+        // Prüfe ob essenzielle Cookies abgelehnt wurden (sollte nie passieren)
+        if (strtoupper($consent_type) === 'COOKIE_ESSENTIAL' && !$granted) {
+            error_log('🍪 KRITISCHER FEHLER: Essenzielle Cookies wurden abgelehnt für User ' . $user_id . ' - wird korrigiert');
+        }
     }
     
     /**

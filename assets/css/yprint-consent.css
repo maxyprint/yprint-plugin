@@ -177,6 +177,41 @@
     box-shadow: 0 0 0 1px var(--yprint-color-primary) !important;
     cursor: not-allowed !important;
     opacity: 0.8 !important;
+    position: relative !important;
+}
+
+/* ✅ NEU: Visueller Hinweis für essenzielle Cookies */
+.yprint-cookie-category[data-cookie-type="essential"]::after {
+    content: "🔒 Erforderlich" !important;
+    position: absolute !important;
+    top: -8px !important;
+    right: 10px !important;
+    background: var(--yprint-color-primary) !important;
+    color: white !important;
+    font-size: 10px !important;
+    padding: 2px 6px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    z-index: 1 !important;
+}
+
+/* ✅ NEU: Hover-Effekt für essenzielle Cookies deaktivieren */
+.yprint-cookie-category[data-cookie-type="essential"]:hover {
+    border-color: var(--yprint-color-primary) !important;
+    box-shadow: 0 0 0 1px var(--yprint-color-primary) !important;
+    transform: none !important;
+}
+
+/* ✅ NEU: Checkbox für essenzielle Cookies visuell deaktivieren */
+.yprint-cookie-category[data-cookie-type="essential"] input[type="checkbox"] {
+    opacity: 0.5 !important;
+    pointer-events: none !important;
+}
+
+/* ✅ NEU: Tooltip für essenzielle Cookies */
+.yprint-cookie-category[data-cookie-type="essential"] .yprint-cookie-category-title::before {
+    content: "ℹ️ " !important;
+    margin-right: 4px !important;
 }
 
 .yprint-cookie-category-info {
