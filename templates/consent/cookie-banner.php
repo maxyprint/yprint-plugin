@@ -89,3 +89,78 @@ $css_class = $show_initially ? 'yprint-cookie-banner' : 'yprint-cookie-banner yp
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ✅ KRITISCHER FIX: Cookie-Button Event Handler
+    const cookieButton = document.getElementById('yprint-open-consent-settings');
+    if (cookieButton) {
+        cookieButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🍪 Cookie-Button geklickt - FORCIERE Banner-Anzeige');
+            
+            // ✅ IMMER Banner anzeigen - egal ob bereits entschieden
+            const banner = document.getElementById('yprint-cookie-banner');
+            if (banner) {
+                // Alle versteckenden Klassen und Styles entfernen
+                banner.classList.remove('yprint-hidden');
+                banner.style.display = 'flex';
+                document.body.classList.add('yprint-consent-open');
+                
+                // ✅ Aktuelle Einstellungen in UI laden
+                if (typeof window.yprintConsentManager !== 'undefined') {
+                    // Lade aktuelle Cookie-Einstellungen und setze UI-State
+                    window.yprintConsentManager.loadConsentForSettings();
+                    console.log('🍪 Aktuelle Einstellungen in UI geladen');
+                } else {
+                    console.warn('🍪 yprintConsentManager nicht verfügbar - verwende Fallback');
+                    // ✅ FALLBACK: Setze UI basierend auf Browser-Cookies
+                    setUIFromBrowserCookies();
+                }
+            } else {
+                console.error('🍪 Cookie-Banner Element nicht gefunden!');
+            }
+        });
+        console.log('🍪 Cookie-Button Event Handler registriert');
+    } else {
+        console.warn('🍪 Cookie-Button nicht gefunden - suche alternative Selektoren');
+        // ✅ FALLBACK: Suche alternative Cookie-Button-Selektoren
+        const altButtons = document.querySelectorAll('[id*="consent"], [class*="cookie"], [class*="consent"]');
+        console.log('🍪 Alternative Buttons gefunden:', altButtons.length);
+    }
+    
+    // ✅ FALLBACK-FUNKTION: UI aus Browser-Cookies setzen
+    function setUIFromBrowserCookies() {
+        try {
+            const cookieValue = getCookieValue('yprint_consent_preferences');
+            if (cookieValue) {
+                const cookieData = JSON.parse(decodeURIComponent(cookieValue));
+                if (cookieData && cookieData.consents) {
+                    // Setze Checkboxes basierend auf Cookie-Daten
+                    const essentialBox = document.getElementById('cookie-essential');
+                    const analyticsBox = document.getElementById('cookie-analytics');
+                    const marketingBox = document.getElementById('cookie-marketing');
+                    const functionalBox = document.getElementById('cookie-functional');
+                    
+                    if (essentialBox) essentialBox.checked = true; // Immer true
+                    if (analyticsBox) analyticsBox.checked = cookieData.consents.cookie_analytics?.granted || false;
+                    if (marketingBox) marketingBox.checked = cookieData.consents.cookie_marketing?.granted || false;
+                    if (functionalBox) functionalBox.checked = cookieData.consents.cookie_functional?.granted || false;
+                    
+                    console.log('🍪 UI-State aus Browser-Cookies gesetzt');
+                }
+            }
+        } catch (e) {
+            console.warn('🍪 Fehler beim Laden der Cookie-UI:', e);
+        }
+    }
+    
+    // ✅ HILFSFUNKTION: Cookie-Wert abrufen
+    function getCookieValue(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+});
+</script>
