@@ -100,6 +100,7 @@ require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-hubspot-ad
 // Test-Datei laden (nur im Debug-Modus)
 if (defined('WP_DEBUG') && WP_DEBUG) {
     require_once plugin_dir_path(__FILE__) . 'test-hubspot.php';
+    require_once plugin_dir_path(__FILE__) . 'test-hubspot-cookie-activities.php';
 }
 
 // Debug: Prüfe HubSpot-Integration

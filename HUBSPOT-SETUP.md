@@ -1,7 +1,7 @@
 # 🍪 YPrint HubSpot Integration Setup
 
 ## Übersicht
-Die YPrint HubSpot Integration erstellt automatisch Kontakte in HubSpot bei jeder Benutzerregistrierung. Die Integration ist so konzipiert, dass sie auch bei HubSpot-Fehlern die Registrierung nicht blockiert.
+Die YPrint HubSpot Integration erstellt automatisch Kontakte in HubSpot bei jeder Benutzerregistrierung. **NEU:** Die Integration erstellt jetzt auch automatisch Aktivitäten bei Cookie-Aktualisierungen und erstmaligen Cookie-Auswahlen.
 
 ## 📋 Setup-Schritte
 
@@ -23,6 +23,8 @@ Die YPrint HubSpot Integration erstellt automatisch Kontakte in HubSpot bei jede
    - Wähle die folgenden **Scopes** aus:
      - ✅ `crm.objects.contacts.read`
      - ✅ `crm.objects.contacts.write`
+     - ✅ `crm.objects.notes.read` (NEU: Für Cookie-Aktivitäten)
+     - ✅ `crm.objects.notes.write` (NEU: Für Cookie-Aktivitäten)
    - **WICHTIG**: Stelle sicher, dass du die Scopes aktivierst (Häkchen setzen)
    - Klicke auf **"Create app"**
 
@@ -53,14 +55,14 @@ Die YPrint HubSpot Integration erstellt automatisch Kontakte in HubSpot bei jede
    - Registriere einen neuen Benutzer über das Frontend
    - Prüfe die WordPress Error Logs auf HubSpot-Nachrichten
 
-2. **Verifiziere in HubSpot**
+2. **Teste Cookie-Aktivitäten**
+   - Ändere Cookie-Einstellungen als eingeloggter Benutzer
+   - Prüfe HubSpot auf neue Aktivitäten
+
+3. **Verifiziere in HubSpot**
    - Gehe zu deinem HubSpot CRM
    - Prüfe, ob der neue Kontakt erstellt wurde
-   - Die Kontaktdaten sollten enthalten:
-     - E-Mail-Adresse
-     - Benutzername (als Vorname)
-     - Registrierungsdatum
-     - Cookie-Präferenzen (falls verfügbar)
+   - Prüfe die Aktivitäten für Cookie-bezogene Notizen
 
 ## 🔧 Konfiguration
 
@@ -84,19 +86,71 @@ $hubspot_contact_data = array(
 );
 ```
 
+## 🍪 NEU: Cookie-Aktivitäten
+
+### Erstmalige Cookie-Auswahl
+- **Trigger**: Erste Cookie-Auswahl durch Benutzer
+- **Aktivität**: Notiz in HubSpot mit Cookie-Präferenzen
+- **Inhalt**: Detaillierte Auflistung aller Cookie-Kategorien
+
+### Cookie-Aktualisierungen
+- **Trigger**: Änderung bestehender Cookie-Einstellungen
+- **Aktivität**: Notiz in HubSpot mit Änderungsvergleich
+- **Inhalt**: Vorher/Nachher-Vergleich der Cookie-Präferenzen
+
+### Aktivitäts-Details
+
+**Erstmalige Cookie-Auswahl:**
+```
+🍪 **Erstmalige Cookie-Auswahl**
+
+**Zeitpunkt:** 15.01.2024 14:30:25
+
+**Cookie-Präferenzen:**
+- Essenzielle Cookies: ✅ Akzeptiert
+- Analytics Cookies: ❌ Abgelehnt
+- Marketing Cookies: ❌ Abgelehnt
+- Funktionale Cookies: ✅ Akzeptiert
+
+**Prozess:** Erstmalige Cookie-Auswahl durch Benutzer
+**Quelle:** YPrint Cookie-Consent-System
+```
+
+**Cookie-Aktualisierung:**
+```
+🍪 **Cookie-Präferenzen aktualisiert**
+
+**Zeitpunkt:** 15.01.2024 16:45:12
+
+**Änderungen:**
+- Analytics Cookies: Abgelehnt → Akzeptiert
+
+**Aktuelle Cookie-Präferenzen:**
+- Essenzielle Cookies: ✅ Akzeptiert
+- Analytics Cookies: ✅ Akzeptiert
+- Marketing Cookies: ❌ Abgelehnt
+- Funktionale Cookies: ✅ Akzeptiert
+
+**Prozess:** Cookie-Präferenzen aktualisiert
+**Quelle:** YPrint Cookie-Consent-System
+```
+
 ## 📊 Monitoring
 
 ### WordPress Error Logs
 Alle HubSpot-Aktivitäten werden geloggt:
 ```
 YPrint Registration: HubSpot contact created for user username with ID: 12345
-YPrint Registration: Failed to create HubSpot contact for user username: API Error
+YPrint Registration: Initial cookie activity created for user username during registration
+YPrint HubSpot: Cookie-Aktivität erfolgreich erstellt für User 123 - Type: initial
+YPrint HubSpot: Cookie-Aktivität erfolgreich erstellt für User 123 - Type: update
 ```
 
 ### Admin-Statistiken
 Im HubSpot Admin-Panel findest du:
 - Anzahl erfolgreich erstellter HubSpot-Kontakte
 - Registrierungen heute
+- Cookie-Aktivitäten (erstmalig/Updates)
 - Verbindungstest-Ergebnisse
 
 ## 🛠️ Fehlerbehebung
@@ -113,7 +167,12 @@ Im HubSpot Admin-Panel findest du:
    - Stelle sicher, dass die Integration aktiviert ist
    - Teste mit einer neuen Registrierung
 
-3. **"API Key nicht gültig"**
+3. **"Cookie-Aktivitäten werden nicht erstellt"**
+   - Prüfe, ob die Notes-Scopes aktiviert sind
+   - Stelle sicher, dass der Kontakt in HubSpot existiert
+   - Prüfe die WordPress Error Logs für Details
+
+4. **"API Key nicht gültig"**
    - Erstelle eine neue Private App
    - Kopiere den neuen Access Token
    - Aktualisiere die Einstellungen
@@ -151,6 +210,11 @@ Die Integration kann auch bestehende Kontakte aktualisieren:
 - Cookie-Präferenzen werden bei Änderungen aktualisiert
 - Registrierungsdatum wird gespeichert
 
+### Automatische Aktivitäten
+- **Bei Registrierung**: Erstmalige Cookie-Aktivität (falls vorhanden)
+- **Bei Cookie-Änderungen**: Update-Aktivität mit Vergleich
+- **Für Gäste**: Aktivitäten nur bei verfügbarer E-Mail
+
 ## 🚀 Nächste Schritte
 
 Nach erfolgreicher Integration kannst du:
@@ -159,6 +223,8 @@ Nach erfolgreicher Integration kannst du:
 2. **E-Mail-Marketing** Kampagnen starten
 3. **Lead-Scoring** implementieren
 4. **Automatisierte Follow-ups** einrichten
+5. **Cookie-basierte Segmentierung** erstellen
+6. **Aktivitäts-basierte Automatisierung** einrichten
 
 ## 📞 Support
 
@@ -197,3 +263,51 @@ Für die vollständige Integration musst du Custom Properties in HubSpot erstell
 4. **Teste die Integration erneut**
 
 ### 5. Testen der Integration
+
+1. **Registriere einen neuen Benutzer**
+   - Gehe zur Registrierungsseite
+   - Fülle das Formular aus
+   - Prüfe die WordPress Error Logs
+
+2. **Teste Cookie-Aktivitäten**
+   - Ändere Cookie-Einstellungen als eingeloggter Benutzer
+   - Prüfe HubSpot auf neue Aktivitäten
+
+3. **Verifiziere in HubSpot**
+   - Gehe zu deinem HubSpot CRM
+   - Suche nach dem neuen Kontakt
+   - Prüfe die Aktivitäten für Cookie-Notizen
+
+4. **Debug-Informationen**
+   - Aktiviere den Debug-Modus im Admin-Panel
+   - Prüfe die WordPress Error Logs
+   - Teste die API-Verbindung
+
+## 🎯 Erfolgsmetriken
+
+Nach der Integration solltest du folgende Aktivitäten in HubSpot sehen:
+
+- ✅ **Kontakte** werden bei jeder Registrierung erstellt
+- ✅ **Cookie-Aktivitäten** werden bei erstmaliger Auswahl erstellt
+- ✅ **Update-Aktivitäten** werden bei Cookie-Änderungen erstellt
+- ✅ **Automatische Verknüpfung** zwischen Notizen und Kontakten
+- ✅ **Detaillierte Logs** in WordPress Error Logs
+
+## 🔄 Automatisierung
+
+Die Integration ermöglicht folgende Automatisierungen:
+
+1. **Registrierungs-Workflows**
+   - Willkommens-E-Mails bei Registrierung
+   - Onboarding-Sequenzen
+   - Lead-Scoring basierend auf Cookie-Präferenzen
+
+2. **Cookie-basierte Segmentierung**
+   - Analytics-Akzeptierer für Marketing
+   - Marketing-Akzeptierer für personalisierte Kampagnen
+   - Datenschutzbewusste Nutzer für spezielle Kommunikation
+
+3. **Aktivitäts-basierte Follow-ups**
+   - Nachfragen bei Cookie-Änderungen
+   - Personalisierte Inhalte basierend auf Präferenzen
+   - Automatische Lead-Qualifizierung

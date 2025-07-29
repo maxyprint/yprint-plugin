@@ -911,6 +911,18 @@ function yprint_register_user_callback() {
                 error_log('YPrint Registration: HubSpot contact created for user ' . $username . ' with ID: ' . $hubspot_result['contact_id']);
                 // Optional: Contact ID in WordPress User Meta speichern
                 update_user_meta($user_id, 'hubspot_contact_id', $hubspot_result['contact_id']);
+                
+                // ✅ NEU: Cookie-Aktivität bei Registrierung erstellen (falls Cookie-Präferenzen vorhanden)
+                $cookie_preferences = get_cookie_preferences_from_registration();
+                if (!empty($cookie_preferences)) {
+                    $cookie_activity_result = $hubspot_api->handle_cookie_activity($email, $cookie_preferences, 'initial');
+                    
+                    if ($cookie_activity_result['success']) {
+                        error_log('YPrint Registration: Initial cookie activity created for user ' . $username . ' during registration');
+                    } else {
+                        error_log('YPrint Registration: Failed to create initial cookie activity for user ' . $username . ': ' . $cookie_activity_result['message']);
+                    }
+                }
             } else {
                 error_log('YPrint Registration: Failed to create HubSpot contact for user ' . $username . ': ' . $hubspot_result['message']);
                 // Registration trotzdem erfolgreich, auch wenn HubSpot fehlschlägt
@@ -960,4 +972,55 @@ function yprint_verify_email_redirect() {
     if (is_page('verify-email') && isset($_GET['code'])) {
         yprint_verify_email();
     }
+}
+
+/**
+ * ✅ NEU: Extrahiert Cookie-Präferenzen aus der Registrierung
+ */
+function get_cookie_preferences_from_registration() {
+    $cookie_preferences = array();
+    
+    // Prüfe POST-Daten für Cookie-Präferenzen
+    if (isset($_POST['cookie_preferences'])) {
+        $preferences = $_POST['cookie_preferences'];
+        if (is_array($preferences)) {
+            $cookie_preferences = array(
+                'cookie_essential' => isset($preferences['essential']) ? (bool)$preferences['essential'] : true,
+                'cookie_analytics' => isset($preferences['analytics']) ? (bool)$preferences['analytics'] : false,
+                'cookie_marketing' => isset($preferences['marketing']) ? (bool)$preferences['marketing'] : false,
+                'cookie_functional' => isset($preferences['functional']) ? (bool)$preferences['functional'] : false
+            );
+        }
+    }
+    
+    // Prüfe versteckte Felder für Cookie-Präferenzen
+    if (empty($cookie_preferences)) {
+        $cookie_preferences = array(
+            'cookie_essential' => isset($_POST['final_cookie_essential']) ? (bool)$_POST['final_cookie_essential'] : true,
+            'cookie_analytics' => isset($_POST['final_cookie_analytics']) ? (bool)$_POST['final_cookie_analytics'] : false,
+            'cookie_marketing' => isset($_POST['final_cookie_marketing']) ? (bool)$_POST['final_cookie_marketing'] : false,
+            'cookie_functional' => isset($_POST['final_cookie_functional']) ? (bool)$_POST['final_cookie_functional'] : false
+        );
+    }
+    
+    // Prüfe Browser-Cookies für Cookie-Präferenzen
+    if (empty($cookie_preferences) && isset($_COOKIE['yprint_consent_preferences'])) {
+        $cookie_value = $_COOKIE['yprint_consent_preferences'];
+        $decoded_value = urldecode($cookie_value);
+        $decoded = json_decode($decoded_value, true);
+        
+        if (json_last_error() === JSON_ERROR_NONE && isset($decoded['consents'])) {
+            $cookie_preferences = array(
+                'cookie_essential' => isset($decoded['consents']['cookie_essential']) ? (bool)$decoded['consents']['cookie_essential'] : true,
+                'cookie_analytics' => isset($decoded['consents']['cookie_analytics']) ? (bool)$decoded['consents']['cookie_analytics'] : false,
+                'cookie_marketing' => isset($decoded['consents']['cookie_marketing']) ? (bool)$decoded['consents']['cookie_marketing'] : false,
+                'cookie_functional' => isset($decoded['consents']['cookie_functional']) ? (bool)$decoded['consents']['cookie_functional'] : false
+            );
+        }
+    }
+    
+    // Stelle sicher, dass essenzielle Cookies immer akzeptiert sind
+    $cookie_preferences['cookie_essential'] = true;
+    
+    return $cookie_preferences;
 }

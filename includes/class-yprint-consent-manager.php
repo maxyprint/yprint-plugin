@@ -599,10 +599,23 @@ class YPrint_Consent_Manager {
         $consent_data = isset($_POST['consents']) ? wp_unslash($_POST['consents']) : array();
         $version = isset($_POST['version']) ? sanitize_text_field($_POST['version']) : '1.0';
         
+        // ✅ NEU: Prüfe ob es sich um erstmalige Cookie-Auswahl handelt
+        $is_initial_consent = $this->is_initial_cookie_consent($consent_data);
+        
         if (is_user_logged_in()) {
             $result = $this->save_user_consent(get_current_user_id(), $consent_data, $version);
+            
+            // ✅ NEU: HubSpot-Aktivität für eingeloggte User
+            if ($result && class_exists('YPrint_HubSpot_API')) {
+                $this->create_hubspot_cookie_activity(get_current_user_id(), $consent_data, $is_initial_consent);
+            }
         } else {
             $result = $this->save_guest_consent($consent_data);
+            
+            // ✅ NEU: HubSpot-Aktivität für Gäste (falls E-Mail verfügbar)
+            if ($result && class_exists('YPrint_HubSpot_API')) {
+                $this->create_hubspot_cookie_activity_for_guest($consent_data, $is_initial_consent);
+            }
         }
         
         if ($result) {
@@ -610,6 +623,130 @@ class YPrint_Consent_Manager {
         } else {
             wp_send_json_error(array('message' => 'Fehler beim Speichern'));
         }
+    }
+    
+    /**
+     * ✅ NEU: Prüft ob es sich um erstmalige Cookie-Auswahl handelt
+     */
+    private function is_initial_cookie_consent($consent_data) {
+        if (is_user_logged_in()) {
+            // Für eingeloggte User: Prüfe Datenbank
+            $user_id = get_current_user_id();
+            global $wpdb;
+            
+            $existing_consents = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}yprint_consents 
+                 WHERE user_id = %d AND consent_type LIKE 'COOKIE_%'",
+                $user_id
+            ));
+            
+            return $existing_consents == 0;
+        } else {
+            // Für Gäste: Prüfe Cookies
+            $has_existing_cookies = isset($_COOKIE['yprint_consent_decision']) || 
+                                   isset($_COOKIE['yprint_consent_preferences']) || 
+                                   isset($_COOKIE['yprint_consent_timestamp']);
+            
+            return !$has_existing_cookies;
+        }
+    }
+    
+    /**
+     * ✅ NEU: Erstellt HubSpot-Aktivität für eingeloggte User
+     */
+    private function create_hubspot_cookie_activity($user_id, $consent_data, $is_initial) {
+        $hubspot_api = YPrint_HubSpot_API::get_instance();
+        
+        if (!$hubspot_api->is_enabled()) {
+            return;
+        }
+        
+        // Hole User-E-Mail
+        $user = get_userdata($user_id);
+        if (!$user || empty($user->user_email)) {
+            error_log('YPrint HubSpot: Keine E-Mail für User ' . $user_id . ' gefunden');
+            return;
+        }
+        
+        $email = $user->user_email;
+        $activity_type = $is_initial ? 'initial' : 'update';
+        
+        // Erstelle HubSpot-Aktivität
+        $result = $hubspot_api->handle_cookie_activity($email, $consent_data, $activity_type);
+        
+        if ($result['success']) {
+            error_log('YPrint HubSpot: Cookie-Aktivität erfolgreich erstellt für User ' . $user_id . ' - Type: ' . $activity_type);
+        } else {
+            error_log('YPrint HubSpot: Fehler beim Erstellen der Cookie-Aktivität für User ' . $user_id . ' - ' . $result['message']);
+        }
+    }
+    
+    /**
+     * ✅ NEU: Erstellt HubSpot-Aktivität für Gäste
+     */
+    private function create_hubspot_cookie_activity_for_guest($consent_data, $is_initial) {
+        $hubspot_api = YPrint_HubSpot_API::get_instance();
+        
+        if (!$hubspot_api->is_enabled()) {
+            return;
+        }
+        
+        // Für Gäste: Versuche E-Mail aus Session oder anderen Quellen zu bekommen
+        $email = $this->get_guest_email();
+        
+        if (empty($email)) {
+            error_log('YPrint HubSpot: Keine E-Mail für Gast verfügbar - Cookie-Aktivität wird nicht erstellt');
+            return;
+        }
+        
+        $activity_type = $is_initial ? 'initial' : 'update';
+        
+        // Erstelle HubSpot-Aktivität
+        $result = $hubspot_api->handle_cookie_activity($email, $consent_data, $activity_type);
+        
+        if ($result['success']) {
+            error_log('YPrint HubSpot: Cookie-Aktivität erfolgreich erstellt für Gast mit E-Mail ' . $email . ' - Type: ' . $activity_type);
+        } else {
+            error_log('YPrint HubSpot: Fehler beim Erstellen der Cookie-Aktivität für Gast mit E-Mail ' . $email . ' - ' . $result['message']);
+        }
+    }
+    
+    /**
+     * ✅ NEU: Versucht E-Mail für Gast zu ermitteln
+     */
+    private function get_guest_email() {
+        // Prüfe verschiedene Quellen für Gast-E-Mail
+        
+        // 1. Aus Session (falls verfügbar)
+        if (isset($_SESSION['yprint_guest_email'])) {
+            return $_SESSION['yprint_guest_email'];
+        }
+        
+        // 2. Aus URL-Parameter (falls von Registrierung kommend)
+        if (isset($_GET['email'])) {
+            $email = sanitize_email($_GET['email']);
+            if (is_email($email)) {
+                return $email;
+            }
+        }
+        
+        // 3. Aus POST-Daten (falls verfügbar)
+        if (isset($_POST['email'])) {
+            $email = sanitize_email($_POST['email']);
+            if (is_email($email)) {
+                return $email;
+            }
+        }
+        
+        // 4. Aus Cookie (falls gespeichert)
+        if (isset($_COOKIE['yprint_guest_email'])) {
+            $email = sanitize_email($_COOKIE['yprint_guest_email']);
+            if (is_email($email)) {
+                return $email;
+            }
+        }
+        
+        return null;
     }
     
     /**

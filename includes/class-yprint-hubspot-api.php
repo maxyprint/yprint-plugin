@@ -381,4 +381,294 @@ class YPrint_HubSpot_API {
             );
         }
     }
+    
+    /**
+     * ✅ NEU: Erstellt eine HubSpot-Aktivität bei erstmaliger Cookie-Auswahl
+     */
+    public function create_initial_cookie_activity($contact_id, $cookie_data) {
+        if (!$this->is_enabled()) {
+            return array(
+                'success' => false,
+                'message' => 'HubSpot Integration ist nicht aktiviert'
+            );
+        }
+        
+        // Bereite Aktivitätsdaten vor
+        $activity_data = array(
+            'properties' => array(
+                'hs_timestamp' => time() * 1000, // HubSpot erwartet Millisekunden
+                'hs_note_body' => $this->format_initial_cookie_note($cookie_data),
+                'hs_attachment_ids' => '',
+                'hs_note_body_pre_processing' => $this->format_initial_cookie_note($cookie_data)
+            )
+        );
+        
+        // Sende Request an HubSpot Engagements API
+        $response = wp_remote_post($this->base_url . '/crm/v3/objects/notes', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($activity_data),
+            'timeout' => 30
+        ));
+        
+        if (is_wp_error($response)) {
+            error_log('YPrint HubSpot: Initial cookie activity request error - ' . $response->get_error_message());
+            return array(
+                'success' => false,
+                'message' => 'Verbindungsfehler: ' . $response->get_error_message()
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        $response_data = json_decode($body, true);
+        
+        if ($status_code === 201) {
+            // Erfolgreich erstellt - verknüpfe mit Kontakt
+            $note_id = $response_data['id'];
+            $this->associate_note_with_contact($note_id, $contact_id);
+            
+            error_log('YPrint HubSpot: Initial cookie activity created successfully - Note ID: ' . $note_id . ' for Contact ID: ' . $contact_id);
+            return array(
+                'success' => true,
+                'activity_id' => $note_id,
+                'message' => 'Erstmalige Cookie-Aktivität erfolgreich erstellt'
+            );
+        } else {
+            $error_message = isset($response_data['message']) ? $response_data['message'] : 'Unbekannter Fehler';
+            error_log('YPrint HubSpot: Failed to create initial cookie activity - Status: ' . $status_code . ', Message: ' . $error_message);
+            
+            return array(
+                'success' => false,
+                'message' => 'Fehler beim Erstellen der erstmaligen Cookie-Aktivität: ' . $error_message
+            );
+        }
+    }
+    
+    /**
+     * ✅ NEU: Erstellt eine HubSpot-Aktivität bei Cookie-Aktualisierung
+     */
+    public function create_cookie_update_activity($contact_id, $cookie_data, $previous_data = null) {
+        if (!$this->is_enabled()) {
+            return array(
+                'success' => false,
+                'message' => 'HubSpot Integration ist nicht aktiviert'
+            );
+        }
+        
+        // Bereite Aktivitätsdaten vor
+        $activity_data = array(
+            'properties' => array(
+                'hs_timestamp' => time() * 1000, // HubSpot erwartet Millisekunden
+                'hs_note_body' => $this->format_cookie_update_note($cookie_data, $previous_data),
+                'hs_attachment_ids' => '',
+                'hs_note_body_pre_processing' => $this->format_cookie_update_note($cookie_data, $previous_data)
+            )
+        );
+        
+        // Sende Request an HubSpot Engagements API
+        $response = wp_remote_post($this->base_url . '/crm/v3/objects/notes', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($activity_data),
+            'timeout' => 30
+        ));
+        
+        if (is_wp_error($response)) {
+            error_log('YPrint HubSpot: Cookie update activity request error - ' . $response->get_error_message());
+            return array(
+                'success' => false,
+                'message' => 'Verbindungsfehler: ' . $response->get_error_message()
+            );
+        }
+        
+        $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
+        $response_data = json_decode($body, true);
+        
+        if ($status_code === 201) {
+            // Erfolgreich erstellt - verknüpfe mit Kontakt
+            $note_id = $response_data['id'];
+            $this->associate_note_with_contact($note_id, $contact_id);
+            
+            error_log('YPrint HubSpot: Cookie update activity created successfully - Note ID: ' . $note_id . ' for Contact ID: ' . $contact_id);
+            return array(
+                'success' => true,
+                'activity_id' => $note_id,
+                'message' => 'Cookie-Aktualisierungsaktivität erfolgreich erstellt'
+            );
+        } else {
+            $error_message = isset($response_data['message']) ? $response_data['message'] : 'Unbekannter Fehler';
+            error_log('YPrint HubSpot: Failed to create cookie update activity - Status: ' . $status_code . ', Message: ' . $error_message);
+            
+            return array(
+                'success' => false,
+                'message' => 'Fehler beim Erstellen der Cookie-Aktualisierungsaktivität: ' . $error_message
+            );
+        }
+    }
+    
+    /**
+     * ✅ NEU: Verknüpft eine Notiz mit einem Kontakt
+     */
+    private function associate_note_with_contact($note_id, $contact_id) {
+        $association_data = array(
+            'inputs' => array(
+                array(
+                    'from' => array(
+                        'id' => $note_id
+                    ),
+                    'to' => array(
+                        'id' => $contact_id
+                    ),
+                    'types' => array(
+                        array(
+                            'associationCategory' => 'HUBSPOT_DEFINED',
+                            'associationTypeId' => 1 // Note to Contact association
+                        )
+                    )
+                )
+            )
+        );
+        
+        $response = wp_remote_post($this->base_url . '/crm/v4/objects/notes/associations/batch/upsert', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $this->api_key,
+                'Content-Type' => 'application/json'
+            ),
+            'body' => json_encode($association_data),
+            'timeout' => 30
+        ));
+        
+        if (is_wp_error($response)) {
+            error_log('YPrint HubSpot: Failed to associate note with contact - ' . $response->get_error_message());
+        } else {
+            $status_code = wp_remote_retrieve_response_code($response);
+            if ($status_code === 200) {
+                error_log('YPrint HubSpot: Note successfully associated with contact');
+            } else {
+                error_log('YPrint HubSpot: Failed to associate note with contact - Status: ' . $status_code);
+            }
+        }
+    }
+    
+    /**
+     * ✅ NEU: Formatiert Notiz für erstmalige Cookie-Auswahl
+     */
+    private function format_initial_cookie_note($cookie_data) {
+        $note = "🍪 **Erstmalige Cookie-Auswahl**\n\n";
+        $note .= "**Zeitpunkt:** " . date('d.m.Y H:i:s') . "\n\n";
+        $note .= "**Cookie-Präferenzen:**\n";
+        
+        $cookie_labels = array(
+            'cookie_essential' => 'Essenzielle Cookies',
+            'cookie_analytics' => 'Analytics Cookies',
+            'cookie_marketing' => 'Marketing Cookies',
+            'cookie_functional' => 'Funktionale Cookies'
+        );
+        
+        foreach ($cookie_labels as $key => $label) {
+            $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+            $note .= "- {$label}: {$status}\n";
+        }
+        
+        $note .= "\n**Prozess:** Erstmalige Cookie-Auswahl durch Benutzer\n";
+        $note .= "**Quelle:** YPrint Cookie-Consent-System";
+        
+        return $note;
+    }
+    
+    /**
+     * ✅ NEU: Formatiert Notiz für Cookie-Aktualisierung
+     */
+    private function format_cookie_update_note($cookie_data, $previous_data = null) {
+        $note = "🍪 **Cookie-Präferenzen aktualisiert**\n\n";
+        $note .= "**Zeitpunkt:** " . date('d.m.Y H:i:s') . "\n\n";
+        
+        if ($previous_data) {
+            $note .= "**Änderungen:**\n";
+            $cookie_labels = array(
+                'cookie_essential' => 'Essenzielle Cookies',
+                'cookie_analytics' => 'Analytics Cookies',
+                'cookie_marketing' => 'Marketing Cookies',
+                'cookie_functional' => 'Funktionale Cookies'
+            );
+            
+            foreach ($cookie_labels as $key => $label) {
+                $old_status = isset($previous_data[$key]) && $previous_data[$key] ? 'Akzeptiert' : 'Abgelehnt';
+                $new_status = isset($cookie_data[$key]) && $cookie_data[$key] ? 'Akzeptiert' : 'Abgelehnt';
+                
+                if ($old_status !== $new_status) {
+                    $note .= "- {$label}: {$old_status} → {$new_status}\n";
+                }
+            }
+            $note .= "\n";
+        }
+        
+        $note .= "**Aktuelle Cookie-Präferenzen:**\n";
+        $cookie_labels = array(
+            'cookie_essential' => 'Essenzielle Cookies',
+            'cookie_analytics' => 'Analytics Cookies',
+            'cookie_marketing' => 'Marketing Cookies',
+            'cookie_functional' => 'Funktionale Cookies'
+        );
+        
+        foreach ($cookie_labels as $key => $label) {
+            $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+            $note .= "- {$label}: {$status}\n";
+        }
+        
+        $note .= "\n**Prozess:** Cookie-Präferenzen aktualisiert\n";
+        $note .= "**Quelle:** YPrint Cookie-Consent-System";
+        
+        return $note;
+    }
+    
+    /**
+     * ✅ NEU: Zentrale Methode für Cookie-Aktivitäten
+     */
+    public function handle_cookie_activity($email, $cookie_data, $activity_type = 'update') {
+        if (!$this->is_enabled()) {
+            return array(
+                'success' => false,
+                'message' => 'HubSpot Integration ist nicht aktiviert'
+            );
+        }
+        
+        // Suche Kontakt nach E-Mail
+        $contact_result = $this->find_contact_by_email($email);
+        
+        if (!$contact_result['success']) {
+            error_log('YPrint HubSpot: Failed to find contact for cookie activity - ' . $contact_result['message']);
+            return $contact_result;
+        }
+        
+        if (!$contact_result['found']) {
+            error_log('YPrint HubSpot: Contact not found for cookie activity - Email: ' . $email);
+            return array(
+                'success' => false,
+                'message' => 'Kontakt nicht gefunden für Cookie-Aktivität'
+            );
+        }
+        
+        $contact_id = $contact_result['contact']['id'];
+        
+        // Erstelle entsprechende Aktivität
+        if ($activity_type === 'initial') {
+            return $this->create_initial_cookie_activity($contact_id, $cookie_data);
+        } else {
+            // Für Updates: Lade vorherige Daten für Vergleich
+            $previous_data = null;
+            $preferences_result = $this->get_contact_cookie_preferences($contact_id);
+            if ($preferences_result['success']) {
+                $previous_data = $preferences_result['preferences'];
+            }
+            
+            return $this->create_cookie_update_activity($contact_id, $cookie_data, $previous_data);
+        }
+    }
 }

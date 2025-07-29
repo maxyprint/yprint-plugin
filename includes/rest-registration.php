@@ -221,6 +221,17 @@ function wc_rest_user_endpoint_handler($request) {
                 error_log('YPrint Registration: HubSpot contact created for user ' . $username . ' with ID: ' . $hubspot_result['contact_id']);
                 // Optional: Contact ID in WordPress User Meta speichern
                 update_user_meta($user_id, 'hubspot_contact_id', $hubspot_result['contact_id']);
+                
+                // ✅ NEU: Cookie-Aktivität bei Registrierung erstellen (falls Cookie-Präferenzen vorhanden)
+                if (!empty($cookie_preferences)) {
+                    $cookie_activity_result = $hubspot_api->handle_cookie_activity($email, $cookie_preferences, 'initial');
+                    
+                    if ($cookie_activity_result['success']) {
+                        error_log('YPrint Registration: Initial cookie activity created for user ' . $username . ' during REST registration');
+                    } else {
+                        error_log('YPrint Registration: Failed to create initial cookie activity for user ' . $username . ' during REST registration: ' . $cookie_activity_result['message']);
+                    }
+                }
             } else {
                 error_log('YPrint Registration: Failed to create HubSpot contact for user ' . $username . ': ' . $hubspot_result['message']);
                 // Registration trotzdem erfolgreich, auch wenn HubSpot fehlschlägt
