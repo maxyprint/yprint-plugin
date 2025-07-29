@@ -53,7 +53,8 @@ class YPrint_HubSpot_API {
             'headers' => array(
                 'Authorization' => 'Bearer ' . $this->api_key,
                 'Content-Type' => 'application/json',
-                'User-Agent' => 'YPrint-Plugin/1.0'
+                'User-Agent' => 'YPrint-Plugin/1.0',
+                'Accept' => 'application/json'
             ),
             'timeout' => 30
         ));
@@ -81,6 +82,31 @@ class YPrint_HubSpot_API {
             error_log('YPrint HubSpot Debug - Status: ' . $status_code);
             error_log('YPrint HubSpot Debug - Response: ' . $body);
             error_log('YPrint HubSpot Debug - API Key (first 10 chars): ' . substr($this->api_key, 0, 10) . '...');
+            
+            // Versuche alternative Authentifizierung
+            if ($status_code === 401) {
+                error_log('YPrint HubSpot Debug - Versuche alternative Authentifizierung...');
+                
+                // Alternative: API Key als Query Parameter
+                $alt_response = wp_remote_get($this->base_url . '/crm/v3/objects/contacts?limit=1&hapikey=' . $this->api_key, array(
+                    'headers' => array(
+                        'Content-Type' => 'application/json',
+                        'User-Agent' => 'YPrint-Plugin/1.0',
+                        'Accept' => 'application/json'
+                    ),
+                    'timeout' => 30
+                ));
+                
+                if (!is_wp_error($alt_response)) {
+                    $alt_status = wp_remote_retrieve_response_code($alt_response);
+                    if ($alt_status === 200) {
+                        return array(
+                            'success' => true,
+                            'message' => 'HubSpot API Verbindung erfolgreich (alternative Methode)'
+                        );
+                    }
+                }
+            }
             
             // Spezifische Fehlermeldungen
             if (strpos($error_message, 'Authentication credentials not found') !== false) {

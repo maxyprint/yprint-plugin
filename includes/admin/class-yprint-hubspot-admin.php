@@ -322,6 +322,11 @@ class YPrint_HubSpot_Admin {
             wp_send_json_error(array('message' => 'HubSpot Integration ist nicht aktiviert. Bitte aktiviere sie zuerst.'));
         }
         
+        // Validiere Token-Format
+        if (!preg_match('/^pat-[a-zA-Z0-9-]+$/', $api_key)) {
+            wp_send_json_error(array('message' => 'Ungültiges Token-Format. Bitte verwende einen Private App Access Token (beginnt mit "pat-").'));
+        }
+        
         $hubspot_api = YPrint_HubSpot_API::get_instance();
         $result = $hubspot_api->test_connection();
         
