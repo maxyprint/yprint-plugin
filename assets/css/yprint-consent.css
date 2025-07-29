@@ -327,7 +327,7 @@
     
     /* Header für Mobile */
     .yprint-cookie-banner-header {
-        padding: var(--yprint-space-md) 0 !important;
+        padding: var(--yprint-space-lg) 0 var(--yprint-space-md) 0 !important;
         border-bottom: 1px solid var(--yprint-color-border) !important;
         margin-bottom: var(--yprint-space-md) !important;
     }
