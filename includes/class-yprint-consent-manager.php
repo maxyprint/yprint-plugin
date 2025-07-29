@@ -226,65 +226,158 @@ class YPrint_Consent_Manager {
      * Prüfen ob Gast bereits eine Consent-Entscheidung getroffen hat
      */
     private function has_guest_consent_decision() {
-        // ✅ NEU: Robustere Cookie-Detection mit mehreren Fallbacks
+        error_log('🍪 PHP: === GUEST CONSENT DECISION CHECK START ===');
+        error_log('🍪 PHP: Current URL: ' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : 'unknown'));
+        error_log('🍪 PHP: HTTP Host: ' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'unknown'));
+        error_log('🍪 PHP: User Agent: ' . (isset($_SERVER['HTTP_USER_AGENT']) ? substr($_SERVER['HTTP_USER_AGENT'], 0, 100) : 'unknown') . '...');
+        
+        // Vollständige Cookie-Analyse
+        error_log('🍪 PHP: Alle $_COOKIE Keys: ' . implode(', ', array_keys($_COOKIE)));
+        error_log('🍪 PHP: $_COOKIE Anzahl: ' . count($_COOKIE));
+        
+        // YPrint-spezifische Cookies extrahieren
+        $all_yprint_cookies = array();
+        foreach ($_COOKIE as $name => $value) {
+            if (strpos($name, 'yprint_consent') === 0) {
+                $all_yprint_cookies[$name] = $value;
+            }
+        }
+        
+        error_log('🍪 PHP: YPrint-Cookies gefunden: ' . json_encode(array_keys($all_yprint_cookies)));
+        
+        // Detaillierte Cookie-Werte (erste 100 Zeichen)
+        foreach ($all_yprint_cookies as $name => $value) {
+            $short_value = strlen($value) > 100 ? substr($value, 0, 100) . '...' : $value;
+            error_log('🍪 PHP: Cookie "' . $name . '": ' . $short_value);
+        }
+        
+        // Standard-Prüfungen
         $has_decision_cookie = isset($_COOKIE['yprint_consent_decision']);
         $has_preferences_cookie = isset($_COOKIE['yprint_consent_preferences']);
         $has_timestamp_cookie = isset($_COOKIE['yprint_consent_timestamp']);
         
-        // Debug: Alle verfügbaren Cookies loggen
-        $available_cookies = array_keys($_COOKIE);
-        $yprint_cookies = array_filter($available_cookies, function($cookie) {
-            return strpos($cookie, 'yprint_consent') === 0;
-        });
+        error_log('🍪 PHP: Cookie-Flags:');
+        error_log('🍪 PHP: - Decision Cookie: ' . ($has_decision_cookie ? 'JA' : 'NEIN'));
+        error_log('🍪 PHP: - Preferences Cookie: ' . ($has_preferences_cookie ? 'JA' : 'NEIN'));
+        error_log('🍪 PHP: - Timestamp Cookie: ' . ($has_timestamp_cookie ? 'JA' : 'NEIN'));
         
-        error_log('🍪 PHP: Verfügbare YPrint-Cookies: ' . implode(', ', $yprint_cookies));
-        
-        // Mindestens eines der drei Haupt-Cookies muss vorhanden sein
+        // Basis-Entscheidung
         $has_basic_decision = $has_decision_cookie || $has_preferences_cookie || $has_timestamp_cookie;
         
         if (!$has_basic_decision) {
-            error_log('🍪 PHP: Guest consent decision check - KEINE YPrint-Cookies vorhanden, Banner wird angezeigt');
+            error_log('🍪 PHP: KEINE YPrint-Cookies vorhanden - Banner wird angezeigt');
+            error_log('🍪 PHP: === GUEST CONSENT DECISION CHECK ENDE - RESULT: BANNER_ANZEIGEN ===');
             return false;
         }
         
-        // Zusätzliche Validierung: Prüfe Timestamp-Gültigkeit
+        // Timestamp-Validierung mit detailliertem Logging
         $has_valid_timestamp = true;
-        $timestamp_value = 'nicht vorhanden';
+        $timestamp_details = 'nicht validiert';
         
         if ($has_timestamp_cookie) {
-            $timestamp = intval($_COOKIE['yprint_consent_timestamp']);
-            $one_year_ago = time() - (365 * 24 * 60 * 60);
+            $timestamp_raw = $_COOKIE['yprint_consent_timestamp'];
+            $timestamp = intval($timestamp_raw);
+            $now = time();
+            $one_year_ago = $now - (365 * 24 * 60 * 60);
             $has_valid_timestamp = $timestamp >= $one_year_ago;
-            $timestamp_value = $timestamp . ' (' . date('Y-m-d H:i:s', $timestamp) . ')';
+            
+            $timestamp_details = sprintf(
+                'Raw: %s, Int: %d, Datum: %s, Jetzt: %d, Ein Jahr her: %d, Gültig: %s',
+                $timestamp_raw,
+                $timestamp,
+                date('Y-m-d H:i:s', $timestamp),
+                $now,
+                $one_year_ago,
+                $has_valid_timestamp ? 'JA' : 'NEIN'
+            );
+            
+            error_log('🍪 PHP: Timestamp-Cookie Details: ' . $timestamp_details);
             
             if (!$has_valid_timestamp) {
-                error_log('🍪 PHP: Guest consent decision check - Timestamp zu alt (' . $timestamp . ' vs ' . $one_year_ago . ')');
-                return false; // Alte Cookies = Banner anzeigen
+                error_log('🍪 PHP: Timestamp-Cookie zu alt - Banner wird angezeigt');
+                error_log('🍪 PHP: === GUEST CONSENT DECISION CHECK ENDE - RESULT: BANNER_ANZEIGEN (TIMESTAMP_ALT) ===');
+                return false;
             }
         } else if ($has_preferences_cookie) {
-            // Fallback: Prüfe Timestamp in Preferences-Cookie
-            $preferences_data = json_decode(stripslashes($_COOKIE['yprint_consent_preferences']), true);
+            // Fallback: Timestamp aus Preferences
+            $preferences_raw = $_COOKIE['yprint_consent_preferences'];
+            error_log('🍪 PHP: Preferences Cookie (erste 200 Zeichen): ' . substr($preferences_raw, 0, 200));
+            
+            // Versuche verschiedene Dekodierungen
+            $decoded_attempts = array();
+            
+            // Versuch 1: Direkt
+            $attempt1 = json_decode($preferences_raw, true);
+            $decoded_attempts['direkt'] = array(
+                'success' => json_last_error() === JSON_ERROR_NONE,
+                'error' => json_last_error_msg(),
+                'result' => $attempt1
+            );
+            
+            // Versuch 2: Mit stripslashes
+            $attempt2 = json_decode(stripslashes($preferences_raw), true);
+            $decoded_attempts['stripslashes'] = array(
+                'success' => json_last_error() === JSON_ERROR_NONE,
+                'error' => json_last_error_msg(),  
+                'result' => $attempt2
+            );
+            
+            // Versuch 3: Mit urldecode
+            $attempt3 = json_decode(urldecode($preferences_raw), true);
+            $decoded_attempts['urldecode'] = array(
+                'success' => json_last_error() === JSON_ERROR_NONE,
+                'error' => json_last_error_msg(),
+                'result' => $attempt3
+            );
+            
+            error_log('🍪 PHP: JSON Decode Versuche: ' . json_encode($decoded_attempts));
+            
+            // Nehme erste erfolgreiche Dekodierung
+            $preferences_data = null;
+            foreach ($decoded_attempts as $method => $attempt) {
+                if ($attempt['success'] && $attempt['result']) {
+                    $preferences_data = $attempt['result'];
+                    error_log('🍪 PHP: Erfolgreiche Dekodierung mit Methode: ' . $method);
+                    break;
+                }
+            }
+            
             if ($preferences_data && isset($preferences_data['timestamp'])) {
                 $timestamp = intval($preferences_data['timestamp']);
-                $one_year_ago = time() - (365 * 24 * 60 * 60);
+                $now = time();
+                $one_year_ago = $now - (365 * 24 * 60 * 60);
                 $has_valid_timestamp = $timestamp >= $one_year_ago;
-                $timestamp_value = $timestamp . ' (aus Preferences)';
+                
+                $timestamp_details = sprintf(
+                    'Aus Preferences: %d, Datum: %s, Gültig: %s',
+                    $timestamp,
+                    date('Y-m-d H:i:s', $timestamp),
+                    $has_valid_timestamp ? 'JA' : 'NEIN'
+                );
+                
+                error_log('🍪 PHP: Preferences Timestamp Details: ' . $timestamp_details);
                 
                 if (!$has_valid_timestamp) {
-                    error_log('🍪 PHP: Guest consent decision check - Preferences-Timestamp zu alt');
+                    error_log('🍪 PHP: Preferences-Timestamp zu alt - Banner wird angezeigt');
+                    error_log('🍪 PHP: === GUEST CONSENT DECISION CHECK ENDE - RESULT: BANNER_ANZEIGEN (PREFERENCES_TIMESTAMP_ALT) ===');
                     return false;
                 }
+            } else {
+                error_log('🍪 PHP: Kein gültiger Timestamp in Preferences gefunden');
+                $timestamp_details = 'Preferences-Dekodierung fehlgeschlagen oder kein Timestamp';
             }
         }
         
+        // Finale Entscheidung
         $has_decision = $has_basic_decision && $has_valid_timestamp;
         
-        error_log('🍪 PHP: Guest consent decision check - decision_cookie: ' . ($has_decision_cookie ? 'true' : 'false') . 
-                 ', preferences_cookie: ' . ($has_preferences_cookie ? 'true' : 'false') . 
-                 ', timestamp_cookie: ' . ($has_timestamp_cookie ? 'true' : 'false') . 
-                 ', valid_timestamp: ' . ($has_valid_timestamp ? 'true' : 'false') . 
-                 ', timestamp_value: ' . $timestamp_value .
-                 ', FINAL_RESULT: ' . ($has_decision ? 'BANNER_AUSBLENDEN' : 'BANNER_ANZEIGEN'));
+        error_log('🍪 PHP: FINALE BEWERTUNG:');
+        error_log('🍪 PHP: - Basic Decision: ' . ($has_basic_decision ? 'JA' : 'NEIN'));
+        error_log('🍪 PHP: - Valid Timestamp: ' . ($has_valid_timestamp ? 'JA' : 'NEIN'));
+        error_log('🍪 PHP: - Timestamp Details: ' . $timestamp_details);
+        error_log('🍪 PHP: - ENDERGEBNIS: ' . ($has_decision ? 'BANNER_AUSBLENDEN' : 'BANNER_ANZEIGEN'));
+        
+        error_log('🍪 PHP: === GUEST CONSENT DECISION CHECK ENDE - RESULT: ' . ($has_decision ? 'BANNER_AUSBLENDEN' : 'BANNER_ANZEIGEN') . ' ===');
         
         return $has_decision;
     }

@@ -767,7 +767,11 @@
         
         // ✅ NEU: Browser-Cookies für Gäste setzen (optimiert)
         setGuestCookies(consents) {
+            console.log('🍪 === COOKIE-SETTING DEBUG START ===');
             console.log('🍪 Setze Browser-Cookies für Gast:', consents);
+            console.log('🍪 Current URL:', window.location.href);
+            console.log('🍪 Current hostname:', window.location.hostname);
+            console.log('🍪 Cookies VOR dem Setzen:', document.cookie);
             
             const timestamp = Math.floor(Date.now() / 1000);
             const cookieData = {
@@ -776,46 +780,187 @@
                 version: '1.0'
             };
             
-            // Cookie-Domain automatisch ermitteln
-            const domain = window.location.hostname.replace(/^www\./, '');
-            const cookieOptions = `path=/; max-age=31536000; SameSite=Lax; domain=${domain}`;
+            // Cookie-Domain automatisch ermitteln - mit mehr Debug
+            const originalHostname = window.location.hostname;
+            const domain = originalHostname.replace(/^www\./, '');
+            console.log('🍪 Original hostname:', originalHostname);
+            console.log('🍪 Berechnete domain:', domain);
+            
+            // TEST: Verschiedene Cookie-Optionen testen
+            const cookieOptions1 = `path=/; max-age=31536000; SameSite=Lax; domain=.${domain}`;
+            const cookieOptions2 = `path=/; max-age=31536000; SameSite=Lax; domain=${domain}`;
+            const cookieOptions3 = `path=/; max-age=31536000; SameSite=Lax`;
+            
+            console.log('🍪 Cookie-Option 1 (mit Punkt):', cookieOptions1);
+            console.log('🍪 Cookie-Option 2 (ohne Punkt):', cookieOptions2);
+            console.log('🍪 Cookie-Option 3 (ohne Domain):', cookieOptions3);
+            
+            // JSON-String vorbereiten
+            const jsonString = JSON.stringify(cookieData);
+            const encodedJsonString = encodeURIComponent(jsonString);
+            console.log('🍪 JSON String:', jsonString);
+            console.log('🍪 Encoded JSON String:', encodedJsonString);
+            
+            // HAUPT-COOKIES setzen - versuche verschiedene Optionen
+            const cookieOptions = cookieOptions3; // Starte ohne Domain
+            
+            console.log('🍪 Verwende Cookie-Optionen:', cookieOptions);
             
             // Haupt-Cookie setzen
-            document.cookie = `yprint_consent_preferences=${encodeURIComponent(JSON.stringify(cookieData))}; ${cookieOptions}`;
+            const preferenceCookie = `yprint_consent_preferences=${encodedJsonString}; ${cookieOptions}`;
+            const timestampCookie = `yprint_consent_timestamp=${timestamp}; ${cookieOptions}`;
+            const decisionCookie = `yprint_consent_decision=1; ${cookieOptions}`;
             
-            // Timestamp-Cookie setzen (für PHP-Kompatibilität)
-            document.cookie = `yprint_consent_timestamp=${timestamp}; ${cookieOptions}`;
+            console.log('🍪 Setze Preference Cookie:', preferenceCookie);
+            console.log('🍪 Setze Timestamp Cookie:', timestampCookie);
+            console.log('🍪 Setze Decision Cookie:', decisionCookie);
             
-            // Entscheidungs-Cookie setzen
-            document.cookie = `yprint_consent_decision=1; ${cookieOptions}`;
+            document.cookie = preferenceCookie;
+            document.cookie = timestampCookie;
+            document.cookie = decisionCookie;
             
-            console.log('🍪 Browser-Cookies gesetzt für Gast mit Domain:', domain);
-            console.log('🍪 Cookie-Daten:', cookieData);
-            console.log('🍪 Aktueller Cookie-String:', document.cookie);
+            console.log('🍪 Cookies NACH dem Setzen:', document.cookie);
             
-            // ✅ NEU: Sofortige Validierung
+            // ✅ SOFORTIGE Validierung
             setTimeout(() => {
-                this.validateCookiesSet();
+                this.validateCookiesSetDetailed();
             }, 100);
+            
+            // ✅ VERZÖGERTE Validierung (simuliert Seitenwechsel)
+            setTimeout(() => {
+                this.validateCookiesAfterDelay();
+            }, 1000);
+            
+            console.log('🍪 === COOKIE-SETTING DEBUG ENDE ===');
         }
         
         // ✅ NEU: Cookie-Validierung
-        validateCookiesSet() {
-            const hasPreferences = document.cookie.includes('yprint_consent_preferences=');
-            const hasTimestamp = document.cookie.includes('yprint_consent_timestamp=');
-            const hasDecision = document.cookie.includes('yprint_consent_decision=');
+        validateCookiesSetDetailed() {
+            console.log('🍪 === COOKIE-VALIDIERUNG DETAILLIERT START ===');
+            console.log('🍪 Vollständiger Cookie-String:', document.cookie);
             
-            console.log('🍪 Cookie-Validierung:');
-            console.log('- Preferences:', hasPreferences);
-            console.log('- Timestamp:', hasTimestamp);
-            console.log('- Decision:', hasDecision);
+            // Parse alle Cookies
+            const cookies = {};
+            document.cookie.split(';').forEach(cookie => {
+                const [name, value] = cookie.trim().split('=');
+                if (name && value) {
+                    cookies[name] = decodeURIComponent(value);
+                }
+            });
             
-            if (!hasPreferences || !hasTimestamp || !hasDecision) {
-                console.error('🍪 FEHLER: Nicht alle Cookies wurden gesetzt!');
-                console.error('🍪 Document.cookie:', document.cookie);
-            } else {
-                console.log('🍪 ✅ Alle Cookies erfolgreich gesetzt');
+            console.log('🍪 Geparste Cookies:', cookies);
+            
+            // YPrint-spezifische Prüfungen
+            const yprintCookies = Object.keys(cookies).filter(name => name.includes('yprint_consent'));
+            console.log('🍪 YPrint-Cookie Namen:', yprintCookies);
+            
+            // Detaillierte Prüfungen
+            const hasPreferences = 'yprint_consent_preferences' in cookies;
+            const hasTimestamp = 'yprint_consent_timestamp' in cookies;
+            const hasDecision = 'yprint_consent_decision' in cookies;
+            
+            console.log('🍪 Cookie-Status:');
+            console.log('- Preferences vorhanden:', hasPreferences);
+            console.log('- Timestamp vorhanden:', hasTimestamp);
+            console.log('- Decision vorhanden:', hasDecision);
+            
+            if (hasPreferences) {
+                console.log('🍪 Preferences Cookie Wert:', cookies['yprint_consent_preferences']);
+                try {
+                    const parsed = JSON.parse(cookies['yprint_consent_preferences']);
+                    console.log('🍪 Preferences Cookie geparst:', parsed);
+                } catch (e) {
+                    console.error('🍪 FEHLER beim Parsen der Preferences:', e);
+                }
             }
+            
+            if (hasTimestamp) {
+                const timestamp = parseInt(cookies['yprint_consent_timestamp']);
+                const now = Math.floor(Date.now() / 1000);
+                console.log('🍪 Timestamp Cookie:', timestamp, '(', new Date(timestamp * 1000).toLocaleString(), ')');
+                console.log('🍪 Aktueller Timestamp:', now, '(', new Date(now * 1000).toLocaleString(), ')');
+                console.log('🍪 Timestamp-Differenz:', now - timestamp, 'Sekunden');
+            }
+            
+            if (hasDecision) {
+                console.log('🍪 Decision Cookie Wert:', cookies['yprint_consent_decision']);
+            }
+            
+            // Gesamt-Status
+            const allSet = hasPreferences && hasTimestamp && hasDecision;
+            console.log('🍪 ✅ ALLE COOKIES GESETZT:', allSet);
+            
+            if (!allSet) {
+                console.error('🍪 ❌ FEHLER: Nicht alle erforderlichen Cookies wurden gesetzt!');
+                console.error('🍪 Fehlende Cookies:', {
+                    preferences: !hasPreferences,
+                    timestamp: !hasTimestamp,
+                    decision: !hasDecision
+                });
+            }
+            
+            console.log('🍪 === COOKIE-VALIDIERUNG DETAILLIERT ENDE ===');
+        }
+        
+        validateCookiesAfterDelay() {
+            console.log('🍪 === VERZÖGERTE COOKIE-VALIDIERUNG (nach 1s) START ===');
+            console.log('🍪 Simuliert Seitenwechsel - Cookie-String:', document.cookie);
+            
+            // Teste Cookie-Persistierung
+            const stillHasPreferences = document.cookie.includes('yprint_consent_preferences=');
+            const stillHasTimestamp = document.cookie.includes('yprint_consent_timestamp=');
+            const stillHasDecision = document.cookie.includes('yprint_consent_decision=');
+            
+            console.log('🍪 Cookies nach Verzögerung:');
+            console.log('- Preferences noch da:', stillHasPreferences);
+            console.log('- Timestamp noch da:', stillHasTimestamp);
+            console.log('- Decision noch da:', stillHasDecision);
+            
+            if (!stillHasPreferences || !stillHasTimestamp || !stillHasDecision) {
+                console.error('🍪 ❌ KRITISCH: Cookies sind nach kurzer Zeit verschwunden!');
+                console.error('🍪 Das deutet auf Domain/Path-Probleme hin');
+                
+                // Teste alternative Cookie-Optionen
+                this.testAlternativeCookieOptions();
+            } else {
+                console.log('🍪 ✅ Cookies sind persistent - gut!');
+            }
+            
+            console.log('🍪 === VERZÖGERTE COOKIE-VALIDIERUNG ENDE ===');
+        }
+        
+        testAlternativeCookieOptions() {
+            console.log('🍪 === TESTE ALTERNATIVE COOKIE-OPTIONEN ===');
+            
+            const timestamp = Math.floor(Date.now() / 1000);
+            const testCookieName = 'yprint_test_cookie';
+            const testCookieValue = 'test_value_' + timestamp;
+            
+            // Test verschiedene Domain-Optionen
+            const hostname = window.location.hostname;
+            const domain = hostname.replace(/^www\./, '');
+            
+            const options = [
+                `path=/; max-age=3600; SameSite=Lax`,
+                `path=/; max-age=3600; SameSite=Lax; domain=${domain}`,
+                `path=/; max-age=3600; SameSite=Lax; domain=.${domain}`,
+                `path=/; max-age=3600; SameSite=None; Secure`,
+            ];
+            
+            options.forEach((option, index) => {
+                const cookieString = `${testCookieName}_${index}=${testCookieValue}; ${option}`;
+                console.log(`🍪 Test Cookie ${index}:`, cookieString);
+                document.cookie = cookieString;
+            });
+            
+            // Prüfe welche Test-Cookies gesetzt wurden
+            setTimeout(() => {
+                console.log('🍪 Test-Cookies Ergebnisse:');
+                options.forEach((option, index) => {
+                    const isSet = document.cookie.includes(`${testCookieName}_${index}=`);
+                    console.log(`🍪 Test Cookie ${index} gesetzt:`, isSet, '- Option:', option);
+                });
+            }, 100);
         }
         
         loadGoogleAnalytics() {
