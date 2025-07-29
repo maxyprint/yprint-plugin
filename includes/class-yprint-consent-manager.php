@@ -226,42 +226,65 @@ class YPrint_Consent_Manager {
      * Prüfen ob Gast bereits eine Consent-Entscheidung getroffen hat
      */
     private function has_guest_consent_decision() {
-        // Prüfung auf spezifisches Cookie das Entscheidung dokumentiert
+        // ✅ NEU: Robustere Cookie-Detection mit mehreren Fallbacks
         $has_decision_cookie = isset($_COOKIE['yprint_consent_decision']);
         $has_preferences_cookie = isset($_COOKIE['yprint_consent_preferences']);
+        $has_timestamp_cookie = isset($_COOKIE['yprint_consent_timestamp']);
         
-        // Mindestens eines der beiden Haupt-Cookies muss vorhanden sein
-        $has_basic_decision = $has_decision_cookie || $has_preferences_cookie;
+        // Debug: Alle verfügbaren Cookies loggen
+        $available_cookies = array_keys($_COOKIE);
+        $yprint_cookies = array_filter($available_cookies, function($cookie) {
+            return strpos($cookie, 'yprint_consent') === 0;
+        });
+        
+        error_log('🍪 PHP: Verfügbare YPrint-Cookies: ' . implode(', ', $yprint_cookies));
+        
+        // Mindestens eines der drei Haupt-Cookies muss vorhanden sein
+        $has_basic_decision = $has_decision_cookie || $has_preferences_cookie || $has_timestamp_cookie;
         
         if (!$has_basic_decision) {
-            error_log('🍪 PHP: Guest consent decision check - keine Cookies vorhanden, Banner wird angezeigt');
+            error_log('🍪 PHP: Guest consent decision check - KEINE YPrint-Cookies vorhanden, Banner wird angezeigt');
             return false;
         }
         
-        // Zusätzliche Validierung: Prüfe ob Timestamp nicht zu alt ist (nur wenn vorhanden)
-        $has_valid_timestamp = true; // Standard: gültig
+        // Zusätzliche Validierung: Prüfe Timestamp-Gültigkeit
+        $has_valid_timestamp = true;
         $timestamp_value = 'nicht vorhanden';
         
-        if (isset($_COOKIE['yprint_consent_timestamp'])) {
+        if ($has_timestamp_cookie) {
             $timestamp = intval($_COOKIE['yprint_consent_timestamp']);
             $one_year_ago = time() - (365 * 24 * 60 * 60);
             $has_valid_timestamp = $timestamp >= $one_year_ago;
-            $timestamp_value = $timestamp;
+            $timestamp_value = $timestamp . ' (' . date('Y-m-d H:i:s', $timestamp) . ')';
             
             if (!$has_valid_timestamp) {
                 error_log('🍪 PHP: Guest consent decision check - Timestamp zu alt (' . $timestamp . ' vs ' . $one_year_ago . ')');
+                return false; // Alte Cookies = Banner anzeigen
             }
-        } else {
-            error_log('🍪 PHP: Guest consent decision check - kein Timestamp vorhanden, aber andere Cookies da');
+        } else if ($has_preferences_cookie) {
+            // Fallback: Prüfe Timestamp in Preferences-Cookie
+            $preferences_data = json_decode(stripslashes($_COOKIE['yprint_consent_preferences']), true);
+            if ($preferences_data && isset($preferences_data['timestamp'])) {
+                $timestamp = intval($preferences_data['timestamp']);
+                $one_year_ago = time() - (365 * 24 * 60 * 60);
+                $has_valid_timestamp = $timestamp >= $one_year_ago;
+                $timestamp_value = $timestamp . ' (aus Preferences)';
+                
+                if (!$has_valid_timestamp) {
+                    error_log('🍪 PHP: Guest consent decision check - Preferences-Timestamp zu alt');
+                    return false;
+                }
+            }
         }
         
         $has_decision = $has_basic_decision && $has_valid_timestamp;
         
-        error_log('🍪 PHP: Guest consent decision check - has_decision_cookie: ' . ($has_decision_cookie ? 'true' : 'false') . 
-                 ', has_preferences_cookie: ' . ($has_preferences_cookie ? 'true' : 'false') . 
-                 ', has_valid_timestamp: ' . ($has_valid_timestamp ? 'true' : 'false') . 
+        error_log('🍪 PHP: Guest consent decision check - decision_cookie: ' . ($has_decision_cookie ? 'true' : 'false') . 
+                 ', preferences_cookie: ' . ($has_preferences_cookie ? 'true' : 'false') . 
+                 ', timestamp_cookie: ' . ($has_timestamp_cookie ? 'true' : 'false') . 
+                 ', valid_timestamp: ' . ($has_valid_timestamp ? 'true' : 'false') . 
                  ', timestamp_value: ' . $timestamp_value .
-                 ', final_result: ' . ($has_decision ? 'true' : 'false'));
+                 ', FINAL_RESULT: ' . ($has_decision ? 'BANNER_AUSBLENDEN' : 'BANNER_ANZEIGEN'));
         
         return $has_decision;
     }
@@ -597,7 +620,7 @@ class YPrint_Consent_Manager {
     }
     
     /**
-     * Gast-Consent in Cookie speichern
+     * Gast-Consent in Cookie speichern - JavaScript setzt Cookies, PHP validiert nur
      */
     private function save_guest_consent($consent_data) {
         // ✅ VALIDIERUNG: Essenzielle Cookies auch für Gäste erzwingen
@@ -606,44 +629,10 @@ class YPrint_Consent_Manager {
             error_log('🍪 FORCE: Essenzielle Cookies für Gast immer akzeptiert');
         }
         
-        $cookie_data = array(
-            'consents' => $consent_data,
-            'timestamp' => time(),
-            'version' => '1.0'
-        );
-        
-        // Haupt-Cookie setzen
-        setcookie(
-            'yprint_consent_preferences',
-            json_encode($cookie_data),
-            time() + (365 * 24 * 60 * 60), // 1 Jahr
-            '/',
-            '',
-            is_ssl(),
-            true
-        );
-        
-        // Zusätzliches Timestamp-Cookie für einfachere Validierung
-        setcookie(
-            'yprint_consent_timestamp',
-            time(),
-            time() + (365 * 24 * 60 * 60), // 1 Jahr
-            '/',
-            '',
-            is_ssl(),
-            true
-        );
-        
-        // Entscheidungs-Cookie setzen
-        setcookie(
-            'yprint_consent_decision',
-            '1',
-            time() + (365 * 24 * 60 * 60), // 1 Jahr
-            '/',
-            '',
-            is_ssl(),
-            true
-        );
+        // ✅ NEU: Für Gäste werden Cookies nur von JavaScript gesetzt
+        // PHP setzt KEINE Cookies mehr - verhindert Race Conditions
+        error_log('🍪 PHP: Gast-Consent gespeichert (Cookies werden von JavaScript gesetzt)');
+        error_log('🍪 PHP: Consent-Daten: ' . json_encode($consent_data));
         
         return true;
     }

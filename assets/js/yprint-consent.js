@@ -569,7 +569,7 @@
         applyCookieSettings(consents) {
             console.log('🍪 Wende Cookie-Einstellungen an:', consents);
             
-            // ✅ NEU: Browser-Cookies für Gäste setzen
+            // ✅ NEU: Browser-Cookies für Gäste setzen (optimiert)
             this.setGuestCookies(consents);
             
             // Google Analytics
@@ -594,27 +594,57 @@
             }
         }
         
-        // ✅ NEU: Browser-Cookies für Gäste setzen
+        // ✅ NEU: Browser-Cookies für Gäste setzen (optimiert)
         setGuestCookies(consents) {
             console.log('🍪 Setze Browser-Cookies für Gast:', consents);
             
+            const timestamp = Math.floor(Date.now() / 1000);
             const cookieData = {
                 consents: consents,
-                timestamp: Math.floor(Date.now() / 1000),
+                timestamp: timestamp,
                 version: '1.0'
             };
             
-            // Haupt-Cookie setzen
-            document.cookie = `yprint_consent_preferences=${encodeURIComponent(JSON.stringify(cookieData))}; path=/; max-age=31536000; SameSite=Lax`;
+            // Cookie-Domain automatisch ermitteln
+            const domain = window.location.hostname.replace(/^www\./, '');
+            const cookieOptions = `path=/; max-age=31536000; SameSite=Lax; domain=${domain}`;
             
-            // Timestamp-Cookie setzen
-            document.cookie = `yprint_consent_timestamp=${Math.floor(Date.now() / 1000)}; path=/; max-age=31536000; SameSite=Lax`;
+            // Haupt-Cookie setzen
+            document.cookie = `yprint_consent_preferences=${encodeURIComponent(JSON.stringify(cookieData))}; ${cookieOptions}`;
+            
+            // Timestamp-Cookie setzen (für PHP-Kompatibilität)
+            document.cookie = `yprint_consent_timestamp=${timestamp}; ${cookieOptions}`;
             
             // Entscheidungs-Cookie setzen
-            document.cookie = `yprint_consent_decision=1; path=/; max-age=31536000; SameSite=Lax`;
+            document.cookie = `yprint_consent_decision=1; ${cookieOptions}`;
             
-            console.log('🍪 Browser-Cookies gesetzt für Gast');
+            console.log('🍪 Browser-Cookies gesetzt für Gast mit Domain:', domain);
             console.log('🍪 Cookie-Daten:', cookieData);
+            console.log('🍪 Aktueller Cookie-String:', document.cookie);
+            
+            // ✅ NEU: Sofortige Validierung
+            setTimeout(() => {
+                this.validateCookiesSet();
+            }, 100);
+        }
+        
+        // ✅ NEU: Cookie-Validierung
+        validateCookiesSet() {
+            const hasPreferences = document.cookie.includes('yprint_consent_preferences=');
+            const hasTimestamp = document.cookie.includes('yprint_consent_timestamp=');
+            const hasDecision = document.cookie.includes('yprint_consent_decision=');
+            
+            console.log('🍪 Cookie-Validierung:');
+            console.log('- Preferences:', hasPreferences);
+            console.log('- Timestamp:', hasTimestamp);
+            console.log('- Decision:', hasDecision);
+            
+            if (!hasPreferences || !hasTimestamp || !hasDecision) {
+                console.error('🍪 FEHLER: Nicht alle Cookies wurden gesetzt!');
+                console.error('🍪 Document.cookie:', document.cookie);
+            } else {
+                console.log('🍪 ✅ Alle Cookies erfolgreich gesetzt');
+            }
         }
         
         loadGoogleAnalytics() {
