@@ -569,6 +569,9 @@
         applyCookieSettings(consents) {
             console.log('🍪 Wende Cookie-Einstellungen an:', consents);
             
+            // ✅ NEU: Browser-Cookies für Gäste setzen
+            this.setGuestCookies(consents);
+            
             // Google Analytics
             if (consents.cookie_analytics === true) {
                 this.loadGoogleAnalytics();
@@ -589,6 +592,29 @@
             } else {
                 this.blockFunctionalScripts();
             }
+        }
+        
+        // ✅ NEU: Browser-Cookies für Gäste setzen
+        setGuestCookies(consents) {
+            console.log('🍪 Setze Browser-Cookies für Gast:', consents);
+            
+            const cookieData = {
+                consents: consents,
+                timestamp: Math.floor(Date.now() / 1000),
+                version: '1.0'
+            };
+            
+            // Haupt-Cookie setzen
+            document.cookie = `yprint_consent_preferences=${encodeURIComponent(JSON.stringify(cookieData))}; path=/; max-age=31536000; SameSite=Lax`;
+            
+            // Timestamp-Cookie setzen
+            document.cookie = `yprint_consent_timestamp=${Math.floor(Date.now() / 1000)}; path=/; max-age=31536000; SameSite=Lax`;
+            
+            // Entscheidungs-Cookie setzen
+            document.cookie = `yprint_consent_decision=1; path=/; max-age=31536000; SameSite=Lax`;
+            
+            console.log('🍪 Browser-Cookies gesetzt für Gast');
+            console.log('🍪 Cookie-Daten:', cookieData);
         }
         
         loadGoogleAnalytics() {

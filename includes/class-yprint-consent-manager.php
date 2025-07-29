@@ -240,10 +240,13 @@ class YPrint_Consent_Manager {
         
         // Zusätzliche Validierung: Prüfe ob Timestamp nicht zu alt ist (nur wenn vorhanden)
         $has_valid_timestamp = true; // Standard: gültig
+        $timestamp_value = 'nicht vorhanden';
+        
         if (isset($_COOKIE['yprint_consent_timestamp'])) {
             $timestamp = intval($_COOKIE['yprint_consent_timestamp']);
             $one_year_ago = time() - (365 * 24 * 60 * 60);
             $has_valid_timestamp = $timestamp >= $one_year_ago;
+            $timestamp_value = $timestamp;
             
             if (!$has_valid_timestamp) {
                 error_log('🍪 PHP: Guest consent decision check - Timestamp zu alt (' . $timestamp . ' vs ' . $one_year_ago . ')');
@@ -257,6 +260,7 @@ class YPrint_Consent_Manager {
         error_log('🍪 PHP: Guest consent decision check - has_decision_cookie: ' . ($has_decision_cookie ? 'true' : 'false') . 
                  ', has_preferences_cookie: ' . ($has_preferences_cookie ? 'true' : 'false') . 
                  ', has_valid_timestamp: ' . ($has_valid_timestamp ? 'true' : 'false') . 
+                 ', timestamp_value: ' . $timestamp_value .
                  ', final_result: ' . ($has_decision ? 'true' : 'false'));
         
         return $has_decision;
