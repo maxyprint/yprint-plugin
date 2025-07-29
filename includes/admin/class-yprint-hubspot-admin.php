@@ -32,8 +32,9 @@ class YPrint_HubSpot_Admin {
      * Admin-Menü hinzufügen
      */
     public function add_admin_menu() {
-        add_options_page(
-            'YPrint HubSpot Einstellungen',
+        add_submenu_page(
+            'yprint-plugin', // Parent slug (bestehendes YPrint-Hauptmenü)
+            'HubSpot Integration',
             'HubSpot Integration',
             'manage_options',
             'yprint-hubspot-settings',
