@@ -67,29 +67,26 @@
                 // ✅ NEU: Direkte Cookie-Prüfung für bessere Entscheidung
                 const hasYPrintCookies = this.hasExistingYPrintCookies();
                 const cookieDecision = this.evaluateCookieDecision();
+                const isUserLoggedIn = this.config.isUserLoggedIn || false; // PHP übergibt diesen Wert
                 
                 console.log('🍪 Hat YPrint Cookies:', hasYPrintCookies);
                 console.log('🍪 Cookie-Entscheidung:', cookieDecision);
+                console.log('🍪 User logged in:', isUserLoggedIn);
                 
-                // Debug: Alle Cookie-Kategorien-Status prüfen
-                $('.yprint-cookie-category').each(function() {
-                    const cookieType = $(this).data('cookie-type');
-                    const isSelected = $(this).hasClass('selected');
-                    const checkbox = $(this).find('input[type="checkbox"]');
-                    const isChecked = checkbox.length > 0 ? checkbox.prop('checked') : false;
-                    console.log(`🍪 Cookie ${cookieType}: selected=${isSelected}, checked=${isChecked}`);
-                });
-                
-                // ✅ NEU: ANTI-FOUC: Entscheidung ohne visuellen Flicker
-                if (!hasYPrintCookies || cookieDecision.showBanner) {
-                    // Banner soll gezeigt werden
+                // ✅ ANTI-FOUC: Entscheidung ohne visuellen Flicker
+                if (isUserLoggedIn) {
+                    // ✅ EINGELOGGTE NUTZER: Verwende AJAX für Datenbank-Check
+                    console.log('🍪 ENTSCHEIDUNG: Eingeloggter Nutzer - verwende AJAX-Check');
+                    this.checkConsentStatusForLoggedInUser();
+                } else if (!hasYPrintCookies || cookieDecision.showBanner) {
+                    // ✅ GAST: Banner soll gezeigt werden
                     console.log('🍪 ENTSCHEIDUNG: Banner anzeigen - Grund:', cookieDecision.reason);
                     
                     // Stelle sicher, dass nur essenzielle Cookies vorausgewählt sind
                     this.resetToEssentialOnly();
                     this.showBannerSmooth();
                 } else {
-                    // Banner soll versteckt bleiben
+                    // ✅ GAST: Banner soll versteckt bleiben
                     console.log('🍪 ENTSCHEIDUNG: Banner ausblenden - Grund:', cookieDecision.reason);
                     this.ensureBannerHidden();
                     this.checkConsentStatus();
@@ -1071,6 +1068,47 @@
             }
             
             console.log('🧪 Debug-Informationen angezeigt - KEINE automatischen Aktionen');
+        }
+
+        checkConsentStatusForLoggedInUser() {
+            console.log('🍪 === EINGELOGGTER NUTZER CONSENT CHECK START ===');
+            
+            // Banner zunächst versteckt lassen
+            this.ensureBannerHidden();
+            
+            // AJAX-Check für eingeloggte Nutzer
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'yprint_get_consent_status',
+                    nonce: this.config.nonce
+                },
+                success: (response) => {
+                    console.log('🍪 AJAX-Response für eingeloggten Nutzer:', response);
+                    
+                    if (response.success && response.data && Object.keys(response.data).length > 0) {
+                        // ✅ Nutzer hat gültige Consent-Einstellungen
+                        console.log('🍪 Eingeloggter Nutzer hat gültige Consents - Banner bleibt versteckt');
+                        this.ensureBannerHidden();
+                        this.applyCookieSettings(response.data);
+                    } else {
+                        // ✅ Nutzer hat keine gültigen Consent-Einstellungen
+                        console.log('🍪 Eingeloggter Nutzer hat keine gültigen Consents - zeige Banner');
+                        this.resetToEssentialOnly();
+                        this.showBannerSmooth();
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('🍪 AJAX-Fehler für eingeloggten Nutzer:', error);
+                    // Bei Fehler: Banner anzeigen (sicherer Fallback)
+                    this.resetToEssentialOnly();
+                    this.showBannerSmooth();
+                }
+            });
+            
+            console.log('🍪 === EINGELOGGTER NUTZER CONSENT CHECK ENDE ===');
         }
     }
     
