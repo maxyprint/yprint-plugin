@@ -203,6 +203,31 @@ function wc_rest_user_endpoint_handler($request) {
         // Trotzdem fortfahren, da der Benutzer erstellt wurde
     }
 
+    // HubSpot Kontakt erstellen
+    if (class_exists('YPrint_HubSpot_API')) {
+        $hubspot_api = YPrint_HubSpot_API::get_instance();
+        if ($hubspot_api->is_enabled()) {
+            $hubspot_contact_data = array(
+                'email' => $email,
+                'username' => $username,
+                'firstname' => $username, // Fallback, da wir keinen separaten Vor-/Nachnamen haben
+                'registration_date' => current_time('Y-m-d H:i:s'),
+                'cookie_preferences' => $cookie_preferences
+            );
+            
+            $hubspot_result = $hubspot_api->create_contact($hubspot_contact_data);
+            
+            if ($hubspot_result['success']) {
+                error_log('YPrint Registration: HubSpot contact created for user ' . $username . ' with ID: ' . $hubspot_result['contact_id']);
+                // Optional: Contact ID in WordPress User Meta speichern
+                update_user_meta($user_id, 'hubspot_contact_id', $hubspot_result['contact_id']);
+            } else {
+                error_log('YPrint Registration: Failed to create HubSpot contact for user ' . $username . ': ' . $hubspot_result['message']);
+                // Registration trotzdem erfolgreich, auch wenn HubSpot fehlschlägt
+            }
+        }
+    }
+
     // Antwort zurückgeben
     $response['code'] = 200;
     $response['message'] = __("User '" . $username . "' Registration was Successful", "wp-rest-user");

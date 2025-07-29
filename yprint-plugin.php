@@ -93,6 +93,41 @@ require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-address-co
 require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-turnstile.php';
 require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-turnstile-admin.php';
 
+// HubSpot Integration laden
+require_once plugin_dir_path(__FILE__) . 'includes/class-yprint-hubspot-api.php';
+require_once plugin_dir_path(__FILE__) . 'includes/admin/class-yprint-hubspot-admin.php';
+
+// Debug: Prüfe HubSpot-Integration
+add_action('plugins_loaded', function() {
+    $is_admin = is_admin() ? 'true' : 'false';
+    $class_exists = class_exists('YPrint_HubSpot_API') ? 'true' : 'false';
+    
+    if (class_exists('YPrint_HubSpot_API')) {
+        YPrint_HubSpot_API::get_instance();
+        error_log('✅ YPrint: HubSpot API initialized');
+    } else {
+        error_log('❌ YPrint: HubSpot API class not found');
+    }
+    
+    if (is_admin() && class_exists('YPrint_HubSpot_Admin')) {
+        YPrint_HubSpot_Admin::get_instance();
+        error_log('✅ YPrint: HubSpot Admin initialized');
+    } else if (is_admin()) {
+        error_log('❌ YPrint: HubSpot Admin class not found');
+    }
+    
+    // Debug-Ausgabe nur im Admin
+    if (is_admin()) {
+        add_action('admin_footer', function() use ($is_admin, $class_exists) {
+            echo '<script>';
+            echo 'console.log("🔄 plugins_loaded hook fired");';
+            echo 'console.log("🔄 is_admin(): ' . $is_admin . '");';
+            echo 'console.log("🔄 HubSpot API Class exists: ' . $class_exists . '");';
+            echo 'console.log("🔄 HubSpot API initialized");';
+            echo '</script>';
+        });
+    }
+});
 
 
 // Initialize Admin Classes (Stripe FIRST, dann Turnstile, dann Address Monitor)
