@@ -310,6 +310,18 @@ class YPrint_HubSpot_Admin {
             wp_send_json_error(array('message' => 'HubSpot API Klasse nicht gefunden'));
         }
         
+        // Debug: Prüfe API Key
+        $api_key = get_option('yprint_hubspot_api_key', '');
+        $enabled = get_option('yprint_hubspot_enabled', false);
+        
+        if (empty($api_key)) {
+            wp_send_json_error(array('message' => 'API Key ist leer. Bitte füge deinen HubSpot Private App Token hinzu.'));
+        }
+        
+        if (!$enabled) {
+            wp_send_json_error(array('message' => 'HubSpot Integration ist nicht aktiviert. Bitte aktiviere sie zuerst.'));
+        }
+        
         $hubspot_api = YPrint_HubSpot_API::get_instance();
         $result = $hubspot_api->test_connection();
         

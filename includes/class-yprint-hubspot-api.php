@@ -48,10 +48,12 @@ class YPrint_HubSpot_API {
             );
         }
         
+        // Teste mit einem einfacheren Endpoint
         $response = wp_remote_get($this->base_url . '/crm/v3/objects/contacts?limit=1', array(
             'headers' => array(
                 'Authorization' => 'Bearer ' . $this->api_key,
-                'Content-Type' => 'application/json'
+                'Content-Type' => 'application/json',
+                'User-Agent' => 'YPrint-Plugin/1.0'
             ),
             'timeout' => 30
         ));
@@ -64,6 +66,7 @@ class YPrint_HubSpot_API {
         }
         
         $status_code = wp_remote_retrieve_response_code($response);
+        $body = wp_remote_retrieve_body($response);
         
         if ($status_code === 200) {
             return array(
@@ -71,12 +74,26 @@ class YPrint_HubSpot_API {
                 'message' => 'HubSpot API Verbindung erfolgreich'
             );
         } else {
-            $body = wp_remote_retrieve_body($response);
             $error_data = json_decode($body, true);
+            $error_message = isset($error_data['message']) ? $error_data['message'] : 'Unbekannter Fehler';
+            
+            // Debug-Informationen
+            error_log('YPrint HubSpot Debug - Status: ' . $status_code);
+            error_log('YPrint HubSpot Debug - Response: ' . $body);
+            error_log('YPrint HubSpot Debug - API Key (first 10 chars): ' . substr($this->api_key, 0, 10) . '...');
+            
+            // Spezifische Fehlermeldungen
+            if (strpos($error_message, 'Authentication credentials not found') !== false) {
+                $error_message .= ' - Bitte prüfe, ob du den korrekten Access Token aus der Private App verwendest.';
+            } elseif (strpos($error_message, 'Invalid API key') !== false) {
+                $error_message .= ' - Der API Key scheint ungültig zu sein. Erstelle eine neue Private App.';
+            } elseif ($status_code === 403) {
+                $error_message .= ' - Fehlende Berechtigungen. Prüfe die Scopes in deiner Private App.';
+            }
             
             return array(
                 'success' => false,
-                'message' => 'API Fehler: ' . ($error_data['message'] ?? 'Unbekannter Fehler (Status: ' . $status_code . ')')
+                'message' => 'API Fehler: ' . $error_message . ' (Status: ' . $status_code . ')'
             );
         }
     }

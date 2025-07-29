@@ -17,10 +17,12 @@ Die YPrint HubSpot Integration erstellt automatisch Kontakte in HubSpot bei jede
    - Wähle die folgenden **Scopes** aus:
      - `crm.objects.contacts.read`
      - `crm.objects.contacts.write`
+   - **WICHTIG**: Stelle sicher, dass du die Scopes aktivierst (Häkchen setzen)
 
 3. **Kopiere den Access Token**
    - Nach der Erstellung findest du den **Access Token**
    - Kopiere diesen Token (wird nur einmal angezeigt!)
+   - **WICHTIG**: Verwende den "Access Token", NICHT den "Client Secret"
 
 ### 2. WordPress Admin konfigurieren
 
