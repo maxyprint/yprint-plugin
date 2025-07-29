@@ -91,8 +91,10 @@ class YPrint_Turnstile {
                 true
             );
             
-            wp_localize_script('cloudflare-turnstile', 'yprint_turnstile', array(
-                'site_key' => $this->get_site_key(),
+            // ✅ KORREKT: Lokalisiere mit dem Namen den das JavaScript erwartet
+            wp_localize_script('cloudflare-turnstile', 'yprintTurnstileConfig', array(
+                'sitekey' => $this->get_site_key(),
+                'enabled' => $this->is_enabled(),
                 'ajax_url' => admin_url('admin-ajax.php'),
                 'nonce' => wp_create_nonce('yprint_turnstile_nonce')
             ));

@@ -2892,24 +2892,10 @@ return new Promise((resolve, reject) => {
         // Rufe populateConfirmationWithPaymentData auf (gleich wie bei Apple Pay)
         if (typeof window.populateConfirmationWithPaymentData === 'function') {
             console.log('✅ Calling populateConfirmationWithPaymentData for normal card payment');
-            window.populateConfirmationWithPaymentData(data);
-
-            // ORDER ID STORAGE für Confirmation Page
-            if (data.order_id) {
-                console.log('💾 Speichere Order ID für Confirmation:', data.order_id);
-                // 1. Session Storage
-                sessionStorage.setItem('yprint_current_order_id', data.order_id);
-                // 2. URL Parameter
-                const currentUrl = new URL(window.location);
-                currentUrl.searchParams.set('order_id', data.order_id);
-                window.history.replaceState({}, '', currentUrl);
-                // 3. Global Window Variable
-                window.yprintCurrentOrderId = data.order_id;
-                console.log('✅ Order ID gespeichert in:', {
-                    sessionStorage: sessionStorage.getItem('yprint_current_order_id'),
-                    url: currentUrl.searchParams.get('order_id'),
-                    window: window.yprintCurrentOrderId
-                });
+            if (typeof data !== 'undefined') {
+                window.populateConfirmationWithPaymentData(data);
+            } else {
+                console.warn('⚠️ Data variable not available for confirmation population');
             }
         } else {
             console.warn('⚠️ populateConfirmationWithPaymentData function not available');
@@ -4746,4 +4732,6 @@ async function safeUpdatePaymentMethodDisplay() {
     await collectPaymentData();
     updatePaymentMethodDisplay();
 }
+// ... bestehender Code ...
+
 // ... bestehender Code ...
