@@ -705,27 +705,52 @@
         saveConsents(consents) {
             const self = this;
             
+            console.log('🍪 === SAVE CONSENTS DEBUG START ===');
             console.log('🍪 saveConsents aufgerufen mit:', consents);
             console.log('🍪 AJAX URL:', this.config.ajaxUrl);
             console.log('🍪 Nonce:', this.config.nonce);
+            console.log('🍪 User logged in:', this.config.isUserLoggedIn);
+            
+            // ✅ DEBUG: Validiere Consent-Daten vor dem Senden
+            console.log('🍪 Consent-Validierung:');
+            console.log('- cookie_essential:', consents.cookie_essential, '(sollte true sein)');
+            console.log('- cookie_analytics:', consents.cookie_analytics);
+            console.log('- cookie_marketing:', consents.cookie_marketing);
+            console.log('- cookie_functional:', consents.cookie_functional);
+            
+            // ✅ DEBUG: Prüfe auf verdächtige Muster
+            const nonEssentialCount = [consents.cookie_analytics, consents.cookie_marketing, consents.cookie_functional]
+                .filter(Boolean).length;
+            console.log('🍪 Nicht-essenzielle Cookies akzeptiert:', nonEssentialCount, 'von 3');
+            
+            // ✅ DEBUG: AJAX-Daten vorbereiten
+            const ajaxData = {
+                action: 'yprint_save_consent',
+                nonce: this.config.nonce,
+                consents: consents,
+                version: '1.0'
+            };
+            console.log('🍪 AJAX-Daten:', ajaxData);
+            console.log('🍪 AJAX-Daten JSON:', JSON.stringify(ajaxData));
             
             $.ajax({
                 url: this.config.ajaxUrl,
                 type: 'POST',
                 dataType: 'json',
-                data: {
-                    action: 'yprint_save_consent',
-                    nonce: this.config.nonce,
-                    consents: consents,
-                    version: '1.0'
-                },
+                data: ajaxData,
                 beforeSend: function() {
                     console.log('🍪 AJAX-Anfrage wird gesendet...');
+                    console.log('🍪 Request Headers:', this.headers);
                 },
                 success: (response) => {
-                    console.log('🍪 AJAX-Response erhalten:', response);
+                    console.log('🍪 === AJAX SUCCESS RESPONSE ===');
+                    console.log('🍪 Vollständige Response:', response);
+                    console.log('🍪 Response Success:', response.success);
+                    console.log('🍪 Response Data:', response.data);
+                    console.log('🍪 Response Message:', response.data?.message);
+                    
                     if (response.success) {
-                        console.log('🍪 Consent erfolgreich gespeichert');
+                        console.log('🍪 ✅ Consent erfolgreich gespeichert');
                         
                         // Cookies entsprechend setzen
                         self.applyCookieSettings(consents);
@@ -742,22 +767,41 @@
                                 detail: { consents: consents }
                             });
                             document.dispatchEvent(event);
+                            console.log('🍪 Registrierungs-Event getriggert');
                         } else {
                             // Normale Notification für nicht-Registrierung
                             self.showNotification('Deine Cookie-Einstellungen wurden gespeichert.', 'success');
                         }
                     } else {
-                        console.error('🍪 Fehler beim Speichern:', response.data?.message);
+                        console.error('🍪 ❌ Fehler beim Speichern:', response.data?.message);
+                        console.error('🍪 Fehler-Details:', response);
                         self.showNotification('Fehler beim Speichern der Einstellungen.', 'error');
                     }
+                    
+                    console.log('🍪 === AJAX SUCCESS RESPONSE ENDE ===');
                 },
                 error: (xhr, status, error) => {
+                    console.error('🍪 === AJAX ERROR RESPONSE ===');
                     console.error('🍪 Netzwerkfehler beim Speichern:', error);
                     console.error('🍪 Status:', status);
-                    console.error('🍪 XHR:', xhr);
+                    console.error('🍪 XHR Status:', xhr.status);
+                    console.error('🍪 XHR Status Text:', xhr.statusText);
+                    console.error('🍪 XHR Response Text:', xhr.responseText);
+                    
+                    // Versuche Response zu parsen
+                    try {
+                        const errorResponse = JSON.parse(xhr.responseText);
+                        console.error('🍪 Geparste Error-Response:', errorResponse);
+                    } catch (e) {
+                        console.error('🍪 Konnte Error-Response nicht parsen:', e);
+                    }
+                    
                     self.showNotification('Netzwerkfehler beim Speichern.', 'error');
+                    console.error('🍪 === AJAX ERROR RESPONSE ENDE ===');
                 }
             });
+            
+            console.log('🍪 === SAVE CONSENTS DEBUG ENDE ===');
         }
         
         applyCookieSettings(consents) {

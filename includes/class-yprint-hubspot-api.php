@@ -393,11 +393,14 @@ class YPrint_HubSpot_API {
             );
         }
         
+        // Formatiere Note-Body
+        $note_body = $this->format_initial_cookie_note($cookie_data);
+        
         // Bereite Aktivitätsdaten vor
         $activity_data = array(
             'properties' => array(
                 'hs_timestamp' => time() * 1000, // HubSpot erwartet Millisekunden
-                'hs_note_body' => $this->format_initial_cookie_note($cookie_data),
+                'hs_note_body' => $note_body,
                 'hs_attachment_ids' => ''
             )
         );
@@ -558,6 +561,16 @@ class YPrint_HubSpot_API {
      * ✅ NEU: Formatiert Notiz für erstmalige Cookie-Auswahl
      */
     private function format_initial_cookie_note($cookie_data) {
+        // ✅ FALLBACK: Wenn keine Daten vorhanden
+        if (empty($cookie_data) || !is_array($cookie_data)) {
+            $cookie_data = array(
+                'cookie_essential' => true,
+                'cookie_analytics' => false,
+                'cookie_marketing' => false,
+                'cookie_functional' => false
+            );
+        }
+        
         $note = "🍪 **Erstmalige Cookie-Auswahl**\n\n";
         $note .= "**Zeitpunkt:** " . date('d.m.Y H:i:s') . "\n\n";
         $note .= "**Cookie-Präferenzen:**\n";
