@@ -148,12 +148,24 @@ class YPrint_Consent_Manager {
         if (is_user_logged_in()) {
             $user_id = get_current_user_id();
             $has_decision = $this->has_any_consent_decision($user_id);
-            $show_banner = !$has_decision;
-            error_log('🍪 PHP: User logged in, has_decision: ' . ($has_decision ? 'true' : 'false') . ', show_banner: ' . ($show_banner ? 'true' : 'false'));
+            $has_valid_consent = $this->has_valid_user_consent($user_id);
+            
+            // Banner nur zeigen wenn keine Entscheidung ODER keine gültige Entscheidung
+            $show_banner = !$has_decision || !$has_valid_consent;
+            
+            error_log('🍪 PHP: User logged in, has_decision: ' . ($has_decision ? 'true' : 'false') . 
+                     ', has_valid_consent: ' . ($has_valid_consent ? 'true' : 'false') . 
+                     ', show_banner: ' . ($show_banner ? 'true' : 'false'));
         } else {
             $has_guest_decision = $this->has_guest_consent_decision();
-            $show_banner = !$has_guest_decision;
-            error_log('🍪 PHP: Guest user, has_guest_decision: ' . ($has_guest_decision ? 'true' : 'false') . ', show_banner: ' . ($show_banner ? 'true' : 'false'));
+            $has_valid_guest_consent = $this->has_valid_guest_consent();
+            
+            // Banner nur zeigen wenn keine Entscheidung ODER keine gültige Entscheidung
+            $show_banner = !$has_guest_decision || !$has_valid_guest_consent;
+            
+            error_log('🍪 PHP: Guest user, has_guest_decision: ' . ($has_guest_decision ? 'true' : 'false') . 
+                     ', has_valid_guest_consent: ' . ($has_valid_guest_consent ? 'true' : 'false') . 
+                     ', show_banner: ' . ($show_banner ? 'true' : 'false'));
             
             // Debug: Zeige welche Cookies vorhanden sind
             error_log('🍪 PHP: Vorhandene Cookies: ' . json_encode($_COOKIE));
@@ -215,7 +227,25 @@ class YPrint_Consent_Manager {
      */
     private function has_guest_consent_decision() {
         // Prüfung auf spezifisches Cookie das Entscheidung dokumentiert
-        return isset($_COOKIE['yprint_consent_decision']) || isset($_COOKIE['yprint_consent_preferences']);
+        $has_decision_cookie = isset($_COOKIE['yprint_consent_decision']);
+        $has_preferences_cookie = isset($_COOKIE['yprint_consent_preferences']);
+        
+        // Zusätzliche Validierung: Prüfe ob Timestamp nicht zu alt ist
+        $has_valid_timestamp = false;
+        if (isset($_COOKIE['yprint_consent_timestamp'])) {
+            $timestamp = intval($_COOKIE['yprint_consent_timestamp']);
+            $one_year_ago = time() - (365 * 24 * 60 * 60);
+            $has_valid_timestamp = $timestamp >= $one_year_ago;
+        }
+        
+        $has_decision = $has_decision_cookie && $has_preferences_cookie && $has_valid_timestamp;
+        
+        error_log('🍪 PHP: Guest consent decision check - has_decision_cookie: ' . ($has_decision_cookie ? 'true' : 'false') . 
+                 ', has_preferences_cookie: ' . ($has_preferences_cookie ? 'true' : 'false') . 
+                 ', has_valid_timestamp: ' . ($has_valid_timestamp ? 'true' : 'false') . 
+                 ', final_result: ' . ($has_decision ? 'true' : 'false'));
+        
+        return $has_decision;
     }
     
     /**
@@ -466,9 +496,32 @@ class YPrint_Consent_Manager {
             'version' => '1.0'
         );
         
+        // Haupt-Cookie setzen
         setcookie(
             'yprint_consent_preferences',
             json_encode($cookie_data),
+            time() + (365 * 24 * 60 * 60), // 1 Jahr
+            '/',
+            '',
+            is_ssl(),
+            true
+        );
+        
+        // Zusätzliches Timestamp-Cookie für einfachere Validierung
+        setcookie(
+            'yprint_consent_timestamp',
+            time(),
+            time() + (365 * 24 * 60 * 60), // 1 Jahr
+            '/',
+            '',
+            is_ssl(),
+            true
+        );
+        
+        // Entscheidungs-Cookie setzen
+        setcookie(
+            'yprint_consent_decision',
+            '1',
             time() + (365 * 24 * 60 * 60), // 1 Jahr
             '/',
             '',

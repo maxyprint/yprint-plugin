@@ -165,7 +165,11 @@ class YPrint_HubSpot_API {
         }
         
         if (!empty($contact_data['registration_date'])) {
-            $hubspot_data['properties']['yprint_registration_date'] = $contact_data['registration_date'];
+            // HubSpot erwartet Unix-Timestamp für Datumsfelder
+            $timestamp = strtotime($contact_data['registration_date']);
+            if ($timestamp !== false) {
+                $hubspot_data['properties']['yprint_registration_date'] = $timestamp;
+            }
         }
         
         // Cookie-Präferenzen als Custom Property
