@@ -398,8 +398,7 @@ class YPrint_HubSpot_API {
             'properties' => array(
                 'hs_timestamp' => time() * 1000, // HubSpot erwartet Millisekunden
                 'hs_note_body' => $this->format_initial_cookie_note($cookie_data),
-                'hs_attachment_ids' => '',
-                'hs_note_body_pre_processing' => $this->format_initial_cookie_note($cookie_data)
+                'hs_attachment_ids' => ''
             )
         );
         
@@ -463,8 +462,7 @@ class YPrint_HubSpot_API {
             'properties' => array(
                 'hs_timestamp' => time() * 1000, // HubSpot erwartet Millisekunden
                 'hs_note_body' => $this->format_cookie_update_note($cookie_data, $previous_data),
-                'hs_attachment_ids' => '',
-                'hs_note_body_pre_processing' => $this->format_cookie_update_note($cookie_data, $previous_data)
+                'hs_attachment_ids' => ''
             )
         );
         
@@ -572,7 +570,12 @@ class YPrint_HubSpot_API {
         );
         
         foreach ($cookie_labels as $key => $label) {
-            $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+            // ✅ KRITISCH: Essenzielle Cookies sind IMMER akzeptiert
+            if ($key === 'cookie_essential') {
+                $status = '✅ Akzeptiert (Erforderlich)';
+            } else {
+                $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+            }
             $note .= "- {$label}: {$status}\n";
         }
         
@@ -599,8 +602,14 @@ class YPrint_HubSpot_API {
             );
             
             foreach ($cookie_labels as $key => $label) {
-                $old_status = isset($previous_data[$key]) && $previous_data[$key] ? 'Akzeptiert' : 'Abgelehnt';
-                $new_status = isset($cookie_data[$key]) && $cookie_data[$key] ? 'Akzeptiert' : 'Abgelehnt';
+                // ✅ KRITISCH: Essenzielle Cookies sind IMMER akzeptiert
+                if ($key === 'cookie_essential') {
+                    $old_status = 'Akzeptiert (Erforderlich)';
+                    $new_status = 'Akzeptiert (Erforderlich)';
+                } else {
+                    $old_status = isset($previous_data[$key]) && $previous_data[$key] ? 'Akzeptiert' : 'Abgelehnt';
+                    $new_status = isset($cookie_data[$key]) && $cookie_data[$key] ? 'Akzeptiert' : 'Abgelehnt';
+                }
                 
                 if ($old_status !== $new_status) {
                     $note .= "- {$label}: {$old_status} → {$new_status}\n";
@@ -618,7 +627,12 @@ class YPrint_HubSpot_API {
         );
         
         foreach ($cookie_labels as $key => $label) {
-            $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+            // ✅ KRITISCH: Essenzielle Cookies sind IMMER akzeptiert
+            if ($key === 'cookie_essential') {
+                $status = '✅ Akzeptiert (Erforderlich)';
+            } else {  
+                $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+            }
             $note .= "- {$label}: {$status}\n";
         }
         
