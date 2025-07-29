@@ -150,7 +150,7 @@ class YPrint_HubSpot_API {
             )
         );
         
-        // Optionale Felder hinzufügen
+        // Optionale Felder hinzufügen (nur gültige Properties)
         if (!empty($contact_data['firstname'])) {
             $hubspot_data['properties']['firstname'] = $contact_data['firstname'];
         }
@@ -159,17 +159,18 @@ class YPrint_HubSpot_API {
             $hubspot_data['properties']['lastname'] = $contact_data['lastname'];
         }
         
+        // Custom Properties für zusätzliche Daten
         if (!empty($contact_data['username'])) {
-            $hubspot_data['properties']['username'] = $contact_data['username'];
+            $hubspot_data['properties']['yprint_username'] = $contact_data['username'];
         }
         
         if (!empty($contact_data['registration_date'])) {
-            $hubspot_data['properties']['createdate'] = $contact_data['registration_date'];
+            $hubspot_data['properties']['yprint_registration_date'] = $contact_data['registration_date'];
         }
         
         // Cookie-Präferenzen als Custom Property
         if (!empty($contact_data['cookie_preferences'])) {
-            $hubspot_data['properties']['cookie_preferences'] = json_encode($contact_data['cookie_preferences']);
+            $hubspot_data['properties']['yprint_cookie_preferences'] = json_encode($contact_data['cookie_preferences']);
         }
         
         // Sende Request an HubSpot
@@ -206,6 +207,15 @@ class YPrint_HubSpot_API {
             // Fehler beim Erstellen
             $error_message = isset($response_data['message']) ? $response_data['message'] : 'Unbekannter Fehler';
             error_log('YPrint HubSpot: Failed to create contact - Status: ' . $status_code . ', Message: ' . $error_message);
+            
+            // Spezifische Fehlerbehandlung
+            if (isset($response_data['errors'])) {
+                foreach ($response_data['errors'] as $error) {
+                    if (isset($error['code']) && $error['code'] === 'PROPERTY_DOESNT_EXIST') {
+                        error_log('YPrint HubSpot: Custom property missing - ' . $error['message']);
+                    }
+                }
+            }
             
             return array(
                 'success' => false,

@@ -167,3 +167,33 @@ Bei Problemen:
 2. Teste die API-Verbindung im Admin-Panel
 3. Stelle sicher, dass alle Setup-Schritte befolgt wurden
 4. Kontaktiere den Support mit den Log-Details
+
+### 4. Custom Properties in HubSpot erstellen
+
+Für die vollständige Integration musst du Custom Properties in HubSpot erstellen:
+
+1. **Gehe zu HubSpot → Settings → Properties**
+2. **Erstelle diese Custom Properties:**
+
+   **Property 1:**
+   - Name: `YPrint Username`
+   - Internal Name: `yprint_username`
+   - Type: `Single-line text`
+   - Group: `Contact information`
+
+   **Property 2:**
+   - Name: `YPrint Registration Date`
+   - Internal Name: `yprint_registration_date`
+   - Type: `Date`
+   - Group: `Contact information`
+
+   **Property 3:**
+   - Name: `YPrint Cookie Preferences`
+   - Internal Name: `yprint_cookie_preferences`
+   - Type: `Multi-line text`
+   - Group: `Contact information`
+
+3. **Speichere die Properties**
+4. **Teste die Integration erneut**
+
+### 5. Testen der Integration
