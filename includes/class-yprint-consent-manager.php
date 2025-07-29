@@ -106,36 +106,38 @@ class YPrint_Consent_Manager {
      * Prüfen ob Banner initial angezeigt werden soll
      */
     public function should_show_banner_initially() {
-        // Debug-Logging hinzufügen
-        $show_banner = false;
+        // ✅ WICHTIG: Das bestimmt nur die AUTOMATISCHE Anzeige
+        // Cookie-Button soll IMMER das Banner öffnen können!
         
         if (is_user_logged_in()) {
             $user_id = get_current_user_id();
             $has_decision = $this->has_any_consent_decision($user_id);
             $has_valid_consent = $this->has_valid_user_consent($user_id);
             
-            // Banner nur zeigen wenn keine Entscheidung ODER keine gültige Entscheidung
             $show_banner = !$has_decision || !$has_valid_consent;
             
             error_log('🍪 PHP: User logged in, has_decision: ' . ($has_decision ? 'true' : 'false') . 
                      ', has_valid_consent: ' . ($has_valid_consent ? 'true' : 'false') . 
-                     ', show_banner: ' . ($show_banner ? 'true' : 'false'));
+                     ', show_banner_initially: ' . ($show_banner ? 'true' : 'false') . 
+                     ' (Cookie-Button funktioniert IMMER)');
+            
+            return $show_banner;
         } else {
             $has_guest_decision = $this->has_guest_consent_decision();
             $has_valid_guest_consent = $this->has_valid_guest_consent();
             
-            // Banner nur zeigen wenn keine Entscheidung ODER keine gültige Entscheidung
             $show_banner = !$has_guest_decision || !$has_valid_guest_consent;
             
             error_log('🍪 PHP: Guest user, has_guest_decision: ' . ($has_guest_decision ? 'true' : 'false') . 
                      ', has_valid_guest_consent: ' . ($has_valid_guest_consent ? 'true' : 'false') . 
-                     ', show_banner: ' . ($show_banner ? 'true' : 'false'));
+                     ', show_banner_initially: ' . ($show_banner ? 'true' : 'false') . 
+                     ' (Cookie-Button funktioniert IMMER)');
             
             // Debug: Zeige welche Cookies vorhanden sind
             error_log('🍪 PHP: Vorhandene Cookies: ' . json_encode($_COOKIE));
+            
+            return $show_banner;
         }
-        
-        return $show_banner;
     }
     
     /**
@@ -823,12 +825,76 @@ class YPrint_Consent_Manager {
             error_log('🍪 FORCE: Essenzielle Cookies für Gast immer akzeptiert');
         }
         
+        $timestamp = current_time('timestamp');
+        
+        // ✅ Session für Registrierung-Integration starten
+        if (!session_id()) {
+            session_start();
+        }
+        
+        // ✅ NEU: Cookie-Präferenzen in Session speichern für Registrierung
+        $_SESSION['yprint_cookie_preferences'] = $consent_data;
+        $_SESSION['yprint_cookie_timestamp'] = $timestamp;
+        error_log('🍪 Cookie-Präferenzen in Session gespeichert: ' . json_encode($consent_data));
+        
+        // Consent-Cookie setzen (bestehende Logik)
+        $cookie_data = array(
+            'consents' => $consent_data,
+            'timestamp' => $timestamp,
+            'version' => '1.0'
+        );
+        
+        setcookie('yprint_consent_preferences', json_encode($cookie_data), $timestamp + YEAR_IN_SECONDS, '/');
+        setcookie('yprint_consent_timestamp', $timestamp, $timestamp + YEAR_IN_SECONDS, '/');
+        setcookie('yprint_consent_decision', '1', $timestamp + YEAR_IN_SECONDS, '/');
+        
+        // ✅ NEU: HubSpot-Aktivität für Gäste (falls E-Mail verfügbar)
+        if (class_exists('YPrint_HubSpot_API')) {
+            $is_initial_consent = $this->is_initial_cookie_consent($consent_data);
+            $this->create_hubspot_cookie_activity_for_guest($consent_data, $is_initial_consent);
+        }
+        
         // ✅ NEU: Für Gäste werden Cookies nur von JavaScript gesetzt
         // PHP setzt KEINE Cookies mehr - verhindert Race Conditions
         error_log('🍪 PHP: Gast-Consent gespeichert (Cookies werden von JavaScript gesetzt)');
         error_log('🍪 PHP: Consent-Daten: ' . json_encode($consent_data));
         
         return true;
+    }
+    
+    /**
+     * ✅ NEU: Holt Cookie-Präferenzen aus Session für Registrierung
+     */
+    public function get_cookie_preferences_from_session() {
+        // Prüfe Browser-Cookies zuerst
+        if (isset($_COOKIE['yprint_consent_preferences'])) {
+            $cookie_data = json_decode(stripslashes($_COOKIE['yprint_consent_preferences']), true);
+            if (isset($cookie_data['consents']) && is_array($cookie_data['consents'])) {
+                error_log('🍪 Cookie-Präferenzen aus Browser-Cookie geladen: ' . json_encode($cookie_data['consents']));
+                return $cookie_data['consents'];
+            }
+        }
+        
+        // Fallback: Session prüfen
+        if (!session_id()) {
+            session_start();
+        }
+        
+        if (isset($_SESSION['yprint_cookie_preferences'])) {
+            error_log('🍪 Cookie-Präferenzen aus Session geladen: ' . json_encode($_SESSION['yprint_cookie_preferences']));
+            return $_SESSION['yprint_cookie_preferences'];
+        }
+        
+        // Fallback: Standard-Werte
+        $default_preferences = array(
+            'cookie_essential' => true,
+            'cookie_analytics' => false,
+            'cookie_marketing' => false,
+            'cookie_functional' => false
+        );
+        
+        error_log('🍪 Cookie-Präferenzen: Verwende Standard-Werte (keine Session/Cookie-Daten gefunden)');
+        return $default_preferences;
     }
     
     /**

@@ -222,15 +222,21 @@ function wc_rest_user_endpoint_handler($request) {
                 // Optional: Contact ID in WordPress User Meta speichern
                 update_user_meta($user_id, 'hubspot_contact_id', $hubspot_result['contact_id']);
                 
-                // ✅ NEU: Cookie-Aktivität bei Registrierung erstellen (falls Cookie-Präferenzen vorhanden)
-                if (!empty($cookie_preferences)) {
-                    $cookie_activity_result = $hubspot_api->handle_cookie_activity($email, $cookie_preferences, 'initial');
+                // ✅ NEU: Cookie-Aktivität bei Registrierung aus Session erstellen
+                $consent_manager = YPrint_Consent_Manager::get_instance();
+                $cookie_preferences_from_session = $consent_manager->get_cookie_preferences_from_session();
+
+                if (!empty($cookie_preferences_from_session)) {
+                    error_log('YPrint REST Registration: Cookie-Präferenzen für HubSpot gefunden: ' . json_encode($cookie_preferences_from_session));
+                    $cookie_activity_result = $hubspot_api->handle_cookie_activity($email, $cookie_preferences_from_session, 'initial');
                     
                     if ($cookie_activity_result['success']) {
                         error_log('YPrint Registration: Initial cookie activity created for user ' . $username . ' during REST registration');
                     } else {
                         error_log('YPrint Registration: Failed to create initial cookie activity for user ' . $username . ' during REST registration: ' . $cookie_activity_result['message']);
                     }
+                } else {
+                    error_log('YPrint REST Registration: Keine Cookie-Präferenzen für HubSpot gefunden');
                 }
             } else {
                 error_log('YPrint Registration: Failed to create HubSpot contact for user ' . $username . ': ' . $hubspot_result['message']);
