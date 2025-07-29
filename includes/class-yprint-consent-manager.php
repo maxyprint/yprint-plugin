@@ -812,6 +812,9 @@ class YPrint_Consent_Manager {
             }
         }
         
+        // ✅ NEU: Speichere auch als "aktuelle" Einstellungen
+        $this->save_current_cookie_preferences($user_id, $consent_data);
+        
         return true;
     }
     
@@ -866,35 +869,106 @@ class YPrint_Consent_Manager {
      * ✅ NEU: Holt Cookie-Präferenzen aus Session für Registrierung
      */
     public function get_cookie_preferences_from_session() {
-        // Prüfe Browser-Cookies zuerst
+        error_log('🍪 REGISTRIERUNG: get_cookie_preferences_from_session aufgerufen');
+        error_log('🍪 REGISTRIERUNG: Verfügbare Cookies: ' . print_r($_COOKIE, true));
+        
+        // ✅ VERBESSERT: Browser-Cookie-Parsing mit besserer Fehlerbehandlung
         if (isset($_COOKIE['yprint_consent_preferences'])) {
-            $cookie_data = json_decode(stripslashes($_COOKIE['yprint_consent_preferences']), true);
-            if (isset($cookie_data['consents']) && is_array($cookie_data['consents'])) {
-                error_log('🍪 Cookie-Präferenzen aus Browser-Cookie geladen: ' . json_encode($cookie_data['consents']));
-                return $cookie_data['consents'];
+            $raw_cookie = $_COOKIE['yprint_consent_preferences'];
+            error_log('🍪 REGISTRIERUNG: Raw Cookie gefunden: ' . $raw_cookie);
+            
+            try {
+                // URL-decode first, dann JSON-decode
+                $decoded_cookie = urldecode($raw_cookie);
+                error_log('🍪 REGISTRIERUNG: URL-decoded Cookie: ' . $decoded_cookie);
+                
+                $cookie_data = json_decode($decoded_cookie, true);
+                error_log('🍪 REGISTRIERUNG: JSON-decoded Cookie: ' . print_r($cookie_data, true));
+                
+                if (isset($cookie_data['consents']) && is_array($cookie_data['consents'])) {
+                    // ✅ KONVERTIERE das neue Format in das erwartete Format
+                    $preferences = array();
+                    foreach ($cookie_data['consents'] as $key => $value) {
+                        if (is_array($value) && isset($value['granted'])) {
+                            // Neues Format: {granted: true, timestamp: "...", version: "..."}
+                            $preferences[$key] = $value['granted'];
+                        } else {
+                            // Altes Format: true/false
+                            $preferences[$key] = (bool)$value;
+                        }
+                    }
+                    
+                    error_log('🍪 REGISTRIERUNG: Konvertierte Präferenzen: ' . json_encode($preferences));
+                    return $preferences;
+                }
+            } catch (Exception $e) {
+                error_log('🍪 REGISTRIERUNG: Fehler beim Cookie-Parsing: ' . $e->getMessage());
             }
         }
         
-        // Fallback: Session prüfen
+        // ✅ VERBESSERT: Session-Prüfung
         if (!session_id()) {
             session_start();
         }
         
         if (isset($_SESSION['yprint_cookie_preferences'])) {
-            error_log('🍪 Cookie-Präferenzen aus Session geladen: ' . json_encode($_SESSION['yprint_cookie_preferences']));
+            error_log('🍪 REGISTRIERUNG: Session-Präferenzen gefunden: ' . json_encode($_SESSION['yprint_cookie_preferences']));
             return $_SESSION['yprint_cookie_preferences'];
         }
         
-        // Fallback: Standard-Werte
-        $default_preferences = array(
-            'cookie_essential' => true,
-            'cookie_analytics' => false,
-            'cookie_marketing' => false,
-            'cookie_functional' => false
+        // ✅ KRITISCH: Schaue auch in andere Cookie-Felder
+        if (isset($_COOKIE['yprint_consent_decision']) && $_COOKIE['yprint_consent_decision'] === '1') {
+            // User hat Entscheidung getroffen, aber Daten sind nicht verfügbar
+            // Verwende konservative Einstellungen (nur essenzielle Cookies)
+            $conservative_preferences = array(
+                'cookie_essential' => true,
+                'cookie_analytics' => false,
+                'cookie_marketing' => false,
+                'cookie_functional' => false
+            );
+            
+            error_log('🍪 REGISTRIERUNG: Conservative Präferenzen verwendet (Decision-Cookie gefunden): ' . json_encode($conservative_preferences));
+            return $conservative_preferences;
+        }
+        
+        // ✅ FALLBACK: Nur wenn gar keine Cookie-Entscheidung getroffen wurde
+        error_log('🍪 REGISTRIERUNG: KEINE Cookie-Daten gefunden - User hat vermutlich keine Entscheidung getroffen');
+        return array(); // Leeres Array = keine Cookie-Aktivität erstellen
+    }
+    
+    /**
+     * ✅ NEU: Speichere aktuelle Cookie-Einstellungen in User Meta (überschreibt immer)
+     */
+    private function save_current_cookie_preferences($user_id, $consent_data) {
+        if (!$user_id) return false;
+        
+        $cookie_preferences = array(
+            'consents' => $consent_data,
+            'timestamp' => current_time('timestamp'),
+            'version' => '1.0'
         );
         
-        error_log('🍪 Cookie-Präferenzen: Verwende Standard-Werte (keine Session/Cookie-Daten gefunden)');
-        return $default_preferences;
+        // ✅ Überschreibe immer die aktuellen Einstellungen
+        $result = update_user_meta($user_id, 'yprint_current_cookie_preferences', $cookie_preferences);
+        
+        error_log('🍪 DB: Aktuelle Cookie-Präferenzen für User ' . $user_id . ' gespeichert: ' . json_encode($consent_data));
+        
+        return $result;
+    }
+
+    /**
+     * ✅ NEU: Hole aktuelle Cookie-Einstellungen aus User Meta
+     */
+    public function get_current_cookie_preferences($user_id) {
+        if (!$user_id) return null;
+        
+        $preferences = get_user_meta($user_id, 'yprint_current_cookie_preferences', true);
+        
+        if ($preferences && isset($preferences['consents'])) {
+            return $preferences['consents'];
+        }
+        
+        return null;
     }
     
     /**

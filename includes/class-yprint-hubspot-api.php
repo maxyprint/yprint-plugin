@@ -393,17 +393,41 @@ class YPrint_HubSpot_API {
             );
         }
         
-        // Formatiere Note-Body
+        error_log('🍪 HUBSPOT: create_initial_cookie_activity - Contact ID: ' . $contact_id);
+        error_log('🍪 HUBSPOT: create_initial_cookie_activity - Cookie Data: ' . json_encode($cookie_data));
+        
+        // ✅ KRITISCH: Formatiere Note-Body und prüfe auf null
         $note_body = $this->format_initial_cookie_note($cookie_data);
         
-        // Bereite Aktivitätsdaten vor
+        if ($note_body === null) {
+            error_log('🍪 HUBSPOT: Keine Note erstellen - Cookie-Daten unvollständig');
+            return array(
+                'success' => false,
+                'message' => 'Keine ausreichenden Cookie-Daten für Note verfügbar'
+            );
+        }
+        
+        // ✅ VERBESSERT: Kontakt-Verknüpfung hinzufügen
         $activity_data = array(
             'properties' => array(
-                'hs_timestamp' => time() * 1000, // HubSpot erwartet Millisekunden
+                'hs_timestamp' => time() * 1000,
                 'hs_note_body' => $note_body,
                 'hs_attachment_ids' => ''
+            ),
+            'associations' => array(
+                array(
+                    'to' => array('id' => $contact_id),
+                    'types' => array(
+                        array(
+                            'associationCategory' => 'HUBSPOT_DEFINED',
+                            'associationTypeId' => 202 // Note zu Contact
+                        )
+                    )
+                )
             )
         );
+        
+        error_log('🍪 HUBSPOT: Activity Data: ' . json_encode($activity_data));
         
         // Sende Request an HubSpot Engagements API
         $response = wp_remote_post($this->base_url . '/crm/v3/objects/notes', array(
@@ -561,40 +585,46 @@ class YPrint_HubSpot_API {
      * ✅ NEU: Formatiert Notiz für erstmalige Cookie-Auswahl
      */
     private function format_initial_cookie_note($cookie_data) {
-        // ✅ FALLBACK: Wenn keine Daten vorhanden
+        error_log('🍪 HUBSPOT: format_initial_cookie_note aufgerufen mit: ' . json_encode($cookie_data));
+        
+        // ✅ FALLBACK: Wenn keine Daten vorhanden, erstelle keine Note
         if (empty($cookie_data) || !is_array($cookie_data)) {
-            $cookie_data = array(
-                'cookie_essential' => true,
-                'cookie_analytics' => false,
-                'cookie_marketing' => false,
-                'cookie_functional' => false
-            );
+            error_log('🍪 HUBSPOT: Cookie Data ist leer - keine Note erstellen');
+            return null; // Signalisiert: Keine Note erstellen
         }
         
-        $note = "🍪 **Erstmalige Cookie-Auswahl**\n\n";
+        $note = "🍪 **Cookie-Auswahl bei Registrierung**\n\n";
         $note .= "**Zeitpunkt:** " . date('d.m.Y H:i:s') . "\n\n";
-        $note .= "**Cookie-Präferenzen:**\n";
+        $note .= "**Cookie-Kategorien:**\n";
         
         $cookie_labels = array(
             'cookie_essential' => 'Essenzielle Cookies',
-            'cookie_analytics' => 'Analytics Cookies',
+            'cookie_analytics' => 'Analytics Cookies', 
             'cookie_marketing' => 'Marketing Cookies',
             'cookie_functional' => 'Funktionale Cookies'
         );
+        
+        $accepted_count = 0;
+        $total_count = count($cookie_labels);
         
         foreach ($cookie_labels as $key => $label) {
             // ✅ KRITISCH: Essenzielle Cookies sind IMMER akzeptiert
             if ($key === 'cookie_essential') {
                 $status = '✅ Akzeptiert (Erforderlich)';
+                $accepted_count++;
             } else {
-                $status = isset($cookie_data[$key]) && $cookie_data[$key] ? '✅ Akzeptiert' : '❌ Abgelehnt';
+                $is_accepted = isset($cookie_data[$key]) && $cookie_data[$key];
+                $status = $is_accepted ? '✅ Akzeptiert' : '❌ Abgelehnt';
+                if ($is_accepted) $accepted_count++;
             }
-            $note .= "- {$label}: {$status}\n";
+            $note .= "- **{$label}**: {$status}\n";
         }
         
-        $note .= "\n**Prozess:** Erstmalige Cookie-Auswahl durch Benutzer\n";
-        $note .= "**Quelle:** YPrint Cookie-Consent-System";
+        $note .= "\n**Zusammenfassung:** {$accepted_count} von {$total_count} Cookie-Kategorien akzeptiert\n\n";
+        $note .= "**Prozess:** Registrierung mit Cookie-Auswahl\n";
+        $note .= "**Quelle:** YPrint Registration System";
         
+        error_log('🍪 HUBSPOT: Formatierte Note: ' . $note);
         return $note;
     }
     
