@@ -12,9 +12,10 @@ if (!defined('ABSPATH')) {
 
 $consent_manager = YPrint_Consent_Manager::get_instance();
 $show_initially = $consent_manager->should_show_banner_initially();
-$display_style = $show_initially ? 'display: flex;' : 'display: none;';
+// ✅ ANTI-FOUC: Banner ist standardmäßig versteckt, JavaScript zeigt es bei Bedarf
+$css_class = $show_initially ? 'yprint-cookie-banner' : 'yprint-cookie-banner yprint-hidden';
 ?>
-<div id="yprint-cookie-banner" class="yprint-cookie-banner" role="dialog" aria-modal="true" aria-labelledby="cookie-banner-title" aria-describedby="cookie-banner-description" style="<?php echo $display_style; ?>">
+<div id="yprint-cookie-banner" class="<?php echo $css_class; ?>" role="dialog" aria-modal="true" aria-labelledby="cookie-banner-title" aria-describedby="cookie-banner-description" style="display: none;">
     <div class="yprint-cookie-banner-overlay"></div>
     <div class="yprint-cookie-banner-content">
         <div class="yprint-cookie-banner-header">

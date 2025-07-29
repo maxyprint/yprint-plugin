@@ -52,6 +52,16 @@
     display: none !important;
 }
 
+/* ✅ ANTI-FOUC: Banner ist standardmäßig versteckt */
+.yprint-cookie-banner {
+    display: none !important;
+}
+
+/* ✅ Nur wenn JavaScript es explizit zeigt */
+.yprint-cookie-banner.yprint-show {
+    display: flex !important;
+}
+
 .yprint-cookie-banner-overlay {
     position: absolute !important;
     top: 0 !important;

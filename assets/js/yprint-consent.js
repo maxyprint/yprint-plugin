@@ -80,18 +80,18 @@
                     console.log(`🍪 Cookie ${cookieType}: selected=${isSelected}, checked=${isChecked}`);
                 });
                 
-                // ✅ NEU: Vereinfachte Entscheidungslogik
+                // ✅ NEU: ANTI-FOUC: Entscheidung ohne visuellen Flicker
                 if (!hasYPrintCookies || cookieDecision.showBanner) {
-                    // Banner wird initial angezeigt - KEINE Einstellungen laden
+                    // Banner soll gezeigt werden
                     console.log('🍪 ENTSCHEIDUNG: Banner anzeigen - Grund:', cookieDecision.reason);
                     
                     // Stelle sicher, dass nur essenzielle Cookies vorausgewählt sind
                     this.resetToEssentialOnly();
-                    this.showBanner();
+                    this.showBannerSmooth();
                 } else {
-                    // Banner ist ausgeblendet - lade Einstellungen für Icon
+                    // Banner soll versteckt bleiben
                     console.log('🍪 ENTSCHEIDUNG: Banner ausblenden - Grund:', cookieDecision.reason);
-                    this.hideBanner();
+                    this.ensureBannerHidden();
                     this.checkConsentStatus();
                 }
                 
@@ -536,11 +536,11 @@
             console.log('🍪 Settings-Banner vollständig konfiguriert');
         }
         
-        showBanner() {
-            console.log('🍪 Banner wird angezeigt');
-            console.log('🍪 Banner vor Show - Hidden-Klasse:', this.banner.hasClass('yprint-hidden'));
+        showBannerSmooth() {
+            console.log('🍪 Banner wird smooth angezeigt (Anti-FOUC)');
             
-            this.banner.removeClass('yprint-hidden').css('display', 'flex');
+            // Entferne hidden class und zeige Banner
+            this.banner.removeClass('yprint-hidden').addClass('yprint-show');
             $('body').addClass('yprint-consent-open');
             
             // Mobile: Body-Scroll verhindern
@@ -553,15 +553,42 @@
                 });
             }
             
-            console.log('🍪 Banner nach Show - sichtbar:', this.banner.is(':visible'));
+            console.log('🍪 Banner smooth angezeigt');
+        }
+        
+        ensureBannerHidden() {
+            console.log('🍪 Stelle sicher, dass Banner versteckt bleibt');
+            
+            // Banner definitiv versteckt lassen
+            this.banner.addClass('yprint-hidden').removeClass('yprint-show');
+            $('body').removeClass('yprint-consent-open');
+            
+            console.log('🍪 Banner bleibt versteckt');
+        }
+        
+        showBanner() {
+            console.log('🍪 Banner wird angezeigt (Standard-Methode)');
+            
+            this.banner.removeClass('yprint-hidden').addClass('yprint-show');
+            $('body').addClass('yprint-consent-open');
+            
+            // Mobile: Body-Scroll verhindern
+            if (window.innerWidth <= 768) {
+                $('body').css({
+                    'overflow': 'hidden',
+                    'position': 'fixed',
+                    'width': '100%',
+                    'height': '100%'
+                });
+            }
+            
+            console.log('🍪 Banner angezeigt - sichtbar:', this.banner.is(':visible'));
         }
         
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
             
-            // Einfache Lösung: Klasse hinzufügen
-            this.banner.addClass('yprint-hidden');
-            
+            this.banner.addClass('yprint-hidden').removeClass('yprint-show');
             $('body').removeClass('yprint-consent-open');
             
             // Mobile: Body-Scroll wiederherstellen
@@ -574,8 +601,7 @@
                 });
             }
             
-            console.log('🍪 Banner ausgeblendet - Display:', this.banner.css('display'));
-            console.log('🍪 Banner sichtbar:', this.banner.is(':visible'));
+            console.log('🍪 Banner ausgeblendet - sichtbar:', this.banner.is(':visible'));
         }
         
         acceptAll() {
