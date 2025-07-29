@@ -32,6 +32,10 @@ class YPrint_Consent_Admin {
         add_action('wp_ajax_yprint_export_consents', array($this, 'export_consents'));
         add_action('wp_ajax_yprint_fix_essential_cookies', array($this, 'fix_essential_cookies'));
         add_action('wp_ajax_yprint_export_legal_texts', array($this, 'export_legal_texts'));
+        add_action('wp_ajax_yprint_sync_files_to_db', array($this, 'sync_files_to_db'));
+        add_action('wp_ajax_yprint_sync_db_to_files', array($this, 'sync_db_to_files'));
+        add_action('wp_ajax_yprint_sync_privacy_policy', array($this, 'sync_privacy_policy'));
+        add_action('wp_ajax_yprint_import_file_to_db', array($this, 'import_file_to_db'));
     }
     
     /**
@@ -165,63 +169,239 @@ class YPrint_Consent_Admin {
     private function render_texts_tab() {
         global $wpdb;
         
-        // Rechtstexte abrufen
-        $texts = $wpdb->get_results(
+        // Rechtstexte aus Datenbank abrufen
+        $db_texts = $wpdb->get_results(
             "SELECT * FROM {$wpdb->prefix}yprint_legal_texts 
              WHERE is_active = 1 AND language = 'de' 
              ORDER BY text_key",
             ARRAY_A
         );
+        
+        // Rechtstexte aus Dateien laden
+        $file_texts = $this->load_legal_texts_from_files();
+        
         ?>
         <div class="yprint-legal-texts-editor">
             <h2>Rechtstexte bearbeiten</h2>
             <p>Hier kannst du alle Texte für Cookie-Banner und Datenschutzerklärung anpassen.</p>
             
-            <?php foreach ($texts as $text): ?>
-            <div class="yprint-text-editor-card" data-text-id="<?php echo esc_attr($text['id']); ?>">
-                <h3><?php echo esc_html($this->get_text_title($text['text_key'])); ?></h3>
-                <div class="yprint-text-editor-meta">
-                    <span class="text-key">Schlüssel: <?php echo esc_html($text['text_key']); ?></span>
-                    <span class="text-version">Version: <?php echo esc_html($text['version']); ?></span>
-                    <span class="text-updated">Aktualisiert: <?php echo esc_html($text['updated_at']); ?></span>
+            <!-- ✅ NEU: Tabs für verschiedene Textquellen -->
+            <div class="yprint-text-tabs">
+                <button class="yprint-tab-btn active" data-tab="database">Datenbank-Texte</button>
+                <button class="yprint-tab-btn" data-tab="files">Datei-Texte</button>
+                <button class="yprint-tab-btn" data-tab="sync">Synchronisation</button>
+            </div>
+            
+            <!-- Datenbank-Texte Tab -->
+            <div class="yprint-tab-content active" id="database-tab">
+                <h3>Cookie-Consent & Banner-Texte (Datenbank)</h3>
+                <p>Diese Texte werden für das Cookie-Consent-System verwendet.</p>
+                
+                <?php foreach ($db_texts as $text): ?>
+                <div class="yprint-text-editor-card" data-text-id="<?php echo esc_attr($text['id']); ?>">
+                    <h4><?php echo esc_html($this->get_text_title($text['text_key'])); ?></h4>
+                    <div class="yprint-text-editor-meta">
+                        <span class="text-key">Schlüssel: <?php echo esc_html($text['text_key']); ?></span>
+                        <span class="text-version">Version: <?php echo esc_html($text['version']); ?></span>
+                        <span class="text-updated">Aktualisiert: <?php echo esc_html($text['updated_at']); ?></span>
+                    </div>
+                    
+                    <?php if (strpos($text['text_key'], 'CONTENT') !== false): ?>
+                        <!-- Großer Editor für längere Texte -->
+                        <?php
+                        wp_editor($text['content'], 'text_editor_' . $text['id'], array(
+                            'textarea_name' => 'legal_text_content',
+                            'media_buttons' => false,
+                            'textarea_rows' => 8,
+                            'teeny' => true,
+                            'tinymce' => array(
+                                'toolbar1' => 'bold,italic,underline,separator,alignleft,aligncenter,alignright,separator,link,unlink,undo,redo',
+                                'toolbar2' => ''
+                            )
+                        ));
+                        ?>
+                    <?php else: ?>
+                        <!-- Einfacher Textbereich für kurze Texte -->
+                        <textarea 
+                            name="legal_text_content" 
+                            rows="3" 
+                            style="width: 100%;"
+                            class="large-text"
+                        ><?php echo esc_textarea($text['content']); ?></textarea>
+                    <?php endif; ?>
+                    
+                    <div class="yprint-text-editor-actions">
+                        <button type="button" class="button button-primary save-text-btn">
+                            Speichern
+                        </button>
+                        <button type="button" class="button preview-text-btn">
+                            Vorschau
+                        </button>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <!-- Datei-Texte Tab -->
+            <div class="yprint-tab-content" id="files-tab">
+                <h3>Rechtstexte aus Dateien</h3>
+                <p>Diese Texte werden aus dem Rechtstexte/ Ordner geladen und für die Rechtstext-Seiten verwendet.</p>
+                
+                <?php foreach ($file_texts as $slug => $text_info): ?>
+                <div class="yprint-file-text-card">
+                    <h4><?php echo esc_html($text_info['title']); ?></h4>
+                    <div class="yprint-text-editor-meta">
+                        <span class="text-file">Datei: <?php echo esc_html($text_info['file']); ?></span>
+                        <span class="text-slug">Slug: <?php echo esc_html($slug); ?></span>
+                        <span class="text-size">Größe: <?php echo esc_html($this->format_file_size($text_info['filepath'])); ?></span>
+                    </div>
+                    
+                    <div class="yprint-file-actions">
+                        <button type="button" class="button button-secondary" onclick="window.open('<?php echo home_url('/' . $slug . '/'); ?>', '_blank')">
+                            <i class="fas fa-eye"></i> Anzeigen
+                        </button>
+                        <button type="button" class="button button-secondary" onclick="window.open('<?php echo YPRINT_PLUGIN_URL . 'Rechtstexte/' . $text_info['file']; ?>', '_blank')">
+                            <i class="fas fa-file-code"></i> Datei öffnen
+                        </button>
+                        <button type="button" class="button button-primary sync-to-db-btn" data-slug="<?php echo esc_attr($slug); ?>">
+                            <i class="fas fa-sync"></i> In DB importieren
+                        </button>
+                    </div>
+                    
+                    <!-- Vorschau des Inhalts -->
+                    <div class="yprint-file-preview">
+                        <h5>Vorschau (erste 200 Zeichen):</h5>
+                        <div class="yprint-preview-content">
+                            <?php echo esc_html(substr(strip_tags($text_info['content']), 0, 200)) . '...'; ?>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            
+            <!-- Synchronisation Tab -->
+            <div class="yprint-tab-content" id="sync-tab">
+                <h3>Synchronisation zwischen Dateien und Datenbank</h3>
+                <p>Hier kannst du die Rechtstexte zwischen dem Dateisystem und der Datenbank synchronisieren.</p>
+                
+                <div class="yprint-sync-actions">
+                    <div class="yprint-sync-card">
+                        <h4>Dateien → Datenbank</h4>
+                        <p>Importiere alle Rechtstexte aus dem Rechtstexte/ Ordner in die Datenbank.</p>
+                        <button type="button" class="button button-primary" id="sync-files-to-db">
+                            <i class="fas fa-download"></i> Alle importieren
+                        </button>
+                    </div>
+                    
+                    <div class="yprint-sync-card">
+                        <h4>Datenbank → Dateien</h4>
+                        <p>Exportiere alle Datenbank-Texte als HTML-Dateien in den Rechtstexte/ Ordner.</p>
+                        <button type="button" class="button button-secondary" id="sync-db-to-files">
+                            <i class="fas fa-upload"></i> Alle exportieren
+                        </button>
+                    </div>
+                    
+                    <div class="yprint-sync-card">
+                        <h4>Datenschutzerklärung synchronisieren</h4>
+                        <p>Spezielle Synchronisation für die Datenschutzerklärung zwischen Cookie-Consent und Rechtstext.</p>
+                        <button type="button" class="button button-primary" id="sync-privacy-policy">
+                            <i class="fas fa-sync"></i> Datenschutz synchronisieren
+                        </button>
+                    </div>
                 </div>
                 
-                <?php if (strpos($text['text_key'], 'CONTENT') !== false): ?>
-                    <!-- Großer Editor für längere Texte -->
-                    <?php
-                    wp_editor($text['content'], 'text_editor_' . $text['id'], array(
-                        'textarea_name' => 'legal_text_content',
-                        'media_buttons' => false,
-                        'textarea_rows' => 8,
-                        'teeny' => true,
-                        'tinymce' => array(
-                            'toolbar1' => 'bold,italic,underline,separator,alignleft,aligncenter,alignright,separator,link,unlink,undo,redo',
-                            'toolbar2' => ''
-                        )
-                    ));
-                    ?>
-                <?php else: ?>
-                    <!-- Einfacher Textbereich für kurze Texte -->
-                    <textarea 
-                        name="legal_text_content" 
-                        rows="3" 
-                        style="width: 100%;"
-                        class="large-text"
-                    ><?php echo esc_textarea($text['content']); ?></textarea>
-                <?php endif; ?>
-                
-                <div class="yprint-text-editor-actions">
-                    <button type="button" class="button button-primary save-text-btn">
-                        Speichern
-                    </button>
-                    <button type="button" class="button preview-text-btn">
-                        Vorschau
-                    </button>
+                <div class="yprint-sync-status">
+                    <h4>Synchronisations-Status</h4>
+                    <div id="sync-status-content">
+                        <!-- Wird per JavaScript gefüllt -->
+                    </div>
                 </div>
             </div>
-            <?php endforeach; ?>
         </div>
         <?php
+    }
+    
+    /**
+     * ✅ NEU: Rechtstexte aus Dateien laden
+     */
+    private function load_legal_texts_from_files() {
+        $legal_texts_dir = YPRINT_PLUGIN_DIR . 'Rechtstexte/';
+        $legal_texts = array();
+        
+        // Mapping für Dateinamen zu Anzeigenamen
+        $text_mapping = array(
+            'AGB.htm' => array(
+                'title' => 'Allgemeine Geschäftsbedingungen',
+                'icon' => 'file-contract',
+                'slug' => 'agb'
+            ),
+            'Datenschutzerklaerung.htm' => array(
+                'title' => 'Datenschutzerklärung',
+                'icon' => 'shield',
+                'slug' => 'datenschutz'
+            ),
+            'Impressum.htm' => array(
+                'title' => 'Impressum',
+                'icon' => 'info',
+                'slug' => 'impressum'
+            ),
+            'Versandbedingungen.htm' => array(
+                'title' => 'Versandbedingungen',
+                'icon' => 'truck',
+                'slug' => 'versandbedingungen'
+            ),
+            'Widerrufsrecht.htm' => array(
+                'title' => 'Widerrufsrecht',
+                'icon' => 'undo',
+                'slug' => 'widerrufsrecht'
+            )
+        );
+        
+        // Scanne den Rechtstexte/ Ordner
+        if (is_dir($legal_texts_dir)) {
+            $files = scandir($legal_texts_dir);
+            
+            foreach ($files as $file) {
+                if ($file !== '.' && $file !== '..' && pathinfo($file, PATHINFO_EXTENSION) === 'htm') {
+                    $filename = basename($file);
+                    
+                    if (isset($text_mapping[$filename])) {
+                        $mapping = $text_mapping[$filename];
+                        $filepath = $legal_texts_dir . $file;
+                        $content = file_exists($filepath) ? file_get_contents($filepath) : '';
+                        
+                        $legal_texts[$mapping['slug']] = array(
+                            'title' => $mapping['title'],
+                            'icon' => $mapping['icon'],
+                            'slug' => $mapping['slug'],
+                            'file' => $file,
+                            'filepath' => $filepath,
+                            'content' => $content
+                        );
+                    }
+                }
+            }
+        }
+        
+        return $legal_texts;
+    }
+    
+    /**
+     * ✅ NEU: Dateigröße formatieren
+     */
+    private function format_file_size($filepath) {
+        if (!file_exists($filepath)) {
+            return '0 B';
+        }
+        
+        $size = filesize($filepath);
+        $units = array('B', 'KB', 'MB', 'GB');
+        
+        for ($i = 0; $size > 1024 && $i < count($units) - 1; $i++) {
+            $size /= 1024;
+        }
+        
+        return round($size, 2) . ' ' . $units[$i];
     }
     
     /**
@@ -758,6 +938,369 @@ class YPrint_Consent_Admin {
         </select>
         <p class="description">Position des Cookie-Banners auf der Website.</p>
         <?php
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Dateien in Datenbank importieren
+     */
+    public function sync_files_to_db() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        global $wpdb;
+        $file_texts = $this->load_legal_texts_from_files();
+        $imported_count = 0;
+        $errors = array();
+        
+        foreach ($file_texts as $slug => $text_info) {
+            try {
+                // Prüfe ob Text bereits in DB existiert
+                $existing = $wpdb->get_var($wpdb->prepare(
+                    "SELECT id FROM {$wpdb->prefix}yprint_legal_texts 
+                     WHERE text_key = %s AND language = 'de'",
+                    'FILE_' . strtoupper($slug)
+                ));
+                
+                // Bereinige HTML-Inhalt
+                $clean_content = wp_kses_post($text_info['content']);
+                
+                if ($existing) {
+                    // Update bestehenden Text
+                    $wpdb->update(
+                        $wpdb->prefix . 'yprint_legal_texts',
+                        array(
+                            'content' => $clean_content,
+                            'updated_at' => current_time('mysql')
+                        ),
+                        array('id' => $existing)
+                    );
+                } else {
+                    // Erstelle neuen Text
+                    $wpdb->insert(
+                        $wpdb->prefix . 'yprint_legal_texts',
+                        array(
+                            'text_key' => 'FILE_' . strtoupper($slug),
+                            'content' => $clean_content,
+                            'version' => '1.0',
+                            'language' => 'de',
+                            'is_active' => 1,
+                            'created_at' => current_time('mysql'),
+                            'updated_at' => current_time('mysql')
+                        )
+                    );
+                }
+                
+                $imported_count++;
+                
+            } catch (Exception $e) {
+                $errors[] = 'Fehler bei ' . $text_info['title'] . ': ' . $e->getMessage();
+            }
+        }
+        
+        if (empty($errors)) {
+            wp_send_json_success(array(
+                'message' => $imported_count . ' Rechtstexte erfolgreich importiert',
+                'imported_count' => $imported_count
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => 'Import mit Fehlern abgeschlossen',
+                'imported_count' => $imported_count,
+                'errors' => $errors
+            ));
+        }
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Datenbank in Dateien exportieren
+     */
+    public function sync_db_to_files() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        global $wpdb;
+        $legal_texts_dir = YPRINT_PLUGIN_DIR . 'Rechtstexte/';
+        $exported_count = 0;
+        $errors = array();
+        
+        // Hole alle aktiven Texte aus der DB
+        $db_texts = $wpdb->get_results(
+            "SELECT * FROM {$wpdb->prefix}yprint_legal_texts 
+             WHERE is_active = 1 AND language = 'de'",
+            ARRAY_A
+        );
+        
+        foreach ($db_texts as $text) {
+            try {
+                // Mapping für Dateinamen
+                $file_mapping = array(
+                    'PRIVACY_POLICY_CONTENT' => 'Datenschutzerklaerung.htm',
+                    'COOKIE_BANNER_TITLE' => 'cookie_banner_title.htm',
+                    'COOKIE_BANNER_DESCRIPTION' => 'cookie_banner_description.htm',
+                    'REGISTRATION_CONSENT_TEXT' => 'registration_consent.htm'
+                );
+                
+                $filename = isset($file_mapping[$text['text_key']]) ? $file_mapping[$text['text_key']] : $text['text_key'] . '.htm';
+                $filepath = $legal_texts_dir . $filename;
+                
+                // Erstelle HTML-Wrapper
+                $html_content = '<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>' . $text['text_key'] . '</title>
+</head>
+<body>
+    ' . $text['content'] . '
+</body>
+</html>';
+                
+                // Schreibe Datei
+                if (file_put_contents($filepath, $html_content)) {
+                    $exported_count++;
+                } else {
+                    $errors[] = 'Fehler beim Schreiben von ' . $filename;
+                }
+                
+            } catch (Exception $e) {
+                $errors[] = 'Fehler bei ' . $text['text_key'] . ': ' . $e->getMessage();
+            }
+        }
+        
+        if (empty($errors)) {
+            wp_send_json_success(array(
+                'message' => $exported_count . ' Rechtstexte erfolgreich exportiert',
+                'exported_count' => $exported_count
+            ));
+        } else {
+            wp_send_json_error(array(
+                'message' => 'Export mit Fehlern abgeschlossen',
+                'exported_count' => $exported_count,
+                'errors' => $errors
+            ));
+        }
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Datenschutzerklärung synchronisieren
+     */
+    public function sync_privacy_policy() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        global $wpdb;
+        
+        // Lade Datenschutzerklärung aus Datei
+        $privacy_file = YPRINT_PLUGIN_DIR . 'Rechtstexte/Datenschutzerklaerung.htm';
+        if (!file_exists($privacy_file)) {
+            wp_send_json_error(array('message' => 'Datenschutzerklärung-Datei nicht gefunden'));
+        }
+        
+        $file_content = file_get_contents($privacy_file);
+        $clean_content = wp_kses_post($file_content);
+        
+        // Extrahiere relevanten Inhalt für Cookie-Consent
+        $cookie_section = $this->extract_cookie_section($clean_content);
+        
+        try {
+            // Update oder erstelle PRIVACY_POLICY_CONTENT
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}yprint_legal_texts 
+                 WHERE text_key = %s AND language = 'de'",
+                'PRIVACY_POLICY_CONTENT'
+            ));
+            
+            if ($existing) {
+                $wpdb->update(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'content' => $clean_content,
+                        'updated_at' => current_time('mysql')
+                    ),
+                    array('id' => $existing)
+                );
+            } else {
+                $wpdb->insert(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'text_key' => 'PRIVACY_POLICY_CONTENT',
+                        'content' => $clean_content,
+                        'version' => '1.0',
+                        'language' => 'de',
+                        'is_active' => 1,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    )
+                );
+            }
+            
+            // Update Cookie-Banner Texte
+            $this->update_cookie_banner_texts($cookie_section);
+            
+            wp_send_json_success(array(
+                'message' => 'Datenschutzerklärung erfolgreich synchronisiert',
+                'cookie_section_found' => !empty($cookie_section)
+            ));
+            
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Fehler bei Synchronisation: ' . $e->getMessage()));
+        }
+    }
+    
+    /**
+     * ✅ NEU: AJAX: Einzelne Datei in DB importieren
+     */
+    public function import_file_to_db() {
+        check_ajax_referer('yprint_consent_admin_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Keine Berechtigung'));
+        }
+        
+        $slug = isset($_POST['slug']) ? sanitize_text_field($_POST['slug']) : '';
+        if (empty($slug)) {
+            wp_send_json_error(array('message' => 'Kein Slug angegeben'));
+        }
+        
+        global $wpdb;
+        $file_texts = $this->load_legal_texts_from_files();
+        
+        if (!isset($file_texts[$slug])) {
+            wp_send_json_error(array('message' => 'Datei nicht gefunden'));
+        }
+        
+        $text_info = $file_texts[$slug];
+        $clean_content = wp_kses_post($text_info['content']);
+        
+        try {
+            // Prüfe ob Text bereits existiert
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}yprint_legal_texts 
+                 WHERE text_key = %s AND language = 'de'",
+                'FILE_' . strtoupper($slug)
+            ));
+            
+            if ($existing) {
+                $wpdb->update(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'content' => $clean_content,
+                        'updated_at' => current_time('mysql')
+                    ),
+                    array('id' => $existing)
+                );
+            } else {
+                $wpdb->insert(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'text_key' => 'FILE_' . strtoupper($slug),
+                        'content' => $clean_content,
+                        'version' => '1.0',
+                        'language' => 'de',
+                        'is_active' => 1,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    )
+                );
+            }
+            
+            wp_send_json_success(array(
+                'message' => $text_info['title'] . ' erfolgreich importiert'
+            ));
+            
+        } catch (Exception $e) {
+            wp_send_json_error(array('message' => 'Fehler beim Import: ' . $e->getMessage()));
+        }
+    }
+    
+    /**
+     * ✅ NEU: Cookie-Sektion aus Datenschutzerklärung extrahieren
+     */
+    private function extract_cookie_section($content) {
+        // Suche nach Cookie-bezogenen Abschnitten
+        $cookie_patterns = array(
+            '/cookie/i',
+            '/tracking/i',
+            '/analytics/i',
+            '/google/i',
+            '/facebook/i',
+            '/pixel/i'
+        );
+        
+        $cookie_section = '';
+        $lines = explode("\n", $content);
+        
+        foreach ($lines as $line) {
+            foreach ($cookie_patterns as $pattern) {
+                if (preg_match($pattern, $line)) {
+                    $cookie_section .= $line . "\n";
+                    break;
+                }
+            }
+        }
+        
+        return trim($cookie_section);
+    }
+    
+    /**
+     * ✅ NEU: Cookie-Banner Texte aktualisieren
+     */
+    private function update_cookie_banner_texts($cookie_section) {
+        global $wpdb;
+        
+        if (empty($cookie_section)) {
+            return;
+        }
+        
+        // Erstelle Cookie-Banner Beschreibung aus Datenschutzerklärung
+        $banner_description = "Wir verwenden Cookies und ähnliche Technologien, um unsere Website zu verbessern und Ihnen ein optimales Nutzererlebnis zu bieten. Weitere Informationen finden Sie in unserer Datenschutzerklärung.";
+        
+        // Update Cookie-Banner Texte
+        $banner_texts = array(
+            'COOKIE_BANNER_TITLE' => 'Diese Website verwendet Cookies',
+            'COOKIE_BANNER_DESCRIPTION' => $banner_description
+        );
+        
+        foreach ($banner_texts as $key => $content) {
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}yprint_legal_texts 
+                 WHERE text_key = %s AND language = 'de'",
+                $key
+            ));
+            
+            if ($existing) {
+                $wpdb->update(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'content' => $content,
+                        'updated_at' => current_time('mysql')
+                    ),
+                    array('id' => $existing)
+                );
+            } else {
+                $wpdb->insert(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'text_key' => $key,
+                        'content' => $content,
+                        'version' => '1.0',
+                        'language' => 'de',
+                        'is_active' => 1,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    )
+                );
+            }
+        }
     }
 }
 

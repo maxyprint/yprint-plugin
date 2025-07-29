@@ -74,6 +74,79 @@ function yprint_load_legal_texts() {
 }
 
 /**
+ * ✅ NEU: Lädt Rechtstexte aus der Datenbank (für Cookie-Consent)
+ *
+ * @return array Array mit den Rechtstexten aus der Datenbank
+ */
+function yprint_load_legal_texts_from_db() {
+    global $wpdb;
+    
+    $texts = $wpdb->get_results(
+        "SELECT text_key, content FROM {$wpdb->prefix}yprint_legal_texts 
+         WHERE is_active = 1 AND language = 'de'",
+        OBJECT_K
+    );
+    
+    $result = array();
+    foreach ($texts as $key => $text) {
+        $result[$key] = $text->content;
+    }
+    
+    return $result;
+}
+
+/**
+ * ✅ NEU: Kombiniert Rechtstexte aus Dateien und Datenbank
+ *
+ * @return array Array mit allen verfügbaren Rechtstexten
+ */
+function yprint_get_all_legal_texts() {
+    $file_texts = yprint_load_legal_texts();
+    $db_texts = yprint_load_legal_texts_from_db();
+    
+    return array(
+        'files' => $file_texts,
+        'database' => $db_texts
+    );
+}
+
+/**
+ * ✅ NEU: Prüft ob ein Rechtstext in der Datenbank verfügbar ist
+ *
+ * @param string $text_key Der Schlüssel des Rechtstexts
+ * @return bool True wenn verfügbar, false sonst
+ */
+function yprint_has_legal_text_in_db($text_key) {
+    global $wpdb;
+    
+    $count = $wpdb->get_var($wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}yprint_legal_texts 
+         WHERE text_key = %s AND is_active = 1 AND language = 'de'",
+        $text_key
+    ));
+    
+    return $count > 0;
+}
+
+/**
+ * ✅ NEU: Lädt einen Rechtstext aus der Datenbank
+ *
+ * @param string $text_key Der Schlüssel des Rechtstexts
+ * @return string Der Inhalt des Rechtstexts oder leerer String
+ */
+function yprint_get_legal_text_from_db($text_key) {
+    global $wpdb;
+    
+    $content = $wpdb->get_var($wpdb->prepare(
+        "SELECT content FROM {$wpdb->prefix}yprint_legal_texts 
+         WHERE text_key = %s AND is_active = 1 AND language = 'de'",
+        $text_key
+    ));
+    
+    return $content ?: '';
+}
+
+/**
  * Rendert einen Rechtstext aus der Datei
  *
  * @param string $slug Der Slug des Rechtstexts

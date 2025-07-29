@@ -52,6 +52,33 @@
                 this.exportLegalTexts();
             });
             
+            // ✅ NEU: Tab-Navigation
+            $(document).on('click', '.yprint-tab-btn', (e) => {
+                e.preventDefault();
+                this.switchTab($(e.currentTarget));
+            });
+            
+            // ✅ NEU: Synchronisations-Funktionen
+            $(document).on('click', '#sync-files-to-db', (e) => {
+                e.preventDefault();
+                this.syncFilesToDb();
+            });
+            
+            $(document).on('click', '#sync-db-to-files', (e) => {
+                e.preventDefault();
+                this.syncDbToFiles();
+            });
+            
+            $(document).on('click', '#sync-privacy-policy', (e) => {
+                e.preventDefault();
+                this.syncPrivacyPolicy();
+            });
+            
+            $(document).on('click', '.sync-to-db-btn', (e) => {
+                e.preventDefault();
+                this.importFileToDb($(e.currentTarget));
+            });
+            
             console.log('🍪 Admin Event-Handler registriert');
         }
         
@@ -245,6 +272,189 @@
             form.remove();
             
             this.showAdminNotification('📄 Rechtstexte-Export gestartet', 'info');
+        }
+        
+        /**
+         * ✅ NEU: Tab wechseln
+         */
+        switchTab(button) {
+            const tabName = button.data('tab');
+            
+            // Alle Tabs deaktivieren
+            $('.yprint-tab-btn').removeClass('active');
+            $('.yprint-tab-content').removeClass('active');
+            
+            // Gewählten Tab aktivieren
+            button.addClass('active');
+            $('#' + tabName + '-tab').addClass('active');
+            
+            console.log('🍪 Tab gewechselt:', tabName);
+        }
+        
+        /**
+         * ✅ NEU: Dateien in Datenbank synchronisieren
+         */
+        syncFilesToDb() {
+            if (!confirm('⚠️ WARNUNG: Dies wird alle Rechtstexte aus dem Rechtstexte/ Ordner in die Datenbank importieren. Fortfahren?')) {
+                return;
+            }
+            
+            console.log('🍪 Synchronisiere Dateien → Datenbank...');
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'yprint_sync_files_to_db',
+                    nonce: this.config.nonce
+                },
+                beforeSend: function() {
+                    $('#sync-files-to-db').prop('disabled', true).text('Synchronisiere...');
+                },
+                success: (response) => {
+                    console.log('🍪 Sync-Response:', response);
+                    if (response.success) {
+                        this.showAdminNotification('✅ ' + response.data.message, 'success');
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        this.showAdminNotification('❌ ' + (response.data?.message || 'Unbekannter Fehler'), 'error');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('🍪 Netzwerkfehler:', error);
+                    this.showAdminNotification('❌ Netzwerkfehler bei Synchronisation', 'error');
+                },
+                complete: function() {
+                    $('#sync-files-to-db').prop('disabled', false).html('<i class="fas fa-download"></i> Alle importieren');
+                }
+            });
+        }
+        
+        /**
+         * ✅ NEU: Datenbank in Dateien synchronisieren
+         */
+        syncDbToFiles() {
+            if (!confirm('⚠️ WARNUNG: Dies wird alle Datenbank-Texte als HTML-Dateien in den Rechtstexte/ Ordner exportieren. Fortfahren?')) {
+                return;
+            }
+            
+            console.log('🍪 Synchronisiere Datenbank → Dateien...');
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'yprint_sync_db_to_files',
+                    nonce: this.config.nonce
+                },
+                beforeSend: function() {
+                    $('#sync-db-to-files').prop('disabled', true).text('Synchronisiere...');
+                },
+                success: (response) => {
+                    console.log('🍪 Sync-Response:', response);
+                    if (response.success) {
+                        this.showAdminNotification('✅ ' + response.data.message, 'success');
+                    } else {
+                        this.showAdminNotification('❌ ' + (response.data?.message || 'Unbekannter Fehler'), 'error');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('🍪 Netzwerkfehler:', error);
+                    this.showAdminNotification('❌ Netzwerkfehler bei Synchronisation', 'error');
+                },
+                complete: function() {
+                    $('#sync-db-to-files').prop('disabled', false).html('<i class="fas fa-upload"></i> Alle exportieren');
+                }
+            });
+        }
+        
+        /**
+         * ✅ NEU: Datenschutzerklärung synchronisieren
+         */
+        syncPrivacyPolicy() {
+            if (!confirm('⚠️ WARNUNG: Dies wird die Datenschutzerklärung zwischen Datei und Cookie-Consent-System synchronisieren. Fortfahren?')) {
+                return;
+            }
+            
+            console.log('🍪 Synchronisiere Datenschutzerklärung...');
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'yprint_sync_privacy_policy',
+                    nonce: this.config.nonce
+                },
+                beforeSend: function() {
+                    $('#sync-privacy-policy').prop('disabled', true).text('Synchronisiere...');
+                },
+                success: (response) => {
+                    console.log('🍪 Privacy-Sync-Response:', response);
+                    if (response.success) {
+                        let message = '✅ ' + response.data.message;
+                        if (response.data.cookie_section_found) {
+                            message += ' (Cookie-Sektion gefunden)';
+                        }
+                        this.showAdminNotification(message, 'success');
+                    } else {
+                        this.showAdminNotification('❌ ' + (response.data?.message || 'Unbekannter Fehler'), 'error');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('🍪 Netzwerkfehler:', error);
+                    this.showAdminNotification('❌ Netzwerkfehler bei Datenschutz-Synchronisation', 'error');
+                },
+                complete: function() {
+                    $('#sync-privacy-policy').prop('disabled', false).html('<i class="fas fa-sync"></i> Datenschutz synchronisieren');
+                }
+            });
+        }
+        
+        /**
+         * ✅ NEU: Einzelne Datei in DB importieren
+         */
+        importFileToDb(button) {
+            const slug = button.data('slug');
+            
+            if (!confirm('⚠️ WARNUNG: Dies wird die Datei "' + slug + '" in die Datenbank importieren. Fortfahren?')) {
+                return;
+            }
+            
+            console.log('🍪 Importiere Datei:', slug);
+            
+            $.ajax({
+                url: this.config.ajaxUrl,
+                type: 'POST',
+                dataType: 'json',
+                data: {
+                    action: 'yprint_import_file_to_db',
+                    nonce: this.config.nonce,
+                    slug: slug
+                },
+                beforeSend: function() {
+                    button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Importiere...');
+                },
+                success: (response) => {
+                    console.log('🍪 Import-Response:', response);
+                    if (response.success) {
+                        this.showAdminNotification('✅ ' + response.data.message, 'success');
+                    } else {
+                        this.showAdminNotification('❌ ' + (response.data?.message || 'Unbekannter Fehler'), 'error');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('🍪 Netzwerkfehler:', error);
+                    this.showAdminNotification('❌ Netzwerkfehler beim Import', 'error');
+                },
+                complete: function() {
+                    button.prop('disabled', false).html('<i class="fas fa-sync"></i> In DB importieren');
+                }
+            });
         }
         
         /**

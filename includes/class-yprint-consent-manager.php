@@ -24,15 +24,24 @@ class YPrint_Consent_Manager {
     }
     
     private function __construct() {
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_consent_assets'));
-        add_action('wp_footer', array($this, 'render_cookie_banner'));
-        add_action('wp_footer', array($this, 'render_consent_icon'));
-        
         // AJAX-Handler
         add_action('wp_ajax_yprint_save_consent', array($this, 'save_consent'));
         add_action('wp_ajax_nopriv_yprint_save_consent', array($this, 'save_consent'));
         add_action('wp_ajax_yprint_get_consent_status', array($this, 'get_consent_status'));
         add_action('wp_ajax_nopriv_yprint_get_consent_status', array($this, 'get_consent_status'));
+        
+        // Frontend-Assets
+        add_action('wp_enqueue_scripts', array($this, 'enqueue_consent_assets'));
+        
+        // Banner und Icon rendern
+        add_action('wp_footer', array($this, 'render_cookie_banner'));
+        add_action('wp_footer', array($this, 'render_consent_icon'));
+        
+        // ✅ NEU: Automatische Synchronisation beim Plugin-Start
+        add_action('init', array($this, 'auto_sync_legal_texts'));
+        
+        // ✅ NEU: Registriere Admin-Hooks
+        add_action('admin_init', array($this, 'register_admin_hooks'));
         
         // Session für Gäste initialisieren
         add_action('init', array($this, 'init_session'));
@@ -238,18 +247,121 @@ class YPrint_Consent_Manager {
     private function get_consent_texts() {
         global $wpdb;
         
-        $texts = $wpdb->get_results(
+        // ✅ NEU: Kombiniere Datenbank-Texte mit Datei-Texten
+        $db_texts = $wpdb->get_results(
             "SELECT text_key, content FROM {$wpdb->prefix}yprint_legal_texts 
              WHERE is_active = 1 AND language = 'de'",
             OBJECT_K
         );
         
         $result = array();
-        foreach ($texts as $key => $text) {
+        foreach ($db_texts as $key => $text) {
             $result[$key] = $text->content;
         }
         
+        // ✅ NEU: Fallback auf Datei-Texte für wichtige Rechtstexte
+        $fallback_texts = array(
+            'PRIVACY_POLICY_CONTENT' => $this->get_privacy_policy_from_file(),
+            'COOKIE_BANNER_TITLE' => 'Diese Website verwendet Cookies',
+            'COOKIE_BANNER_DESCRIPTION' => 'Wir verwenden Cookies und ähnliche Technologien, um unsere Website zu verbessern und Ihnen ein optimales Nutzererlebnis zu bieten. Weitere Informationen finden Sie in unserer Datenschutzerklärung.'
+        );
+        
+        // Verwende Datenbank-Texte, falls vorhanden, sonst Fallback
+        foreach ($fallback_texts as $key => $fallback_content) {
+            if (!isset($result[$key]) || empty($result[$key])) {
+                $result[$key] = $fallback_content;
+            }
+        }
+        
         return $result;
+    }
+    
+    /**
+     * ✅ NEU: Lädt Datenschutzerklärung aus Datei als Fallback
+     */
+    private function get_privacy_policy_from_file() {
+        $privacy_file = YPRINT_PLUGIN_DIR . 'Rechtstexte/Datenschutzerklaerung.htm';
+        
+        if (file_exists($privacy_file)) {
+            $content = file_get_contents($privacy_file);
+            return wp_kses_post($content);
+        }
+        
+        return 'Datenschutzerklärung nicht verfügbar.';
+    }
+    
+    /**
+     * ✅ NEU: Prüft ob Datenschutzerklärung in Datenbank verfügbar ist
+     */
+    private function has_privacy_policy_in_db() {
+        global $wpdb;
+        
+        $count = $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}yprint_legal_texts 
+             WHERE text_key = %s AND is_active = 1 AND language = 'de'",
+            'PRIVACY_POLICY_CONTENT'
+        ));
+        
+        return $count > 0;
+    }
+    
+    /**
+     * ✅ NEU: Synchronisiert Datenschutzerklärung zwischen Datei und DB
+     */
+    public function sync_privacy_policy() {
+        global $wpdb;
+        
+        $privacy_file = YPRINT_PLUGIN_DIR . 'Rechtstexte/Datenschutzerklaerung.htm';
+        
+        if (!file_exists($privacy_file)) {
+            error_log('🍪 YPrint: Datenschutzerklärung-Datei nicht gefunden');
+            return false;
+        }
+        
+        $file_content = file_get_contents($privacy_file);
+        $clean_content = wp_kses_post($file_content);
+        
+        try {
+            // Prüfe ob Text bereits in DB existiert
+            $existing = $wpdb->get_var($wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}yprint_legal_texts 
+                 WHERE text_key = %s AND language = 'de'",
+                'PRIVACY_POLICY_CONTENT'
+            ));
+            
+            if ($existing) {
+                // Update bestehenden Text
+                $wpdb->update(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'content' => $clean_content,
+                        'updated_at' => current_time('mysql')
+                    ),
+                    array('id' => $existing)
+                );
+            } else {
+                // Erstelle neuen Text
+                $wpdb->insert(
+                    $wpdb->prefix . 'yprint_legal_texts',
+                    array(
+                        'text_key' => 'PRIVACY_POLICY_CONTENT',
+                        'content' => $clean_content,
+                        'version' => '1.0',
+                        'language' => 'de',
+                        'is_active' => 1,
+                        'created_at' => current_time('mysql'),
+                        'updated_at' => current_time('mysql')
+                    )
+                );
+            }
+            
+            error_log('🍪 YPrint: Datenschutzerklärung erfolgreich synchronisiert');
+            return true;
+            
+        } catch (Exception $e) {
+            error_log('🍪 YPrint: Fehler bei Datenschutz-Synchronisation: ' . $e->getMessage());
+            return false;
+        }
     }
     
     /**
@@ -499,6 +611,57 @@ class YPrint_Consent_Manager {
         }
         
         return array();
+    }
+
+    /**
+     * ✅ NEU: Automatische Synchronisation der Rechtstexte
+     */
+    public function auto_sync_legal_texts() {
+        // Nur einmal pro Session ausführen
+        if (isset($_SESSION['yprint_legal_synced'])) {
+            return;
+        }
+        
+        // Prüfe ob Datenschutzerklärung in DB verfügbar ist
+        if (!$this->has_privacy_policy_in_db()) {
+            error_log('🍪 YPrint: Automatische Synchronisation der Datenschutzerklärung...');
+            $this->sync_privacy_policy();
+        }
+        
+        $_SESSION['yprint_legal_synced'] = true;
+    }
+    
+    /**
+     * ✅ NEU: Registriert Admin-Hooks
+     */
+    public function register_admin_hooks() {
+        // Admin-Menü nur für Administratoren
+        if (current_user_can('manage_options')) {
+            add_action('admin_menu', array($this, 'add_admin_menu'));
+        }
+    }
+    
+    /**
+     * ✅ NEU: Admin-Menü hinzufügen
+     */
+    public function add_admin_menu() {
+        add_submenu_page(
+            'yprint-plugin',  // Parent slug
+            'Cookie-Consent & Datenschutz',
+            'Datenschutz & Cookies',
+            'manage_options',
+            'yprint-consent',
+            array($this, 'render_admin_page')
+        );
+    }
+    
+    /**
+     * ✅ NEU: Admin-Seite rendern
+     */
+    public function render_admin_page() {
+        // Verwende die Admin-Klasse für das Rendering
+        $admin = YPrint_Consent_Admin::get_instance();
+        $admin->render_consent_page();
     }
 }
 
