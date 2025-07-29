@@ -859,77 +859,81 @@ class YPrint_Consent_Manager {
         error_log('🍪 PHP: get_guest_consents() aufgerufen');
         error_log('🍪 PHP: Verfügbare $_COOKIE Keys: ' . implode(', ', array_keys($_COOKIE)));
         
+        // ✅ FIX: Preferences Cookie richtig dekodieren
         if (isset($_COOKIE['yprint_consent_preferences'])) {
             $cookie_value = $_COOKIE['yprint_consent_preferences'];
             error_log('🍪 PHP: yprint_consent_preferences Cookie gefunden: ' . substr($cookie_value, 0, 100) . '...');
             
-            // Dekodiere Cookie-Wert (könnte URL-encoded sein)
+            // ✅ KORREKTE DEKODIERUNG: Erst urldecode, dann JSON
             $decoded_value = urldecode($cookie_value);
-            error_log('🍪 PHP: Nach urldecode: ' . substr($decoded_value, 0, 100) . '...');
-            
             $decoded = json_decode($decoded_value, true);
             
-            // JSON-Decode-Fehler abfangen
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                error_log('🍪 PHP: Cookie JSON decode error: ' . json_last_error_msg());
-                error_log('🍪 PHP: Original Cookie-Wert: ' . $cookie_value);
+            if (json_last_error() === JSON_ERROR_NONE && isset($decoded['consents'])) {
+                error_log('🍪 PHP: JSON erfolgreich dekodiert, Consents gefunden');
                 
-                // Fallback: Versuche ohne Dekodierung
-                $decoded = json_decode($cookie_value, true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    error_log('🍪 PHP: Auch ohne Dekodierung JSON-Fehler: ' . json_last_error_msg());
-                    return array();
+                // ✅ WICHTIG: Format für Frontend korrekt aufbereiten
+                $formatted_consents = array();
+                foreach ($decoded['consents'] as $type => $granted) {
+                    $formatted_consents[$type] = array(
+                        'granted' => (bool) $granted,
+                        'timestamp' => isset($decoded['timestamp']) ? $decoded['timestamp'] : time(),
+                        'version' => isset($decoded['version']) ? $decoded['version'] : '1.0'
+                    );
                 }
+                
+                error_log('🍪 PHP: Formatierte Consents: ' . json_encode($formatted_consents));
+                return $formatted_consents;
             }
             
-            error_log('🍪 PHP: JSON erfolgreich dekodiert: ' . json_encode($decoded));
-            
-            // Nur die consents zurückgeben, falls verschachtelt
-            if (isset($decoded['consents'])) {
-                error_log('🍪 PHP: Consents gefunden: ' . json_encode($decoded['consents']));
-                return $decoded['consents'];
-            }
-            
-            error_log('🍪 PHP: Keine verschachtelten Consents, gebe decoded zurück: ' . json_encode($decoded));
-            return is_array($decoded) ? $decoded : array();
-        }
-        
-        // Fallback: Prüfe andere Cookie-Varianten
-        $fallback_cookies = array(
-            'yprint_consent_decision',
-            'yprint_consent_timestamp'
-        );
-        
-        foreach ($fallback_cookies as $cookie_name) {
-            if (isset($_COOKIE[$cookie_name])) {
-                error_log('🍪 PHP: Fallback Cookie gefunden: ' . $cookie_name . ' = ' . $_COOKIE[$cookie_name]);
-                
-                // Erstelle minimale Consent-Daten basierend auf vorhandenen Cookies
-                $fallback_consents = array(
-                    'cookie_essential' => array(
-                        'granted' => true,
-                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
-                    ),
-                    'cookie_analytics' => array(
-                        'granted' => false,
-                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
-                    ),
-                    'cookie_marketing' => array(
-                        'granted' => false,
-                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
-                    ),
-                    'cookie_functional' => array(
-                        'granted' => false,
-                        'timestamp' => isset($_COOKIE['yprint_consent_timestamp']) ? $_COOKIE['yprint_consent_timestamp'] : time()
-                    )
-                );
-                
-                error_log('🍪 PHP: Fallback Consents erstellt: ' . json_encode($fallback_consents));
-                return $fallback_consents;
+            // Fallback-Dekodierung
+            error_log('🍪 PHP: Versuche alternative Dekodierung...');
+            $decoded = json_decode($cookie_value, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($decoded['consents'])) {
+                $formatted_consents = array();
+                foreach ($decoded['consents'] as $type => $granted) {
+                    $formatted_consents[$type] = array(
+                        'granted' => (bool) $granted,
+                        'timestamp' => isset($decoded['timestamp']) ? $decoded['timestamp'] : time(),
+                        'version' => isset($decoded['version']) ? $decoded['version'] : '1.0'
+                    );
+                }
+                error_log('🍪 PHP: Alternative Dekodierung erfolgreich');
+                return $formatted_consents;
             }
         }
         
-        error_log('🍪 PHP: Keine YPrint-Cookies gefunden, gebe leeres Array zurück');
+        // ✅ VERBESSERTER FALLBACK: Wenn Preferences nicht lesbar, aber andere Cookies da sind
+        if (isset($_COOKIE['yprint_consent_decision']) && isset($_COOKIE['yprint_consent_timestamp'])) {
+            error_log('🍪 PHP: Decision + Timestamp Cookies gefunden - erstelle Fallback');
+            
+            $fallback_consents = array(
+                'cookie_essential' => array(
+                    'granted' => true,
+                    'timestamp' => $_COOKIE['yprint_consent_timestamp'],
+                    'version' => '1.0'
+                ),
+                'cookie_analytics' => array(
+                    'granted' => false,
+                    'timestamp' => $_COOKIE['yprint_consent_timestamp'],
+                    'version' => '1.0'
+                ),
+                'cookie_marketing' => array(
+                    'granted' => false,
+                    'timestamp' => $_COOKIE['yprint_consent_timestamp'],
+                    'version' => '1.0'
+                ),
+                'cookie_functional' => array(
+                    'granted' => false,
+                    'timestamp' => $_COOKIE['yprint_consent_timestamp'],
+                    'version' => '1.0'
+                )
+            );
+            
+            error_log('🍪 PHP: Fallback Consents erstellt: ' . json_encode($fallback_consents));
+            return $fallback_consents;
+        }
+        
+        error_log('🍪 PHP: Keine gültigen YPrint-Cookies gefunden');
         return array();
     }
 
