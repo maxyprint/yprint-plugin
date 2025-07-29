@@ -133,12 +133,24 @@ class YPrint_Consent_Manager {
      * Prüfen ob Banner initial angezeigt werden soll
      */
     public function should_show_banner_initially() {
+        // Debug-Logging hinzufügen
+        $show_banner = false;
+        
         if (is_user_logged_in()) {
             $user_id = get_current_user_id();
-            return !$this->has_any_consent_decision($user_id);
+            $has_decision = $this->has_any_consent_decision($user_id);
+            $show_banner = !$has_decision;
+            error_log('🍪 PHP: User logged in, has_decision: ' . ($has_decision ? 'true' : 'false') . ', show_banner: ' . ($show_banner ? 'true' : 'false'));
         } else {
-            return !$this->has_guest_consent_decision();
+            $has_guest_decision = $this->has_guest_consent_decision();
+            $show_banner = !$has_guest_decision;
+            error_log('🍪 PHP: Guest user, has_guest_decision: ' . ($has_guest_decision ? 'true' : 'false') . ', show_banner: ' . ($show_banner ? 'true' : 'false'));
+            
+            // Debug: Zeige welche Cookies vorhanden sind
+            error_log('🍪 PHP: Vorhandene Cookies: ' . json_encode($_COOKIE));
         }
+        
+        return $show_banner;
     }
     
     /**

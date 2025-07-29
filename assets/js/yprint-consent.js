@@ -54,34 +54,61 @@
         }
         
         initializeConsentStatus() {
-            // Prüfe PHP-Attribut für korrekte Initial-Erkennung
-            const bannerElement = document.getElementById('yprint-cookie-banner');
-            const phpStyle = bannerElement ? bannerElement.getAttribute('style') : '';
-            const isInitialBanner = phpStyle && phpStyle.includes('display: flex');
-            
-            console.log('🍪 PHP Style:', phpStyle);
-            console.log('🍪 Initial Banner erkannt:', isInitialBanner);
-            
-            if (isInitialBanner) {
-                // Banner wird initial angezeigt - KEINE Einstellungen laden
-                console.log('🍪 Initial-Banner - keine Vorauswahl außer Essentiell');
+            // Kleine Verzögerung für bessere DOM-Erkennung
+            setTimeout(() => {
+                // Prüfe PHP-Attribut für korrekte Initial-Erkennung
+                const bannerElement = document.getElementById('yprint-cookie-banner');
+                const phpStyle = bannerElement ? bannerElement.getAttribute('style') : '';
+                const isInitialBanner = phpStyle && phpStyle.includes('display: flex');
                 
-                // Stelle sicher, dass nur essenzielle Cookies vorausgewählt sind
-                this.resetToEssentialOnly();
-                return;
-            } else {
-                // Banner ist ausgeblendet - lade Einstellungen für Icon
-                console.log('🍪 Banner ausgeblendet - lade bestehende Einstellungen');
-                this.checkConsentStatus();
-            }
+                // Zusätzliche Prüfungen
+                const bannerVisible = this.banner.is(':visible');
+                const hasHiddenClass = this.banner.hasClass('yprint-hidden');
+                
+                console.log('🍪 PHP Style:', phpStyle);
+                console.log('🍪 Banner sichtbar:', bannerVisible);
+                console.log('🍪 Hat hidden class:', hasHiddenClass);
+                console.log('🍪 Initial Banner erkannt:', isInitialBanner);
+                
+                // Debug: Alle Cookie-Kategorien-Status prüfen
+                $('.yprint-cookie-category').each(function() {
+                    const cookieType = $(this).data('cookie-type');
+                    const isSelected = $(this).hasClass('selected');
+                    const checkbox = $(this).find('input[type="checkbox"]');
+                    const isChecked = checkbox.length > 0 ? checkbox.prop('checked') : false;
+                    console.log(`🍪 Cookie ${cookieType}: selected=${isSelected}, checked=${isChecked}`);
+                });
+                
+                if (isInitialBanner) {
+                    // Banner wird initial angezeigt - KEINE Einstellungen laden
+                    console.log('🍪 Initial-Banner - keine Vorauswahl außer Essentiell');
+                    
+                    // Stelle sicher, dass nur essenzielle Cookies vorausgewählt sind
+                    this.resetToEssentialOnly();
+                    return;
+                } else {
+                    // Banner ist ausgeblendet - lade Einstellungen für Icon
+                    console.log('🍪 Banner ausgeblendet - lade bestehende Einstellungen');
+                    this.checkConsentStatus();
+                }
+            }, 250); // 250ms Verzögerung
         }
         
         resetToEssentialOnly() {
-            console.log('🍪 Setze nur essenzielle Cookies als ausgewählt');
+            console.log('🍪 RESET: Setze nur essenzielle Cookies als ausgewählt');
             
-            // Alle Kategorien zurücksetzen
+            // Debug: Status vor Reset
+            $('.yprint-cookie-category').each(function() {
+                const cookieType = $(this).data('cookie-type');
+                const isSelected = $(this).hasClass('selected');
+                console.log(`🍪 VOR Reset ${cookieType}: selected=${isSelected}`);
+            });
+            
+            // ALLE Kategorien zurücksetzen - auch visuell
             $('.yprint-cookie-category').removeClass('selected');
             $('.yprint-cookie-category input[type="checkbox"]').prop('checked', false);
+            
+            console.log('🍪 RESET: Alle Kategorien zurückgesetzt');
             
             // Nur essenzielle Cookies aktivieren
             const essentialCategory = $('.yprint-cookie-category[data-cookie-type="essential"]');
@@ -90,8 +117,17 @@
             if (essentialCategory.length && essentialCheckbox.length) {
                 essentialCheckbox.prop('checked', true);
                 essentialCategory.addClass('selected');
-                console.log('🍪 Nur essenzielle Cookies als ausgewählt markiert');
+                console.log('🍪 RESET: Nur essenzielle Cookies als ausgewählt markiert');
             }
+            
+            // Debug: Status nach Reset
+            $('.yprint-cookie-category').each(function() {
+                const cookieType = $(this).data('cookie-type');
+                const isSelected = $(this).hasClass('selected');
+                const checkbox = $(this).find('input[type="checkbox"]');
+                const isChecked = checkbox.length > 0 ? checkbox.prop('checked') : false;
+                console.log(`🍪 NACH Reset ${cookieType}: selected=${isSelected}, checked=${isChecked}`);
+            });
         }
         
         bindEvents() {
@@ -585,9 +621,14 @@
         }
     }
     
-    // Initialisierung
+    // Initialisierung - nur einmal
     $(document).ready(() => {
-        window.yprintConsentManager = new YPrintConsentManager();
+        if (!window.yprintConsentManager) {
+            window.yprintConsentManager = new YPrintConsentManager();
+            console.log('🍪 Consent Manager erstmalig initialisiert');
+        } else {
+            console.log('🍪 Consent Manager bereits vorhanden - überspringe Initialisierung');
+        }
         
         // Teste Cookie-Manager beim Laden
         setTimeout(() => {
@@ -622,6 +663,17 @@
             }
         }, 2000);
     });
+    
+    // Debug: Alle Cookies löschen
+    function clearAllCookies() {
+        document.cookie.split(";").forEach(function(c) { 
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+        });
+        console.log('🧹 Alle Cookies gelöscht');
+        localStorage.clear();
+        sessionStorage.clear();
+        location.reload();
+    }
     
     // Event-Listener für Cookie-Updates aus Registrierung
     document.addEventListener('yprintCookieUpdated', function(e) {
