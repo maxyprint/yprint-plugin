@@ -49,39 +49,48 @@
             console.log('🍪 Banner gefunden:', this.banner.length > 0);
             console.log('🍪 Icon gefunden:', this.icon.length > 0);
             
-            // Essenzielle Cookies immer als ausgewählt markieren
-            this.initializeEssentialCookies();
+            // KEINE automatische Initialisierung mehr hier
+            console.log('🍪 Elemente gefunden, warte auf Consent-Status-Prüfung');
         }
         
-        initializeEssentialCookies() {
-            // Essenzielle Cookies immer ausgewählt
+        initializeConsentStatus() {
+            // Prüfe PHP-Attribut für korrekte Initial-Erkennung
+            const bannerElement = document.getElementById('yprint-cookie-banner');
+            const phpStyle = bannerElement ? bannerElement.getAttribute('style') : '';
+            const isInitialBanner = phpStyle && phpStyle.includes('display: flex');
+            
+            console.log('🍪 PHP Style:', phpStyle);
+            console.log('🍪 Initial Banner erkannt:', isInitialBanner);
+            
+            if (isInitialBanner) {
+                // Banner wird initial angezeigt - KEINE Einstellungen laden
+                console.log('🍪 Initial-Banner - keine Vorauswahl außer Essentiell');
+                
+                // Stelle sicher, dass nur essenzielle Cookies vorausgewählt sind
+                this.resetToEssentialOnly();
+                return;
+            } else {
+                // Banner ist ausgeblendet - lade Einstellungen für Icon
+                console.log('🍪 Banner ausgeblendet - lade bestehende Einstellungen');
+                this.checkConsentStatus();
+            }
+        }
+        
+        resetToEssentialOnly() {
+            console.log('🍪 Setze nur essenzielle Cookies als ausgewählt');
+            
+            // Alle Kategorien zurücksetzen
+            $('.yprint-cookie-category').removeClass('selected');
+            $('.yprint-cookie-category input[type="checkbox"]').prop('checked', false);
+            
+            // Nur essenzielle Cookies aktivieren
             const essentialCategory = $('.yprint-cookie-category[data-cookie-type="essential"]');
             const essentialCheckbox = $('#cookie-essential');
             
             if (essentialCategory.length && essentialCheckbox.length) {
                 essentialCheckbox.prop('checked', true);
                 essentialCategory.addClass('selected');
-                console.log('🍪 Essenzielle Cookies initialisiert');
-            }
-        }
-        
-        initializeConsentStatus() {
-            // Prüfen ob Banner initial angezeigt wird (noch keine Entscheidung getroffen)
-            const bannerVisible = this.banner.is(':visible');
-            const bannerDisplayFlex = this.banner.css('display') === 'flex';
-            
-            console.log('🍪 Banner sichtbar:', bannerVisible, 'Display:', this.banner.css('display'));
-            
-            if (bannerVisible || bannerDisplayFlex) {
-                // Banner wird initial angezeigt - keine bestehenden Einstellungen laden
-                console.log('🍪 Initial-Banner erkannt - keine Vorauswahl der Cookie-Kategorien');
-                
-                // Nur essenzielle Cookies vorausgewählt lassen (bereits in setupElements gemacht)
-                return;
-            } else {
-                // Banner ist ausgeblendet - bestehende Einstellungen für Icon-Funktionalität laden
-                console.log('🍪 Banner ausgeblendet - lade bestehende Einstellungen für Icon');
-                this.checkConsentStatus();
+                console.log('🍪 Nur essenzielle Cookies als ausgewählt markiert');
             }
         }
         
@@ -200,9 +209,12 @@
         
         handleConsentStatus(consents) {
             console.log('🍪 Aktueller Consent-Status:', consents);
+            console.log('🍪 Anzahl gespeicherte Consents:', Object.keys(consents).length);
             
             // Wenn keine Einwilligungen vorhanden, Banner zeigen
             if (Object.keys(consents).length === 0) {
+                console.log('🍪 Keine Consents gefunden - zeige Initial-Banner');
+                this.resetToEssentialOnly();
                 this.showBanner();
                 return;
             }
@@ -210,8 +222,8 @@
             // Cookies entsprechend setzen/blockieren (für Icon-Funktionalität)
             this.applyCookieSettings(consents);
             
-            // Checkboxen NUR bei expliziter Settings-Anzeige setzen
-            console.log('🍪 Consent-Status geladen, aber Checkboxen nicht automatisch gesetzt');
+            // WICHTIG: Checkboxen werden hier NICHT gesetzt!
+            console.log('🍪 Consent-Status für Icon-Funktionalität geladen - KEINE UI-Updates');
         }
         
         loadConsentForSettings() {
@@ -237,9 +249,13 @@
         }
 
         applyConsentToForm(consents) {
-            console.log('🍪 Wende Consent auf Formular an:', consents);
+            console.log('🍪 Wende Consent auf Formular an (Settings-Modus):', consents);
             
-            // Checkboxen mit aktuellen Werten setzen und visuelle States aktualisieren
+            // Erst alle zurücksetzen
+            $('.yprint-cookie-category').removeClass('selected');
+            $('.yprint-cookie-category input[type="checkbox"]').prop('checked', false);
+            
+            // Dann gespeicherte Einstellungen anwenden
             Object.keys(consents).forEach(type => {
                 const checkbox = $(`#cookie-${type.toLowerCase().replace('cookie_', '')}`);
                 const category = checkbox.closest('.yprint-cookie-category');
@@ -257,6 +273,8 @@
                     }
                 }
             });
+            
+            console.log('🍪 Settings-Banner vollständig konfiguriert');
         }
         
         showBanner() {
@@ -340,13 +358,14 @@
         showBannerForSettings() {
             console.log('🍪 Banner für Settings wird angezeigt');
             
-            // Banner anzeigen
-            this.banner.css('display', 'flex');
-            this.banner.removeClass('yprint-hidden');
+            // Erst Banner anzeigen
+            this.banner.removeClass('yprint-hidden').css('display', 'flex');
             $('body').addClass('yprint-consent-open');
             
-            // Bestehende Einstellungen laden
-            this.loadConsentForSettings();
+            // Dann Einstellungen laden und UI aktualisieren
+            setTimeout(() => {
+                this.loadConsentForSettings();
+            }, 100);
         }
 
         
