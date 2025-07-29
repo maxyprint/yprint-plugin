@@ -245,6 +245,15 @@
         
         handleConsentStatus(consents) {
             console.log('🍪 Aktueller Consent-Status:', consents);
+            
+            // Schutz vor undefined/null
+            if (!consents || typeof consents !== 'object') {
+                console.log('🍪 Consent-Status ist undefined/null - zeige Banner');
+                this.resetToEssentialOnly();
+                this.showBanner();
+                return;
+            }
+            
             console.log('🍪 Anzahl gespeicherte Consents:', Object.keys(consents).length);
             
             // Wenn keine Einwilligungen vorhanden, Banner zeigen
@@ -581,9 +590,8 @@
                 console.log('- Banner z-index:', window.getComputedStyle(this.banner[0]).zIndex);
             }
             
-            // Teste Event-Handler
-            console.log('🧪 Teste Event-Handler...');
-            $('#yprint-accept-all').trigger('click');
+            // KEIN automatisches Click-Triggering mehr!
+            console.log('🧪 Debug abgeschlossen - KEIN automatisches Klicken');
         }
         
         // Direkte Test-Funktion für Banner-Ausblendung
@@ -630,38 +638,8 @@
             console.log('🍪 Consent Manager bereits vorhanden - überspringe Initialisierung');
         }
         
-        // Teste Cookie-Manager beim Laden
-        setTimeout(() => {
-            console.log('🧪 Testing Cookie Manager...');
-            if (window.yprintConsentManager) {
-                window.yprintConsentManager.debugCookieManager();
-            }
-            
-            // Test Button (temporär für Debugging)
-            const testButton = document.createElement('button');
-            testButton.textContent = 'Test Cookie Manager';
-            testButton.style.position = 'fixed';
-            testButton.style.top = '10px';
-            testButton.style.right = '10px';
-            testButton.style.zIndex = '9999';
-            testButton.style.background = '#007cba';
-            testButton.style.color = 'white';
-            testButton.style.border = 'none';
-            testButton.style.padding = '8px 12px';
-            testButton.style.borderRadius = '4px';
-            testButton.style.cursor = 'pointer';
-            testButton.onclick = () => {
-                if (window.yprintConsentManager) {
-                    window.yprintConsentManager.debugCookieManager();
-                    window.yprintConsentManager.showBannerForRegistration();
-                }
-            };
-            
-            // Nur in Development/Test hinzufügen
-            if (window.location.hostname === 'localhost' || window.location.hostname.includes('dev')) {
-                document.body.appendChild(testButton);
-            }
-        }, 2000);
+        // Debug-Code nur auf Anfrage - KEIN automatisches Ausführen
+        console.log('🍪 Consent Manager bereit - Debug-Funktionen verfügbar über window.yprintConsentManager.debugCookieManager()');
     });
     
     // Debug: Alle Cookies löschen

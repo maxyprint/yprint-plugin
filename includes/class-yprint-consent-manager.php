@@ -374,13 +374,24 @@ class YPrint_Consent_Manager {
     public function get_consent_status() {
         check_ajax_referer('yprint_consent_nonce', 'nonce');
         
-        if (is_user_logged_in()) {
-            $consents = $this->get_user_consents(get_current_user_id());
-        } else {
-            $consents = $this->get_guest_consents();
+        try {
+            if (is_user_logged_in()) {
+                $consents = $this->get_user_consents(get_current_user_id());
+            } else {
+                $consents = $this->get_guest_consents();
+            }
+            
+            // Sicherstellen, dass $consents ein Array ist
+            if (!is_array($consents)) {
+                $consents = array();
+            }
+            
+            error_log('🍪 PHP: Consent-Status abgerufen: ' . json_encode($consents));
+            wp_send_json_success($consents);
+        } catch (Exception $e) {
+            error_log('🍪 PHP ERROR: ' . $e->getMessage());
+            wp_send_json_success(array()); // Leeres Array als Fallback
         }
-        
-        wp_send_json_success($consents);
     }
     
     /**
@@ -413,7 +424,20 @@ class YPrint_Consent_Manager {
      */
     private function get_guest_consents() {
         if (isset($_COOKIE['yprint_consent_preferences'])) {
-            return json_decode($_COOKIE['yprint_consent_preferences'], true);
+            $decoded = json_decode($_COOKIE['yprint_consent_preferences'], true);
+            
+            // JSON-Decode-Fehler abfangen
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                error_log('🍪 PHP: Cookie JSON decode error: ' . json_last_error_msg());
+                return array();
+            }
+            
+            // Nur die consents zurückgeben, falls verschachtelt
+            if (isset($decoded['consents'])) {
+                return $decoded['consents'];
+            }
+            
+            return is_array($decoded) ? $decoded : array();
         }
         
         return array();
