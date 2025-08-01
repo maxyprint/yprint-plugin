@@ -35,10 +35,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     banner.classList.remove('yprint-hidden');
                     document.body.classList.add('yprint-consent-open');
                     
-                    // Versuche Einstellungen zu laden mit Fallback
+                    // Versuche Einstellungen zu laden mit Fallback - MANUELLER MODUS
                     if (typeof window.yprintConsentManager !== 'undefined') {
-                        window.yprintConsentManager.loadConsentForSettings();
-                        console.log('🍪 Settings über yprintConsentManager geladen');
+                        window.yprintConsentManager.showBannerForSettings(); // ✅ Verwende Settings-Methode statt loadConsentForSettings
+                        console.log('🍪 Settings über yprintConsentManager geladen (MANUELLER MODUS)');
                     } else {
                         // ✅ VERBESSERTER FALLBACK: UI aus Browser-Cookies setzen
                         setTimeout(() => {
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
-            // ✅ Warte kurz auf Initialisierung, dann zeige Banner
+            // ✅ Warte kurz auf Initialisierung, dann zeige Banner ERZWUNGENERWEISE
             if (typeof window.yprintConsentManager === 'undefined') {
                 // Versuche 3 Sekunden zu warten
                 let attempts = 0;
@@ -65,6 +65,18 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 showBannerForcibly();
             }
+
+            // ✅ ZUSÄTZLICHE SICHERHEIT: Verhindern dass andere Prozesse das Banner verstecken
+            setTimeout(() => {
+                const banner = document.getElementById('yprint-cookie-banner');
+                if (banner && window.yprintConsentManager && window.yprintConsentManager.manuallyOpened) {
+                    // Stelle sicher, dass Banner sichtbar bleibt wenn manuell geöffnet
+                    banner.style.display = 'flex';
+                    banner.classList.remove('yprint-hidden');
+                    banner.classList.add('yprint-show');
+                    console.log('🍪 SICHERHEIT: Banner nach 1 Sekunde noch sichtbar - manueller Modus aktiv');
+                }
+            }, 1000);
         });
     }
     

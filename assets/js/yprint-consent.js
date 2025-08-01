@@ -13,6 +13,8 @@
             this.config = window.yprintConsent || {};
             this.banner = null;
             this.icon = null;
+            this.forceShowMode = false; // ✅ NEU: Verhindert automatisches Ausblenden
+            this.manuallyOpened = false; // ✅ NEU: Tracking für manuelles Öffnen
             
             this.init();
         }
@@ -93,6 +95,25 @@
                 }
                 
                 console.log('🍪 === CONSENT STATUS INITIALISIERUNG ENDE ===');
+                
+                // ✅ NEU: Periodische Überwachung des Force-Show Modus
+                setInterval(() => {
+                    if (this.manuallyOpened) {
+                        const banner = document.getElementById('yprint-cookie-banner');
+                        if (banner) {
+                            const isVisible = banner.style.display === 'flex' || 
+                                            window.getComputedStyle(banner).display === 'flex';
+                            
+                            if (!isVisible) {
+                                console.log('🍪 KORREKTUR: Banner wurde versteckt obwohl manuell geöffnet - zeige wieder');
+                                banner.style.display = 'flex';
+                                banner.classList.remove('yprint-hidden');
+                                banner.classList.add('yprint-show');
+                                document.body.classList.add('yprint-consent-open');
+                            }
+                        }
+                    }
+                }, 500); // Alle 500ms prüfen
             }, 250); // 250ms Verzögerung
         }
         
@@ -554,6 +575,12 @@
         }
         
         ensureBannerHidden() {
+            // ✅ KRITISCH: Nicht verstecken wenn manuell geöffnet!
+            if (this.forceShowMode || this.manuallyOpened) {
+                console.log('🍪 Banner nicht verstecken - wurde manuell geöffnet oder force-show aktiv');
+                return;
+            }
+            
             console.log('🍪 Stelle sicher, dass Banner versteckt bleibt');
             
             // Banner definitiv versteckt lassen
@@ -585,6 +612,10 @@
         hideBanner() {
             console.log('🍪 Banner wird ausgeblendet');
             
+            // ✅ KRITISCH: Force-Show Modus deaktivieren
+            this.forceShowMode = false;
+            this.manuallyOpened = false;
+            
             this.banner.addClass('yprint-hidden').removeClass('yprint-show');
             $('body').removeClass('yprint-consent-open');
             
@@ -598,7 +629,7 @@
                 });
             }
             
-            console.log('🍪 Banner ausgeblendet - sichtbar:', this.banner.is(':visible'));
+            console.log('🍪 Banner ausgeblendet - Force-Show deaktiviert');
         }
         
         acceptAll() {
@@ -689,16 +720,32 @@
         }
         
         showBannerForSettings() {
-            console.log('🍪 Banner für Settings wird angezeigt');
+            console.log('🍪 Banner für Settings wird angezeigt (MANUELL)');
+            
+            // ✅ KRITISCH: Force-Show Modus aktivieren
+            this.forceShowMode = true;
+            this.manuallyOpened = true;
             
             // Erst Banner anzeigen
-            this.banner.removeClass('yprint-hidden').css('display', 'flex');
+            this.banner.removeClass('yprint-hidden').addClass('yprint-show').css('display', 'flex');
             $('body').addClass('yprint-consent-open');
+            
+            // Mobile: Body-Scroll verhindern
+            if (window.innerWidth <= 768) {
+                $('body').css({
+                    'overflow': 'hidden',
+                    'position': 'fixed',
+                    'width': '100%',
+                    'height': '100%'
+                });
+            }
             
             // Dann Einstellungen laden und UI aktualisieren
             setTimeout(() => {
                 this.loadConsentForSettings();
             }, 100);
+            
+            console.log('🍪 Banner für Settings MANUELL angezeigt - Force-Show aktiv');
         }
 
         
