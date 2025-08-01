@@ -1126,27 +1126,54 @@ function updateCookieStatus() {
         marketing: false,
         functional: false
     };
+    
+    // ✅ VERBESSERUNG: Bessere Cookie-Parsing-Logik
     if (document.cookie.includes('yprint_consent_preferences')) {
         try {
             const cookieValue = getCookieValue('yprint_consent_preferences');
+            console.log('🍪 REGISTRATION: Cookie-Wert gefunden:', cookieValue);
+            
             if (cookieValue) {
                 const decoded = JSON.parse(decodeURIComponent(cookieValue));
+                console.log('🍪 REGISTRATION: Dekodierte Cookie-Daten:', decoded);
+                
                 if (decoded && decoded.consents) {
-                    cookiePrefs.essential = decoded.consents.cookie_essential !== false;
-                    cookiePrefs.analytics = decoded.consents.cookie_analytics === true;
-                    cookiePrefs.marketing = decoded.consents.cookie_marketing === true;
-                    cookiePrefs.functional = decoded.consents.cookie_functional === true;
+                    cookiePrefs.essential = decoded.consents.cookie_essential?.granted !== false;
+                    cookiePrefs.analytics = decoded.consents.cookie_analytics?.granted === true;
+                    cookiePrefs.marketing = decoded.consents.cookie_marketing?.granted === true;
+                    cookiePrefs.functional = decoded.consents.cookie_functional?.granted === true;
+                    
+                    console.log('🍪 REGISTRATION: Extrahierte Cookie-Preferences:', cookiePrefs);
+                } else {
+                    console.warn('🍪 REGISTRATION: Cookie-Struktur ungültig, verwende Defaults');
                 }
             }
         } catch (e) {
+            console.error('🍪 REGISTRATION: Fehler beim Cookie-Parsing:', e);
             // Fallback auf Standard-Werte
         }
+    } else {
+        console.log('🍪 REGISTRATION: Keine Cookie-Präferenzen gefunden, verwende Defaults');
     }
-    // Hidden Fields setzen
-    document.getElementById('final_cookie_essential').value = cookiePrefs.essential ? 'true' : 'false';
-    document.getElementById('final_cookie_analytics').value = cookiePrefs.analytics ? 'true' : 'false';
-    document.getElementById('final_cookie_marketing').value = cookiePrefs.marketing ? 'true' : 'false';
-    document.getElementById('final_cookie_functional').value = cookiePrefs.functional ? 'true' : 'false';
+    
+    // ✅ VERBESSERUNG: Hidden Fields setzen mit Validation
+    const fields = [
+        { id: 'final_cookie_essential', value: cookiePrefs.essential },
+        { id: 'final_cookie_analytics', value: cookiePrefs.analytics },
+        { id: 'final_cookie_marketing', value: cookiePrefs.marketing },
+        { id: 'final_cookie_functional', value: cookiePrefs.functional }
+    ];
+    
+    fields.forEach(field => {
+        const element = document.getElementById(field.id);
+        if (element) {
+            element.value = field.value ? 'true' : 'false';
+            console.log(`🍪 REGISTRATION: ${field.id} = ${element.value}`);
+        } else {
+            console.error(`🍪 REGISTRATION: Element ${field.id} nicht gefunden!`);
+        }
+    });
+    
     // Status-Text aktualisieren (minimal)
     const activeCount = Object.values(cookiePrefs).filter(val => val === true).length;
     let statusText;
@@ -1226,8 +1253,29 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('register-form-mobile').addEventListener('submit', function() {
         updateCookieStatus();
     });
-    // Initial Cookie-Status laden
-    setTimeout(updateCookieStatus, 1000);
+    
+    // ✅ NEU: Cookie-Status bei Seitenladung initialisieren
+    console.log('🍪 REGISTRATION: Initialisiere Cookie-Status bei Seitenladung');
+    updateCookieStatus();
+    
+    // ✅ NEU: Cookie-Button für Registration
+    const modifyCookieBtn = document.getElementById('modify-cookie-settings');
+    if (modifyCookieBtn) {
+        modifyCookieBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('🍪 REGISTRATION: Cookie-Modify-Button geklickt');
+            openCookieSettings();
+        });
+    }
+    
+    // ✅ NEU: Periodische Überprüfung für Live-Updates
+    setInterval(function() {
+        // Nur aktualisieren wenn Banner nicht sichtbar ist
+        const banner = document.getElementById('yprint-cookie-banner');
+        if (!banner || banner.style.display === 'none' || window.getComputedStyle(banner).display === 'none') {
+            updateCookieStatus();
+        }
+    }, 2000); // Alle 2 Sekunden prüfen
 });
 </script>
     <?php
