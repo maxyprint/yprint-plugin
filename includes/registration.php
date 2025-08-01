@@ -861,14 +861,50 @@ function yprint_register_user_callback() {
 
     // User created successfully
     // Generate verification code
-    $verification_code = md5(time() . $email);
+    $verification_code = bin2hex(random_bytes(16));
     
-    // Set user metadata
-    update_user_meta($user_id, 'email_verification_code', $verification_code);
-    update_user_meta($user_id, 'email_verified', false); // Email not verified by default
+    // Verwende die korrekte Datenbank-Tabelle statt User Meta
+    global $wpdb;
+    $table_name = 'wp_email_verifications';
+    
+    // Prüfen, ob der Benutzer bereits in der Verifizierungstabelle existiert
+    $existing_id = $wpdb->get_var(
+        $wpdb->prepare("SELECT id FROM $table_name WHERE user_id = %d", $user_id)
+    );
 
-    // Verification link
-    $verification_link = site_url("/verify-email?code=$verification_code");
+    if ($existing_id) {
+        // Falls Eintrag existiert: UPDATE
+        $wpdb->update(
+            $table_name,
+            array(
+                'verification_code' => $verification_code,
+                'email_verified' => 0,
+                'updated_at' => current_time('mysql'),
+            ),
+            array('user_id' => $user_id),
+            array('%s', '%d', '%s'),
+            array('%d')
+        );
+    } else {
+        // Falls kein Eintrag existiert: INSERT
+        $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $user_id,
+                'verification_code' => $verification_code,
+                'email_verified' => 0,
+                'created_at' => current_time('mysql'),
+                'updated_at' => current_time('mysql'),
+            ),
+            array('%d', '%s', '%d', '%s', '%s')
+        );
+    }
+
+    // Verification link mit beiden Parametern (neues Format)
+    $verification_link = add_query_arg(array(
+        'user_id' => $user_id,
+        'verification_code' => $verification_code,
+    ), home_url('/verify-email/'));
 
     $subject = 'Bitte verifiziere deine E-Mail-Adresse';
     
@@ -939,36 +975,65 @@ add_action('wp_ajax_nopriv_yprint_register_user', 'yprint_register_user_callback
 add_action('wp_ajax_yprint_register_user', 'yprint_register_user_callback');
 
 /**
- * Handle email verification - ORIGINAL VERSION
+ * Handle email verification - UPDATED VERSION
  */
 function yprint_verify_email() {
     if (isset($_GET['code'])) {
         $verification_code = sanitize_text_field($_GET['code']);
+        global $wpdb;
         
-        // Find user with this verification code
-        $users = get_users(array(
-            'meta_key' => 'email_verification_code',
-            'meta_value' => $verification_code,
-            'number' => 1,
-        ));
+        // Verwende die korrekte Tabelle statt User Meta
+        $table_name = 'wp_email_verifications';
         
-        if (!empty($users)) {
-            $user = $users[0];
+        // Prüfe ob es user_id und verification_code als GET Parameter gibt (neues System)
+        if (isset($_GET['user_id']) && isset($_GET['verification_code'])) {
+            $user_id = intval($_GET['user_id']);
+            $verification_code = sanitize_text_field($_GET['verification_code']);
             
-            // Mark email as verified
-            update_user_meta($user->ID, 'email_verified', true);
+            // Suche in der Tabelle
+            $user = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM $table_name WHERE user_id = %d AND verification_code = %s", 
+                $user_id, $verification_code
+            ));
             
-            // Optional: Remove the verification code
-            delete_user_meta($user->ID, 'email_verification_code');
+            if ($user && $user->email_verified != 1) {
+                // Verification erfolgreich
+                $verified = $wpdb->update(
+                    $table_name,
+                    ['email_verified' => 1],
+                    ['user_id' => $user_id, 'verification_code' => $verification_code],
+                    ['%d'],
+                    ['%d', '%s']
+                );
+                
+                if ($verified !== false) {
+                    wp_redirect(home_url('/login/?login=email_verified&timestamp=' . time()));
+                    exit;
+                }
+            }
+        } else {
+            // Fallback für alte Links (nur 'code' Parameter) - suche in User Meta
+            $users = get_users(array(
+                'meta_key' => 'email_verification_code',
+                'meta_value' => $verification_code,
+                'number' => 1,
+            ));
             
-            // Redirect to login page with success message
-            wp_redirect(wp_login_url() . '?verified=true');
-            exit;
+            if (!empty($users)) {
+                $user = $users[0];
+                
+                // Markiere als verifiziert in User Meta (legacy)
+                update_user_meta($user->ID, 'email_verified', true);
+                delete_user_meta($user->ID, 'email_verification_code');
+                
+                wp_redirect(home_url('/login/?login=email_verified&timestamp=' . time()));
+                exit;
+            }
         }
     }
     
-    // If verification fails, redirect to homepage with error
-    wp_redirect(home_url('?verified=false'));
+    // Wenn Verifikation fehlschlägt
+    wp_redirect(home_url('/login/?login=verification_failed&timestamp=' . time()));
     exit;
 }
 add_action('template_redirect', 'yprint_verify_email_redirect');

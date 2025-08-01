@@ -326,6 +326,104 @@ function verify_user_email($user_id, $verification_code) {
     return ($updated !== false); // Wenn das Update erfolgreich war
 }
 
+/**
+ * Handler für das Resenden der Verifikations-E-Mail von der Verify-Seite
+ */
+function yprint_handle_resend_verification_from_verify_page() {
+    // Nur auf Verify-E-Mail-Seite ausführen
+    if (!is_page('verify-email') && strpos($_SERVER['REQUEST_URI'], '/verify-email') === false) {
+        return;
+    }
+    
+    if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['resend_verification_email'])) {
+        check_admin_referer('resend_verification_from_verify_nonce', 'security');
+        
+        global $wpdb;
+        
+        $table_name = 'wp_email_verifications';
+        $email = sanitize_email($_POST['resend_verification_email']);
+        
+        if (empty($email) || !is_email($email)) {
+            wp_redirect(add_query_arg('resend_error', 'invalid_email', $_SERVER['REQUEST_URI']));
+            exit;
+        }
+        
+        // Benutzer anhand der E-Mail-Adresse finden
+        $user = get_user_by('email', $email);
+        
+        if (!$user) {
+            wp_redirect(add_query_arg('resend_error', 'user_not_found', $_SERVER['REQUEST_URI']));
+            exit;
+        }
+        
+        $user_id = $user->ID;
+        $username = $user->user_login;
+        $verification_code = bin2hex(random_bytes(16));
+        $current_time = current_time('mysql');
+        
+        // Prüfen ob E-Mail bereits verifiziert ist
+        $existing_verification = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE user_id = %d", 
+            $user_id
+        ));
+        
+        if ($existing_verification && $existing_verification->email_verified == 1) {
+            wp_redirect(add_query_arg('resend_error', 'already_verified', $_SERVER['REQUEST_URI']));
+            exit;
+        }
+        
+        // Zuerst den alten Eintrag definitiv löschen
+        $wpdb->delete(
+            $table_name,
+            array('user_id' => $user_id),
+            array('%d')
+        );
+        
+        // Dann einen neuen Eintrag erstellen
+        $wpdb->insert(
+            $table_name,
+            array(
+                'user_id' => $user_id,
+                'verification_code' => $verification_code,
+                'email_verified' => 0,
+                'created_at' => $current_time,
+                'updated_at' => $current_time
+            ),
+            array('%d', '%s', '%d', '%s', '%s')
+        );
+
+        // Verification Link erstellen
+        $verification_link = add_query_arg(
+            array(
+                'user_id' => $user_id,
+                'verification_code' => $verification_code,
+            ),
+            home_url('/verify-email/')
+        );
+
+        // E-Mail senden mit der vorhandenen Funktion
+        if (function_exists('yprint_get_email_template')) {
+            $subject = 'Bitte verifiziere deine E-Mail-Adresse';
+            $message_content = "Bitte klicke auf den folgenden Link, um deine E-Mail-Adresse zu verifizieren:<br><br>";
+            $message_content .= "<a href='" . esc_url($verification_link) . "' style='display: inline-block; background-color: #007aff; padding: 15px 30px; color: #ffffff; text-decoration: none; font-size: 16px; border-radius: 5px;'>Verifizieren</a><br><br>";
+            $message_content .= "Wenn du diese Anfrage nicht gestellt hast, kannst du diese E-Mail ignorieren.";
+            
+            $message = yprint_get_email_template('Bitte verifiziere deine E-Mail-Adresse', esc_html($username), $message_content);
+            
+            $headers = array(
+                'Content-Type: text/html; charset=UTF-8',
+                'From: YPrint <do-not-reply@yprint.de>'
+            );
+            
+            wp_mail($email, $subject, $message, $headers);
+        }
+        
+        wp_redirect(add_query_arg('resend_success', '1', $_SERVER['REQUEST_URI']));
+        exit;
+    }
+}
+add_action('template_redirect', 'yprint_handle_resend_verification_from_verify_page', 2);
+
 function verify_email_shortcode() {
     ob_start();
     
@@ -407,7 +505,94 @@ function verify_email_shortcode() {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        
+        /* Neue Styles für E-Mail-Eingabefeld */
+        .verify-email-form {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .verify-email-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        .verify-email-input:focus {
+            border-color: #0079FF;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0, 121, 255, 0.1);
+        }
+        .verify-submit-button {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            font-weight: bold;
+            padding: 12px 30px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background-color 0.3s;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        .verify-submit-button:hover {
+            background-color: #218838;
+        }
+        .verify-error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .verify-success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #c3e6cb;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
     </style>';
+
+    // Zeige Erfolgs- oder Fehlermeldungen für Resend-Anfragen
+    if (isset($_GET['resend_success']) && $_GET['resend_success'] == '1') {
+        echo '<div class="verify-container success">
+            <div class="verify-icon">✉️</div>
+            <div class="verify-title">E-Mail versendet!</div>
+            <div class="verify-message">Eine neue Verifikations-E-Mail wurde an deine E-Mail-Adresse gesendet. Bitte überprüfe dein Postfach.</div>
+            <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
+        </div>';
+        return ob_get_clean();
+    }
+    
+    if (isset($_GET['resend_error'])) {
+        $error_message = '';
+        switch ($_GET['resend_error']) {
+            case 'invalid_email':
+                $error_message = 'Bitte gib eine gültige E-Mail-Adresse ein.';
+                break;
+            case 'user_not_found':
+                $error_message = 'Es wurde kein Benutzer mit dieser E-Mail-Adresse gefunden.';
+                break;
+            case 'already_verified':
+                $error_message = 'Diese E-Mail-Adresse ist bereits verifiziert.';
+                break;
+            default:
+                $error_message = 'Ein unbekannter Fehler ist aufgetreten.';
+        }
+    }
 
     if (isset($_GET['verification_code']) && isset($_GET['user_id'])) {
         global $wpdb;
@@ -469,14 +654,28 @@ function verify_email_shortcode() {
                     // Verifizierungscode ist abgelaufen
                     $user_data = get_userdata($user_id);
                     $username = $user_data ? $user_data->user_login : '';
+                    $user_email = $user_data ? $user_data->user_email : '';
                     
                     echo '<div class="verify-container error">
                         <div class="verify-icon">⏱</div>
-                        <div class="verify-title">Verifizierungscode abgelaufen</div>
-                        <div class="verify-message">Dein Verifizierungscode ist abgelaufen. Du kannst einen neuen Code anfordern, indem du dich mit deinen Zugangsdaten anmeldest.</div>
-                        <a href="' . home_url('/login/') . '?user_id=' . $user_id . '" class="verify-button">Zum Login</a>
+                        <div class="verify-title">Verifikationslink abgelaufen</div>
+                        <div class="verify-message">Der Link, dem du gefolgt bist, ist abgelaufen. Du kannst direkt hier eine neue Verifikations-E-Mail anfordern:</div>';
+                        
+                    // Zeige Fehlermeldung falls vorhanden
+                    if (isset($error_message)) {
+                        echo '<div class="verify-error-message">' . esc_html($error_message) . '</div>';
+                    }
+                    
+                    echo '<form method="post" class="verify-email-form">
+                            <input type="email" name="resend_verification_email" class="verify-email-input" 
+                                   placeholder="Deine E-Mail-Adresse" value="' . esc_attr($user_email) . '" required>
+                            <button type="submit" class="verify-submit-button">Neue Verifikations-E-Mail senden</button>';
+                    
+                    wp_nonce_field('resend_verification_from_verify_nonce', 'security');
+                    
+                    echo '</form>
                         <div class="verify-resend">
-                            <p>Nach dem Login hast du die Möglichkeit, einen neuen Verifizierungscode anzufordern.</p>
+                            <p>Oder gehe <a href="' . home_url('/login/') . '">zum Login</a></p>
                         </div>
                     </div>';
                 }
@@ -485,19 +684,48 @@ function verify_email_shortcode() {
             echo '<div class="verify-container error">
                 <div class="verify-icon">⚠</div>
                 <div class="verify-title">Ungültiger Verifizierungscode</div>
-                <div class="verify-message">Der angegebene Verifizierungscode konnte nicht gefunden werden. Möglicherweise wurde er bereits verwendet oder ist nicht mehr gültig.</div>
-                <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
+                <div class="verify-message">Der angegebene Verifizierungscode konnte nicht gefunden werden. Du kannst direkt hier eine neue Verifikations-E-Mail anfordern:</div>';
+                
+            // Zeige Fehlermeldung falls vorhanden
+            if (isset($error_message)) {
+                echo '<div class="verify-error-message">' . esc_html($error_message) . '</div>';
+            }
+            
+            echo '<form method="post" class="verify-email-form">
+                    <input type="email" name="resend_verification_email" class="verify-email-input" 
+                           placeholder="Deine E-Mail-Adresse" required>
+                    <button type="submit" class="verify-submit-button">Neue Verifikations-E-Mail senden</button>';
+            
+            wp_nonce_field('resend_verification_from_verify_nonce', 'security');
+            
+            echo '</form>
                 <div class="verify-resend">
-                    <p>Falls du Probleme bei der Verifizierung hast, melde dich bitte mit deinen Zugangsdaten an, um einen neuen Code anzufordern.</p>
+                    <p>Oder gehe <a href="' . home_url('/login/') . '">zum Login</a></p>
                 </div>
             </div>';
         }
     } else {
         echo '<div class="verify-container info">
             <div class="verify-icon">ℹ</div>
-            <div class="verify-title">Verifizierung nicht möglich</div>
-            <div class="verify-message">Es wurde kein Verifizierungscode gefunden. Bitte überprüfe den Link in deiner E-Mail oder melde dich an, um einen neuen Verifizierungslink anzufordern.</div>
-            <a href="' . home_url('/login/') . '" class="verify-button">Zum Login</a>
+            <div class="verify-title">E-Mail-Verifikation</div>
+            <div class="verify-message">Gib deine E-Mail-Adresse ein, um eine neue Verifikations-E-Mail zu erhalten:</div>';
+            
+        // Zeige Fehlermeldung falls vorhanden
+        if (isset($error_message)) {
+            echo '<div class="verify-error-message">' . esc_html($error_message) . '</div>';
+        }
+        
+        echo '<form method="post" class="verify-email-form">
+                <input type="email" name="resend_verification_email" class="verify-email-input" 
+                       placeholder="Deine E-Mail-Adresse" required>
+                <button type="submit" class="verify-submit-button">Verifikations-E-Mail senden</button>';
+        
+        wp_nonce_field('resend_verification_from_verify_nonce', 'security');
+        
+        echo '</form>
+            <div class="verify-resend">
+                <p>Oder gehe <a href="' . home_url('/login/') . '">zum Login</a></p>
+            </div>
         </div>';
     }
 

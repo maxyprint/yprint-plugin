@@ -1051,6 +1051,22 @@ function yprint_login_feedback_shortcode() {
                 );
                 $show_resend_verification = true;
                 break;
+            case 'email_verified':
+                $notifications[] = array(
+                    'type' => 'success',
+                    'title' => 'E-Mail bestätigt!',
+                    'message' => 'Deine E-Mail-Adresse wurde erfolgreich bestätigt. Du kannst dich jetzt anmelden.',
+                    'duration' => 0
+                );
+                break;
+            case 'verification_failed':
+                $notifications[] = array(
+                    'type' => 'error',
+                    'title' => 'Verifikation fehlgeschlagen',
+                    'message' => 'Der Verifikationslink ist ungültig oder abgelaufen. Bitte fordere einen neuen an.',
+                    'duration' => 0
+                );
+                break;
             case 'empty':
                 $notifications[] = array(
                     'type' => 'error',
