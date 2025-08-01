@@ -372,25 +372,39 @@ function yprint_handle_resend_verification_from_verify_page() {
             exit;
         }
         
-        // Zuerst den alten Eintrag definitiv löschen
-        $wpdb->delete(
-            $table_name,
-            array('user_id' => $user_id),
-            array('%d')
+        // Prüfen, ob bereits ein Eintrag existiert
+        $existing_entry = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM $table_name WHERE user_id = %d", $user_id)
         );
         
-        // Dann einen neuen Eintrag erstellen
-        $wpdb->insert(
-            $table_name,
-            array(
-                'user_id' => $user_id,
-                'verification_code' => $verification_code,
-                'email_verified' => 0,
-                'created_at' => $current_time,
-                'updated_at' => $current_time
-            ),
-            array('%d', '%s', '%d', '%s', '%s')
-        );
+        if ($existing_entry) {
+            // Update mit NEUEM created_at Timestamp für frische 24h
+            $wpdb->update(
+                $table_name,
+                array(
+                    'verification_code' => $verification_code,
+                    'email_verified' => 0,
+                    'created_at' => $current_time,  // WICHTIG: Neuer Timestamp für 24h Gültigkeit
+                    'updated_at' => $current_time
+                ),
+                array('user_id' => $user_id),
+                array('%s', '%d', '%s', '%s'),
+                array('%d')
+            );
+        } else {
+            // Neuen Eintrag erstellen
+            $wpdb->insert(
+                $table_name,
+                array(
+                    'user_id' => $user_id,
+                    'verification_code' => $verification_code,
+                    'email_verified' => 0,
+                    'created_at' => $current_time,
+                    'updated_at' => $current_time
+                ),
+                array('%d', '%s', '%d', '%s', '%s')
+            );
+        }
 
         // Verification Link erstellen
         $verification_link = add_query_arg(
@@ -622,6 +636,14 @@ function verify_email_shortcode() {
                 $expiry_time = 24 * 60 * 60; // 24 Stunden
                 $current_time = time();
                 $remaining_time = $expiry_time - ($current_time - $verification_request_time);
+
+                // Debug-Logging für Troubleshooting
+                error_log('YPrint Verify Debug: User ID ' . $user_id);
+                error_log('YPrint Verify Debug: Created at ' . $user->created_at);
+                error_log('YPrint Verify Debug: Verification request time ' . $verification_request_time);
+                error_log('YPrint Verify Debug: Current time ' . $current_time);
+                error_log('YPrint Verify Debug: Time difference ' . ($current_time - $verification_request_time) . ' seconds');
+                error_log('YPrint Verify Debug: Remaining time ' . $remaining_time . ' seconds');
 
                 // Überprüfen, ob der Verifizierungscode noch gültig ist
                 if ($remaining_time > 0) {
