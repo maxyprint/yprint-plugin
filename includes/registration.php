@@ -728,6 +728,17 @@ function yprint_custom_registration_form() {
                     console.log('⚠️ Kein Turnstile Token gefunden');
                 }
                 
+                // ✅ NEU: Cookie-Präferenzen hinzufügen
+                updateCookieStatus(); // Aktualisiere Cookie-Status vor dem Submit
+                const cookiePrefs = {
+                    essential: document.getElementById('final_cookie_essential').value === 'true',
+                    analytics: document.getElementById('final_cookie_analytics').value === 'true',
+                    marketing: document.getElementById('final_cookie_marketing').value === 'true',
+                    functional: document.getElementById('final_cookie_functional').value === 'true'
+                };
+                formData.append('cookie_preferences', JSON.stringify(cookiePrefs));
+                console.log('🍪 Cookie-Präferenzen hinzugefügt:', cookiePrefs);
+                
                 // WordPress nonce für Sicherheit
                 if (typeof ajax_object !== 'undefined') {
                     formData.append('nonce', ajax_object.nonce);
@@ -778,6 +789,83 @@ function yprint_custom_registration_form() {
                 });
             });
         }
+        
+        // ✅ NEU: Cookie-Status-Funktionen für Desktop-Registrierung
+        function updateCookieStatus() {
+            let cookiePrefs = {
+                essential: true,
+                analytics: false,
+                marketing: false,
+                functional: false
+            };
+            
+            // ✅ VERBESSERUNG: Bessere Cookie-Parsing-Logik
+            if (document.cookie.includes('yprint_consent_preferences')) {
+                try {
+                    const cookieValue = getCookieValue('yprint_consent_preferences');
+                    console.log('🍪 REGISTRATION: Cookie-Wert gefunden:', cookieValue);
+                    
+                    if (cookieValue) {
+                        const decoded = JSON.parse(decodeURIComponent(cookieValue));
+                        console.log('🍪 REGISTRATION: Dekodierte Cookie-Daten:', decoded);
+                        
+                        if (decoded && decoded.consents) {
+                            cookiePrefs.essential = decoded.consents.cookie_essential?.granted !== false;
+                            cookiePrefs.analytics = decoded.consents.cookie_analytics?.granted === true;
+                            cookiePrefs.marketing = decoded.consents.cookie_marketing?.granted === true;
+                            cookiePrefs.functional = decoded.consents.cookie_functional?.granted === true;
+                            
+                            console.log('🍪 REGISTRATION: Extrahierte Cookie-Preferences:', cookiePrefs);
+                        } else {
+                            console.warn('🍪 REGISTRATION: Cookie-Struktur ungültig, verwende Defaults');
+                        }
+                    }
+                } catch (e) {
+                    console.error('🍪 REGISTRATION: Fehler beim Cookie-Parsing:', e);
+                    // Fallback auf Standard-Werte
+                }
+            } else {
+                console.log('🍪 REGISTRATION: Keine Cookie-Präferenzen gefunden, verwende Defaults');
+            }
+            
+            // ✅ VERBESSERUNG: Hidden Fields setzen mit Validation
+            const fields = [
+                { id: 'final_cookie_essential', value: cookiePrefs.essential },
+                { id: 'final_cookie_analytics', value: cookiePrefs.analytics },
+                { id: 'final_cookie_marketing', value: cookiePrefs.marketing },
+                { id: 'final_cookie_functional', value: cookiePrefs.functional }
+            ];
+            
+            fields.forEach(field => {
+                const element = document.getElementById(field.id);
+                if (element) {
+                    element.value = field.value ? 'true' : 'false';
+                    console.log(`🍪 REGISTRATION: ${field.id} = ${element.value}`);
+                } else {
+                    // ✅ VERBESSERT: Nur warnen, nicht als Fehler behandeln
+                    console.warn(`🍪 REGISTRATION: Element ${field.id} nicht gefunden - möglicherweise nicht auf dieser Seite`);
+                }
+            });
+        }
+        
+        function getCookieValue(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            return parts.length === 2 ? parts.pop().split(';').shift() : null;
+        }
+        
+        // ✅ NEU: Cookie-Status bei Seitenladung initialisieren
+        console.log('🍪 REGISTRATION: Initialisiere Cookie-Status bei Seitenladung');
+        updateCookieStatus();
+        
+        // ✅ NEU: Periodische Überprüfung für Live-Updates
+        setInterval(function() {
+            // Nur aktualisieren wenn Banner nicht sichtbar ist
+            const banner = document.getElementById('yprint-cookie-banner');
+            if (!banner || banner.style.display === 'none' || window.getComputedStyle(banner).display === 'none') {
+                updateCookieStatus();
+            }
+        }, 2000); // Alle 2 Sekunden prüfen
     });
     </script>
 
@@ -1053,7 +1141,21 @@ function get_cookie_preferences_from_registration() {
     // Prüfe POST-Daten für Cookie-Präferenzen
     if (isset($_POST['cookie_preferences'])) {
         $preferences = $_POST['cookie_preferences'];
-        if (is_array($preferences)) {
+        
+        // ✅ NEU: JSON-String verarbeiten (von Desktop-Registrierung)
+        if (is_string($preferences)) {
+            $decoded_preferences = json_decode($preferences, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_preferences)) {
+                $cookie_preferences = array(
+                    'cookie_essential' => isset($decoded_preferences['essential']) ? (bool)$decoded_preferences['essential'] : true,
+                    'cookie_analytics' => isset($decoded_preferences['analytics']) ? (bool)$decoded_preferences['analytics'] : false,
+                    'cookie_marketing' => isset($decoded_preferences['marketing']) ? (bool)$decoded_preferences['marketing'] : false,
+                    'cookie_functional' => isset($decoded_preferences['functional']) ? (bool)$decoded_preferences['functional'] : false
+                );
+            }
+        }
+        // Array verarbeiten (von Mobile-Registrierung)
+        elseif (is_array($preferences)) {
             $cookie_preferences = array(
                 'cookie_essential' => isset($preferences['essential']) ? (bool)$preferences['essential'] : true,
                 'cookie_analytics' => isset($preferences['analytics']) ? (bool)$preferences['analytics'] : false,

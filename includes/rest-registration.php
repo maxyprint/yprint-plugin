@@ -1420,7 +1420,8 @@ function updateCookieStatus() {
             element.value = field.value ? 'true' : 'false';
             console.log(`🍪 REGISTRATION: ${field.id} = ${element.value}`);
         } else {
-            console.error(`🍪 REGISTRATION: Element ${field.id} nicht gefunden!`);
+            // ✅ VERBESSERT: Nur warnen, nicht als Fehler behandeln
+            console.warn(`🍪 REGISTRATION: Element ${field.id} nicht gefunden - möglicherweise nicht auf dieser Seite`);
         }
     });
     
